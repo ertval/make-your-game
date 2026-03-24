@@ -12,10 +12,10 @@
 1. [Architecture Overview](#1-architecture-overview)
 2. [Directory Structure](#2-directory-structure)
 3. [Workflow Tracks (Balanced Workload)](#3-workflow-tracks-balanced-workload)
-   - [Track A — Core Engine & Orchestration ~17.5h (Dev 1)](#track-a--core-engine--orchestration-175h-dev-1)
-   - [Track B — Grid, Physics & Player ~18.5h (Dev 2)](#track-b--grid-physics--player-185h-dev-2)
-   - [Track C — AI & Gameplay Systems ~17.0h (Dev 3)](#track-c--ai--gameplay-systems-170h-dev-3)
-   - [Track D — Rendering & UI Shell ~18.5h (Dev 4)](#track-d--rendering--ui-shell-185h-dev-4)
+   - [Track A — Core Engine & Orchestration (Dev 1)](#track-a--core-engine--orchestration-dev-1)
+   - [Track B — Grid, Physics & Player (Dev 2)](#track-b--grid-physics--player-dev-2)
+   - [Track C — AI & Gameplay Systems (Dev 3)](#track-c--ai--gameplay-systems-dev-3)
+   - [Track D — Rendering & UI Shell (Dev 4)](#track-d--rendering--ui-shell-dev-4)
 4. [Integration Milestones](#4-integration-milestones)
 5. [Shared Contracts & Interfaces](#5-shared-contracts--interfaces)
 6. [Testing Strategy](#6-testing-strategy)
@@ -64,10 +64,10 @@ graph TB
 
 ### Key Principles
 
-1. **Functional Core**: All game rules (`grid`, `bomb`, `ghost`, `player`, `scoring`, `timer`) are **pure functions** — no DOM references, no side effects. They accept state and return new state.
-2. **Imperative Shell**: The game loop, renderer, and input handler are the only modules that touch the DOM or browser APIs.
-3. **Signals for Reactivity**: The HUD subscribes to game-state signals (score, lives, timer) and updates only the specific DOM nodes that changed — no full re-renders.
-4. **Object Pooling**: Explosion fire tiles, bomb entities, and ghost sprites are pooled to avoid GC pressure.
+1. **Functional Core**: All game rules (`grid`, `bomb`, `ghost`, `player`, `scoring`, `timer`) are **pure functions** — no DOM references, no side effects. They accept state and return new state. Immutability is enforced via Array methods (`toSpliced`, `with`, `toSorted`) and spread operators.
+2. **Imperative Shell**: The game loop, renderer, and input handler are the only modules that touch the DOM or browser APIs. All DOM creation uses `createElement` (No `innerHTML` to prevent XSS).
+3. **Signals for Reactivity**: The HUD subscribes to game-state signals (score, lives, timer) and updates only the specific DOM nodes that changed — no full re-renders, preventing jank.
+4. **Object Pooling**: Explosion fire tiles, bomb entities, and ghost sprites are pooled to avoid GC pressure and ensure stable 60 FPS.
 5. **CSS `transform` + `will-change`**: All movement uses `transform: translate()` on promoted layers. No `top`/`left` animation.
 
 ---
@@ -175,140 +175,235 @@ make-your-game/
 
 ## 3. Workflow Tracks (Balanced Workload)
 
-The workload (~71.5 hours total) has been divided into 4 perfectly balanced tracks (~18 hours each). Each dev operates independently based on shared contracts.
+The workload (~71.5 hours total) has been divided into 4 perfectly balanced tracks (~18 hours each). Each track is designed so that developers work on **independent modules** with clear **interface contracts** between them. No track needs to touch another track's internal files.
 
 ---
 
-### Track A — Core Engine & Orchestration ~17.5h (Dev 1)
+### Track A — Core Engine & Orchestration (Dev 1)
 
-> **Scope**: Scaffolding, game loop heartbeat, state machine, constants, map loading, and wiring everything into the final game structure.
+> **Scope**: The heartbeat of the game — the loop, state machine, timing, map loading, and the shared utilities everything depends on.
+> **Total Estimate**: ~17 hours
 
-#### A-1: Project Scaffolding & Tooling (2.h)
+#### A-1: Project Scaffolding & Tooling
 **Priority**: 🔴 Critical  
-- Initialize Vite, Biome, Vitest, index.html structure
-- Create base CSS files (`reset.css`, `variables.css`, `grid.css`)
+**Estimate**: 2 hours
 
-#### A-2: Shared Utilities (3.5h)
+- [ ] Initialize `package.json` with `"type": "module"` and `exports` map
+- [ ] Install and configure **Vite** for dev server (no framework plugin)
+- [ ] Install and configure **Biome** (`biome.json`) for linting + formatting
+- [ ] Install and configure **Vitest** for unit testing
+- [ ] Create `index.html` with semantic structure (No `<canvas>`). Use safe DOM injection roots (`#game-root`, `#hud-root`).
+- [ ] Create main CSS files: `reset.css`, `variables.css`, `grid.css`, `animations.css`
+- [ ] Create `src/main.js` entry point (empty bootstrap)
+- [ ] Verify dev server runs, linter passes, test runner works
+
+#### A-2: Shared Utilities — Signals, Object Pool, Result Pattern
 **Priority**: 🔴 Critical  
-- Signals (`createSignal`, `createComputed`, `createEffect`)
-- Object Pool (`createPool` structure for GC-friendly memory)
-- Result Pattern (`ok`, `err`) and Type Definitions (`types.js`)
+**Estimate**: 3 hours
 
-#### A-3: Game Loop & State Machine (4h)
+- [ ] Implement `src/shared/signal.js`: Provides `createSignal`, `createComputed`, and `createEffect` for DOM reactivity without frameworks. Must support batched updates.
+- [ ] Implement `src/shared/object-pool.js`: `createPool(factory, reset, initialSize)` to pre-allocate memory and prevent GC jank.
+- [ ] Implement `src/shared/result.js`: `ok(data)` and `err(error)` pattern to avoid `try/catch` and `throw`.
+- [ ] Define JSDoc typedefs in `src/shared/types.js` (`GameState`, `PlayerState`, etc).
+
+#### A-3: Constants & Cell Types
 **Priority**: 🔴 Critical  
-- Fixed-timestep `requestAnimationFrame` loop with accumulator
-- State machine (MENU, PLAYING, PAUSED, GAME_OVER, VICTORY)
+**Estimate**: 1 hour
 
-#### A-4: Constants & Map Loader (4h)
+- [ ] Define `src/core/constants.js`: Directions (`UP`, `DOWN`), grid content (`WALL`, `PELLET`, `EMPTY`), tuning properties, and Scoring variables.
+- [ ] Freeze all objects with `Object.freeze()` to enforce the immutability rules.
+
+#### A-4: Game Loop with `requestAnimationFrame`
 **Priority**: 🔴 Critical  
-- `constants.js` (Cell types, directions, speeds, tuning variables)
-- `map-loader.js` (Loads JSON maps into `GridState`, creates spawns/pellets)
-- Design 3 level maps (Level 1, Level 2, Level 3)
+**Estimate**: 4 hours
 
-#### A-5: Main Orchestrator (4h)
+- [ ] Implement `src/features/feat.game-loop/game-loop.js`:
+  - `createGameLoop(updateFn, renderFn)` running strictly on `requestAnimationFrame`. Absolute requirement for 60fps rule.
+  - Implement fixed-timestep update loop (16.67ms tick) with an accumulator to decouple pure-logic simulation from visual rendering.
+  - Pass interpolation factor to `renderFn`.
+- [ ] Implement `src/features/feat.game-loop/state-machine.js`: `createStateMachine(initial)` handling valid transitions (e.g. `PLAYING` -> `PAUSED`).
+
+#### A-5: Map Data & Loader
+**Priority**: 🔴 Critical  
+**Estimate**: 3 hours
+
+- [ ] Design 3 level maps as JSON files (Level 1: 30% destructible walls, Level 3: 55% destructible walls).
+- [ ] Implement `src/features/feat.maps/map-loader.js`: parsing logic ensuring map integrity. Convert raw numbers into `GridState`.
+- [ ] Auto-place pellets on empty paths. Return via the `Result` pattern.
+
+#### A-6: Main Game Orchestrator
 **Priority**: 🟡 Medium  
-- Wires all modules together into `src/main.js` (DOM initialization, core logic instancing, loop starting)
+**Estimate**: 4 hours
 
-**Track A Total**: ~17.5 hours
-
----
-
-### Track B — Grid, Physics & Player ~18.5h (Dev 2)
-
-> **Scope**: Pure logic for board rules, moving entities, bomb mechanics, collision resolving, and taking user inputs.
-
-#### B-1: Grid Core Logic (3h)
-**Priority**: 🔴 Critical  
-- `grid.js` (pure functions): `getCell`, `setCell`, `getNeighbors`, `getValidMoves`
-- Range generation logic `getExplosionRange` (raycats for explosions stopping at walls)
-
-#### B-2: Collision Engine (3h)
-**Priority**: 🔴 Critical  
-- `collision.js`: player vs ghost, player vs explosion, ghost vs explosion, player vs pellet/powerup
-
-#### B-3: Bomb Logic & Explosions (4h)
-**Priority**: 🔴 Critical  
-- `bomb.js`: Fuse timers, cross geometry calculation, chain reaction resolution (`checkChainReaction`)
-
-#### B-4: Player Logic & States (3h)
-**Priority**: 🔴 Critical  
-- `player.js`: Movement, applying powerups, taking damage, invincibility timers
-
-#### B-5: Input Handler & Controls (2.5h)
-**Priority**: 🔴 Critical  
-- Keyboard listener, hold-to-move input smoothing, debounced spacing for bombs
-
-#### B-6: Infrastructure Adapters (3h)
-**Priority**: 🟢 Low  
-- LocalStorage save logic (`storage-adapter.js`) for high scores
-- Audio effects (`audio-adapter.js`) integration
-
-**Track B Total**: ~18.5 hours
+- [ ] Implement `src/main.js` — the **imperative shell** that wires everything:
+  - Initializes game state from Map data.
+  - Links inputs to the loop. 
+  - Subscribes HUD to the state signals.
+  - Orchestrates level complete/game over transitions.
 
 ---
 
-### Track C — AI & Gameplay Systems ~17.0h (Dev 3)
+### Track B — Grid, Physics & Player (Dev 2)
+
+> **Scope**: Pure logic for board rules, moving entities, bomb mechanics, collision resolving, and taking user inputs. 
+> **Total Estimate**: ~17.5 hours
+
+#### B-1: Grid Logic (Core Domain)
+**Priority**: 🔴 Critical  
+**Estimate**: 3 hours
+
+- [ ] Implement `src/core/grid.js` (Pure Functions):
+  - `createGrid`, `getCell`, `setCell`, `getValidMoves`.
+  - Ensure immutability via `Array.prototype.with()` / spread operators. Do not mutate arrays.
+  - Generate explosion ranges accounting for indestructible rays stopping.
+
+#### B-2: Collision Detection (Core Domain)
+**Priority**: 🟡 Medium  
+**Estimate**: 3 hours
+
+- [ ] Implement `src/core/collision.js` (Pure Functions): 
+  - `checkPlayerGhostCollision`, `checkPlayerExplosionCollision`, `checkPlayerPelletCollision`, `checkGhostExplosionCollision`.
+  - Operations occur on logical sub-grid boundaries (distance checks).
+
+#### B-3: Bomb Logic (Core Domain)
+**Priority**: 🔴 Critical  
+**Estimate**: 4 hours
+
+- [ ] Implement `src/core/bomb.js` (Pure Functions):
+  - `createBomb`, `tickBomb` (decrements fuse).
+  - `calculateExplosion`: Computes `{ row, col }` hits using B-1's range logic.
+  - `checkChainReaction`: Allows bomb explosions to trigger bombs inside the blast radius.
+
+#### B-4: Player Logic (Core Domain)
+**Priority**: 🔴 Critical  
+**Estimate**: 3 hours
+
+- [ ] Implement `src/core/player.js` (Pure Functions):
+  - `createPlayer` state initialization.
+  - `movePlayer` transitions row/col based on grid valid paths.
+  - `damagePlayer`, `tickInvincibility`, `applyPowerUp`.
+
+#### B-5: Input Handler
+**Priority**: 🔴 Critical  
+**Estimate**: 2.5 hours
+
+- [ ] Implement `src/features/feat.input/input-handler.js`:
+  - Maps `keydown` / `keyup` to intentions.
+  - Sustains movement with "hold-to-move". Uses `using` declarative cleanup for event listeners.
+  - Debounce Spacebar and Esc.
+
+#### B-6: Infrastructure Adapters
+**Priority**: 🟢 Low (Bonus)  
+**Estimate**: 2 hours
+
+- [ ] Implement `src/infrastructure/storage-adapter.js`: Persistent High Score handling safely wrapped in `try/catch` and returning Result objects.
+- [ ] Implement `src/infrastructure/audio-adapter.js`: Loads `.wav`/`.mp3` effects and plays them statelessly.
+
+---
+
+### Track C — AI & Gameplay Systems (Dev 3)
 
 > **Scope**: Ghost behaviors (AI), scoring, power systems, timing rules, and pause sub-systems.
+> **Total Estimate**: ~18 hours
 
-#### C-1: Ghost AI Logic (5h)
+#### C-1: Ghost AI Logic (Core Domain)
 **Priority**: 🔴 Critical  
-- `ghost.js`: Implement the 4 distinct personalities logic (Blinky, Pinky, Inky, Clyde).
-- Intersection turning rules, "no-reverse" constraints.
+**Estimate**: 5 hours
 
-#### C-2: Ghost Spawning & Management (3h)
+- [ ] Implement `src/core/ghost.js` (Pure Functions):
+  - `chooseDirection`: Intersection logic taking player pos and grid into account.
+  - **Blinky (Red)**: Euclidean chase algorithm.
+  - **Pinky (Pink)**: Cut-off logic mapping tiles ahead of player.
+  - **Inky (Cyan)**: Bi-directional dependency factoring Blinky.
+  - **Clyde (Orange)**: True random. All ghosts strictly adhere to **no-reversing** rules unless stunned.
+
+#### C-2: Ghost Spawning & Management
 **Priority**: 🔴 Critical  
-- Staggered spawns from the ghost house.
-- Managing the array of ghosts over time.
+**Estimate**: 3 hours
 
-#### C-3: Power Pellet System (2h)
+- [ ] Manage ghost array state loops (`tickAllGhosts`).
+- [ ] Implement staggered spawner interval logic based on `timerMs`. Dead ghost pathing to Ghost House for regeneration.
+
+#### C-3: Power Pellet System
 **Priority**: 🟡 Medium  
-- Implement the stun mechanic across the Ghost array (turn blue, reverse direction, slow down). Stun timer tracking.
+**Estimate**: 2 hours
 
-#### C-4: Scoring & Timer Systems (3h)
+- [ ] Implement `STUNNED` cascade across the ghost array. Apply half-speed multipliers.
+- [ ] Decrement stun timer, handling visual flash warning states when recovering to `NORMAL`.
+
+#### C-4: Scoring Logic (Core Domain)
 **Priority**: 🟡 Medium  
-- `scoring.js`: Handle multipliers, combos for bomb chain kills
-- `timer.js`: Countdown logic, time bonus calculation
+**Estimate**: 1.5 hours
 
-#### C-5: Pause Menu System (2h)
-**Priority**: 🟢 Low  
-- `pause-menu.js`: Overlay UI layer for pause toggle, continue, and restart logic using pure DOM helpers.
+- [ ] Implement `src/core/scoring.js` (Pure Functions): Add standard pellet score logic.
+- [ ] `addComboScore`: Math computation `200 × 2^(n-1)` multiplier tracking multiple ghosts killed by one explosion.
 
-#### C-6: SVG Sprites & Asset Prep (2h)
-**Priority**: 🟢 Low  
-- Prepare inline SVG paths / strings for Ms. Ghostman, enemies, bombs, and pellets.
+#### C-5: Timer Logic (Core Domain)
+**Priority**: 🟡 Medium  
+**Estimate**: 1.5 hours
 
-**Track C Total**: ~17.0 hours
+- [ ] Implement `src/core/timer.js` (Pure Functions): Fixed duration countdowns for Level completion. Failure results in Game Over. Time left converts to score via `calculateTimeBonus`.
+
+#### C-6: Pause Menu System
+**Priority**: 🔴 Critical  
+**Estimate**: 2 hours
+
+- [ ] Implement `src/features/feat.pause-menu/*`: DOM Overlay handling resuming and restarting. Modifies State Machine flags.
+
+#### C-7: SVG Sprites & Asset Prep
+**Priority**: 🟢 Low (Bonus)  
+**Estimate**: 3 hours
+
+- [ ] Export or handcraft clean SVG icons for UI and Actors (Ghost, Bombs, UI Hearts).
 
 ---
 
-### Track D — Rendering & UI Shell ~18.5h (Dev 4)
+### Track D — Rendering & UI Shell (Dev 4)
 
-> **Scope**: Taking the game state and drawing it fast. CSS, DOM pooling, animations, HUD, and Screens.
+> **Scope**: Mapping state to visual DOM, optimizing for 60fps via compositor layers, CSS animation, object pools, and HUD signals.
+> **Total Estimate**: ~19 hours
 
-#### D-1: CSS Design System & Grid System (3h)
+#### D-1: CSS Design System & Grid Layout
 **Priority**: 🔴 Critical  
-- CSS architecture (`variables.css` colors config, CSS-grid layouts based on var count) layer promotions.
+**Estimate**: 3 hours
 
-#### D-2: DOM Renderer Engine (5.5h)
+- [ ] Write `styles/variables.css` & `styles/grid.css`. 
+- [ ] Use CSS variables exclusively. Map grid to CSS Grid Layout `repeat(cols, size)`. Assign `will-change: transform` only to explicitly dynamic `.moving` targets.
+
+#### D-2: DOM Renderer Engine
 **Priority**: 🔴 Critical  
-- `renderer.js`: Safe DOM creation (`createEl`), board initialization.
-- Sub-cell interpolation for silky smooth rendering of Entities via `transform: translate`.
-- Implement `sprite-pool.js` (DOM elements pooling for fire and bombs).
+**Estimate**: 5 hours
 
-#### D-3: HUD Components (Signals-driven) (3h)
+- [ ] Implement `src/features/feat.renderer/renderer.js`: **Explicitly use `document.createElementNS` / `createElement`**. No `innerHTML` ever (AGENTS.md constraint).
+- [ ] Use Object pooling (`sprite-pool.js`) for rendering dynamic elements like Bombs and Fire particles to absolutely minimize DOM node creation and GC hits. 
+- [ ] Handle sub-pixel translation logic `moveEntity(id, x, y, interpolation)` for perfectly smooth 60 FPS transitions decoupled from the 16.6ms logic loop.
+
+#### D-3: HUD (Signals-Driven)
 **Priority**: 🔴 Critical  
-- `hud.js`: Granular reactive updates using signals to update scores/timers without relayouts.
+**Estimate**: 2.5 hours
 
-#### D-4: Game Screens (3h)
+- [ ] Implement `src/features/feat.hud/*`: Listen to `scoreSignal`, `timerSignal`, `livesSignal`, and `maxBombsSignal`.
+- [ ] DOM modification is precise: Only target the `textContent` of the specific metric that mutated. This guarantees no reflow jank.
+
+#### D-4: Game Screens (Start, Game Over, Victory)
 **Priority**: 🟡 Medium  
-- Screens: Title screen, GameOver screen, Win screen, Level Complete transitions.
+**Estimate**: 3 hours
 
-#### D-5: Entity Rendering Integration (4h)
+- [ ] Implement visual screens `src/features/feat.screens/*` triggered by the state machine.
+- [ ] Built with 100% vanilla `createElement` logic. Animated text styling for Game Over / Victory counters.
+
+#### D-5: Player & Bomb Rendering Integration
 **Priority**: 🟡 Medium  
-- Map player, ghost, and bomb logical states to visual states (toggling `.ghost--stunned`, `.bomb--pulsing`). Handling CSS `transitionend` and `animationend` events cleanly.
+**Estimate**: 3 hours
 
-**Track D Total**: ~18.5 hours
+- [ ] Wire Player states to visual `.player--invincible` and directional classes. Map physics boundaries to active DOM offsets.
+- [ ] Handle bomb `.bomb--pulsing` CSS animations scaling up on fuse. Ensure `transitionend` events clear states securely.
+
+#### D-6: Ghost Rendering Integration
+**Priority**: 🟡 Medium  
+**Estimate**: 2.5 hours
+
+- [ ] Maps Ghost AI internal states to SVG styles (Inverting to blue `.ghost-stunned` and drawing eyes-only `.ghost-dead`.
 
 ---
 
@@ -325,9 +420,10 @@ gantt
     section Track A (Core/Loop)
     A-1 Scaffolding         :a1, 0, 2
     A-2 Shared Utils        :a2, 2, 3
-    A-3 Game Loop & State   :a3, 5, 4
-    A-4 Map Loader          :a4, 9, 4
-    A-5 Orchestrator        :a5, 13, 4
+    A-3 Constants           :a3, 5, 1
+    A-4 Game Loop           :a4, 6, 4
+    A-5 Map Loader          :a5, 10, 3
+    A-6 Orchestrator        :a6, 13, 4
 
     section Track B (Grid/Physics)
     B-1 Grid Logic          :b1, 2, 3
@@ -335,43 +431,47 @@ gantt
     B-3 Bomb Logic          :b3, 8, 4
     B-4 Player Logic        :b4, 12, 3
     B-5 Input Handler       :b5, 15, 3
+    B-6 Infrastructure      :b6, 18, 1
 
     section Track C (AI/Systems)
     C-1 Ghost AI            :c1, 2, 5
     C-2 Ghost Management    :c2, 7, 3
     C-3 Power Pellets       :c3, 10, 2
-    C-4 Scoring/Time        :c4, 12, 3
-    C-5 Pause System        :c5, 15, 2
+    C-4 Scoring Logic       :c4, 12, 2
+    C-5 Timer Logic         :c5, 14, 2
+    C-6 Pause System        :c6, 16, 2
+    C-7 SVGs                :c7, 18, 1
 
     section Track D (UI/Render)
     D-1 CSS Grid Design     :d1, 2, 3
-    D-2 DOM Renderer        :d2, 5, 6
-    D-3 HUD Signals         :d3, 11, 3
-    D-4 Screens             :d4, 14, 3
-    D-5 Visual Mapping      :d5, 17, 4
+    D-2 DOM Renderer        :d2, 5, 5
+    D-3 HUD Signals         :d3, 10, 3
+    D-4 Game Screens        :d4, 13, 3
+    D-5 Player/Bomb Vis     :d5, 16, 3
+    D-6 Ghost Vis           :d6, 19, 1
 
     section Integration
     M1 Static Grid Render   :milestone, m1, 10, 0
     M2 Player & Inputs Move :milestone, m2, 13, 0
-    M3 Ghosts Enact Chaos   :milestone, m3, 15, 0
-    M4 Full Orchestration   :milestone, m4, 18, 0
+    M3 Ghosts Enact Chaos   :milestone, m3, 16, 0
+    M4 Full Orchestration   :milestone, m4, 19, 0
 ```
 
-### Milestone 1: Grid Renders 
-**Requires**: A-1, A-2, A-4, B-1, D-1, D-2  
-**Result**: A static game grid renders in the browser from JSON map data.
+### Milestone 1: Grid Renders (Day 3)
+**Requires**: A-1, A-3, B-1, A-5, D-1, D-2  
+**Result**: A static game grid renders in the browser securely (createElement) from JSON map data.
 
-### Milestone 2: Player Moves & Bombs Work 
-**Requires**: M1 + A-3, B-3, B-4, B-5, D-3 
-**Result**: Player moves with arrow keys, drops bombs, explosions destroy walls. HUD shows score/lives/timer.
+### Milestone 2: Player Moves & Bombs Work (Day 4)
+**Requires**: M1 + A-4, B-3, B-4, B-5, D-3  
+**Result**: Player moves with hold-to-move inputs. Drops bombs dynamically. Grid recalculates safely on destruction.
 
-### Milestone 3: Ghosts Move & Chase 
-**Requires**: M2 + B-2, C-1, C-2, C-3, D-5
-**Result**: Ghosts patrol the maze, collision with player causes life loss, bombs kill ghosts.
+### Milestone 3: Ghosts Move & Chase (Day 5)
+**Requires**: M2 + C-1, C-2, C-3, B-2  
+**Result**: Ghosts patrol via proper AI trees. Physics collisions register damage/kills accurately. Fixed 60fps verified against AI loads.
 
-### Milestone 4: Full Game 
-**Requires**: M3 + A-5, B-6, C-4, C-5, D-4
-**Result**: Complete game with pause menu, scoring, levels, game over/victory screens. Performance validated at 60 FPS.
+### Milestone 4: Full Game (Day 6-7)
+**Requires**: M3 + A-6, B-6, C-4, C-5, C-6, D-4  
+**Result**: Implemented scoring, state loops (GameOver, Victory), and cleanly pausing via Signals. No Frame drops on pause menu.
 
 ---
 
@@ -434,7 +534,7 @@ All tracks must agree on these data shapes. They are defined in `src/shared/type
 | **Audit Compliance** | Manual checklist | Walk through every line of `audit.md` |
 
 ### Test Naming Convention
-```
+```js
 describe('grid', () => {
   it('returns the correct cell type for a valid position', () => { ... })
   it('returns undefined for out-of-bounds positions', () => { ... })
@@ -445,16 +545,17 @@ describe('grid', () => {
 
 ## 7. Performance Budget
 
+Failure to meet these budgets is a test failure (non-negotiable 60FPS per `audit.md`).
+
 | Metric | Budget | How to Enforce |
 |---|---|---|
-| FPS | ≥ 60 (50-60 acceptable) | Fixed-timestep loop, DevTools Performance tab |
-| Frame budget | < 16.67ms per frame | Profile update + render time |
-| DOM elements | ≤ 500 (grid + entities) | Object pooling for transient elements |
-| Layout thrashing | Zero | Batch reads before writes; use `transform` only |
-| Paint areas | Minimal | `will-change` on moving entities only; DevTools paint flashing |
-| Layer count | 3-5 max | Player, ghosts (1 layer), bombs/fire (1 layer), HUD (1 layer) |
-| GC pauses | < 1ms | Object pooling, avoid allocations in hot loop |
-| JS heap | < 10MB | No retained references, clean up on level change |
+| FPS | **Strictly ≥ 60** | Fixed-timestep interpolation loop + `requestAnimationFrame`. DevTools profiler tracking. |
+| Frame budget | < 16.67ms per frame | Profile update + interpolation + DOM writes times total. |
+| DOM elements | ≤ 500 (grid + dynamic) | Object pooling for all transient elements (particles). |
+| Layout thrashing | **Zero** | Separate read / write passes in the engine orchestrator. Mutate CSS variables or transform properties only. |
+| Paint areas | Minimal | `will-change: transform` on moving elements ONLY. Render layer grouping via DOM hierarchy. |
+| GC Pauses | **Zero** in `update` Loop | All array returns map purely without leaking closures. Avoid massive `map` calls per frame. Object pools mandatory. |
+| XSS Potential | **Zero** | `innerHTML` strictly forbidden. Raw `createTextNode` injection only. |
 
 ---
 
