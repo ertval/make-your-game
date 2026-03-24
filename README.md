@@ -250,10 +250,10 @@ The project is split into **4 parallel workflow tracks** to enable 4 developers 
 
 | Track | Dev | Scope | Key Files |
 |---|---|---|---|
-| **Track A** | Dev 1 | Core Engine & Game Loop | `src/core/grid.js`, `src/features/feat.game-loop/*`, `src/shared/*` |
-| **Track B** | Dev 2 | Player, Bombs & Interactions | `src/core/player.js`, `src/core/bomb.js`, `src/features/feat.input/*` |
-| **Track C** | Dev 3 | Enemy AI & Entity System | `src/core/ghost.js`, Power Pellet system |
-| **Track D** | Dev 4 | UI, HUD, Maps & Polish | `src/features/feat.renderer/*`, `src/features/feat.hud/*`, `styles/*` |
+| **Track A** | Dev 1 | Core Engine & Orchestration | `src/main.js`, `src/features/feat.game-loop/*`, `src/shared/*` |
+| **Track B** | Dev 2 | Grid, Physics & Player | `src/core/grid.js`, `src/core/bomb.js`, `src/features/feat.input/*` |
+| **Track C** | Dev 3 | AI & Gameplay Systems | `src/core/ghost.js`, `src/core/scoring.js`, Power Pellet system |
+| **Track D** | Dev 4 | Rendering & UI Shell | `src/features/feat.renderer/*`, `src/features/feat.hud/*`, `styles/*` |
 
 See [implementation-plan.md](docs/implementation-plan.md) for the full ticket breakdown, dependency graph, and integration milestones.
 
