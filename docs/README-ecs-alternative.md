@@ -1,160 +1,357 @@
-# Ms. Ghostman ECS Alternative README (2026)
+# 🎮 Ms. Ghostman — ECS Edition
 
-## Purpose
-This document defines an ECS-first alternative architecture for Ms. Ghostman while preserving project constraints:
-- vanilla JavaScript only
-- DOM and SVG rendering only
-- no canvas and no frameworks
-- requestAnimationFrame-based runtime
-- 60 FPS target with minimal paint and layer usage
+> **Pac-Man × Bomberman** — Eat every pellet. Bomb every wall. Survive every ghost. Built purely with **Entity-Component-System (ECS)** architecture. 
 
-## Why This ECS Alternative Exists
-The current FCIS plan is already strong for a grid game. This ECS alternative exists as a scalability and data-oriented option:
-1. Improve hot-loop performance via tighter data layouts and stable system passes.
-2. Reduce cross-feature coupling by enforcing component and system boundaries.
-3. Keep deterministic simulation behavior while preserving DOM safety constraints.
+A single-player browser game built with **pure JavaScript, HTML, and CSS** — no canvas, no frameworks. Navigate a haunted maze, drop bombs to clear destructible walls, eliminate ghosts, and collect every pellet to clear each level. This edition leverages a strict **Data-Oriented ECS** architecture to guarantee 60 FPS performance, stable system passes, and modular logic boundaries.
 
-For this project size, ECS is optional but useful if entity count and interaction complexity grow.
+---
 
-## Proposed ECS Folder Structure
+## 📖 Table of Contents
 
-```text
-src/
-  ecs/
-    world/
-      world.js                # World lifecycle, system scheduler, frame context
-      entity-store.js         # Entity IDs and recycling
-      query.js                # Query helpers for component masks
-    components/
-      position.js             # row/col + interpolation data
-      velocity.js
-      player.js
-      ghost.js
-      bomb.js
-      fire.js
-      collider.js
-      health.js
-      score.js
-      timer.js
-      input-state.js
-      renderable.js           # sprite key, classes, z-index hints
-      pooled-dom.js           # DOM node handles for pooled renderables
-    systems/
-      input-system.js
-      player-move-system.js
-      ghost-ai-system.js
-      bomb-tick-system.js
-      explosion-system.js
-      collision-system.js
-      scoring-system.js
-      timer-system.js
-      life-system.js
-      pause-system.js
-      level-progress-system.js
-      render-collect-system.js
-      render-dom-system.js    # final batched DOM writes only
-    resources/
-      constants.js
-      rng.js                  # seeded RNG for determinism
-      clock.js                # injected clock/timestamp helpers
-      map-resource.js         # loaded map state, spawn tables
-  adapters/
-    dom/
-      renderer-adapter.js
-      sprite-pool-adapter.js
-      hud-adapter.js
-      screens-adapter.js
-    io/
-      input-adapter.js
-      storage-adapter.js
-      audio-adapter.js
-  main.ecs.js                 # ECS bootstrap
+- [Overview](#-overview)
+- [Gameplay](#-gameplay)
+- [Architecture Overview](#️-architecture-overview)
+- [Directory Structure](#-directory-structure)
+- [Frame Pipeline](#️-frame-pipeline)
+- [Rendering & Performance](#-rendering--performance)
+- [Getting Started](#-getting-started)
+- [Scripts & Commands](#-scripts--commands)
+- [Development Workflow](#-development-workflow)
+- [Testing & Verification](#-testing--verification)
+- [Tech Stack & Constraints](#️-tech-stack--constraints)
+- [Contributing](#-contributing)
+- [License](#-license)
+
+---
+
+## 🎯 Overview
+
+Ms. Ghostman is a hybrid arcade game combining:
+
+- **Pac-Man**: Navigate a grid-based maze, eat all pellets to complete a level.
+- **Bomberman**: Drop bombs to destroy walls, create paths, and eliminate enemies.
+
+The result is a strategic game where every move matters. Block off ghost routes, set bomb traps, chain explosions, and race against the clock.
+
+### ✨ Key Features
+
+- 🕹️ **Hold-to-move controls** — smooth, responsive keyboard input processed via input systems.
+- 💣 **Bomb mechanics** — 3-second fuse, cross-shaped explosions, chain reactions.
+- 👻 **4 unique ghost personalities** — from aggressive to unpredictable.
+- ⚡ **Power-ups** — increased bomb range, extra bombs, speed boosts, ghost-stunning pellets.
+- ⏱️ **Countdown timer** — beat the clock for bonus points.
+- 🏆 **Scoring & combos** — chain-kill ghosts for exponential bonuses.
+- ⏸️ **Pause menu** — continue or restart without losing progress.
+- 📊 **3 difficulty levels** — increasing maze density, ghost count, and speed.
+- 🎨 **60 FPS DOM rendering** — no canvas, pure CSS Grid + transform animations via a dedicated Render Batcher.
+
+---
+
+## 🎮 Gameplay
+
+### ⌨️ Controls
+
+| Key | Action |
+|---|---|
+| `↑` `↓` `←` `→` | Move Ms. Ghostman (hold for continuous movement) |
+| `Space` | Drop a bomb |
+| `Escape` / `P` | Pause / Resume |
+| `Enter` | Confirm menu selections |
+
+### 🏆 How to Win
+
+1. **Eat all pellets** on the map to clear the level.
+2. **Drop bombs** to destroy walls blocking your path.
+3. **Avoid or eliminate ghosts** — they kill on contact.
+4. **Don't get caught** in your own explosions!
+5. **Beat the countdown** — time runs out = game over.
+6. Clear all 3 levels to earn **VICTORY**.
+
+### 💯 Scoring
+
+| Action | Points |
+|---|---|
+| Eat pellet | 10 |
+| Eat Power Pellet | 50 |
+| Kill ghost (bomb) | 200 |
+| Kill stunned ghost | 400 |
+| Combo kills | 200 × 2^(n-1) per ghost |
+| Collect power-up | 100 |
+| Level complete | 1000 + time bonus |
+
+---
+
+## 🏛️ Architecture Overview
+
+This project is built using a strict **Entity-Component-System (ECS)** architecture to ensure high performance, decoupling, and strict determinism. 
+
+```mermaid
+graph TB
+    subgraph "Imperative Shell / Adapters"
+        MAIN["main.ecs.js (entry)"]
+        RENDERER["Renderer Adapter (DOM)"]
+        INPUT["Input Adapter"]
+        AUDIO["Audio Adapter"]
+    end
+
+    subgraph "Core ECS Simulation (Pure Data & Behavior)"
+        WORLD["World (Entities, Scheduling)"]
+        
+        subgraph "Systems"
+            SYS_INPUT["Input System"]
+            SYS_MOVE["Movement & Collision Systems"]
+            SYS_BOMB["Bomb & Explosion Systems"]
+            SYS_AI["Ghost AI System"]
+            SYS_RENDER_C["Render Collect System"]
+            SYS_RENDER_D["Render DOM System"]
+        end
+        
+        subgraph "Components"
+            COMP_POS["Position, Velocity"]
+            COMP_ACT["Player, Ghost, Bomb"]
+            COMP_REN["Renderable, PooledDOM"]
+        end
+    end
+
+    MAIN --> WORLD
+    WORLD --> SYS_INPUT
+    WORLD --> SYS_AI
+    WORLD --> SYS_MOVE
+    WORLD --> SYS_BOMB
+    WORLD --> SYS_RENDER_C
+    SYS_RENDER_C --> SYS_RENDER_D
+    
+    SYS_INPUT -. reads .-> INPUT
+    SYS_RENDER_D -. writes .-> RENDERER
+    
+    SYS_INPUT --> COMP_POS
+    SYS_MOVE --> COMP_POS
+    SYS_AI --> COMP_ACT
 ```
 
-## ECS Core Concepts in This Project
-1. Entity
-- An opaque numeric ID. No behavior methods.
+### 🧩 Core Concepts
 
-2. Component
-- Data-only records attached to entities (for example Position, Ghost, Bomb).
-- No DOM references in pure simulation components.
+| Concept | Definition |
+|---|---|
+| **Entity** | An opaque numeric ID. Contains no behavior or methods. |
+| **Component** | Data-only records (POJOs) attached to entities. No DOM references. |
+| **System** | Dedicated functions that query components and mutate state in a fixed order. |
+| **World** | Owners of entities and systems. Orchestrates frame execution and resource access. |
+| **Query** | High-performance filters that retrieve entities matching specific component masks. |
 
-3. System
-- A deterministic function that queries component sets and mutates state in a fixed order.
-- One clear concern per system.
+---
 
-4. World
-- Owns entities, components, resources, and system scheduling.
-- Executes systems in well-defined phases each frame.
+## 📁 Directory Structure
 
-5. Query
-- Retrieves entity sets that match component requirements.
-- Reused and allocation-light in hot loops.
+```text
+make-your-game/
+├── index.html                      # Single-page entry point
+├── package.json                    # ES module config, scripts, exports
+├── biome.json                      # Biome linter/formatter config
+├── vite.config.js                  # Vite dev server config
+│
+├── docs/                           # 📚 Documentation
+│   ├── requirements.md             # Original project requirements
+│   ├── audit.md                    # Audit checklist for grading
+│   ├── game-description.md         # Full game rules & mechanics
+│   ├── implementation-plan-ecs.md  # ECS specific implementation milestones
+│   └── README-ecs-alternative.md   # This file
+│
+├── src/                            # 🧠 Source code
+│   ├── main.ecs.js                 # App entry — bootstraps the ECS World
+│   │
+│   ├── ecs/                        # ⚙️ ECS Core
+│   │   ├── world/                  # World, Entity Store, Queries
+│   │   ├── components/             # Pure state (Position, Ghost, Bomb, etc.)
+│   │   ├── systems/                # Domain logic (Movement, AI, Render Batching)
+│   │   └── resources/              # Shared data (Clock, RNG, Maps)
+│   │
+│   ├── adapters/                   # 🔌 Imperative Boundaries
+│   │   ├── dom/                    # Safe DOM layout & textContent updaters
+│   │   └── io/                     # Input handlers & Audio wrappers
+│   │
+│   └── shared/                     # 🛠️ Cross-cutting utilities
+│
+├── assets/                         # 🎨 Static assets
+│
+└── styles/                         # 💅 CSS
+    ├── variables.css               # Design tokens (colors, sizes, fonts)
+    ├── grid.css                    # CSS Grid layout for game board
+    └── animations.css              # Keyframe animations
+```
 
-## Main Loop Organization (ECS)
+---
 
-1. requestAnimationFrame tick starts.
-2. Input adapter snapshots key states into input resources.
-3. Accumulator runs fixed-step simulation updates:
-- Input systems
-- Movement and AI systems
-- Bomb and explosion systems
-- Collision and scoring systems
-- Timer and state-transition systems
-4. Render collect system computes render intents from ECS state.
-5. Render DOM system applies one batched DOM write phase.
-6. HUD adapter updates only changed textContent fields.
+## ⚙️ Frame Pipeline
 
-Pause behavior:
-- rAF continues.
-- simulation steps are skipped while paused.
-- pause overlay and HUD remain responsive.
+1. **rAF Start**: `requestAnimationFrame` initiates the frame.
+2. **Input Sync**: Input adapter snapshots key states into world resources.
+3. **Simulation (Fixed-Step)**:
+    - Input systems apply intents to components.
+    - Movement and AI systems update positions and states.
+    - Bomb and explosion systems process fuses and chain reactions.
+    - Collision and scoring systems resolve overlaps and points.
+    - Timer systems handle level countdowns and transitions.
+4. **Visual Pre-processing**: Render collect system computes transform intents based on interpolation.
+5. **DOM Commit**: Render DOM system applies a single batched style-write phase.
+6. **HUD Update**: HUD adapter updates text metrics using `textContent` only.
 
-## Rendering Strategy for DOM and SVG
-1. Use static DOM grid creation at startup.
-2. Use pooled DOM nodes for transient entities (bombs, fire tiles, ghost effects).
-3. Move entities using transform and opacity only.
-4. Avoid top/left animation and avoid frequent node creation/removal.
-5. Keep layer promotion minimal and intentional.
+### ⏸️ Pause Behavior
+- `requestAnimationFrame` continues running to keep menus responsive.
+- Simulation update steps are skipped when the pause flag is active.
 
-## Performance and Memory Strategy
-1. Hot-loop mutability:
-- Mutate component buffers in place during fixed-step updates.
+### 🔒 2026 Runtime Contract
+- Fixed-step simulation uses an accumulator with bounded catch-up (`maxStepsPerFrame`).
+- `frameTime` is clamped before accumulator integration to avoid spiral-of-death bursts after stalls.
+- Input is tracked as hold-state and consumed from deterministic per-step snapshots.
+- On resume from pause or tab restore, timing baselines are re-synchronized before simulation continues.
 
-2. Allocation control:
-- Reuse query buffers and temporary arrays.
-- Pool entity IDs and pooled DOM nodes.
+---
 
-3. Batching:
-- Separate simulation from DOM writes.
-- One render commit pass per frame.
+## 🚀 Rendering & Performance Targets
 
-4. Verification:
-- Profile gameplay, pause, and resume flows.
-- Track frame stability and dropped-frame patterns.
+### 🎨 DOM Strategy
+- **Static Grid**: Persistent board elements created once at startup.
+- **Node Pooling**: Transient entities (bombs, fire, effects) use recycled DOM nodes. Prevent GC pauses.
+- **Compositor Friendly**: All movement updates restricted to `transform` and `opacity`.
+- **Minimal Jank**: Strict avoidance of layout thrashing through batched read/write phases.
 
-## Migration Plan from FCIS to ECS
-1. Start by wrapping existing feature modules as systems without changing behavior.
-2. Move shared game state slices into component stores incrementally.
-3. Replace direct feature-to-feature calls with world resources and system ordering.
-4. Introduce render-collect then render-dom split to enforce write batching.
-5. Keep existing tests, then add system-level deterministic tests before removing old paths.
+### ⚡ Targets
 
-## Testing Strategy for ECS
-1. Unit tests:
-- Pure systems with seeded RNG and injected clocks.
+| Metric | Target |
+|---|---|
+| Frame rate | ≥ 60 FPS target with no sustained dropped-frame bursts |
+| Frame budget | p95 <= 16.7ms over representative 60s scenarios |
+| DOM elements | ≤ 500 |
+| Layer count | 3-5 composited layers |
+| GC pauses | < 1ms (object pooling, in-place component mutation) |
+| JS heap | < 10MB |
+| Layout thrashing | Zero (batch reads → writes via `render-dom-system.js`) |
 
-2. Integration tests:
-- World scheduling order and cross-system interactions (bomb chain, pause, respawn).
+---
 
-3. Adapter tests:
-- Input normalization and DOM batching outputs.
+## 🏁 Getting Started
 
-4. Determinism tests:
-- Same seed + same input trace => same final state.
+### Prerequisites
 
-5. Performance guard tests:
-- No excessive per-frame allocations in hot systems.
+- **Node.js** ≥ 20.x
+- **npm** ≥ 10.x
 
-## Practical Recommendation
-Use FCIS as default for current delivery speed, and use this ECS alternative when performance complexity increases or when feature interactions make central world scheduling more maintainable.
+### Installation
+
+```bash
+# Clone the repository
+git clone <repo-url>
+cd make-your-game
+
+# Install dependencies
+npm ci
+```
+
+### Run the Development Server
+
+```bash
+npm run dev
+```
+
+Open `http://localhost:5173` in your browser. Vite serves the app with hot-reload.
+
+---
+
+## 📜 Scripts & Commands
+
+| Command | Description |
+|---|---|
+| `npm run dev` | Start Vite dev server with HMR |
+| `npm run build` | Production build to `dist/` |
+| `npm run preview` | Serve production build locally |
+| `npm run test` | Run all unit tests (Vitest) |
+| `npm run test:watch` | Run tests in watch mode |
+| `npm run test:coverage` | Generate test coverage report |
+| `npm run lint` | Run Biome linter |
+| `npm run format` | Run Biome formatter |
+| `npm run check` | Run Biome lint + format check |
+| `npm run validate:schema` | Run JSON Schema 2020-12 validation for maps |
+| `npm run sbom` | Generate SPDX SBOM for dependency auditing |
+
+---
+
+## 👥 Development Workflow
+
+The project is split into **4 parallel workflow tracks** to enable multiple developers to work simultaneously with absolute ECS decoupling:
+
+| Track | Dev | Scope | Key Systems & Files |
+|---|---|---|---|
+| **Track A** | Dev 1 | Core Engine & World Layer | `src/ecs/world/*`, `src/ecs/resources/*`, `main.ecs.js` |
+| **Track B** | Dev 2 | Physics, Player & Input | `input-system.js`, `player-move-system.js`, `bomb-tick-system.js` |
+| **Track C** | Dev 3 | AI, Rules & Mechanics | `ghost-ai-system.js`, `scoring-system.js`, `collision-system.js` |
+| **Track D** | Dev 4 | Rendering & DOM Shell | `render-collect-system.js`, `render-dom-system.js`, Adapters |
+
+> **Note**: For the full integration milestone breakdown, check `implementation-plan-ecs.md`.
+
+---
+
+## 🧪 Testing & Verification
+
+| Layer | Strategy |
+|---|---|
+| **Unit Tests** | Pure systems tested with seeded RNG and deterministic clocks via Vitest. No DOM required. |
+| **Integration** | World scheduling and cross-system interaction (e.g., bomb chains, pause logic, respawns). |
+| **Adapter Tests** | Verification of input normalization and DOM write batching outputs natively. |
+| **Determinism** | Comparison of final state hashes across identical seed/input traces. |
+| **Pause Invariants** | While paused, simulation state is frozen and rAF-driven UI remains responsive. |
+| **Performance** | Profile-backed checks for frame-time percentiles, long tasks, layout/paint stability, and allocation behavior. |
+| **Accessibility** | Keyboard navigation, pause-menu focus management, and meaningful HUD status updates. |
+
+---
+
+## 🛠️ Tech Stack & Constraints
+
+### Used
+
+| Technology | Purpose |
+|---|---|
+| **JavaScript (ES2026)** | Game logic, DOM manipulation |
+| **HTML5** | Semantic page structure |
+| **CSS3** | Grid layout, animations, styling |
+| **Vite** | Dev server, bundler |
+| **Biome** | Linting + formatting |
+| **Vitest** | Unit testing |
+| **SVG** | Sprites and visual assets |
+| **Web Workers** | Offloading heavy AI pathfinding |
+| **Trusted Types / CSP** | DOM Security enforcement |
+| **JSON Schema 2020-12** | Map data validation in CI |
+
+### Explicitly NOT Used (by requirement)
+
+| Technology | Reason |
+|---|---|
+| `<canvas>` | Project requirement — DOM/SVG only |
+| React / Vue / Angular | No frameworks allowed |
+| Game engines (Phaser, etc.) | Must build custom ECS engine |
+| jQuery | Vanilla JS only |
+| `var` | ES2026 standard — `const`/`let` only |
+| CommonJS (`require`) | ES Modules only |
+| `innerHTML` | XSS prevention by construction |
+
+---
+
+## 🤝 Contributing
+
+1. Read `AGENTS.md` for ECS coding standards and constraints.
+2. Review `implementation-plan-ecs.md` for your specific track assignment.
+3. Feature branches should isolate specific ECS systems or component additions.
+4. Core systems MUST remain pure functions handling data components; never import DOM adapters into `src/ecs/systems/` except for the dedicated `render-dom-system.js`.
+5. Run `npm run check && npm run test` before committing.
+6. CI MUST pass all merge gates (schema validation, testing, coverage, lockfile integrity) before merge.
+7. Request review at integration milestones.
+
+---
+
+## 📄 License
+
+This project is developed as an educational exercise for strict data-oriented ECS and high-performance DOM constraints.
+
+---
+
+*Ms. Ghostman — Where Pac-Man meets Bomberman. Eat. Bomb. Survive.* 🎮💣👻

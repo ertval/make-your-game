@@ -220,6 +220,8 @@ The work (roughly 72 hours) is divided into 4 tracks (each ~18 hours) based on E
 
 - [ ] Initialize `package.json` with ES modules, configure Vite and Biome.
 - [ ] Setup Vitest for pure system/component testing.
+- [ ] Configure CI merge gates (lint, tests, coverage minimums, protected branch checks).
+- [ ] Implement dependency governance (strict lockfile policy and SBOM generation).
 - [ ] Create `index.html` structure with core `<div>` mount points.
 - [ ] Commit basic CSS reset and variable stubs.
 
@@ -257,6 +259,7 @@ The work (roughly 72 hours) is divided into 4 tracks (each ~18 hours) based on E
 **Estimate**: 4 hours
 
 - [ ] Create 3 JSON map blueprints.
+- [ ] Implement JSON Schema 2020-12 validation in CI, failing build on invalid level data.
 - [ ] Implement `map-resource.js`: Parses map on load, stores a fixed representation of the static grid cells (walls, emptiness, intersections).
 - [ ] Injects map info into the World context upon level start.
 
@@ -336,6 +339,7 @@ The work (roughly 72 hours) is divided into 4 tracks (each ~18 hours) based on E
   - Enforce "no reversing" logic unless a Power Pellet is eaten (flee mode).
   - Fleeing: Random intersection logic aiming to maximize player distance.
   - Dead state: Eyes-only return to ghost house.
+- [ ] Define worker offload criteria and message contracts for moving heavy pathfinding out of main thread.
 - [ ] Reused zero-allocation heuristics for distance computing.
 
 #### C-3: Power Up & Stun Routines
@@ -379,6 +383,7 @@ The work (roughly 72 hours) is divided into 4 tracks (each ~18 hours) based on E
 **Estimate**: 4 hours
 
 - [ ] Implement `renderer-adapter.js`: Strict `document.createElementNS` logic for generating the static board. Zero `innerHTML`.
+- [ ] Define Content Security Policy (CSP) and Trusted Types rollout plan for safe DOM manipulations.
 - [ ] Implement `sprite-pool-adapter.js`: Allocates (e.g., 50x Fire elements, 10x Bomb elements) upfront. Hides and displays using CSS `display` or offscreen transform. No repeated `createElement` or `remove` calls mid-game.
 - [ ] Implement `hud-adapter.js` and `screens-adapter.js`: Binds text nodes natively with `.textContent` to update metrics securely.
 
