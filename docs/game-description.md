@@ -285,7 +285,7 @@ graph TD
     K --> B
     L --> M{More levels?}
     M -->|Yes| A
-    M -->|No| N[🎉 Victory!]
+    M -->|No| N[Victory]
 ```
 
 ---

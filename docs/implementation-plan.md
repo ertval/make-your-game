@@ -654,7 +654,7 @@ These are the points where tracks converge. Each milestone requires code from mu
 
 ```mermaid
 gantt
-    title Ms. Ghostman — Integration Timeline
+    title Ms. Ghostman - Integration Timeline
     dateFormat  X
     axisFormat %s
 

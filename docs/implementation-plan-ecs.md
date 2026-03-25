@@ -19,7 +19,9 @@
 4. [Integration Milestones](#4-integration-milestones)
 5. [Shared Contracts & Interfaces](#5-shared-contracts--interfaces)
 6. [Testing Strategy](#6-testing-strategy)
-7. [Performance Budget](#7-performance-budget)
+7. [Performance Budget & Acceptance Criteria](#7-performance-budget--acceptance-criteria)
+8. [Done Criteria](#8-done-criteria)
+9. [Migration Notes from Current FCIS Plan](#9-migration-notes-from-current-fcis-plan)
 
 ---
 
@@ -67,6 +69,46 @@ graph TB
     SYS_AI --> COMP_ACT
 ```
 
+### Core Architectural Boundaries
+
+1. **World Layer**
+   - Owns entity lifecycle, component stores, resources, and system scheduler.
+   - Provides deterministic frame context (dt, pause flag, elapsed simulation time).
+2. **ECS Simulation Layer (Pure or Mostly Pure)**
+   - Systems run in fixed order and mutate component data in place in hot paths.
+   - No DOM calls in simulation systems.
+3. **Adapter Layer**
+   - Input adapter, render adapter, storage adapter, audio adapter.
+   - Converts browser events/DOM into normalized data for ECS resources.
+4. **Render Boundary**
+   - Two-stage rendering:
+     - `render-collect-system`: computes render intents from ECS state
+     - `render-dom-system`: applies batched DOM writes only at end-of-frame
+
+### Frame Pipeline
+
+1. `requestAnimationFrame` tick.
+2. **Input snapshot** (adapter).
+3. **Fixed-step simulation pass** (0..N updates from accumulator, bounded to prevent spiral-of-death).
+4. **Render intent collection**.
+5. **One batched DOM commit pass**.
+6. **HUD and overlay updates** via `textContent` and class toggles.
+
+### Deterministic Runtime Contract
+
+1. Simulation uses a fixed timestep (`16.6667ms`) with accumulator.
+2. Catch-up is clamped (`maxStepsPerFrame`) after tab throttling or CPU stalls.
+3. `frameTime` is clamped before accumulator integration to avoid runaway bursts.
+4. System order and query iteration are stable and centrally declared in `world.js`.
+5. Structural entity/component mutations are deferred and applied at one sync point per tick.
+6. Cross-system events (bomb chains, collisions, scoring) pass through deterministic event queues.
+
+### Pause Semantics
+
+- `rAF` continues running.
+- Simulation updates are skipped while paused.
+- Pause UI remains responsive; no timer progression while paused.
+
 ### Key Principles
 
 1. **ECS-First**: The game strictly follows Entity (numeric IDs), Components (pure data records), and Systems (deterministic behavior).
@@ -108,6 +150,7 @@ make-your-game/
 │   │   │   ├── ghost.js               # AI type, personality, state
 │   │   │   ├── bomb.js                # Fuse timers
 │   │   │   ├── fire.js                # Explosion remnants
+│   │   │   ├── power-up.js            # Bomb+, fire+, speed, and power-pellet tags
 │   │   │   ├── collider.js            # Bounding box or cell alignment
 │   │   │   ├── stats.js               # Health, lives, score, timer tags
 │   │   │   ├── input-state.js         # Intended actions
@@ -120,9 +163,12 @@ make-your-game/
 │   │   │   ├── bomb-tick-system.js    # Fuse countdown, chain reaction marking
 │   │   │   ├── explosion-system.js    # Bomb destruction and fire spawn
 │   │   │   ├── collision-system.js    # Entity overlap checks
+│   │   │   ├── power-up-system.js     # Applies pickups and timed boosts
 │   │   │   ├── scoring-system.js      # Applies events to total score
 │   │   │   ├── timer-system.js        # Level countdown
+│   │   │   ├── life-system.js         # Respawn and invincibility logic
 │   │   │   ├── pause-system.js        # Freeze simulation while rAF continues
+│   │   │   ├── spawn-system.js        # Ghost stagger spawn and respawn
 │   │   │   ├── level-progress-system.js # Manages levels and game states
 │   │   │   ├── render-collect-system.js # Maps simulation to visuals
 │   │   │   └── render-dom-system.js   # Batches writes to the DOM
@@ -130,7 +176,9 @@ make-your-game/
 │   │       ├── constants.js           # Enums, speeds, config
 │   │       ├── rng.js                 # Seeded RNG for determinism
 │   │       ├── clock.js               # Deterministic / injected time tracking
-│   │       └── map-resource.js        # Loaded static grid & spawn points
+│   │       ├── event-queue.js         # Deterministic event ordering between systems
+│   │       ├── map-resource.js        # Loaded static grid & spawn points
+│   │       └── game-status.js         # High-level state (menu, playing, gameover)
 │   │
 │   ├── adapters/
 │   │   ├── dom/
@@ -363,7 +411,7 @@ The work (roughly 72 hours) is divided into 4 tracks (each ~18 hours) based on E
 
 ```mermaid
 gantt
-    title Ms. Ghostman — ECS Integration Timeline
+    title Ms. Ghostman - ECS Integration Timeline
     dateFormat  X
     axisFormat %s
 
@@ -391,6 +439,7 @@ gantt
     M2 Player Intention -> Bounds: milestone, m2, 14, 0
     M3 Render Maps Chasing AI: milestone, m3, 18, 0
     M4 Full Mechanics, 60fps Lock: milestone, m4, 21, 0
+    M5 Audit and Performance Hardening: milestone, m5, 23, 0
 ```
 
 ### Milestone 1: Engine + Static View (Day 3)
@@ -409,46 +458,115 @@ gantt
 **Requires**: M3 + A-4, C-3, C-4, C-5, D-2, D-5  
 **Result**: Playable from Start Menu to Win/Loss. Fully measurable 60fps loop via profiler with zero component pooling GC delays. Strict ECS conformance met. Pause logic bypasses simulation accurately.
 
+### Milestone 5: Audit and Performance Hardening
+**Requires**: All tracks complete
+**Result**: Audit checklist pass evidence and performance trace summary.
+
 ---
 
 ## 5. Shared Contracts & Interfaces
 
-Shared structure inside component storage array definitions (`Array` or flat object maps). Kept inside component definition files or centrally via constants.
+Shared structure inside component storage array definitions. These are documented using JSDoc `typedef` for IDE support and clarity.
 
-### Entity ID
-Simply a Number: `const entityId = 42;`
-
-### Positions (Component)
+### Primitive Types
 ```js
-{
-  row: number,
-  col: number,
-  targetRow: number,
-  targetCol: number,
-  alphaMove: number // 0 to 1 progress to next cell
-}
+/** @typedef {number} EntityId - Simply a unique numeric ID */
 ```
 
-### World Clock (Resource)
+### Frame Context & Clock (Resource)
 ```js
-{
-  deltaMs: number,
-  elapsedMs: number,
-  alpha: number, // between ticks (0 to 1) for rendering interpolation
-  isPaused: boolean
-}
+/** 
+ * @typedef {Object} FrameContext
+ * @property {number} dtMs - Delta time in milliseconds
+ * @property {number} simTimeMs - Elapsed simulation time
+ * @property {number} alpha - Interpolation factor (0 to 1) for rendering
+ * @property {boolean} isPaused - Global simulation freeze flag
+ */
+```
+
+### Input State (Resource/Component)
+```js
+/**
+ * @typedef {Object} InputState
+ * @property {boolean} up
+ * @property {boolean} down
+ * @property {boolean} left
+ * @property {boolean} right
+ * @property {boolean} bomb - Action 1
+ * @property {boolean} pause - Menu toggle
+ */
+```
+
+### Event Queue (Resource)
+```js
+/**
+ * @typedef {Object} GameEvent
+ * @property {string} type - Event discriminator (e.g. BombDetonated, GhostKilled)
+ * @property {number} frame - Fixed-step frame index
+ * @property {number} order - Monotonic insertion index used for deterministic ordering
+ * @property {Object} payload - Event-specific data
+ */
+```
+
+### Core Components
+```js
+/**
+ * @typedef {Object} Position
+ * @property {number} row - Current grid row
+ * @property {number} col - Current grid column
+ * @property {number} prevRow - Row in previous fixed frame
+ * @property {number} prevCol - Col in previous fixed frame
+ * @property {number} targetRow - Destination for lerping
+ * @property {number} targetCol - Destination for lerping
+ */
+
+/**
+ * @typedef {Object} Player
+ * @property {number} lives
+ * @property {number} maxBombs
+ * @property {number} fireRadius
+ * @property {number} invincibilityMs - Protection timer
+ */
+
+/**
+ * @typedef {Object} Ghost
+ * @property {number} type - Personality ID
+ * @property {number} state - Chasing, Fleeing, Dead, Stunned
+ * @property {number} speed
+ * @property {number} timerMs - State duration timer
+ */
+
+/**
+ * @typedef {Object} Bomb
+ * @property {number} fuseMs - Time until detonation
+ * @property {number} radius
+ * @property {number} ownerId - Entity that placed it
+ */
+```
+
+### Render Intent
+```js
+/**
+ * @typedef {Object} RenderIntent
+ * @property {number} entityId
+ * @property {string} kind - Sprite/Element type
+ * @property {number} row
+ * @property {number} col
+ * @property {string[]} classes - CSS class toggles (e.g. ['stunned', 'invisible'])
+ */
 ```
 
 ### Map Resource
 ```js
-{
-  width: number,
-  height: number,
-  cells: Uint8Array,     // Flattened grid cell layout (using cell ENUMs)
-  pelletCount: number,
-  playerSpawn: {row, col},
-  ghostSpawns: [{row, col}] // Array of spawn nodes
-}
+/**
+ * @typedef {Object} MapResource
+ * @property {number} width
+ * @property {number} height
+ * @property {Uint8Array} cells - Flattened grid cell layout
+ * @property {number} pelletCount - Progress tracker
+ * @property {Object} playerSpawn - {row, col}
+ * @property {Array<{row, col}>} ghostSpawns
+ */
 ```
 
 ---
@@ -461,20 +579,60 @@ Simply a Number: `const entityId = 42;`
 | **Pure Systems** | Vitest | Deterministic output: Mock a system tick against an mocked component pool. Verify exact property writes. No DOM needed. |
 | **Map Loader** | Vitest | Parses blueprint strictly. Rejects invalid maps. |
 | **DOM Adapters** | Vitest + jsdom | Verifies `createElementNS` behaves securely without string/`innerHTML` injections. Assert pooled lengths. |
+| **Replay Determinism** | Vitest | Same seed and same input trace must produce same state hash at frame N. |
+| **Pause & Timer Invariants** | Vitest + integration fixtures | While paused, rAF remains active and simulation time remains frozen. Timer/fuse/invincibility counters do not drift. |
+| **Regression Fixes**| Vitest | Repro test first, then fix, then pass. Verify no cross-system side effects outside component/resource contracts. |
 | **Performance** | DevTools | Validates that DOM layouts (`paint`/`layout`) only happen on intended `transform/opacity` changes. Validate GC patterns and strictly <=16.7ms frame outputs. |
 | **Audit Compliance** | Manual | Manually assert all checkmarks in `audit.md` sequentially. |
 
 ---
 
-## 7. Performance Budget
+## 7. Performance Budget & Acceptance Criteria
 
 Failure to meet these budgets violates the `audit.md` strict pass parameters.
+
+### Budget Targets
 
 | Metric | Budget | ECS Implementation Enforcement |
 |---|---|---|
 | FPS | **Strictly ≥ 60** | Engine completely decouples Fixed Loop updates (systems) from the rAF callback rendering pass. |
-| Frame Time | < 16.67ms total | Logic routines perform zero internal allocations (no `.map` or `.filter` in hot loops, strict `for` loops over entity Query buffers). |
+| Frame Time | p95 <= 16.7ms, p99 <= 20ms | Logic routines perform zero internal allocations (no `.map` or `.filter` in hot loops, strict `for` loops over entity Query buffers). No recurring long tasks > 50 ms in interaction-critical path. |
 | DOM Elements | ≤ 500 total | Transient rendering uses fixed Object Pools mapped dynamically during the Render Phase. Static map blocks painted once. |
-| Layout Thrashing | **Zero** | System boundaries ensure properties are ONLY written via single batch function at the tail of the tick (Render DOM System). |
-| GC Pauses / Jank | **Zero** | Component data is preallocated or re-assigned. Entities are recycled from a pool, never freely `deleted`. |
+| Layout Thrashing | **Zero** | System boundaries ensure properties are ONLY written via single batch function at the tail of the tick (Render DOM System). Minimal paint and minimal-but-nonzero layer promotion. |
+| GC Pauses / Jank | **Zero** | Component data is preallocated or re-assigned. Entities are recycled from a pool, never freely `deleted`. No sustained dropped-frame patterns during normal gameplay. |
+| Catch-up Stability | Max fixed steps per frame enforced | Accumulator updates are bounded to avoid spiral-of-death after tab throttling. |
 | Modularity Leak | **Zero** | All game systems must remain completely agnostic of DOM APIs. |
+
+### Required Evidence
+
+For gameplay-critical changes (update/render/input):
+1. DevTools Performance trace summary.
+2. Pause/resume verification note (rAF active, simulation frozen).
+3. Brief note on paint/layer observations.
+4. Frame-time stats (`p50`, `p95`, `p99`) from a representative 60-second run.
+5. Environment note (browser version, machine class, and scenario).
+
+---
+
+## 8. Done Criteria
+
+A change is complete only when:
+1. Biome passes for modified scope.
+2. Relevant Vitest suites pass.
+3. ECS boundaries are respected (pure systems have no DOM side effects).
+4. Functional coverage remains intact:
+   - Single player
+   - Pause Continue/Restart
+   - Timer/score/lives HUD
+   - Genre-aligned gameplay
+5. Performance criteria are validated for gameplay-critical changes.
+
+---
+
+## 9. Migration Notes from Current FCIS Plan
+
+1. Keep existing pure domain logic and wrap as ECS systems where possible.
+2. Replace monolithic game-state object with component stores in phases.
+3. Keep map format stable initially; adapt loader to component initialization.
+4. Transition renderer to render-intent batching before deep AI refactors.
+5. Maintain audit parity throughout migration by preserving pause and HUD behavior.

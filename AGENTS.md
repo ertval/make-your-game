@@ -1,76 +1,95 @@
-# Agent Instructions: Modern JavaScript (2026) Vanilla DOM Game Development Guidelines
+# Agent Instructions: Modern JavaScript 2026 DOM + ECS Game Development
 
-## Directive Semantics and Precedence
+## Semantics and Priority
 - MUST = mandatory requirement.
-- SHOULD = strong default; deviate only with explicit justification.
-- MAY = optional guidance.
-- If directives conflict, prioritize in this order:
-  1. Safety and security constraints
-  2. Requirements and audit alignment
-  3. Performance and architecture constraints
-  4. Code style preferences
+- SHOULD = default unless a documented exception exists.
+- MAY = optional.
+- If rules conflict, prioritize:
+  1. Safety and hard project constraints
+  2. Deterministic correctness and testability
+  3. Performance and frame stability
+  4. Local code style preferences
 
-## Core Directives
-- **Action-Oriented**: Focus on clean, idiomatic code and rigorous static analysis.
-- **No Quick Fixes**: For bug reports, prefer root-cause analysis before implementation.
+## Core Project Constraints
+- MUST use Vanilla JavaScript (ES modules only), semantic HTML, CSS, and SVG.
+- MUST NOT use canvas, WebGL, WebGPU, or rendering frameworks.
+- MUST preserve single-player gameplay and genre alignment with requirements docs.
+- MUST preserve pause menu actions: Continue and Restart.
+- MUST maintain HUD metrics: timer/countdown, score, and lives.
+
+## ECS Architecture Rules
+- MUST structure gameplay with ECS: entities as opaque IDs, components as data-only, systems as behavior.
+- MUST keep systems single-purpose and execution order explicit.
+- MUST keep simulation deterministic for identical seed + input + timing.
+- Components MUST NOT store DOM nodes, listeners, impure closures, or browser state.
+- Simulation systems MUST NOT call DOM APIs; side effects live in adapters or dedicated render systems.
+- SHOULD use data-oriented storage and stable iteration order on hot paths.
+
+## Loop, Timing, and Pause
+- MUST run core loop with `requestAnimationFrame` only.
+- MUST use rAF timestamp or `performance.now()` and a fixed-step simulation with accumulator.
+- MUST clamp catch-up work (`maxStepsPerFrame`) to prevent spiral-of-death after throttling.
+- MUST keep rAF active while paused and freeze simulation time/state progression.
+- SHOULD keep real/render clock separate from simulation clock.
+
+## Input Rules
+- MUST track hold input using `keydown` sets and `keyup` clears.
+- MUST apply movement/actions from key state in per-frame simulation updates.
+- MUST NOT rely on OS key-repeat for continuous movement.
+
+## Rendering and DOM Rules
+- MUST use compositor-friendly updates (`transform`, `opacity`) in animation loops.
+- MUST batch DOM writes in a dedicated render commit phase once per frame.
+- MUST avoid layout thrashing (separate read and write phases; no repeated read/write interleaving).
+- MUST use DOM pooling for high-churn visuals (bombs, fire, ghosts, effects).
+- SHOULD use minimal-but-nonzero layer promotion where beneficial.
+
+## Performance and Memory Rules
+- MUST avoid recurring allocations in hot loops.
+- MUST preallocate or pool transient entities and corresponding DOM nodes.
+- MUST mutate hot-path buffers in place when profiling indicates allocation pressure.
+- SHOULD avoid long tasks in gameplay-critical interactions.
 
 ## Bug-Fix Workflow (Required)
 - MUST follow this sequence when feasible:
   1. Reproduce the bug.
-  2. Add a failing test that captures the bug.
-  3. Implement the fix.
-  4. Prove the fix with passing tests.
-- SHOULD use subagents for alternative fix attempts when useful.
-- If no deterministic repro test is possible after 2 bounded attempts:
-  1. Document the blocker and attempted repro paths.
-  2. Capture minimal evidence (logs, steps, observed vs expected behavior).
-  3. Request user guidance before risky or broad changes.
+  2. Add a failing test.
+  3. Implement minimal fix.
+  4. Prove fix with passing tests.
+  5. Verify no regressions in related systems.
+- If no deterministic repro is possible after 2 bounded attempts:
+  1. Document blocker and attempted repro paths.
+  2. Capture minimal evidence (logs/steps/observed vs expected).
+  3. Request guidance before broad or risky changes.
 
-## Functional Coverage (Required)
-- MUST preserve single-player gameplay.
-- MUST preserve pause menu actions: Continue and Restart.
-- MUST implement and maintain HUD metrics: timer or countdown, score, and lives.
-- MUST keep game concept aligned with approved genre constraints in requirements documentation.
+## Security and Code Quality
+- MUST use Biome for linting and formatting.
+- MUST use safe DOM sinks (`textContent`, explicit attribute APIs).
+- MUST avoid unsafe HTML injection for untrusted content.
+- MUST NOT use `var`, `require`, or `XMLHttpRequest`.
 
-## Performance and Memory Management (Zero-Allocation and 60 FPS)
-- **Avoid GC Pauses**: In the core game loop, avoid high-frequency allocation that causes frame drops.
-- **Memory and DOM Pooling**: Pre-allocate logical objects and corresponding DOM elements (for example bullets and enemies). Reuse them instead of repeated `document.createElement()` and remove cycles.
-- **State Mutation Scope**:
-  - In-place mutation is REQUIRED in verified hot loops where profiling shows allocation-driven risk.
-  - Outside hot loops, clarity and testability SHOULD be preferred; pure transforms are acceptable.
-
-## Pure DOM Game Engine Architecture (Canvas Forbidden)
-- **Strictly Plain JS/DOM**: The game MUST avoid `<canvas>`, WebGL, WebGPU, and external visual frameworks. Use semantic HTML, CSS, SVG, and Vanilla JavaScript only.
-- **Compositor-Only Rendering**: Animate only `transform` (for example `translate3d()`) and `opacity` in the main loop.
-- **Layer Management**: Layer promotion (`will-change: transform` or `transform: translateZ(0)`) MUST be minimal but not zero.
-- **SVG Graphics**: Prefer inline SVG for entity visuals and CSS-driven geometry or styling changes.
-- **ECS and DOM Batching**:
-  - Simulation updates logical state.
-  - Render system batches DOM style writes at the end of each frame.
-
-## Game Loop and Timing
-- **Strict requestAnimationFrame**: Core loop MUST run on `window.requestAnimationFrame()` only. Do not use `setInterval` or `setTimeout` for the update loop.
-- **Time Tracking**: Use `performance.now()` or the rAF callback timestamp.
-- **Pause and State Integrity**: During pause, simulation time MUST freeze while rAF continues so pause UI stays responsive and smooth.
-
-## Input Handling
-- **Smooth Keyboard Holds**: Continuous motion MUST come from key-state tracking (`keydown` sets pressed, `keyup` clears) and per-frame physics updates. Do not rely on OS key repeat for movement.
+## Testing and Verification
+- MUST add tests at the right layer:
+  - unit tests for pure systems/components
+  - integration tests for world ordering and cross-system interaction
+  - adapter tests for renderer/input boundaries
+- SHOULD include seed-based determinism tests for timing/input-sensitive behavior.
+- MUST verify pause invariants: rAF active, simulation frozen, HUD responsive.
 
 ## Performance Acceptance Criteria (Auditable)
-- For gameplay-critical update, render, or input changes, MUST provide evidence from a browser profiling run:
-  - 60 FPS target during normal play and pause or resume flows.
-  - p95 frame time <= 16.7 ms in a representative 60-second play sample.
-  - No sustained dropped-frame pattern (no continuous stutter bursts over multiple seconds).
-  - rAF remains active during pause while simulation remains frozen.
-  - No recurring long tasks over 50 ms in the main interaction path.
-- Evidence MUST be summarized in task notes or PR notes (trace window, scenario, and key observations).
+For gameplay-critical update/render/input work, provide profile evidence that:
+- 60 FPS target is maintained during normal play and pause/resume flow.
+- p95 frame time <= 16.7 ms over a representative 60-second sample.
+- No sustained dropped-frame pattern (continuous multi-second stutter bursts).
+- No recurring long tasks > 50 ms on the main interaction path.
+- No repeated burst allocations in core loops after warm-up.
 
-## Code Quality and Security
-- **Tooling**: Use Biome for linting and formatting.
-- **Safe DOM Sinks**: Prefer `textContent` for HUD and status updates. Avoid unsafe HTML injection patterns for untrusted content.
-- **Legacy Anti-Patterns**: `var` is forbidden. Use ES Modules (`import` and `export`). No `require`. Avoid `XMLHttpRequest`.
+Evidence notes MUST include scenario, trace window, and key observations.
 
-## Done Criteria (Quality Gate)
-- MUST pass lint and relevant tests.
-- MUST validate applicable performance acceptance criteria for gameplay-critical changes.
-- MUST confirm functional coverage remains intact (single-player flow, pause Continue or Restart, HUD metrics).
+## Done Criteria
+A task is complete only when:
+1. Biome passes for changed scope.
+2. Relevant tests pass (including new repro/regression tests for bug fixes).
+3. ECS boundaries remain intact (no forbidden DOM calls in simulation systems).
+4. Functional coverage remains intact (single-player, pause Continue/Restart, HUD timer/score/lives).
+5. Performance criteria are validated for gameplay-critical changes.
