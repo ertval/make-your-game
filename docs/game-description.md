@@ -1,5 +1,7 @@
 # 🎮 Ms. Ghostman — Game Description & Rules
 
+> **Source of truth note**: This file and `docs/requirements.md` are the canonical gameplay/feature requirement references. When in doubt about expected behavior, resolve against these files.
+
 > **Genre**: Pac-Man × Bomberman Hybrid  
 > **Players**: Single-player  
 > **Renderer**: Pure DOM / CSS Grid (no `<canvas>`, no frameworks)  
@@ -12,6 +14,21 @@
 Ms. Ghostman is trapped inside a haunted labyrinth crawling with ghosts. The only way out is to **eat every pellet** scattered across the maze. But the maze is littered with **destructible walls** that block her path and hide pellets behind them. Her weapon? **Bombs**.
 
 Drop a bomb, run for cover, and watch the explosion rip through walls and any ghost unlucky enough to be standing in the blast radius. Clear the pellets, survive the ghosts, and beat the clock.
+
+## 1.1 Terminology
+
+| Term | Meaning in This Project |
+|---|---|
+| **Entity** | A game object identified by an opaque ID (player, ghost, bomb, fire tile, pellet, power-up). |
+| **Component** | Data attached to an entity (position, velocity, fuse timer, state flags). |
+| **System** | Deterministic logic that processes entities/components each simulation step. |
+| **World** | ECS runtime container that owns entities, component stores, resources, and system order. |
+| **Fixed-Step Simulation** | Deterministic updates at constant timestep (independent from render FPS jitter). |
+| **rAF** | `requestAnimationFrame`, used as the render clock and frame entry point. |
+| **Render Intent** | Data prepared by simulation for visual updates before DOM commit. |
+| **DOM Commit Phase** | Batched write phase where transforms/opacity/text updates are applied. |
+| **Paused State** | rAF remains active for UI responsiveness while simulation progression is frozen. |
+| **Audit Question** | One pass/fail acceptance question from `docs/audit.md` that must be covered by automated tests. |
 
 ---
 

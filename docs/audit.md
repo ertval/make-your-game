@@ -1,3 +1,10 @@
+## ✅ Audit Source Of Truth
+
+- This file is the **pass/fail acceptance source of truth** for project completion.
+- Final integration/e2e validation MUST be based directly on the questions in this file.
+- There MUST be explicit automated test coverage for **every single question** below (functional + bonus).
+- The project is complete only when those mapped tests pass.
+
 #### Functional
 
 ##### Try playing the game

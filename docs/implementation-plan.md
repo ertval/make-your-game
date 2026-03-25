@@ -27,6 +27,22 @@
 
 ## 1. Architecture Overview
 
+### 1.1 What Is ECS?
+
+**Entity-Component-System (ECS)** is a data-oriented architecture:
+
+- **Entity**: an opaque ID representing a game object.
+- **Component**: pure data attached to entities (no behavior, no DOM state).
+- **System**: deterministic logic that processes entities with matching components.
+
+For this game, ECS helps keep simulation deterministic, isolate DOM side effects, and scale gameplay features without creating tightly coupled classes.
+
+### 1.2 Source Of Truth References
+
+1. `docs/requirements.md` + `docs/game-description.md` define project requirements and intended gameplay behavior.
+2. `docs/audit.md` defines pass/fail acceptance criteria.
+3. When implementation details are ambiguous, resolve against those references first.
+
 ```mermaid
 graph TB
     subgraph "Imperative Shell / Adapters"
@@ -145,7 +161,17 @@ make-your-game/
 ├── docs/
 │   ├── requirements.md
 │   ├── audit.md
-│   └── implementation-plan-ecs.md     # This file
+│   ├── game-description.md
+│   └── implementation-plan.md          # This file
+│
+├── tests/
+│   ├── README.md
+│   ├── e2e/
+│   │   └── audit/
+│   │       ├── audit-question-map.js
+│   │       └── audit.e2e.test.js
+│   ├── integration/
+│   └── unit/
 │
 ├── src/
 │   ├── main.ecs.js                    # App entry — bootstraps the ECS World
@@ -615,6 +641,7 @@ Shared structure inside component storage array definitions. These are documente
 | **Regression Fixes**| Vitest | Repro test first, then fix, then pass. Verify no cross-system side effects outside component/resource contracts. |
 | **Performance** | DevTools | Validates that DOM layouts (`paint`/`layout`) only happen on intended `transform/opacity` changes. Validate GC patterns and strictly <=16.7ms frame outputs. |
 | **Audit Compliance** | Manual | Manually assert all checkmarks in `audit.md` sequentially. |
+| **Audit E2E Coverage** | Vitest + browser/e2e harness | One explicit automated test case per question in `docs/audit.md` (functional + bonus). |
 
 ---
 
@@ -657,6 +684,7 @@ A change is complete only when:
    - Timer/score/lives HUD
    - Genre-aligned gameplay
 5. Performance criteria are validated for gameplay-critical changes.
+6. Every question in `docs/audit.md` has explicit automated test coverage and all those tests pass.
 
 ---
 

@@ -2,7 +2,7 @@
 
 > **Pac-Man × Bomberman** — Eat every pellet. Bomb every wall. Survive every ghost. Built purely with **Entity-Component-System (ECS)** architecture. 
 
-A single-player browser game built with **pure JavaScript, HTML, and CSS** — no canvas, no frameworks. Navigate a haunted maze, drop bombs to clear destructible walls, eliminate ghosts, and collect every pellet to clear each level. This edition leverages a strict **Data-Oriented ECS** architecture to guarantee 60 FPS performance, stable system passes, and modular logic boundaries.
+A single-player browser game built with **pure JavaScript, HTML, and CSS** — no canvas, no frameworks. Navigate a haunted maze, drop bombs to clear destructible walls, eliminate ghosts, and collect every pellet to clear each level. This implementation leverages a strict **Data-Oriented ECS** architecture to guarantee 60 FPS performance, stable system passes, and modular logic boundaries.
 
 ---
 
@@ -17,6 +17,7 @@ A single-player browser game built with **pure JavaScript, HTML, and CSS** — n
 - [Getting Started](#-getting-started)
 - [Scripts & Commands](#-scripts--commands)
 - [Development Workflow](#-development-workflow)
+- [Documentation Flow](#-documentation-flow)
 - [Testing & Verification](#-testing--verification)
 - [Tech Stack & Constraints](#️-tech-stack--constraints)
 - [Contributing](#-contributing)
@@ -32,6 +33,16 @@ Ms. Ghostman is a hybrid arcade game combining:
 - **Bomberman**: Drop bombs to destroy walls, create paths, and eliminate enemies.
 
 The result is a strategic game where every move matters. Block off ghost routes, set bomb traps, chain explosions, and race against the clock.
+
+### 🧠 What Is ECS?
+
+**ECS** means **Entity-Component-System**:
+
+- **Entity**: a simple numeric ID (for example, player, ghost, bomb).
+- **Component**: pure data attached to entities (position, velocity, bomb fuse, score tags).
+- **System**: logic that reads/writes component data in deterministic order (movement, AI, collisions, rendering).
+
+Why this project uses ECS: it keeps gameplay logic modular, deterministic, and fast enough for stable 60 FPS DOM rendering.
 
 ### ✨ Key Features
 
@@ -154,8 +165,16 @@ make-your-game/
 │   ├── requirements.md             # Original project requirements
 │   ├── audit.md                    # Audit checklist for grading
 │   ├── game-description.md         # Full game rules & mechanics
-│   ├── implementation-plan-ecs.md  # ECS specific implementation milestones
-│   └── README-ecs-alternative.md   # This file
+│   └── implementation-plan.md      # Canonical ECS implementation milestones
+│
+├── tests/                          # 🧪 Automated test suites
+│   ├── README.md                   # Coverage policy and completion rules
+│   ├── e2e/
+│   │   └── audit/
+│   │       ├── audit-question-map.js
+│   │       └── audit.e2e.test.js
+│   ├── integration/
+│   └── unit/
 │
 ├── src/                            # 🧠 Source code
 │   ├── main.ecs.js                 # App entry — bootstraps the ECS World
@@ -287,7 +306,23 @@ The project is split into **4 parallel workflow tracks** to enable multiple deve
 | **Track C** | Dev 3 | AI, Rules & Mechanics | `ghost-ai-system.js`, `scoring-system.js`, `collision-system.js` |
 | **Track D** | Dev 4 | Rendering & DOM Shell | `render-collect-system.js`, `render-dom-system.js`, Adapters |
 
-> **Note**: For the full integration milestone breakdown, check `implementation-plan-ecs.md`.
+> **Note**: For the full integration milestone breakdown, check `implementation-plan.md`.
+
+## 🧭 Documentation Flow
+
+Recommended reading order for new contributors:
+
+1. `AGENTS.md` (normative constraints and quality gates)
+2. `docs/requirements.md` (project requirement source of truth)
+3. `docs/game-description.md` (gameplay behavior source of truth)
+4. `docs/audit.md` (acceptance/pass criteria source of truth)
+5. `docs/implementation-plan.md` (ECS execution plan and milestones)
+
+### 📌 Source Of Truth Policy
+
+- Requirement intent and feature scope: `docs/requirements.md` + `docs/game-description.md`
+- Final pass/fail acceptance criteria: `docs/audit.md`
+- If there is ambiguity, decisions MUST be resolved against those references.
 
 ---
 
@@ -302,6 +337,25 @@ The project is split into **4 parallel workflow tracks** to enable multiple deve
 | **Pause Invariants** | While paused, simulation state is frozen and rAF-driven UI remains responsive. |
 | **Performance** | Profile-backed checks for frame-time percentiles, long tasks, layout/paint stability, and allocation behavior. |
 | **Accessibility** | Keyboard navigation, pause-menu focus management, and meaningful HUD status updates. |
+
+### 🗂️ Test Suite Structure
+
+```text
+tests/
+├── README.md
+├── e2e/
+│   └── audit/
+│       ├── audit-question-map.js
+│       └── audit.e2e.test.js
+├── integration/
+└── unit/
+```
+
+### ✅ Audit Coverage Requirement
+
+- The `tests/e2e/audit/audit.e2e.test.js` suite is mapped directly to `docs/audit.md`.
+- Every question in `docs/audit.md` must have explicit automated test coverage.
+- The project is not complete until all mapped audit-question tests pass.
 
 ---
 
@@ -339,7 +393,7 @@ The project is split into **4 parallel workflow tracks** to enable multiple deve
 ## 🤝 Contributing
 
 1. Read `AGENTS.md` for ECS coding standards and constraints.
-2. Review `implementation-plan-ecs.md` for your specific track assignment.
+2. Review `implementation-plan.md` for your specific track assignment.
 3. Feature branches should isolate specific ECS systems or component additions.
 4. Core systems MUST remain pure functions handling data components; never import DOM adapters into `src/ecs/systems/` except for the dedicated `render-dom-system.js`.
 5. Run `npm run check && npm run test` before committing.

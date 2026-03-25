@@ -1,5 +1,7 @@
 ## make-your-game
 
+> **Source of truth note**: This file and `docs/game-description.md` are the canonical project requirement references. When in doubt about feature intent or constraints, resolve against these files.
+
 With the passing of time and evolution of technology, the human brain has been requesting
 more and more stimuli to keep the brain occupied. Boredom happens whenever
 people don't receive enough of these stimuli. And you are not receiving enough

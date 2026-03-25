@@ -21,6 +21,9 @@ If rules conflict, prioritize in the following order:
 - **AGENTS.md is normative** for implementation constraints and audit gates.
 - If another document conflicts with this file, **AGENTS.md wins** unless an approved ADR explicitly supersedes it.
 - Documentation SHOULD avoid duplicating normative constraints unless it links back to this canonical file.
+- **`docs/requirements.md` + `docs/game-description.md` are the gameplay/feature source of truth.**
+- **`docs/audit.md` is the pass/fail acceptance source of truth.**
+- When in doubt on requirements or acceptance, teams MUST resolve against those three files.
 
 ---
 
@@ -149,6 +152,7 @@ Follow this sequence for every reported issue:
 ### Invariants
 - SHOULD include seed-based determinism tests for timing/input-sensitive behavior.
 - MUST verify pause invariants: rAF active, simulation frozen, HUD responsive.
+- MUST maintain end-to-end/integration test coverage for every question in `docs/audit.md` (functional and bonus), with one or more explicit tests per question.
 
 ---
 
@@ -186,3 +190,4 @@ A task is complete only when:
 3. **Architecture**: ECS boundaries remain intact (no forbidden DOM calls in simulation systems).
 4. **Functional**: Functional coverage remains intact (single-player, pause Continue/Restart, HUD timer/score/lives).
 5. **Audit**: Performance criteria are validated for gameplay-critical changes.
+6. **Audit Test Coverage**: Every question in `docs/audit.md` has explicit automated test coverage and passing results.
