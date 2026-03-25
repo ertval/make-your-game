@@ -1,0 +1,19 @@
+{
+  "version": "v1.0",
+  "assets": [
+    {
+      "id": "ui-confirm",
+      "path": "assets/generated/ui/ui-confirm.mp3",
+      "category": "ui",
+      "format": "mp3",
+      "durationMs": 180,
+      "loop": false,
+      "critical": true,
+      "channels": 2,
+      "sampleRateHz": 44100,
+      "loudnessLufs": -18,
+      "maxBytes": 32768,
+      "notes": "Starter placeholder entry."
+    }
+  ]
+}

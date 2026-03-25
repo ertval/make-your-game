@@ -1,0 +1,17 @@
+{
+  "version": "v1.0",
+  "assets": [
+    {
+      "id": "player-idle",
+      "path": "assets/generated/sprites/player-idle.svg",
+      "kind": "sprite",
+      "format": "svg",
+      "width": 64,
+      "height": 64,
+      "critical": true,
+      "tags": ["player", "idle"],
+      "maxBytes": 32768,
+      "notes": "Starter placeholder entry."
+    }
+  ]
+}

@@ -21,7 +21,8 @@
 6. [Testing Strategy](#6-testing-strategy)
 7. [Performance Budget & Acceptance Criteria](#7-performance-budget--acceptance-criteria)
 8. [Done Criteria](#8-done-criteria)
-9. [Maintenance Notes](#9-maintenance-notes)
+9. [Asset Creation & Pipeline](#9-asset-creation--pipeline)
+10. [Maintenance Notes](#10-maintenance-notes)
 
 ---
 
@@ -42,7 +43,8 @@ For this game, ECS helps keep simulation deterministic, isolate DOM side effects
 1. `docs/requirements.md` + `docs/game-description.md` define project requirements and intended gameplay behavior.
 2. `docs/audit.md` defines pass/fail acceptance criteria.
 3. `docs/audit-traceability-matrix.md` maps every audit question to requirement, plan, and test anchors.
-4. When implementation details are ambiguous, resolve against those references first.
+4. `docs/assets-pipeline.md` defines visual/audio authoring and optimization standards.
+5. When implementation details are ambiguous, resolve against those references first.
 
 ```mermaid
 graph TB
@@ -162,6 +164,11 @@ make-your-game/
 ├── docs/
 │   ├── requirements.md
 │   ├── audit.md
+│   ├── audit-traceability-matrix.md
+│   ├── assets-pipeline.md
+│   ├── schemas/
+│   │   ├── visual-manifest.schema.json
+│   │   └── audio-manifest.schema.json
 │   ├── game-description.md
 │   └── implementation-plan.md          # This file
 │
@@ -234,6 +241,19 @@ make-your-game/
 │       ├── result.js
 │       └── utils.js                   # Pure math wrappers, arrays
 │
+├── assets/
+│   ├── source/
+│   │   ├── visual/
+│   │   └── audio/
+│   ├── generated/
+│   │   ├── sprites/
+│   │   ├── ui/
+│   │   ├── sfx/
+│   │   └── music/
+│   └── manifests/
+│       ├── visual-manifest.json
+│       └── audio-manifest.json
+│
 └── styles/
     ├── variables.css
     ├── grid.css
@@ -244,14 +264,24 @@ make-your-game/
 
 ## 3. Workflow Tracks (Balanced Workload)
 
-The work (roughly 72 hours) is divided into 4 tracks (each ~18 hours) based on ECS responsibilities. Since systems and components are heavily decoupled, tracks can be developed independently with mocked resources.
+The work is divided into 4 tracks with a near-even workload split. Asset production and validation are embedded into Track C (audio), Track D (visual), Track A (tooling/CI wiring), and Track B (gameplay event integration). Since systems and components are heavily decoupled, tracks can be developed independently with mocked resources.
+
+### Workload Summary (Balanced)
+
+| Track | Developer | Estimated Hours | Notes |
+|---|---|---:|---|
+| Track A | Dev 1 | ~22h | Core engine + CI/schema/evidence wiring |
+| Track B | Dev 2 | ~23h | Physics/input + gameplay event hooks for assets |
+| Track C | Dev 3 | ~23h | AI/rules + audio production/integration |
+| Track D | Dev 4 | ~23h | Rendering + visual production/integration |
+| **Total** | **4 Devs** | **~91h** | **~22.75h average per dev** |
 
 ---
 
 ### Track A — Engine & World Layer (Dev 1)
 
 > **Scope**: Scaffolding, ECS internals (World, Entity Store, Queries), and Core Resources.
-> **Estimate**: ~17 hours
+> **Estimate**: ~22 hours
 
 #### A-1: Project Scaffolding & Tooling
 **Priority**: 🔴 Critical  
@@ -303,12 +333,28 @@ The work (roughly 72 hours) is divided into 4 tracks (each ~18 hours) based on E
 - [ ] Implement `map-resource.js`: Parses map on load, stores a fixed representation of the static grid cells (walls, emptiness, intersections).
 - [ ] Injects map info into the World context upon level start.
 
+#### A-6: Shared Asset Validation Wiring
+**Priority**: 🔴 Critical  
+**Estimate**: 3 hours
+
+- [ ] Wire schema checks for `assets/manifests/*.json` against `docs/schemas/*.schema.json` into CI.
+- [ ] Add file existence checks for manifest paths and fail CI on missing assets.
+- [ ] Enforce naming and size-budget checks for generated assets.
+
+#### A-7: Asset Evidence Aggregation
+**Priority**: 🟡 Medium  
+**Estimate**: 2 hours
+
+- [ ] Capture before/after size report for generated visual and audio assets.
+- [ ] Collect runtime evidence notes for paint/layer behavior and audio startup timing from Dev 3/Dev 4 outputs.
+- [ ] Link evidence artifacts to `docs/audit-traceability-matrix.md` rows impacted by asset work.
+
 ---
 
 ### Track B — Physics, Player & Input (Dev 2)
 
 > **Scope**: Input acquisition, movement validation, colliding bodies, and explosion logic. All pure ECS.
-> **Estimate**: ~18 hours
+> **Estimate**: ~23 hours
 
 #### B-1: Action Components
 **Priority**: 🔴 Critical  
@@ -357,12 +403,20 @@ The work (roughly 72 hours) is divided into 4 tracks (each ~18 hours) based on E
   - Player vs Power-up/Pellet -> mark for destruction/collection and tag points.
 - [ ] Tests collision permutations locally using mocked World queries.
 
+#### B-6: Gameplay Event Hooks for Asset Cues
+**Priority**: 🟡 Medium  
+**Estimate**: 5 hours
+
+- [ ] Define deterministic event payloads for audio/visual cue triggers (`BombPlaced`, `BombDetonated`, `PelletCollected`, `LifeLost`, `GhostDefeated`).
+- [ ] Ensure collision and explosion systems emit stable, ordered events usable by adapters.
+- [ ] Add integration tests asserting event order and payload consistency for adapter consumption.
+
 ---
 
 ### Track C — AI, Game Rules & Mechanics (Dev 3)
 
 > **Scope**: Ghost behaviors, score keeping, lives management, pause, and high-level progression.
-> **Estimate**: ~19 hours
+> **Estimate**: ~23 hours
 
 #### C-1: AI Components & Spawning Logic
 **Priority**: 🔴 Critical  
@@ -406,12 +460,22 @@ The work (roughly 72 hours) is divided into 4 tracks (each ~18 hours) based on E
 
 - [ ] Implement `pause-system.js` and `level-progress-system.js`: Triggering pause freezes the global simulation timer while `clock.elapsedMs` and actual `rAF` continue. This ensures the pause UI transitions cleanly. Handles level resets and map reloading.
 
+#### C-6: Audio Assets and Runtime Cues (Dev 3)
+**Priority**: 🔴 Critical  
+**Estimate**: 4 hours
+
+- [ ] Finalize `docs/schemas/audio-manifest.schema.json` and maintain `assets/manifests/audio-manifest.json`.
+- [ ] Create/export UI and gameplay SFX set (confirm/cancel/pause, bomb place/explode, hit/death, pickup).
+- [ ] Create/export at least one loop-safe level music track and optional ambience loop.
+- [ ] Normalize loudness across categories and record metadata fields (duration, sample rate, channels, loudness).
+- [ ] Define audio cue mapping from gameplay events to manifest IDs in adapter integration notes (using Dev 2 event contracts).
+
 ---
 
 ### Track D — Rendering & DOM Shell (Dev 4)
 
 > **Scope**: Safe, minimal DOM mutation. Adapting ECS simulation outputs into visual representations using CSS grids and pooled DOM elements without leaking memory or `frames`.
-> **Estimate**: ~18 hours
+> **Estimate**: ~23 hours
 
 #### D-1: Renderer Structure & CSS Layout
 **Priority**: 🔴 Critical  
@@ -453,6 +517,16 @@ The work (roughly 72 hours) is divided into 4 tracks (each ~18 hours) based on E
   - Informs `sprite-pool-adapter` to reclaim or hide nodes not present in the current frame's render-intent set (entity death/despawn).
 - [ ] Enforce strict render commit phases: no layout reads interleaved with write loops.
 - [ ] DevTools trace verification to prove zero multi-pass layout recalcs (layout thrashing) during a full bomb explosion.
+
+#### D-6: Visual Assets and Render Mapping (Dev 4)
+**Priority**: 🔴 Critical  
+**Estimate**: 5 hours
+
+- [ ] Finalize `docs/schemas/visual-manifest.schema.json` and maintain `assets/manifests/visual-manifest.json`.
+- [ ] Create/export player, ghost states, bombs, fire, pellets, power-ups, HUD icons, and pause UI visuals.
+- [ ] Optimize SVG/raster outputs and ensure all deferred visuals have reserved dimensions in manifest metadata.
+- [ ] Build manifest-to-renderable mapping table and define missing-asset fallback class behavior.
+- [ ] Validate visual assets against layer/paint constraints using DevTools traces.
 
 ---
 
@@ -690,7 +764,58 @@ A change is complete only when:
 
 ---
 
-## 9. Maintenance Notes
+## 9. Asset Creation & Pipeline
+
+This section is mandatory for delivery readiness and complements Track D.
+
+### 9.1 Scope and Ownership
+
+1. Rendering systems own only runtime placement/state; they do not define asset authoring rules.
+2. Asset authoring, optimization, and validation are defined in `docs/assets-pipeline.md`.
+3. Asset changes should be reviewed with gameplay and performance in the same PR when behavior is affected.
+
+### 9.2 Visual Asset Rules (DOM/SVG-first)
+
+1. Preferred format is SVG for icons, characters, and UI glyphs where feasible.
+2. Raster textures should be exported at exact display targets to avoid runtime scaling churn.
+3. Every image asset must have declared dimensions in metadata/manifests so layout space is reserved and CLS risk is minimized.
+4. Animation in gameplay paths must favor `transform` and `opacity` to preserve compositor-only motion.
+5. Do not use unbounded filter stacks or expensive paint-heavy effects in hot scenes.
+
+### 9.3 Audio Asset Rules
+
+1. Provide at least one broadly compatible compressed format for each clip category (`.mp3` or `.m4a`), and optional higher-efficiency/open variants when supported (`.ogg`/Opus).
+2. Use short, pre-trimmed SFX for gameplay events; avoid long tails that overlap and inflate active voice count.
+3. Looping tracks must include loop-safe edit points and fade handling to prevent seam artifacts.
+4. Normalize loudness across categories (UI, gameplay, ambience, music) and keep headroom for mix peaks.
+5. Keep decode/startup latency constraints explicit for latency-sensitive cues.
+
+### 9.4 Build and Validation Gates
+
+1. Add CI checks for maximum asset sizes and required naming conventions.
+2. Enforce that assets referenced by manifests/routes exist and are reachable.
+3. Reject oversized additions without documented justification in the PR.
+4. Keep an auditable source-to-export path (source files, export settings, generated outputs).
+
+### 9.5 Runtime Loading Strategy
+
+1. Load first-interaction critical assets eagerly (player sprite set, HUD, immediate SFX).
+2. Defer non-critical/offscreen assets and prefetch upcoming-level bundles during safe frames.
+3. Reserve dimensions for lazily loaded visual media to avoid layout shifts.
+4. Keep object pools warm for high-churn entities and map visual instances from render intents only.
+
+### 9.6 External Best-Practice Basis
+
+The asset standards in this plan align with:
+
+1. MDN audio codec guidance (format compatibility and compression tradeoffs): https://developer.mozilla.org/en-US/docs/Web/Media/Guides/Formats/Audio_codecs
+2. MDN SVG guidance (web-native vector workflow and scripting compatibility): https://developer.mozilla.org/en-US/docs/Web/SVG
+3. web.dev lazy-loading guidance (defer offscreen media, keep in-viewport eager): https://web.dev/articles/browser-level-image-lazy-loading
+4. web.dev CLS guidance (always reserve dimensions/aspect ratio): https://web.dev/articles/optimize-cls
+
+---
+
+## 10. Maintenance Notes
 
 1. This repository is ECS-only; no legacy alternative-architecture workflow docs are maintained.
 2. `AGENTS.md` is the normative constraints source. This plan is the execution source for ECS work.

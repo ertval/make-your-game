@@ -164,6 +164,11 @@ make-your-game/
 ├── docs/                           # 📚 Documentation
 │   ├── requirements.md             # Original project requirements
 │   ├── audit.md                    # Audit checklist for grading
+│   ├── audit-traceability-matrix.md # Audit question mapping and status
+│   ├── assets-pipeline.md          # Visual/audio authoring and validation workflow
+│   ├── schemas/                    # JSON Schema 2020-12 contracts
+│   │   ├── visual-manifest.schema.json
+│   │   └── audio-manifest.schema.json
 │   ├── game-description.md         # Full game rules & mechanics
 │   └── implementation-plan.md      # Canonical ECS implementation milestones
 │
@@ -192,6 +197,9 @@ make-your-game/
 │   └── shared/                     # 🛠️ Cross-cutting utilities
 │
 ├── assets/                         # 🎨 Static assets
+│   └── manifests/                  # Runtime asset contract files
+│       ├── visual-manifest.json
+│       └── audio-manifest.json
 │
 └── styles/                         # 💅 CSS
     ├── variables.css               # Design tokens (colors, sizes, fonts)
@@ -317,13 +325,15 @@ Recommended reading order for new contributors:
 3. `docs/game-description.md` (gameplay behavior source of truth)
 4. `docs/audit.md` (acceptance/pass criteria source of truth)
 5. `docs/audit-traceability-matrix.md` (question-by-question requirement/plan/test mapping)
-6. `docs/implementation-plan.md` (ECS execution plan and milestones)
+6. `docs/assets-pipeline.md` (visual/audio asset creation, optimization, and validation workflow)
+7. `docs/implementation-plan.md` (ECS execution plan and milestones)
 
 ### 📌 Source Of Truth Policy
 
 - Requirement intent and feature scope: `docs/requirements.md` + `docs/game-description.md`
 - Final pass/fail acceptance criteria: `docs/audit.md`
 - Cross-document audit traceability and test status: `docs/audit-traceability-matrix.md`
+- Visual/audio authoring and asset quality gates: `docs/assets-pipeline.md`
 - If there is ambiguity, decisions MUST be resolved against those references.
 
 ---
