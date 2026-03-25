@@ -6,6 +6,7 @@ This folder organizes all automated tests for the ECS project.
 
 - Requirement intent and gameplay rules: `docs/requirements.md` and `docs/game-description.md`
 - Acceptance/pass criteria: `docs/audit.md`
+- Audit question traceability and implementation status: `docs/audit-traceability-matrix.md`
 
 When in doubt, test behavior must be validated against those files.
 

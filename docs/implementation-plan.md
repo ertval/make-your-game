@@ -41,7 +41,8 @@ For this game, ECS helps keep simulation deterministic, isolate DOM side effects
 
 1. `docs/requirements.md` + `docs/game-description.md` define project requirements and intended gameplay behavior.
 2. `docs/audit.md` defines pass/fail acceptance criteria.
-3. When implementation details are ambiguous, resolve against those references first.
+3. `docs/audit-traceability-matrix.md` maps every audit question to requirement, plan, and test anchors.
+4. When implementation details are ambiguous, resolve against those references first.
 
 ```mermaid
 graph TB
@@ -64,9 +65,9 @@ graph TB
         end
         
         subgraph "Components"
-            COMP_POS["Position, Velocity"]
-            COMP_ACT["Player, Ghost, Bomb"]
-            COMP_REN["Renderable, PooledDOM"]
+          COMP_POS["Position, Velocity"]
+          COMP_ACT["Player, Ghost, Bomb"]
+          COMP_REN["Renderable, VisualState"]
         end
     end
 
@@ -145,7 +146,7 @@ graph TB
 2. **DOM Isolation**: Simulation systems (movement, AI, collisions) must NEVER touch the DOM object. All DOM side effects are handled exclusively by the `Render DOM System` and adapters explicitly built to wrap DOM nodes.
 3. **Data-Oriented & Zero Allocation**: Inside the core fixed-timestep update, arrays and pools are pre-allocated. Mutations on hot-path buffers occur in-place to avoid GC pause and frame drops.
 4. **Stable Scheduling**: System execution order is rigidly defined in the `World` object. Components are updated predictably.
-5. **Rendering Pipeline**: Simulation feeds intents. The `Render Collect System` processes what needs drawing, mapping it into `Renderable` and `PooledDOM` components. The `Render DOM System` then applies a single batch-write phase of transforms and opacity to avoid layout thrashing.
+5. **Rendering Pipeline**: Simulation feeds intents. The `Render Collect System` processes what needs drawing and emits a frame-local render-intent buffer from ECS data. The `Render DOM System` then applies a single batch-write phase of transforms and opacity to avoid layout thrashing.
 
 ---
 
@@ -193,7 +194,7 @@ make-your-game/
 │   │   │   ├── stats.js               # Health, lives, score, timer tags
 │   │   │   ├── input-state.js         # Intended actions
 │   │   │   ├── renderable.js          # Sprite key, animations
-│   │   │   └── pooled-dom.js          # DOM references managed purely by rendering system
+│   │   │   └── visual-state.js        # Pure render flags (stunned, invincible, hidden)
 │   │   ├── systems/
 │   │   │   ├── input-system.js        # Applies adapter input to components
 │   │   │   ├── player-move-system.js  # Grid-constrained player motion
@@ -428,11 +429,12 @@ The work (roughly 72 hours) is divided into 4 tracks (each ~18 hours) based on E
 - [ ] Implement `sprite-pool-adapter.js`: Allocates (e.g., 50x Fire elements, 10x Bomb elements) upfront. Hides and displays using CSS `display` or offscreen transform. No repeated `createElement` or `remove` calls mid-game.
 - [ ] Implement `hud-adapter.js` and `screens-adapter.js`: Binds text nodes natively with `.textContent` to update metrics securely.
 
-#### D-3: Render Components
+#### D-3: Render Data Contracts
 **Priority**: 🔴 Critical  
 **Estimate**: 2 hours
 
-- [ ] Define `renderable.js` (sprite class references natively mapped) and `pooled-dom.js` (the DOM node handle associated with the visual representation, maintained only by the render system).
+- [ ] Define `renderable.js` (sprite class references mapped to visual kinds) and `visual-state.js` (pure render flags only; no DOM handles in ECS components).
+- [ ] Define `render-intent.js` as a frame-local batch structure consumed by `render-dom-system.js`.
 
 #### D-4: Render Collect System
 **Priority**: 🔴 Critical  
@@ -448,7 +450,7 @@ The work (roughly 72 hours) is divided into 4 tracks (each ~18 hours) based on E
 - [ ] Applies calculated batched writes:
   - Exclusively updates `.style.transform = "translate3d(x, y, 0)"` and `.style.opacity`.
   - Swaps `classList` values based on states (like stunned/invincible).
-  - Informs `sprite-pool-adapter` to reclaim nodes when entities lack `pooled-dom.js` bindings (entity death).
+  - Informs `sprite-pool-adapter` to reclaim or hide nodes not present in the current frame's render-intent set (entity death/despawn).
 - [ ] Enforce strict render commit phases: no layout reads interleaved with write loops.
 - [ ] DevTools trace verification to prove zero multi-pass layout recalcs (layout thrashing) during a full bomb explosion.
 
@@ -640,8 +642,8 @@ Shared structure inside component storage array definitions. These are documente
 | **Security Boundaries** | Vitest + static checks | HUD/menu updates use safe sinks (`textContent`, explicit attributes); untrusted storage data is validated on read. |
 | **Regression Fixes**| Vitest | Repro test first, then fix, then pass. Verify no cross-system side effects outside component/resource contracts. |
 | **Performance** | DevTools | Validates that DOM layouts (`paint`/`layout`) only happen on intended `transform/opacity` changes. Validate GC patterns and strictly <=16.7ms frame outputs. |
-| **Audit Compliance** | Manual | Manually assert all checkmarks in `audit.md` sequentially. |
-| **Audit E2E Coverage** | Vitest + browser/e2e harness | One explicit automated test case per question in `docs/audit.md` (functional + bonus). |
+| **Audit Compliance** | Vitest + browser/e2e harness | Automated acceptance assertions mapped to every question in `docs/audit.md`; no checklist-only completion. |
+| **Audit E2E Coverage** | Vitest + browser/e2e harness | One explicit automated test case per question in `docs/audit.md` (functional + bonus), with CI-enforced pass status. |
 
 ---
 

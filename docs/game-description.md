@@ -2,7 +2,7 @@
 
 > **Source of truth note**: This file and `docs/requirements.md` are the canonical gameplay/feature requirement references. When in doubt about expected behavior, resolve against these files.
 
-> **Genre**: Pac-Man × Bomberman Hybrid  
+> **Genre Alignment**: Pac-Man-inspired maze chase (primary) with Bomberman-style bomb mechanics (secondary)  
 > **Players**: Single-player  
 > **Renderer**: Pure DOM / CSS Grid (no `<canvas>`, no frameworks)  
 > **Target Performance**: Constant 60 FPS via `requestAnimationFrame`

@@ -27,7 +27,7 @@ A single-player browser game built with **pure JavaScript, HTML, and CSS** — n
 
 ## 🎯 Overview
 
-Ms. Ghostman is a hybrid arcade game combining:
+Ms. Ghostman is a single-player arcade game with a Pac-Man-first loop and Bomberman-style bomb mechanics:
 
 - **Pac-Man**: Navigate a grid-based maze, eat all pellets to complete a level.
 - **Bomberman**: Drop bombs to destroy walls, create paths, and eliminate enemies.
@@ -120,7 +120,7 @@ graph TB
         subgraph "Components"
             COMP_POS["Position, Velocity"]
             COMP_ACT["Player, Ghost, Bomb"]
-            COMP_REN["Renderable, PooledDOM"]
+            COMP_REN["Renderable, VisualState"]
         end
     end
 
@@ -316,12 +316,14 @@ Recommended reading order for new contributors:
 2. `docs/requirements.md` (project requirement source of truth)
 3. `docs/game-description.md` (gameplay behavior source of truth)
 4. `docs/audit.md` (acceptance/pass criteria source of truth)
-5. `docs/implementation-plan.md` (ECS execution plan and milestones)
+5. `docs/audit-traceability-matrix.md` (question-by-question requirement/plan/test mapping)
+6. `docs/implementation-plan.md` (ECS execution plan and milestones)
 
 ### 📌 Source Of Truth Policy
 
 - Requirement intent and feature scope: `docs/requirements.md` + `docs/game-description.md`
 - Final pass/fail acceptance criteria: `docs/audit.md`
+- Cross-document audit traceability and test status: `docs/audit-traceability-matrix.md`
 - If there is ambiguity, decisions MUST be resolved against those references.
 
 ---
