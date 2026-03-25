@@ -202,7 +202,7 @@ The HUD displays at all times during gameplay:
 
 ## 10. Pause Menu
 
-Press **`Escape`** or **`P`** to pause. The game loop halts (no animation frames consumed). The overlay shows:
+Press **`Escape`** or **`P`** to pause. `requestAnimationFrame` remains active for responsive UI while simulation progression is frozen. The overlay shows:
 
 ```
 ╔═══════════════════╗
