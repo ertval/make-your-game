@@ -1,85 +1,33 @@
-# Agent Instructions: Modern JavaScript (2026) Guidelines
+# Agent Instructions: Modern JavaScript (2026) Vanilla DOM Game Development Guidelines
 
 ## Core Directives
 - **Action-Oriented**: Focus purely on writing clean, idiomatic code and performing rigorous robust static analysis.
--  **No Quick Fixes**: When I report a bug, dont try to fix it immediately. Instead, try to understand the root cause of the bug. Then write a test that reproduces the bug. Then have subagents try to fix the bug and prove it with passing test. 
-- **Commit and Push**: Always commit and push your changes after each task.
+- **No Quick Fixes**: When I report a bug, dont try to fix it immediately. Instead, try to understand the root cause of the bug. Then write a test that reproduces the bug. Then have subagents try to fix the bug and prove it with passing test. 
 
-## Modern JS & Idioms (ES2026 Standard)
-- **Immutability by Default**: 
-  - ALWAYS use immutable array methods (`toSorted()`, `toReversed()`, `toSpliced()`, `with()`) instead of mutating counterparts (`sort()`, `reverse()`, `splice()`).
-  - Rely on destructuring and the spread operator (`...`) instead of direct object/array mutation.
-- **Modern APIs & Primitives**:
-  - **Temporal API**: Exhaustively use `Temporal` for accurate date/time tracking. The legacy `Date` object is strictly forbidden.
-  - **Sets**: Utilize native ES2025 Set operations (`union()`, `intersection()`, `difference()`, `isSubsetOf()`, etc.).
-  - **Grouping**: Leverage `Object.groupBy()` and `Map.groupBy()` for grouping data iteratively.
-- **Promises & Error Flow**: 
-  - Use `async/await` exclusively with top-level await where applicable. 
-  - Rely on `Promise.withResolvers()` and `Promise.try()` for unified sync/async wrapping.
-  - **Explicit Result Pattern**: For business logic rejections, prefer returning a Result object (e.g., `{ ok: true, data } | { ok: false, error }`) instead of throwing exceptions. Reserve `throw` for truly exceptional, unrecoverable system failures.
-- **Resource Management**: Exhaustively use the **`using`** and **`await using`** declarations for deterministic cleanup of resources (file handles, event listeners, streams). Avoid manual `try...finally` cleanup.
-- **Variables & Functions**:
-  - `const` is the default. Only use `let` when variable reassignment is essential.
-  - Prefer arrow functions for standard logic and to preserve lexical `this`.
+## Performance & Memory Management (Zero-Allocation & 60 FPS)
+- **Avoid Garbage Collection (GC) Pauses**: In the core game loop, massive object creation causes fatal GC spikes and frame drops. 
+  - **Memory & DOM Pooling**: Pre-allocate logical objects AND their corresponding DOM elements (e.g., bullets, enemies). Reuse them instead of creating new instances or continuously calling `document.createElement()` and `.remove()`. Memory reuse is strictly required to avoid jank.
+  - **Mutable State in Hot Loops**: Mutating state in-place during the update loop is mandatory. Avoid creating new arrays or objects on every frame (e.g., heavily restrict use of spread operators `...` or immutable methods like `toSorted()`).
 
-## Code Organization & Architecture (2026)
-- **Screaming Architecture**: The directory structure MUST communicate the application's domain and purpose, not the technical framework used.
-  - Prefer a **Feature-First** structure (e.g., `src/features/feat.billing.js`) over a Type-First structure (e.g., `src/components/`).
-  - **Colocation**: Keep logic, UI components, styles, types, and tests together within the feature folder they serve.
-- **Layered Decoupling (Clean Architecture)**:
-  - **Core/Domain**: This layer MUST be pure JavaScript, housing business rules and entities. It has zero knowledge of the database, UI, or external APIs.
-  - **Application/Use Cases**: Orchestrates flow. It depends on abstractions (interfaces/ports) and not concrete implementations.
-  - **Infrastructure/Adapters**: Implements the technical details (e.g., `fetch` calls, `Temporal` formatting for UI, storage). Use Dependency Inversion to provide these to the application layer.
-- **Encapsulated Modules**: 
-  - Use `package.json` `exports` to define strict public boundaries. Prevent unauthorized deep-imports into a feature's internal modules.
-  - Maintain a strict hierarchy: Feature A should never reach into Feature B's `internal/` folder.
-- **Functional Core, Imperative Shell**: Centralize business logic in pure, deterministic functions; push side effects (I/O) to the outermost edges of the architecture.
-- **Fine-Grained Reactivity (Signals)**: For state management, prefer **Signals** (standardized observer primitives) over heavy global state containers. Ensure UI updates are targeted and granular.
+## Pure DOM Game Engine Architecture (Canvas Forbidden)
+- **Strictly Plain JS/DOM**: The game MUST avoid `<canvas>`, WebGL, WebGPU, and any external visual frameworks. It must be built exclusively with semantic HTML, CSS, SVG, and Vanilla JavaScript.
+- **Compositor-Only Rendering**: To achieve and maintain a pristine 60+ FPS, avoid triggering Layout and Paint operations in the main loop. ONLY animate CSS `transform` (e.g., `translate3d()`) and `opacity`.
+- **Layer Management**: Keep the use of CSS layers (via `will-change: transform` or `transform: translateZ(0)`) minimal but not zero. Promote element layer creation properly to hardware-accelerate moving parts, but avoid over-layering to save memory.
+- **SVG Graphics**: Capitalize on inline `<svg>` elements for rendering game entities visually, manipulating their geometry via CSS.
+- **Entity-Component-System (ECS) & DOM Batching**: Separate pure mathematical game logic from DOM manipulation. 
+  - The Simulation updates logical coordinates.
+  - A dedicated Render System batches DOM `style` updates at the very end of the frame to prevent DOM Layout Thrashing.
 
-## Code Quality & Static Analysis (2026)
-- **State-of-the-Art Tooling**: Use **Biome** as the standard for ultra-fast unified linting and formatting (or ESLint v10 Flat Config). Actively perform static analysis to detect code smells.
-- **Type-Aware JS**: Provide rich JSDocs for type-aware linting in vanilla JavaScript for maximum safety.
-- **Code Health**: Prevent "AI slop", over-engineering, and boilerplate code. Write tightly scoped functions and observe complexity limits.
+## Game Loop & Timing
+- **Strict requestAnimationFrame**: The core loop MUST run on `window.requestAnimationFrame()` without interruption. Do not use `setInterval` or `setTimeout` for the update loop.
+- **Time Tracking**: Use `performance.now()` or the timestamp provided by the `requestAnimationFrame` callback for ultra-precise delta time tracking.
+- **Pause & State Integrity**: The engine must support pausing natively. When paused, logic/simulation time should freeze freely, but `requestAnimationFrame` continues updating so that the pause menu and UI render smoothly without dropping frames.
 
-## JavaScript Security Guidelines (2026)
-- **XSS Prevention by Construction**:
-  - Prefer safe DOM sinks (`textContent`, `createTextNode`, `setAttribute` with hardcoded safe attribute names).
-  - Treat `innerHTML`, `insertAdjacentHTML`, `outerHTML`, `document.write`, and string-to-code APIs as high-risk injection sinks.
-  - If HTML rendering is required, sanitize with a maintained sanitizer (for example, DOMPurify) and never mutate sanitized markup afterward.
-  - Never put untrusted values into event-handler attributes, inline scripts/styles, or `javascript:` URLs.
-- **Token & Session Handling**:
-  - Prefer server-managed sessions in `HttpOnly` + `Secure` + `SameSite` cookies for authentication state.
-  - If bearer tokens must be used client-side, keep TTL short, rotate regularly, scope audience/claims minimally, and validate `iss`, `aud`, `exp`, and algorithm expectations server-side.
-  - Do not place long-lived secrets in `localStorage`; if temporary browser storage is unavoidable, prefer shorter-lived strategies and strict CSP hardening.
-  - Renew session identifiers after authentication or privilege changes and enforce server-side invalidation on logout/expiration.
-- **CSP and Trusted Types Enforcement**:
-  - Use a strict CSP (`script-src` nonce/hash-based, avoid `unsafe-inline` and `unsafe-eval`, set `object-src 'none'`, `base-uri 'none'`).
-  - Use `frame-ancestors` to prevent untrusted embedding/clickjacking where appropriate.
-  - Enforce Trusted Types with `require-trusted-types-for 'script'` and explicit `trusted-types` policy allowlists.
-  - Roll out policy changes with report-only mode first, then enforce.
-- **Dependency and Supply-Chain Controls**:
-  - Pin and enforce lockfiles (`npm ci` in CI).
-  - Continuously audit dependencies and transitive dependencies; block known exploited/high-severity issues before release.
-  - Minimize install-time script risk (prefer `--ignore-scripts` or allowlisted lifecycle scripts where feasible).
-  - Use provenance/SBOM/signing workflows for release artifacts and prefer trusted publishers with short-lived credentials.
-  - Enforce 2FA and least privilege for package publishing and CI tokens.
-- **Secure Network and Fetch Handling**:
-  - Enforce HTTPS-only endpoints; never send credentials or tokens over plaintext transport.
-  - Use explicit `fetch` options (`method`, `mode`, `credentials`, `cache`, `redirect`) and fail closed on unexpected response status/content-type.
-  - Bound network operations with timeouts/cancellation (`AbortController`) and implement retry with backoff only for idempotent operations.
-  - Validate response shape before use; reject ambiguous or mixed-content responses.
-- **Safe DOM and Browser API Usage**:
-  - Build UI trees with `createElement`/`createElementNS` and explicit property assignment.
-  - Avoid dynamic code execution (`eval`, `new Function`, string arguments to `setTimeout`/`setInterval`).
-  - Keep third-party script inclusion minimal and integrity-protected where applicable.
-- **Logging and Privacy Hygiene**:
-  - Never log credentials, tokens, session identifiers, auth headers, or PII.
-  - Redact sensitive fields before logging and prefer structured logs with minimal, purpose-bound fields.
-  - Use correlation IDs instead of user secrets for traceability.
-  - Treat client telemetry as potentially sensitive; collect the least data necessary and retain for the shortest practical duration.
+## Input Handling
+- **Smooth Keyboard Controls**: Motions triggered by continuous key presses must NOT stutter. Do not rely exclusively on the OS's native key-repeat rate inside `keydown`. Instead, track physical key states (e.g., `keys[e.code] = true` on `keydown`, `false` on `keyup`) and continuously apply velocity physics inside the game loop based on those states.
 
-## Legacy Anti-Patterns (NEVER USE)
-- **`var` is completely forbidden**.
-- **CommonJS is obsolete**: Exclusively use ES Modules (`import`/`export`). No `require`.
-- **Legacy objects & properties**: Avoid the `arguments` object (use rest parameter `...args`), avoid `_private` naming conventions (use `#private` class fields), and do not use `XMLHttpRequest` (use `fetch`).
-- **Forbidden Patterns**: NEVER modify built-in prototypes. Avoid "clever" one-liners that sacrifice readability for terseness.
+## Code Quality & Security
+- **State-of-the-Art Tooling**: Use **Biome** as the standard for ultra-fast unified linting and formatting. Actively perform static analysis to detect code smells.
+- **Code Health**: Prevent "AI slop" and boilerplate. Write tightly scoped functions, favor asynchronous performance boosts where possible, and avoid unnecessary recursive/network data requests.
+- **Safe DOM sinks**: Prefer `textContent` over `innerHTML` when updating scoreboards, clocks/timers, and the HUD.
+- **Legacy Anti-Patterns**: `var` is entirely forbidden. Exclusively use ES Modules (`import`/`export`). No `require`. Avoid `XMLHttpRequest`.
