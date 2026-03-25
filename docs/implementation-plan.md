@@ -276,6 +276,22 @@ The work is divided into 4 tracks with a near-even workload split. Asset product
 | Track D | Dev 4 | ~23h | Rendering + visual production/integration |
 | **Total** | **4 Devs** | **~91h** | **~22.75h average per dev** |
 
+### Critical Path By Dev
+
+| Dev | Critical Path Focus | Must Land Before | Depends On |
+|---|---|---|---|
+| Dev 1 | World bootstrap, resource plumbing, CI/schema wiring, asset validation gates | Any gameplay integration that relies on stable startup, manifests, or CI gates | None for initial scaffolding; later depends on Track B/C/D outputs for evidence aggregation |
+| Dev 2 | Input snapshot, movement, collision, and gameplay event emission | Audio cue mapping, visual cue triggers, and deterministic replay checks | Dev 1 world/resource setup; coordinates with Dev 3/Dev 4 via event payload contracts |
+| Dev 3 | Ghost AI, scoring, timer/life rules, and audio asset runtime cues | Final gameplay loop completeness and audio feedback readiness | Dev 1 ECS/resources; Dev 2 collision/event hooks for cues; Dev 4 for visual state alignment |
+| Dev 4 | Render batching, DOM commit, visual asset mapping, and visual fallback behavior | Visual completeness, pause/menu presentation, and paint/layer constraints | Dev 1 render boundary/setup; Dev 2 entity state events; Dev 3 visual state rules for stun/death/pause cues |
+
+#### Scheduling Rule
+
+1. Dev 1 starts first to land the boot, world, and validation rails.
+2. Dev 2 and Dev 4 can then work in parallel once the ECS resource/event contracts are stable.
+3. Dev 3 should integrate against the event contracts early so audio/game rule behavior and visual states do not drift.
+4. Shared asset/CI evidence work stays on Dev 1, but requires inputs from Dev 3 and Dev 4 before it can close.
+
 ---
 
 ### Track A — Engine & World Layer (Dev 1)
