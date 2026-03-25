@@ -1,4 +1,4 @@
-# 📋 Ms. Ghostman — ECS Implementation Plan
+ # 📋 Ms. Ghostman — ECS Implementation Plan
 
 > **Architecture**: Entity-Component-System (ECS)  
 > **Stack**: Vanilla JS (ES2026) · HTML · CSS Grid · DOM API only  
@@ -108,6 +108,20 @@ graph TB
 - `rAF` continues running.
 - Simulation updates are skipped while paused.
 - Pause UI remains responsive; no timer progression while paused.
+- On unpause, timing baseline is reset and accumulator is cleared/capped to prevent burst catch-up.
+- `visibilitychange` / `blur` are treated as lifecycle events that force input and clock resynchronization.
+
+### Input Determinism Contract
+
+1. Input adapter tracks hold state from `keydown`/`keyup` sets; gameplay does not depend on OS key-repeat.
+2. Held key state is cleared on `blur` and document hidden transitions.
+3. World snapshots input once per fixed simulation step and systems consume only that snapshot.
+
+### ECS Mutation Contract
+
+1. Structural mutations (add/remove entity/component) are deferred to a sync point after system execution.
+2. Entity IDs are recycled with stale-handle protection semantics.
+3. Cross-system event queues are processed in deterministic insertion order.
 
 ### Key Principles
 
@@ -252,6 +266,7 @@ The work (roughly 72 hours) is divided into 4 tracks (each ~18 hours) based on E
 - [ ] Implement `main.ecs.js`: Boots World, binds `window.requestAnimationFrame`.
 - [ ] Connect `rAF` pipeline into World's internal accumulator update.
 - [ ] Implement basic state-transition flow (playing, paused) handled by checking `clock.isPaused` to freeze simulation while keeping rAF active.
+- [ ] Add resume safety and lifecycle handling: baseline reset (`lastFrameTime = now`) and accumulator clamp/clear on unpause and tab restore.
 - [ ] Test the empty loop verifies consistent 60 FPS overhead with Performance API.
 
 #### A-5: Map Loading Resource
@@ -286,7 +301,9 @@ The work (roughly 72 hours) is divided into 4 tracks (each ~18 hours) based on E
 **Estimate**: 3 hours
 
 - [ ] Implement `adapters/io/input-adapter.js`: Captures `keydown`/`keyup` securely mapping into an intent buffer. No OS key repeat reliance.
+- [ ] Ensure held-key state clears on `blur`/`visibilitychange` to prevent stuck movement after focus loss.
 - [ ] Implement `ecs/systems/input-system.js`: Reads adapter, writes into the `input-state` component attached to the Player entity within the frame logic.
+- [ ] Snapshot input state once per fixed simulation step and consume immutable snapshots in gameplay systems.
 
 #### B-3: Movement & Grid Collision System
 **Priority**: 🔴 Critical  
@@ -408,6 +425,7 @@ The work (roughly 72 hours) is divided into 4 tracks (each ~18 hours) based on E
   - Exclusively updates `.style.transform = "translate3d(x, y, 0)"` and `.style.opacity`.
   - Swaps `classList` values based on states (like stunned/invincible).
   - Informs `sprite-pool-adapter` to reclaim nodes when entities lack `pooled-dom.js` bindings (entity death).
+- [ ] Enforce strict render commit phases: no layout reads interleaved with write loops.
 - [ ] DevTools trace verification to prove zero multi-pass layout recalcs (layout thrashing) during a full bomb explosion.
 
 ---
@@ -466,6 +484,14 @@ gantt
 ### Milestone 5: Audit and Performance Hardening
 **Requires**: All tracks complete
 **Result**: Audit checklist pass evidence and performance trace summary.
+
+### Gate Evidence Required (All Milestones)
+
+1. Test evidence: relevant Vitest suites green, including new deterministic replay or regression tests for changed systems.
+2. Performance evidence (for gameplay-critical changes): p50/p95/p99 frame-time stats + dropped-frame notes over representative 60s traces.
+3. Pause evidence: rAF remains active while simulation/timer/fuse progression is frozen.
+4. Rendering evidence: no recurring forced layout/reflow loops in render commit.
+5. Environment evidence: browser version, OS, machine class, and throttle conditions.
 
 ---
 
@@ -586,6 +612,8 @@ Shared structure inside component storage array definitions. These are documente
 | **DOM Adapters** | Vitest + jsdom | Verifies `createElementNS` behaves securely without string/`innerHTML` injections. Assert pooled lengths. |
 | **Replay Determinism** | Vitest | Same seed and same input trace must produce same state hash at frame N. |
 | **Pause & Timer Invariants** | Vitest + integration fixtures | While paused, rAF remains active and simulation time remains frozen. Timer/fuse/invincibility counters do not drift. |
+| **Accessibility Invariants** | Vitest + jsdom | Pause focus enters overlay on open and restores to prior target on close. Keyboard-only control path remains valid. |
+| **Security Boundaries** | Vitest + static checks | HUD/menu updates use safe sinks (`textContent`, explicit attributes); untrusted storage data is validated on read. |
 | **Regression Fixes**| Vitest | Repro test first, then fix, then pass. Verify no cross-system side effects outside component/resource contracts. |
 | **Performance** | DevTools | Validates that DOM layouts (`paint`/`layout`) only happen on intended `transform/opacity` changes. Validate GC patterns and strictly <=16.7ms frame outputs. |
 | **Audit Compliance** | Manual | Manually assert all checkmarks in `audit.md` sequentially. |
