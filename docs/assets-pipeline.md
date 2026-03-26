@@ -140,7 +140,7 @@ ffmpeg -i assets/source/audio/music-level-01.wav -c:a libopus -b:a 128k assets/g
 
 Follow the same ticket style as the implementation plan and assign ownership strictly.
 
-### Visual Lane (Dev 4)
+### Rendering, DOM Batching, and Visual Production and Integration (Dev 4)
 
 #### V-01: Visual Schema Contract
 **Priority**: 🔴 Critical  
@@ -179,7 +179,7 @@ Follow the same ticket style as the implementation plan and assign ownership str
 - [ ] Verify no oversized visual artifacts violate size budgets.
 - [ ] Verify reserved dimensions/aspect behavior for deferred images.
 
-### Audio Lane (Dev 3)
+### AI, Rules, and Audio Production and Integration (Dev 3)
 
 #### A-01: Audio Schema Contract
 **Priority**: 🔴 Critical  
@@ -217,7 +217,7 @@ Follow the same ticket style as the implementation plan and assign ownership str
 - [ ] Validate loop boundaries and remove click artifacts.
 - [ ] Capture duration/sample-rate/channel metadata in manifest.
 
-### Shared Integration and Validation (Dev 1 with Dev 3 + Dev 4 input)
+### Core Integration and Validation (Dev 1 with Dev 3 and Dev 4 input)
 
 #### X-01: Schema and Path Validation in CI
 **Priority**: 🔴 Critical  

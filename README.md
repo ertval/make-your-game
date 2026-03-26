@@ -309,10 +309,10 @@ The project is split into **4 parallel workflow tracks** to enable multiple deve
 
 | Track | Dev | Scope | Key Systems & Files |
 |---|---|---|---|
-| **Track A** | Dev 1 | Core Engine & World Layer | `src/ecs/world/*`, `src/ecs/resources/*`, `main.ecs.js` |
-| **Track B** | Dev 2 | Physics, Player & Input | `input-system.js`, `player-move-system.js`, `bomb-tick-system.js` |
-| **Track C** | Dev 3 | AI, Rules & Mechanics | `ghost-ai-system.js`, `scoring-system.js`, `collision-system.js` |
-| **Track D** | Dev 4 | Rendering & DOM Shell | `render-collect-system.js`, `render-dom-system.js`, Adapters |
+| **Track A** | Dev 1 | Core Engine, CI, Schema, and Evidence Wiring | `src/ecs/world/*`, `src/ecs/resources/*`, `main.ecs.js` |
+| **Track B** | Dev 2 | Physics, Input, and Gameplay Event Hooks | `input-system.js`, `player-move-system.js`, `bomb-tick-system.js` |
+| **Track C** | Dev 3 | AI, Rules, and Audio Production and Integration | `ghost-ai-system.js`, `scoring-system.js`, `collision-system.js` |
+| **Track D** | Dev 4 | Rendering, DOM Batching, and Visual Production and Integration | `render-collect-system.js`, `render-dom-system.js`, Adapters |
 
 > **Note**: For the full integration milestone breakdown, check `implementation-plan.md`.
 

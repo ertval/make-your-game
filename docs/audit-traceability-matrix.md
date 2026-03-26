@@ -30,21 +30,21 @@ This document maps every question in `docs/audit.md` to requirement intent, game
 | AUDIT-F-04 | Does the game avoid the use of canvas? | Objectives | Header Renderer; Section 12 constraints | Sections 1 Source Of Truth; 8 Done Criteria | Same as above | Mapped, Pending |
 | AUDIT-F-05 | Does the game avoid the use of frameworks? | Objectives | Header Renderer; Section 12 constraints | Sections 1 Source Of Truth; 8 Done Criteria | Same as above | Mapped, Pending |
 | AUDIT-F-06 | Is the game chosen from the pre-approved list? | Pre-Approved List | Header Genre Alignment; Sections 1, 13 | Section 8 Done Criteria (genre-aligned gameplay) | Same as above | Mapped, Pending |
-| AUDIT-F-07 | Does pause menu show continue and restart? | Objectives; Instructions | Section 10 Pause Menu | Sections 3 Track C (Pause); 8 Done Criteria | Same as above | Mapped, Pending |
-| AUDIT-F-08 | Does continue resume gameplay from pause? | Instructions | Section 10 Continue behavior | Sections 1 Pause Semantics; 3 Track C Pause system | Same as above | Mapped, Pending |
-| AUDIT-F-09 | Does restart reset correctly from pause? | Instructions | Section 10 Restart behavior | Sections 3 Track C Pause and Progression | Same as above | Mapped, Pending |
+| AUDIT-F-07 | Does pause menu show continue and restart? | Objectives; Instructions | Section 10 Pause Menu | Section 3 Track C — AI, Rules, and Audio Production and Integration; C-5 Pause & Progression Systems | Same as above | Mapped, Pending |
+| AUDIT-F-08 | Does continue resume gameplay from pause? | Instructions | Section 10 Continue behavior | Sections 1 Pause Semantics; Section 3 Track C — AI, Rules, and Audio Production and Integration; C-5 Pause & Progression Systems | Same as above | Mapped, Pending |
+| AUDIT-F-09 | Does restart reset correctly from pause? | Instructions | Section 10 Restart behavior | Section 3 Track C — AI, Rules, and Audio Production and Integration; C-5 Pause & Progression Systems | Same as above | Mapped, Pending |
 | AUDIT-F-10 | While paused, no dropped frames and rAF unaffected? | Objectives; Instructions | Sections 10, 12 | Sections 1 Pause Semantics; 7 Performance Budget | Same as above | Mapped, Pending |
-| AUDIT-F-11 | Does player obey movement commands? | Instructions | Section 3.1 Movement | Sections 3 Track B Input and Movement | Same as above | Mapped, Pending |
-| AUDIT-F-12 | Does player move without spamming keys? | Instructions | Section 3.1 Hold-to-move | Sections 1 Input Determinism; 3 Track B Input Adapter | Same as above | Mapped, Pending |
+| AUDIT-F-11 | Does player obey movement commands? | Instructions | Section 3.1 Movement | Section 3 Track B — Physics, Input, and Gameplay Event Hooks; B-3 Movement & Grid Collision System | Same as above | Mapped, Pending |
+| AUDIT-F-12 | Does player move without spamming keys? | Instructions | Section 3.1 Hold-to-move | Sections 1 Input Determinism; Section 3 Track B — Physics, Input, and Gameplay Event Hooks; B-2 Input Adapter & System | Same as above | Mapped, Pending |
 | AUDIT-F-13 | Does game behave like pre-approved genre? | Pre-Approved List | Sections 1, 4, 5, 13 | Sections 1 Source Of Truth; 8 Done Criteria | Same as above | Mapped, Pending |
-| AUDIT-F-14 | Does timer/countdown work? | Objectives scoreboard metrics | Section 7 Timer/Countdown | Sections 3 Track C Timer system; 8 Done Criteria | Same as above | Mapped, Pending |
-| AUDIT-F-15 | Does score increase on scoring actions? | Objectives scoreboard metrics | Section 6 Scoring System | Sections 3 Track C Scoring system; 8 Done Criteria | Same as above | Mapped, Pending |
-| AUDIT-F-16 | Do lives decrease on life-loss events? | Objectives scoreboard metrics | Section 3.3 Lives | Sections 3 Track C Life system; 8 Done Criteria | Same as above | Mapped, Pending |
+| AUDIT-F-14 | Does timer/countdown work? | Objectives scoreboard metrics | Section 7 Timer/Countdown | Section 3 Track C — AI, Rules, and Audio Production and Integration; C-4 Timer System & Scoring System | Same as above | Mapped, Pending |
+| AUDIT-F-15 | Does score increase on scoring actions? | Objectives scoreboard metrics | Section 6 Scoring System | Section 3 Track C — AI, Rules, and Audio Production and Integration; C-4 Timer System & Scoring System | Same as above | Mapped, Pending |
+| AUDIT-F-16 | Do lives decrease on life-loss events? | Objectives scoreboard metrics | Section 3.3 Lives | Section 3 Track C — AI, Rules, and Audio Production and Integration; C-4 Timer System & Scoring System | Same as above | Mapped, Pending |
 | AUDIT-F-17 | Can you confirm there are no frame drops? | Objectives | Sections 10, 12 | Sections 7 Performance Budget; Required Evidence | Same as above | Mapped, Pending |
 | AUDIT-F-18 | Does game run around 60 FPS? | Objectives; Instructions | Header Target Performance; Section 12 | Sections 7 Performance Budget | Same as above | Mapped, Pending |
-| AUDIT-F-19 | Is paint used as little as possible? | Objectives layers guidance | Sections 2, 12 | Sections 3 Track D Render DOM batcher; 7 Layout Thrashing budget | Same as above | Mapped, Pending |
-| AUDIT-F-20 | Are layers used as little as possible? | Objectives layers guidance | Section 12 constraints | Sections 3 Track D CSS and Render DOM; 7 Budget | Same as above | Mapped, Pending |
-| AUDIT-F-21 | Is layer creation promoted properly? | Objectives layers guidance | Section 12 constraints | Sections 3 Track D CSS and batching; 7 Required Evidence | Same as above | Mapped, Pending |
+| AUDIT-F-19 | Is paint used as little as possible? | Objectives layers guidance | Sections 2, 12 | Section 3 Track D — Rendering, DOM Batching, and Visual Production and Integration; D-5 Render DOM System | Same as above | Mapped, Pending |
+| AUDIT-F-20 | Are layers used as little as possible? | Objectives layers guidance | Section 12 constraints | Section 3 Track D — Rendering, DOM Batching, and Visual Production and Integration; D-1 Renderer Structure & CSS Layout; D-5 Render DOM System | Same as above | Mapped, Pending |
+| AUDIT-F-21 | Is layer creation promoted properly? | Objectives layers guidance | Section 12 constraints | Section 3 Track D — Rendering, DOM Batching, and Visual Production and Integration; D-1 Renderer Structure & CSS Layout; D-5 Render DOM System | Same as above | Mapped, Pending |
 
 ## Bonus Questions
 
@@ -54,7 +54,7 @@ This document maps every question in `docs/audit.md` to requirement intent, game
 | AUDIT-B-02 | Does code obey good practices? | Dev Tools and best-practice references | Section 12 constraints | Sections 1 boundaries; 8 Done Criteria | Same as above | Mapped, Pending |
 | AUDIT-B-03 | Does program reuse memory to avoid jank? | Objectives no frame drops | Section 12 memory reuse | Sections 1 Key Principles; 7 GC/Jank budget | Same as above | Mapped, Pending |
 | AUDIT-B-04 | Does game use SVG? | Objectives permit SVG stack | Section 12 constraints | Section 2 Directory/asset planning + DOM adapter strategy | Same as above | Mapped, Pending |
-| AUDIT-B-05 | Is code using asynchronicity for performance? | Objectives and Dev Tools context | Section 12 constraints (performance and architecture) | Sections 3 Track C worker offload criteria; 7 Budget | Same as above | Mapped, Pending |
+| AUDIT-B-05 | Is code using asynchronicity for performance? | Objectives and Dev Tools context | Section 12 constraints (performance and architecture) | Section 3 Track C — AI, Rules, and Audio Production and Integration; C-2 Ghost AI System | Same as above | Mapped, Pending |
 | AUDIT-B-06 | Is project well done overall? | Entire requirements baseline | Entire game description | Sections 8 Done Criteria + all milestone gates | Same as above | Mapped, Pending |
 
 ## Completion Criteria For This Matrix

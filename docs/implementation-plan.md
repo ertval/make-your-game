@@ -12,10 +12,10 @@
 1. [Architecture Overview](#1-architecture-overview)
 2. [Directory Structure](#2-directory-structure)
 3. [Workflow Tracks (Balanced Workload)](#3-workflow-tracks-balanced-workload)
-   - [Track A — Engine & World Layer (Dev 1)](#track-a--engine--world-layer-dev-1)
-   - [Track B — Physics, Player & Input (Dev 2)](#track-b--physics-player--input-dev-2)
-   - [Track C — AI, Game Rules & Mechanics (Dev 3)](#track-c--ai-game-rules--mechanics-dev-3)
-   - [Track D — Rendering & DOM Shell (Dev 4)](#track-d--rendering--dom-shell-dev-4)
+    - [Track A — Core Engine, CI, Schema, and Evidence Wiring (Dev 1)](#track-a--core-engine-ci-schema-and-evidence-wiring-dev-1)
+    - [Track B — Physics, Input, and Gameplay Event Hooks (Dev 2)](#track-b--physics-input-and-gameplay-event-hooks-dev-2)
+    - [Track C — AI, Rules, and Audio Production and Integration (Dev 3)](#track-c--ai-rules-and-audio-production-and-integration-dev-3)
+    - [Track D — Rendering, DOM Batching, and Visual Production and Integration (Dev 4)](#track-d--rendering-dom-batching-and-visual-production-and-integration-dev-4)
 4. [Integration Milestones](#4-integration-milestones)
 5. [Shared Contracts & Interfaces](#5-shared-contracts--interfaces)
 6. [Testing Strategy](#6-testing-strategy)
@@ -264,26 +264,26 @@ make-your-game/
 
 ## 3. Workflow Tracks (Balanced Workload)
 
-The work is divided into 4 tracks with a near-even workload split. Asset production and validation are embedded into Track C (audio), Track D (visual), Track A (tooling/CI wiring), and Track B (gameplay event integration). Since systems and components are heavily decoupled, tracks can be developed independently with mocked resources.
+The work is divided into 4 tracks with a near-even workload split. Asset production and validation are embedded into Track C (AI, rules, and audio production and integration), Track D (rendering, DOM batching, and visual production and integration), Track A (core engine, CI, schema, and evidence wiring), and Track B (physics, input, and gameplay event hooks). Since systems and components are heavily decoupled, tracks can be developed independently with mocked resources.
 
 ### Workload Summary (Balanced)
 
 | Track | Developer | Estimated Hours | Notes |
 |---|---|---:|---|
-| Track A | Dev 1 | ~22h | Core engine + CI/schema/evidence wiring |
-| Track B | Dev 2 | ~23h | Physics/input + gameplay event hooks for assets |
-| Track C | Dev 3 | ~23h | AI/rules + audio production/integration |
-| Track D | Dev 4 | ~23h | Rendering + visual production/integration |
+| Track A | Dev 1 | ~22h | Core engine, CI, schema, and evidence wiring |
+| Track B | Dev 2 | ~23h | Physics, input, and gameplay event hooks |
+| Track C | Dev 3 | ~23h | AI, rules, and audio production and integration |
+| Track D | Dev 4 | ~23h | Rendering, DOM batching, and visual production and integration |
 | **Total** | **4 Devs** | **~91h** | **~22.75h average per dev** |
 
 ### Critical Path By Dev
 
 | Dev | Critical Path Focus | Must Land Before | Depends On |
 |---|---|---|---|
-| Dev 1 | World bootstrap, resource plumbing, CI/schema wiring, asset validation gates | Any gameplay integration that relies on stable startup, manifests, or CI gates | None for initial scaffolding; later depends on Track B/C/D outputs for evidence aggregation |
-| Dev 2 | Input snapshot, movement, collision, and gameplay event emission | Audio cue mapping, visual cue triggers, and deterministic replay checks | Dev 1 world/resource setup; coordinates with Dev 3/Dev 4 via event payload contracts |
+| Dev 1 | Core engine bootstrap, resource plumbing, CI/schema wiring, and asset validation gates | Any gameplay integration that relies on stable startup, manifests, or CI gates | None for initial scaffolding; later depends on Track B, Track C, and Track D outputs for evidence aggregation |
+| Dev 2 | Input snapshot, movement, collision, and gameplay event emission | Audio cue mapping, visual cue triggers, and deterministic replay checks | Dev 1 world/resource setup; coordinates with Dev 3 and Dev 4 via event payload contracts |
 | Dev 3 | Ghost AI, scoring, timer/life rules, and audio asset runtime cues | Final gameplay loop completeness and audio feedback readiness | Dev 1 ECS/resources; Dev 2 collision/event hooks for cues; Dev 4 for visual state alignment |
-| Dev 4 | Render batching, DOM commit, visual asset mapping, and visual fallback behavior | Visual completeness, pause/menu presentation, and paint/layer constraints | Dev 1 render boundary/setup; Dev 2 entity state events; Dev 3 visual state rules for stun/death/pause cues |
+| Dev 4 | Render batching, DOM commit, visual asset mapping, and visual fallback behavior | Visual completeness, pause/menu presentation, and paint/layer constraints | Dev 1 render boundary/setup; Dev 2 entity state events; Dev 3 visual state rules for stun, death, and pause cues |
 
 #### Scheduling Rule
 
@@ -294,7 +294,7 @@ The work is divided into 4 tracks with a near-even workload split. Asset product
 
 ---
 
-### Track A — Engine & World Layer (Dev 1)
+### Track A — Core Engine, CI, Schema, and Evidence Wiring (Dev 1)
 
 > **Scope**: Scaffolding, ECS internals (World, Entity Store, Queries), and Core Resources.
 > **Estimate**: ~22 hours
@@ -362,12 +362,12 @@ The work is divided into 4 tracks with a near-even workload split. Asset product
 **Estimate**: 2 hours
 
 - [ ] Capture before/after size report for generated visual and audio assets.
-- [ ] Collect runtime evidence notes for paint/layer behavior and audio startup timing from Dev 3/Dev 4 outputs.
+- [ ] Collect runtime evidence notes for paint/layer behavior and audio startup timing from Dev 3 and Dev 4 outputs.
 - [ ] Link evidence artifacts to `docs/audit-traceability-matrix.md` rows impacted by asset work.
 
 ---
 
-### Track B — Physics, Player & Input (Dev 2)
+### Track B — Physics, Input, and Gameplay Event Hooks (Dev 2)
 
 > **Scope**: Input acquisition, movement validation, colliding bodies, and explosion logic. All pure ECS.
 > **Estimate**: ~23 hours
@@ -429,7 +429,7 @@ The work is divided into 4 tracks with a near-even workload split. Asset product
 
 ---
 
-### Track C — AI, Game Rules & Mechanics (Dev 3)
+### Track C — AI, Rules, and Audio Production and Integration (Dev 3)
 
 > **Scope**: Ghost behaviors, score keeping, lives management, pause, and high-level progression.
 > **Estimate**: ~23 hours
@@ -488,7 +488,7 @@ The work is divided into 4 tracks with a near-even workload split. Asset product
 
 ---
 
-### Track D — Rendering & DOM Shell (Dev 4)
+### Track D — Rendering, DOM Batching, and Visual Production and Integration (Dev 4)
 
 > **Scope**: Safe, minimal DOM mutation. Adapting ECS simulation outputs into visual representations using CSS grids and pooled DOM elements without leaking memory or `frames`.
 > **Estimate**: ~23 hours
@@ -782,7 +782,7 @@ A change is complete only when:
 
 ## 9. Asset Creation & Pipeline
 
-This section is mandatory for delivery readiness and complements Track D.
+This section is mandatory for delivery readiness and complements Track D — Rendering, DOM Batching, and Visual Production and Integration.
 
 ### 9.1 Scope and Ownership
 
