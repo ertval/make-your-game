@@ -1,24 +1,24 @@
-# Ticket Progress Tracker
+# 📊 Ticket Progress Tracker
 
 This file tracks delivery progress for all Section 3 tickets in `docs/implementation/track-*.md`.
 
 Coverage mapping remains canonical in `docs/audit-traceability-matrix.md`.
 
-## Update Rules
+## 🧾 Update Rules
 
 1. Update `Status` whenever work starts, pauses, blocks, or completes.
 2. Add the PR link and evidence link when a ticket moves to `Done`.
 3. Do not set `Done` unless the ticket verification gate in the relevant track file is satisfied (`track-a.md`, `track-b.md`, `track-c.md`, or `track-d.md`).
 4. Keep owner changes explicit in the `Owner` column.
 
-## Status Legend
+## 🗂️ Status Legend
 
-- `Not Started`
-- `In Progress`
-- `Blocked`
-- `Done`
+- ⬜ `Not Started`
+- 🟨 `In Progress`
+- ⛔ `Blocked`
+- ✅ `Done`
 
-## Summary Snapshot
+## 📈 Summary Snapshot
 
 - Total tickets: `25`
 - Done: `0`
@@ -26,7 +26,7 @@ Coverage mapping remains canonical in `docs/audit-traceability-matrix.md`.
 - Blocked: `0`
 - Not Started: `25`
 
-## Track A (Dev 1)
+## ⚙️ Track A (Dev 1)
 
 | ID | Ticket | Owner | Priority | Status | PR | Evidence / Notes |
 |---|---|---|---|---|---|---|
@@ -38,7 +38,7 @@ Coverage mapping remains canonical in `docs/audit-traceability-matrix.md`.
 | A-6 | Shared Asset Validation Wiring | Dev 1 | Critical | Not Started | - | - |
 | A-7 | Asset Evidence Aggregation | Dev 1 | Medium | Not Started | - | - |
 
-## Track B (Dev 2)
+## 🎮 Track B (Dev 2)
 
 | ID | Ticket | Owner | Priority | Status | PR | Evidence / Notes |
 |---|---|---|---|---|---|---|
@@ -49,7 +49,7 @@ Coverage mapping remains canonical in `docs/audit-traceability-matrix.md`.
 | B-5 | Entity Collision System | Dev 2 | Medium | Not Started | - | - |
 | B-6 | Gameplay Event Hooks for Asset Cues | Dev 2 | Medium | Not Started | - | - |
 
-## Track C (Dev 3)
+## 🎧 Track C (Dev 3)
 
 | ID | Ticket | Owner | Priority | Status | PR | Evidence / Notes |
 |---|---|---|---|---|---|---|
@@ -60,7 +60,7 @@ Coverage mapping remains canonical in `docs/audit-traceability-matrix.md`.
 | C-5 | Pause & Progression Systems | Dev 3 | Critical | Not Started | - | - |
 | C-6 | Audio Assets and Runtime Cues | Dev 3 | Critical | Not Started | - | - |
 
-## Track D (Dev 4)
+## 🎨 Track D (Dev 4)
 
 | ID | Ticket | Owner | Priority | Status | PR | Evidence / Notes |
 |---|---|---|---|---|---|---|
@@ -71,7 +71,7 @@ Coverage mapping remains canonical in `docs/audit-traceability-matrix.md`.
 | D-5 | Render DOM System (The Batcher) | Dev 4 | Critical | Not Started | - | - |
 | D-6 | Visual Assets and Render Mapping | Dev 4 | Critical | Not Started | - | - |
 
-## Cross-Document References
+## 🔗 Cross-Document References
 
 - Ticket definitions and verification gates: `docs/implementation/track-a.md`, `docs/implementation/track-b.md`, `docs/implementation/track-c.md`, `docs/implementation/track-d.md`
 - Track summary and milestones: `docs/implementation/implementation-plan.md`

@@ -26,7 +26,7 @@
 
 ---
 
-## 1. Architecture Overview
+## 🏗️ 1. Architecture Overview
 
 ### 1.1 What Is ECS?
 
@@ -176,7 +176,7 @@ Entity IDs are recycled via a free-list pool in `entity-store.js`. Stale-handle 
 
 ---
 
-## 2. Directory Structure
+## 📁 2. Directory Structure
 
 ```text
 make-your-game/
@@ -298,11 +298,11 @@ make-your-game/
 
 ---
 
-## 3. Workflow Tracks (Balanced Workload)
+## 🧭 3. Workflow Tracks (Balanced Workload)
 
 The work is divided into **4 independent, balanced tracks**. Each track can be developed in parallel with mocked resources. Track A owns **all** scaffolding, orchestration, testing (unit, integration, e2e, audit), validation, QA, and final polish. Track B owns all gameplay simulation logic (physics, input, AI, rules, scoring). Track C owns everything audio. Track D owns everything visual.
 
-### Ticket Progress Tracking
+### 📌 Ticket Progress Tracking
 
 Live ticket progress for this section is tracked in `docs/implementation/ticket-tracker.md`.
 
@@ -347,7 +347,7 @@ Live execution status is tracked in [Ticket Progress Tracker](ticket-tracker.md)
 
 When ticket definitions change in any track file, update [../audit-traceability-matrix.md](../audit-traceability-matrix.md) and [ticket-tracker.md](ticket-tracker.md) in the same PR.
 
-### Coverage Traceability Reference
+### 🔗 Coverage Traceability Reference
 
 Coverage mapping has been centralized in `docs/audit-traceability-matrix.md`.
 Ticket execution status has been centralized in `docs/implementation/ticket-tracker.md`.
@@ -360,7 +360,7 @@ Ticket execution status has been centralized in `docs/implementation/ticket-trac
 
 ---
 
-## 4. Integration Milestones
+## 🗓️ 4. Integration Milestones
 
 ```mermaid
 gantt
@@ -427,7 +427,7 @@ gantt
 
 ---
 
-## 5. Shared Contracts & Interfaces
+## 🤝 5. Shared Contracts & Interfaces
 
 Shared structure inside component storage array definitions. These are documented using JSDoc `typedef` for IDE support and clarity.
 
@@ -545,7 +545,7 @@ The render-intent buffer is **pre-allocated once** (`new Array(MAX_RENDER_INTENT
 
 ---
 
-## 6. Testing Strategy
+## 🧪 6. Testing Strategy
 
 | Boundary Layer | Tool | What to Test |
 |---|---|---|
@@ -565,7 +565,7 @@ The render-intent buffer is **pre-allocated once** (`new Array(MAX_RENDER_INTENT
 
 ---
 
-## 7. Performance Budget & Acceptance Criteria
+## ⚡ 7. Performance Budget & Acceptance Criteria
 
 Failure to meet these budgets violates the `audit.md` strict pass parameters.
 
@@ -593,7 +593,7 @@ For gameplay-critical changes (update/render/input):
 
 ---
 
-## 8. Done Criteria
+## ✅ 8. Done Criteria
 
 A change is complete only when:
 1. Biome passes for modified scope.
@@ -609,7 +609,7 @@ A change is complete only when:
 
 ---
 
-## 9. Asset Creation & Pipeline
+## 🎨 9. Asset Creation & Pipeline
 
 This section is mandatory for delivery readiness and complements Track C (Audio) and Track D (Visual).
 
@@ -652,7 +652,7 @@ This section is mandatory for delivery readiness and complements Track C (Audio)
 
 ---
 
-## 10. Maintenance Notes
+## 🛠️ 10. Maintenance Notes
 
 1. This repository is ECS-only; no legacy alternative-architecture workflow docs are maintained.
 2. `AGENTS.md` is the normative constraints source. This plan is the execution source for ECS work.

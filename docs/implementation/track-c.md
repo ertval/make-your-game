@@ -1,6 +1,6 @@
-# Track C — Audio Production & Integration (Dev 3)
+# 🎧 Track C — Audio Production & Integration (Dev 3)
 
-Source plan: `docs/implementation/implementation-plan.md` (Section 3)
+📎 Source plan: `docs/implementation/implementation-plan.md` (Section 3)
 
 > **Scope**: Everything audio — adapter implementation, SFX/music asset creation, audio manifest schema, cue mapping from gameplay events, preloading/decoding strategy, and runtime integration. Fully independent from visual work.  
 > **Estimate**: ~22 hours

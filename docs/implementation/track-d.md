@@ -1,6 +1,6 @@
-# Track D — Visual Production & Integration (Dev 4)
+# 🎨 Track D — Visual Production & Integration (Dev 4)
 
-Source plan: `docs/implementation/implementation-plan.md` (Section 3)
+📎 Source plan: `docs/implementation/implementation-plan.md` (Section 3)
 
 > **Scope**: Everything visual — renderer adapters, sprite pools, HUD, screen overlays, CSS layout, render systems (collect + DOM batch), visual asset creation, visual manifest schema, and all DOM/CSS work. Fully independent from audio work.  
 > **Estimate**: ~22 hours

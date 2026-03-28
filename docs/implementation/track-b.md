@@ -1,6 +1,6 @@
-# Track B — Physics, Input, Gameplay Logic & Rules (Dev 2)
+# 🎮 Track B — Physics, Input, Gameplay Logic & Rules (Dev 2)
 
-Source plan: `docs/implementation/implementation-plan.md` (Section 3)
+📎 Source plan: `docs/implementation/implementation-plan.md` (Section 3)
 
 > **Scope**: All ECS components, ALL gameplay systems (input, movement, collision, bombs, explosions, ghost AI, scoring, timer, lives, pause, progression, power-ups), and gameplay event hooks. Pure ECS simulation — no DOM, no audio, no visuals.  
 > **Estimate**: ~24 hours

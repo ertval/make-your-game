@@ -1,6 +1,6 @@
-# Track A — Orchestration, Scaffolding, Testing & QA (Dev 1)
+# ⚙️ Track A — Orchestration, Scaffolding, Testing & QA (Dev 1)
 
-Source plan: `docs/implementation/implementation-plan.md` (Section 3)
+📎 Source plan: `docs/implementation/implementation-plan.md` (Section 3)
 
 > **Scope**: Project scaffolding, ECS internals (World, Entity Store, Queries), core resources, game loop, map loading, CI/schema wiring, **ALL testing** (unit, integration, e2e, audit), QA, polish, and evidence aggregation.  
 > **Estimate**: ~24 hours
