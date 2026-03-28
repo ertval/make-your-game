@@ -61,6 +61,25 @@ As detailed in the [`implementation/agentic-workflow-guide.md`](implementation/a
 - **Update Tracker**: Once merged, go back to [`implementation/ticket-tracker.md`](implementation/ticket-tracker.md) and update your task status to **Done** with a link to the merged PR.
 - **Archive the PR Message**: Save the final PR message, checklist status, and verification summary in [`implementation/pr-message-workflow.md`](implementation/pr-message-workflow.md) so each ticket has a durable record.
 
+## Gitea Actions Setup and Verification
+
+This repository uses [`../.gitea/workflows/policy-gate.yml`](../.gitea/workflows/policy-gate.yml) as the main PR gate for Gitea.
+
+### Set Up
+
+1. Enable Actions for the Gitea instance and repository, and make sure a runner is registered for Linux jobs.
+2. Keep the workflow file on the default branch so PR events can trigger it.
+3. Open PRs with the required sections from [`../.github/pull_request_template.md`](../.github/pull_request_template.md) in the body. If your Gitea instance does not auto-apply that template, paste it manually.
+4. Add a repo secret named `GITEA_TOKEN` if you want the approval API check to run. If the secret is missing, the workflow will skip that step and you should enforce approvals with branch protection instead.
+5. In this repo snapshot, there is no `package.json` yet, so the workflow’s npm gate will currently log that it is skipping local project checks. Once the runtime files land, it will start enforcing `npm run check`, `npm run test`, and any configured coverage or SBOM scripts.
+
+### Test It
+
+1. Push a small branch change, open a PR in Gitea, and confirm the workflow starts on the PR event.
+2. Verify a valid PR passes the checklist, traceability, and boundary scans.
+3. Remove one required checklist item or introduce an audit traceability mismatch, then confirm the workflow fails at the expected step.
+4. After the project gains a real toolchain, verify the npm gate runs instead of the current skip path by checking the workflow logs.
+
 ---
 
 ## Document Authority Hierarchy

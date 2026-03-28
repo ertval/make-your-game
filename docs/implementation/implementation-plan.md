@@ -325,10 +325,10 @@ Live ticket progress for this section is tracked in `docs/implementation/ticket-
 | Track | Developer | Estimated Hours | Scope |
 |---|---|---:|---|
 | Track A | Dev 1 | ~26h | Orchestration, scaffolding, ECS core, game loop, testing (all layers), CI, QA & polish |
-| Track B | Dev 2 | ~29h | Input, movement, collisions, bombs, explosions, ghost AI, scoring, timer, lives, pause, progression, power-ups |
-| Track C | Dev 3 | ~22h | Audio adapter, SFX/music creation, audio manifest & schema, audio cue mapping, audio preloading, audio integration |
+| Track B | Dev 2 | ~26h | Input, movement, collisions, bombs, explosions, ghost AI, scoring, timer, lives, pause, progression, power-ups |
+| Track C | Dev 3 | ~26h | Audio adapter, SFX/music creation, audio manifest & schema, audio cue mapping, audio preloading, audio integration |
 | Track D | Dev 4 | ~26h | Renderer, sprite pools, HUD, screen overlays, CSS layout, render systems, visual assets, visual manifest & schema |
-| **Total** | **4 Devs** | **~103h** | **~25.75h average per dev** |
+| **Total** | **4 Devs** | **~104h** |
 
 ### Critical Path By Dev
 
