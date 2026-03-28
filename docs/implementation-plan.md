@@ -99,6 +99,7 @@ graph TB
 3. **Adapter Layer**
    - Input adapter, render adapter, storage adapter, audio adapter.
    - Converts browser events/DOM into normalized data for ECS resources.
+   - **Adapters are registered as World resources** and accessed via the resource API. Systems MUST NOT import adapters directly — direct imports violate DOM isolation boundaries.
 4. **Render Boundary**
    - Two-stage rendering:
      - `render-collect-system`: computes render intents from ECS state
@@ -115,8 +116,8 @@ graph TB
 
 ### Deterministic Runtime Contract
 
-1. Simulation uses a fixed timestep (`16.6667ms`) with accumulator.
-2. Catch-up is clamped (`maxStepsPerFrame`) after tab throttling or CPU stalls.
+1. Simulation uses a **configurable fixed timestep** driven by `SIMULATION_HZ` (default `60`), yielding `FIXED_DT_MS = 1000 / SIMULATION_HZ` (`≈16.6667ms`). The `SIMULATION_HZ` constant lives in `constants.js`; changing it adjusts simulation rate without touching loop logic.
+2. Catch-up is clamped (`maxStepsPerFrame`, default `5`) after tab throttling or CPU stalls.
 3. `frameTime` is clamped before accumulator integration to avoid runaway bursts.
 4. System order and query iteration are stable and centrally declared in `world.js`.
 5. Structural entity/component mutations are deferred and applied at one sync point per tick.
@@ -150,6 +151,28 @@ graph TB
 4. **Stable Scheduling**: System execution order is rigidly defined in the `World` object. Components are updated predictably.
 5. **Rendering Pipeline**: Simulation feeds intents. The `Render Collect System` processes what needs drawing and emits a frame-local render-intent buffer from ECS data. The `Render DOM System` then applies a single batch-write phase of transforms and opacity to avoid layout thrashing.
 
+### Component Storage Architecture
+
+Component storage uses a **Struct-of-Arrays (SoA)** layout for numeric hot-path data and plain object arrays for complex/non-numeric components:
+
+- **Numeric components** (position, velocity, timers): `TypedArray` per field (e.g., `Float64Array`, `Int32Array`) indexed by entity ID. Maximises cache locality and eliminates per-entity GC pressure.
+- **Complex components** (ghost state, renderable, visual-state): Plain object arrays — one object per entity slot, mutated in place.
+- **Query matching**: Bitmask-based in `query.js` — each component type owns a unique power-of-two bit; an entity's component mask is the bitwise OR of all attached component bits. Fastest approach for ≤ 32 component types.
+
+```js
+// Example SoA for Position — hot-path friendly
+const positions = {
+  row:       new Float64Array(MAX_ENTITIES),
+  col:       new Float64Array(MAX_ENTITIES),
+  prevRow:   new Float64Array(MAX_ENTITIES),
+  prevCol:   new Float64Array(MAX_ENTITIES),
+  targetRow: new Float64Array(MAX_ENTITIES),
+  targetCol: new Float64Array(MAX_ENTITIES),
+};
+```
+
+Entity IDs are recycled via a free-list pool in `entity-store.js`. Stale-handle protection is provided by a generation counter per slot.
+
 ---
 
 ## 2. Directory Structure
@@ -177,12 +200,25 @@ make-your-game/
 │   ├── e2e/
 │   │   └── audit/
 │   │       ├── audit-question-map.js
-│   │       └── audit.e2e.test.js
+│   │       └── audit.e2e.test.js       # Playwright-based (F-01..F-21, B-01..B-06)
 │   ├── integration/
+│   │   ├── gameplay/               # Multi-system interaction tests
+│   │   └── adapters/               # Adapter boundary tests (jsdom)
 │   └── unit/
+│       ├── systems/                # One test file per system
+│       ├── resources/              # clock, rng, event-queue tests
+│       └── world/                  # entity-store, query, world tests
 │
 ├── src/
 │   ├── main.ecs.js                    # App entry — bootstraps the ECS World
+│   │
+│   ├── game/                          # Game-flow orchestration (not ECS simulation)
+│   │   ├── bootstrap.js               # World assembly + system registration order
+│   │   ├── level-loader.js            # Level transition orchestration
+│   │   └── game-flow.js               # FSM driver: MENU → PLAYING ↔ PAUSED → GAMEOVER/VICTORY
+│   │
+│   ├── debug/                         # Dev/test utilities — excluded from production builds
+│   │   └── replay.js                  # Input recording, state hashing, replay playback
 │   │
 │   ├── ecs/
 │   │   ├── world/
@@ -190,18 +226,11 @@ make-your-game/
 │   │   │   ├── entity-store.js        # ID generation & recycling
 │   │   │   └── query.js               # Component mask matching
 │   │   ├── components/
-│   │   │   ├── position.js            # row/col + interpolation targets
-│   │   │   ├── velocity.js            # Direction and speed
-│   │   │   ├── player.js              # Tag / player specific stats
-│   │   │   ├── ghost.js               # AI type, personality, state
-│   │   │   ├── bomb.js                # Fuse timers
-│   │   │   ├── fire.js                # Explosion remnants
-│   │   │   ├── power-up.js            # Bomb+, fire+, speed, and power-pellet tags
-│   │   │   ├── collider.js            # Bounding box or cell alignment
+│   │   │   ├── spatial.js             # position + velocity + collider (always co-occur)
+│   │   │   ├── actors.js              # player + ghost + input-state (actor data)
+│   │   │   ├── props.js               # bomb + fire + power-up (prop data)
 │   │   │   ├── stats.js               # Health, lives, score, timer tags
-│   │   │   ├── input-state.js         # Intended actions
-│   │   │   ├── renderable.js          # Sprite key, animations
-│   │   │   └── visual-state.js        # Pure render flags (stunned, invincible, hidden)
+│   │   │   └── visual.js              # renderable + visual-state (render queries)
 │   │   ├── systems/
 │   │   │   ├── input-system.js        # Applies adapter input to components
 │   │   │   ├── player-move-system.js  # Grid-constrained player motion
@@ -224,7 +253,7 @@ make-your-game/
 │   │       ├── clock.js               # Deterministic / injected time tracking
 │   │       ├── event-queue.js         # Deterministic event ordering between systems
 │   │       ├── map-resource.js        # Loaded static grid & spawn points
-│   │       └── game-status.js         # High-level state (menu, playing, gameover)
+│   │       └── game-status.js         # FSM: MENU → PLAYING ↔ PAUSED, WIN_LEVEL → LEVEL_COMPLETE → PLAYING/VICTORY, GAME_OVER
 │   │
 │   ├── adapters/
 │   │   ├── dom/
@@ -291,6 +320,8 @@ The work is divided into 4 tracks with a near-even workload split. Asset product
 2. Dev 2 and Dev 4 can then work in parallel once the ECS resource/event contracts are stable.
 3. Dev 3 should integrate against the event contracts early so audio/game rule behavior and visual states do not drift.
 4. Shared asset/CI evidence work stays on Dev 1, but requires inputs from Dev 3 and Dev 4 before it can close.
+
+> **Team model alignment (D-3)**: The track ownership here (Engine / Physics+Input / AI+Rules / Rendering) is the **canonical assignment**. `docs/agentic-workflow-guide.md` describes a simplified cross-cutting model; when there is a conflict, this plan’s track assignments take precedence for day-to-day task ownership.
 
 ---
 
@@ -406,17 +437,17 @@ The work is divided into 4 tracks with a near-even workload split. Asset product
 
 - [ ] Implement `bomb.js` (fuse timing) and `fire.js` (burn timer).
 - [ ] Implement `bomb-tick-system.js`: Decrements fuse, validates explosion radius against `map-resource`.
-- [ ] Implement `explosion-system.js`: Translates detonated bombs into Fire entities mapping over map resources (destructible wall clears). Chains active explosions.
+- [ ] Implement `explosion-system.js`: Translates detonated bombs into Fire entities mapping over map resources (destructible wall clears). Chain reactions use an **iterative detonation queue** (NOT recursive — avoids call-stack risk) with a hard depth limit (`MAX_CHAIN_DEPTH = 10`; pre-allocated queue buffer in `constants.js`). Process the queue within a single fixed step for determinism.
 
 #### B-5: Entity Collision System
 **Priority**: 🟡 Medium  
 **Estimate**: 4 hours
 
-- [ ] Implement `collision-system.js`: Scans positions overlapping via Query.
-  - Fire vs Player -> damage/death intent.
-  - Fire vs Ghost -> death intent.
-  - Player vs Ghost -> Player death intent (or Ghost kill intent if Ghost is stunned).
-  - Player vs Power-up/Pellet -> mark for destruction/collection and tag points.
+- [ ] Implement `collision-system.js` using a **cell-occupancy map** for O(1) spatial lookups (not O(n²) pair checks). Each fixed step: build `cellOccupants: Map<"row,col", Set<EntityId>>` in O(n), then query O(1) per moving entity:
+  - Fire vs Player → damage/death intent.
+  - Fire vs Ghost → death intent.
+  - Player vs Ghost → Player death intent. **Ghosts cannot be killed by touch** — only a bomb explosion destroys a ghost.
+  - Player vs Power-up/Pellet → mark for destruction/collection and tag points.
 - [ ] Tests collision permutations locally using mocked World queries.
 
 #### B-6: Gameplay Event Hooks for Asset Cues
@@ -451,8 +482,8 @@ The work is divided into 4 tracks with a near-even workload split. Asset product
   - Enforce "no reversing" logic unless a Power Pellet is eaten (flee mode).
   - Fleeing: Random intersection logic aiming to maximize player distance.
   - Dead state: Eyes-only return to ghost house.
-- [ ] Define worker offload criteria and message contracts for moving heavy pathfinding out of main thread.
-- [ ] Reused zero-allocation heuristics for distance computing.
+- [ ] Use zero-allocation heuristics for distance computing (pre-compute direction scores in-place; no temporary arrays).
+- [ ] **Worker offload gate**: BFS on a ≤ 20×20 grid for 4 entities takes microseconds. Do NOT add a Web Worker unless profiling shows ghost pathfinding exceeds **2 ms per frame** on a representative device. If that threshold is crossed, define message contracts at that point.
 
 #### C-3: Power Up & Stun Routines
 **Priority**: 🟡 Medium  
@@ -497,7 +528,12 @@ The work is divided into 4 tracks with a near-even workload split. Asset product
 **Priority**: 🔴 Critical  
 **Estimate**: 3 hours
 
-- [ ] Build `styles/grid.css` using strict grid-template layouts, absolute positioning over grid cells, and `will-change: transform`. Minimize layer promotion globally except for moving sprites.
+- [ ] Build `styles/grid.css` using strict grid-template layouts and absolute positioning over grid cells. Apply a strict **`will-change` policy**:
+  - Player sprite: `will-change: transform` (always moving).
+  - Ghost sprites: `will-change: transform` (always moving).
+  - Bomb sprites: `will-change: transform` only while fuse animation is active (add/remove dynamically).
+  - Fire tiles, static grid cells, HUD elements: **NO** `will-change`.
+  - Target layer count: ~6 (player + 4 ghosts + active bomb group). Satisfies “minimal but non-zero.”
 - [ ] Implement CSS animations (walking pulse, explosion fade, flashings).
 
 #### D-2: Adapters (DOM & HUD)
@@ -505,8 +541,8 @@ The work is divided into 4 tracks with a near-even workload split. Asset product
 **Estimate**: 4 hours
 
 - [ ] Implement `renderer-adapter.js`: Strict `document.createElementNS` logic for generating the static board. Zero `innerHTML`.
-- [ ] Define Content Security Policy (CSP) and Trusted Types rollout plan for safe DOM manipulations.
-- [ ] Implement `sprite-pool-adapter.js`: Allocates (e.g., 50x Fire elements, 10x Bomb elements) upfront. Hides and displays using CSS `display` or offscreen transform. No repeated `createElement` or `remove` calls mid-game.
+- [ ] Define Content Security Policy (CSP) and Trusted Types rollout plan. **During development with Vite, CSP enforcement MAY be relaxed to allow HMR inline scripts. Production builds MUST enforce strict CSP.**
+- [ ] Implement `sprite-pool-adapter.js`: Pre-allocates pools sized from `constants.js` (e.g., `POOL_FIRE = maxBombs * fireRadius * 4`, `POOL_BOMBS = MAX_BOMBS`). Hidden elements MUST use `transform: translate(-9999px, -9999px)` — never `display:none` (which triggers layout). When pool is exhausted: log `console.warn` in development; silently recycle the oldest active element in production.
 - [ ] Implement `hud-adapter.js` and `screens-adapter.js`: Binds text nodes natively with `.textContent` to update metrics securely.
 
 #### D-3: Render Data Contracts
@@ -624,10 +660,14 @@ Shared structure inside component storage array definitions. These are documente
 ```js
 /** 
  * @typedef {Object} FrameContext
- * @property {number} dtMs - Delta time in milliseconds
- * @property {number} simTimeMs - Elapsed simulation time
- * @property {number} alpha - Interpolation factor (0 to 1) for rendering
- * @property {boolean} isPaused - Global simulation freeze flag
+ * @property {number} dtMs       - Fixed simulation delta time in ms (= FIXED_DT_MS = 1000/SIMULATION_HZ)
+ * @property {number} simTimeMs  - Elapsed simulation time (does not advance while paused)
+ * @property {number} alpha      - Render interpolation factor: `accumulator / FIXED_DT_MS` (0…1).
+ *                                 Used in render-collect-system to lerp visual positions:
+ *                                 `displayRow = prevRow + (row - prevRow) * alpha`
+ *                                 `displayCol = prevCol + (col - prevCol) * alpha`
+ * @property {boolean} isPaused  - Global simulation freeze flag
+ * @property {number} frameIndex - Monotonic fixed-step counter (for deterministic event ordering)
  */
 ```
 
@@ -692,15 +732,20 @@ Shared structure inside component storage array definitions. These are documente
 ```
 
 ### Render Intent
+
+The render-intent buffer is **pre-allocated once** (`new Array(MAX_RENDER_INTENTS)`) at startup and reused every frame. CSS class state is encoded as a **bitmask integer** (`classBits`) instead of `string[]` to eliminate per-frame array allocations.
+
 ```js
 /**
  * @typedef {Object} RenderIntent
  * @property {number} entityId
- * @property {string} kind - Sprite/Element type
- * @property {number} row
- * @property {number} col
- * @property {string[]} classes - CSS class toggles (e.g. ['stunned', 'invisible'])
+ * @property {string} kind      - Sprite/element type key
+ * @property {number} row       - Interpolated display row
+ * @property {number} col       - Interpolated display col
+ * @property {number} classBits - Bitmask of visual state flags (see VISUAL_FLAGS in constants.js)
  */
+// Visual state bit flags (combine with bitwise OR):
+// const VISUAL_FLAGS = { STUNNED: 1, INVINCIBLE: 2, HIDDEN: 4, DEAD: 8 };
 ```
 
 ### Map Resource
@@ -723,17 +768,18 @@ Shared structure inside component storage array definitions. These are documente
 | Boundary Layer | Tool | What to Test |
 |---|---|---|
 | **World Engine** | Vitest | Component registration, query accuracy, entity ID pooling constraints, deterministic execution order. |
-| **Pure Systems** | Vitest | Deterministic output: Mock a system tick against an mocked component pool. Verify exact property writes. No DOM needed. |
+| **Pure Systems** | Vitest | Deterministic output: Mock a system tick against a mocked component pool. Verify exact property writes. No DOM needed. |
 | **Map Loader** | Vitest | Parses blueprint strictly. Rejects invalid maps. |
-| **DOM Adapters** | Vitest + jsdom | Verifies `createElementNS` behaves securely without string/`innerHTML` injections. Assert pooled lengths. |
-| **Replay Determinism** | Vitest | Same seed and same input trace must produce same state hash at frame N. |
+| **DOM Adapters** | Vitest + jsdom | Verifies `createElementNS` behaves securely without string/`innerHTML` injections. Assert pooled lengths; verify pool hiding via offscreen transform. |
+| **Replay Determinism** | Vitest | Same seed + same input trace (`src/debug/replay.js`) must produce same `hashWorldState` output at frame N. |
 | **Pause & Timer Invariants** | Vitest + integration fixtures | While paused, rAF remains active and simulation time remains frozen. Timer/fuse/invincibility counters do not drift. |
 | **Accessibility Invariants** | Vitest + jsdom | Pause focus enters overlay on open and restores to prior target on close. Keyboard-only control path remains valid. |
 | **Security Boundaries** | Vitest + static checks | HUD/menu updates use safe sinks (`textContent`, explicit attributes); untrusted storage data is validated on read. |
-| **Regression Fixes**| Vitest | Repro test first, then fix, then pass. Verify no cross-system side effects outside component/resource contracts. |
-| **Performance** | DevTools | Validates that DOM layouts (`paint`/`layout`) only happen on intended `transform/opacity` changes. Validate GC patterns and strictly <=16.7ms frame outputs. |
-| **Audit Compliance** | Vitest + browser/e2e harness | Automated acceptance assertions mapped to every question in `docs/audit.md`; no checklist-only completion. |
-| **Audit E2E Coverage** | Vitest + browser/e2e harness | One explicit automated test case per question in `docs/audit.md` (functional + bonus), with CI-enforced pass status. |
+| **Regression Fixes** | Vitest | Repro test first, then fix, then pass. Verify no cross-system side effects outside component/resource contracts. |
+| **Smoke Test** | **Playwright** | Boot game, run headlessly for 60 s with randomised input injections. Assert no unhandled exceptions. Write this first — it is the single highest-value test. |
+| **Audit — Fully Automatable (F-01..F-16, B-01, B-03)** | **Playwright** (real browser) | Crash-free run, rAF usage, pause/continue/restart, hold-to-move, HUD metrics, genre compliance. One test per audit ID. |
+| **Audit — Semi-Automatable (F-17, F-18)** | **Playwright** + `page.evaluate()` | Frame timing via Performance API. Assert p95 frame time ≤ 20 ms over a 30-second measurement window. |
+| **Audit — Manual-With-Evidence (F-19, F-20, F-21, B-04, B-05, B-06)** | DevTools traces (PR artifacts) | Paint usage, layer count, layer promotion, SVG usage, async patterns. Require a signed evidence note — NOT a Vitest assertion. |
 
 ---
 
@@ -745,13 +791,14 @@ Failure to meet these budgets violates the `audit.md` strict pass parameters.
 
 | Metric | Budget | ECS Implementation Enforcement |
 |---|---|---|
-| FPS | **Strictly ≥ 60** | Engine completely decouples Fixed Loop updates (systems) from the rAF callback rendering pass. |
-| Frame Time | p95 <= 16.7ms, p99 <= 20ms | Logic routines perform zero internal allocations (no `.map` or `.filter` in hot loops, strict `for` loops over entity Query buffers). No recurring long tasks > 50 ms in interaction-critical path. |
-| DOM Elements | ≤ 500 total | Transient rendering uses fixed Object Pools mapped dynamically during the Render Phase. Static map blocks painted once. |
+| FPS | **Target: 60 FPS sustained. Acceptable: ≥ 55 FPS at p95 (only 5% of frames may run below 55 FPS). Unacceptable: any sustained period > 500 ms below 50 FPS.** | Engine decouples fixed-step loop (systems) from rAF render pass. Audit criterion accepts “50–60 or more” — internal target is 60. |
+| Frame Time | p95 ≤ 16.7 ms, p99 ≤ 20 ms | Logic routines perform zero internal allocations (no `.map` or `.filter` in hot loops, strict `for` loops over entity Query buffers). No recurring long tasks > 50 ms in interaction-critical path. |
+| DOM Elements | ≤ 500 total (assert at startup) | A dev-mode assertion after level load counts `document.querySelectorAll('*').length` and logs a warning if > 400 (80% of budget). Transient rendering uses fixed Object Pools. Static map blocks rendered once. |
 | Layout Thrashing | **Zero** | System boundaries ensure properties are ONLY written via single batch function at the tail of the tick (Render DOM System). Minimal paint and minimal-but-nonzero layer promotion. |
-| GC Pauses / Jank | **Zero** | Component data is preallocated or re-assigned. Entities are recycled from a pool, never freely `deleted`. No sustained dropped-frame patterns during normal gameplay. |
-| Catch-up Stability | Max fixed steps per frame enforced | Accumulator updates are bounded to avoid spiral-of-death after tab throttling. |
-| Modularity Leak | **Zero** | All game systems must remain completely agnostic of DOM APIs. |
+| Layer Promotion (`will-change`) | Player + 4 ghost sprites only | `will-change: transform` applied to always-moving sprites. Bomb sprites get it dynamically during fuse animation only. Fire tiles, grid cells, HUD carry none. Target ≈6 compositor layers. |
+| GC Pauses / Jank | **Zero** | SoA TypedArray component storage for hot-path data. Entity recycling via free-list pool. Render-intent buffer pre-allocated and reused each frame. |
+| Catch-up Stability | Max `5` fixed steps per frame enforced | Accumulator bounded to `5 × FIXED_DT_MS` to avoid spiral-of-death after tab throttling. |
+| Modularity Leak | **Zero** | All simulation systems agnostic of DOM APIs. Adapters injected as World resources, never imported directly by systems. |
 
 ### Required Evidence
 

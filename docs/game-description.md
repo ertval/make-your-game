@@ -41,10 +41,10 @@ The playing field is a **rigid CSS Grid**. Every cell sits at an integer `(row, 
 | **Indestructible Wall** | `🧱` | Permanent maze structure. Cannot be destroyed. Typically arranged in a repeating grid pattern. |
 | **Destructible Wall** | `📦` | Breakable block. Destroyed by bomb explosions. May hide pellets, power-ups, or empty space underneath. |
 | **Pellet (Dot)** | `·` | Collectible dot placed in open paths. Ms. Ghostman must eat **all** pellets to clear the level. |
-| **Power Pellet** | `⚡` | Rare, larger pellet. Eating one triggers a brief **Ghost Frenzy** — all ghosts become stunned and flee for a few seconds, giving the player breathing room (no bomb needed). |
+| **Power Pellet** | `⚡` | Rare, larger pellet. Eating one triggers a brief **Ghost Frenzy** — all ghosts become **stunned** (turn blue, flee slowly) for ~5 seconds. Stunned ghosts are harmless but **cannot be killed by touch** — only a bomb explosion can destroy any ghost. |
 | **Bomb Power-Up** | `💣+` | Increases the player's maximum simultaneous bomb count by 1. |
 | **Fire Power-Up** | `🔥+` | Increases the player's bomb explosion radius by 1 tile. |
-| **Speed Boost** | `👟` | Temporarily increases Ms. Ghostman's movement speed. |
+| **Speed Boost** | `👟` | Temporarily increases Ms. Ghostman's movement speed. Duration: **10 seconds**, speed is **1.5× normal**. Non-stacking — collecting another resets the timer. A visual trail or color tint indicates the boost is active. |
 | **Empty Space** | ` ` | Passable tile for the player, ghosts, and bomb placement. |
 
 ### 2.1 Map Generation
@@ -117,7 +117,7 @@ When the fuse expires:
 | **Ghost** | Ghost is destroyed. Player earns **200 bonus points** per ghost kill. |
 | **Player** | Player loses **1 life**. |
 | **Another Bomb** | Chain reaction — the second bomb detonates immediately. |
-| **Pellet** | Pellet is destroyed (counts as eaten, adds to score). |
+| **Pellet** | Fire passes through pellets **harmlessly**. Pellets are **never destroyed** by explosions — this prevents accidental soft-locks where required pellets become uncollectable. |
 | **Power-Up** | Power-up is destroyed (lost, not collected). |
 
 ### 4.3 Chain Reactions
@@ -145,13 +145,14 @@ There are **4 ghost types**, each with a distinct color and subtle behavior bias
 - At **intersections** (≥ 3 valid exits), each ghost selects a direction based on its personality bias (see above), but with a random element to keep things unpredictable.
 - Ghosts **never reverse direction** during normal movement (they can only turn at intersections).
 - Ghosts cannot pass through indestructible walls or active bombs.
+- **Bomb-cell interaction**: If a player drops a bomb while sharing a cell with a ghost, the ghost is pushed back one cell in its current travel direction. Ghosts will path around bomb cells rather than entering them.
 
 ### 5.3 Ghost States
 
 | State | Duration | Behavior |
 |---|---|---|
 | **Normal** | Default | The ghost patrols the maze and is lethal on contact with the player. |
-| **Stunned (Frenzy)** | ~5 seconds | Triggered by Power Pellet. Ghost turns blue, moves slowly, and flees from the player. Killing a stunned ghost yields **400 points**. |
+| **Stunned (Frenzy)** | ~5 seconds | Triggered by Power Pellet. Ghost turns blue, moves slowly, and flees from the player. Stunned ghosts are **harmless on contact** and cannot be killed by touch — only a bomb explosion can destroy a ghost. A bomb kill during stun yields **400 points** as a skill bonus. |
 | **Dead** | ~5 seconds | After being killed by a bomb, the ghost's "eyes" travel back to the ghost spawn area, where it regenerates. |
 
 ### 5.4 Ghost Spawning
@@ -168,8 +169,8 @@ There are **4 ghost types**, each with a distinct color and subtle behavior bias
 |---|---|
 | Eat a pellet | **10** |
 | Eat a Power Pellet | **50** |
-| Kill a ghost (bomb) | **200** |
-| Kill a stunned ghost (Power Pellet) | **400** |
+| Kill a ghost with bomb (normal state) | **200** |
+| Kill a ghost with bomb (while stunned) | **400** |
 | Combo kill (chain reaction) | **200 × 2^(n-1)** per ghost |
 | Collect a power-up | **100** |
 | Level clear (all pellets eaten) | **1000 + time bonus** |
@@ -179,7 +180,7 @@ There are **4 ghost types**, each with a distinct color and subtle behavior bias
 
 ## 7. Timer / Countdown
 
-- Each level has a **countdown timer** (default: **180 seconds** / 3 minutes).
+- Each level has a **countdown timer**, scaled to match maze complexity (see §8 for per-level values).
 - The timer is always visible on the scoreboard.
 - When the timer reaches **0**, the game ends (even if lives remain).
 - Remaining time converts to bonus points upon level completion.
@@ -189,9 +190,9 @@ There are **4 ghost types**, each with a distinct color and subtle behavior bias
 ## 8. Level Progression
 
 - The game ships with **3 levels** of increasing difficulty:
-  - **Level 1**: Open layout, few destructible walls, 2 ghosts, generous time.
-  - **Level 2**: Tighter corridors, more destructible walls, 3 ghosts, moderate time.
-  - **Level 3**: Dense maze, many destructible walls, 4 ghosts, tight time.
+  - **Level 1**: Open layout, few destructible walls, 2 ghosts. Timer: **120 seconds**.
+  - **Level 2**: Tighter corridors, more destructible walls, 3 ghosts. Timer: **180 seconds**.
+  - **Level 3**: Dense maze, many destructible walls, 4 ghosts. Timer: **240 seconds**.
 - Between levels, a brief **level-complete screen** shows stats (score, time, ghosts killed).
 - Ghost speed and aggression increase with each level.
 
@@ -214,6 +215,29 @@ The HUD displays at all times during gameplay:
 - **Bomb Count**: Current max simultaneous bombs
 - **Fire Radius**: Current explosion range
 - **Level**: Current level number
+
+---
+
+## 9.5 Start Screen
+
+The start screen appears when the game first loads and after a Game Over or Victory. Press `Enter` or activate **▶ Start Game** to begin:
+
+```
+╔═══════════════════════════╗
+║   👻 MS. GHOSTMAN         ║
+║                           ║
+║   ▶ Start Game            ║
+║   📊 High Scores          ║
+║                           ║
+║   Arrow Keys: Move        ║
+║   Space: Drop Bomb        ║
+║   ESC / P: Pause          ║
+╚═══════════════════════════╝
+```
+
+- **Start Game**: Begins Level 1 from scratch with score reset to 0.
+- **High Scores**: Displays top scores saved in `localStorage`.
+- The start screen corresponds to the `MENU` game state in the FSM (`game-status.js`).
 
 ---
 

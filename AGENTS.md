@@ -1,3 +1,9 @@
+---
+version: 1.1.0
+last-updated: 2026-03-28
+status: active
+---
+
 # Agent Instructions: Modern JavaScript 2026 DOM + ECS Game Development
 
 > **Standards & Guidelines** — Mandatory technical constraints and workflows for development.
@@ -36,6 +42,7 @@ If rules conflict, prioritize in the following order:
 | **Gameplay** | MUST preserve single-player gameplay and genre alignment with requirements docs. |
 | **Pause Menu** | MUST preserve actions: Continue and Restart. |
 | **HUD** | MUST maintain metrics: timer/countdown, score, and lives. |
+| **Browser Targets** | Latest stable Chrome, Firefox, Safari. No IE11 or legacy Edge support required. |
 
 ---
 
@@ -47,6 +54,7 @@ If rules conflict, prioritize in the following order:
 - **Components**: MUST NOT store DOM nodes, listeners, impure closures, or browser state.
 - **DOM Isolation**: Simulation systems MUST NOT call DOM APIs; side effects live in adapters or dedicated render systems.
 - **Storage**: SHOULD use data-oriented storage and stable iteration order on hot paths.
+- **Adapter Injection**: Adapters MUST be registered as World resources and accessed through the resource API. Systems MUST NOT import adapters directly — doing so would violate DOM isolation boundaries.
 
 ---
 
@@ -86,8 +94,8 @@ If rules conflict, prioritize in the following order:
 - **Updates**: MUST use compositor-friendly updates (`transform`, `opacity`) in animation loops.
 - **Batching**: MUST batch DOM writes in a dedicated render commit phase once per frame.
 - **Thrashing**: MUST avoid layout thrashing (separate read and write phases; no repeated read/write interleaving).
-- **Pooling**: MUST use DOM pooling for high-churn visuals (bombs, fire, ghosts, effects).
-- **Promotion**: SHOULD use minimal-but-nonzero layer promotion where beneficial.
+- **Pooling**: MUST use DOM pooling for high-churn visuals (bombs, fire, ghosts, effects). Pool elements MUST be hidden with `transform: translate(-9999px, -9999px)` — not `display:none` — to avoid triggering layout.
+- **Promotion**: SHOULD use minimal-but-nonzero layer promotion where beneficial. See `will-change` policy: only player and ghost sprites carry `will-change: transform` during active gameplay.
 - **Commit Phases**: MUST separate render read/compute from DOM write commit phases.
 - **No Forced Reflow Loops**: MUST NOT interleave layout reads and writes in hot loops.
 
@@ -98,7 +106,22 @@ If rules conflict, prioritize in the following order:
 - **Allocations**: MUST avoid recurring allocations in hot loops.
 - **Preallocation**: MUST preallocate or pool transient entities and corresponding DOM nodes.
 - **Mutation**: MUST mutate hot-path buffers in place when profiling indicates allocation pressure.
-- **Main Thread**: SHOULD avoid long tasks in gameplay-critical interactions. Heavy computations (like complex pathfinding) MUST define message contracts and offload to Web Workers.
+- **Main Thread**: SHOULD avoid long tasks in gameplay-critical interactions. Heavy computations SHOULD define message contracts and offload to Web Workers **only when profiling evidence shows main-thread impact exceeding 4 ms per frame**. A Web Worker for ghost pathfinding is NOT required unless this threshold is exceeded on a representative device.
+
+### Asset Performance
+
+- **SVG Complexity**: SHOULD keep SVG sprites under 50 path elements to avoid paint and layout recalc overhead.
+- **Image Decode**: SHOULD use `createImageBitmap()` for raster assets to decode off the main thread.
+- **Audio Preload**: MUST pre-decode gameplay-critical SFX using `AudioContext.decodeAudioData()` during level load so playback is instantaneous.
+
+---
+
+## Error Handling
+
+- **Critical errors** (map load failure, world init failure): MUST show a user-visible error state. MUST NOT silently fail.
+- **Non-critical errors** (missing audio clip, individual asset load failure): SHOULD log a `console.warn` and continue with fallback behavior (e.g., silent SFX, placeholder sprite class).
+- **System errors** (exception thrown inside a system tick): MUST NOT crash the game loop. SHOULD catch at the system-dispatch boundary, log the error, and skip the faulting system for the current frame.
+- **Unhandled promise rejections**: MUST install a global `unhandledrejection` handler that logs the rejection reason and shows an error overlay for critical failures.
 
 ---
 
@@ -129,7 +152,7 @@ Follow this sequence for every reported issue:
 - **Legacy**: MUST NOT use `var`, `require`, or `XMLHttpRequest`.
 - **Event Handlers**: MUST use `addEventListener`; MUST NOT use inline handler attributes.
 - **Storage Trust Boundary**: MUST treat `localStorage`/`sessionStorage` data as untrusted input and validate on read.
-- **CSP and Trusted Types**: SHOULD enforce strict CSP and Trusted Types where deployment allows.
+- **CSP and Trusted Types**: SHOULD enforce strict CSP and Trusted Types where deployment allows. During development with Vite, CSP enforcement MAY be relaxed to allow HMR inline scripts. Production builds MUST enforce strict CSP.
 
 ---
 
@@ -138,7 +161,8 @@ Follow this sequence for every reported issue:
 - **Keyboard First**: MUST keep full game and menu control available by keyboard only.
 - **Pause Focus**: MUST move focus into pause UI on open and restore focus on close.
 - **HUD Announcements**: SHOULD use meaningful, throttled status updates instead of per-frame announcement spam.
-- **Reduced Motion**: SHOULD respect `prefers-reduced-motion` for non-essential animations.
+- **Reduced Motion (Non-Gameplay)**: MUST respect `prefers-reduced-motion` for non-gameplay animations — menus, transitions, overlays, and decorative effects MUST be disabled or simplified when the media query is active.
+- **Reduced Motion (Gameplay)**: SHOULD provide reduced-motion alternatives for gameplay animations when feasible (e.g., reduced particle count, simplified explosion effects).
 
 ---
 
@@ -148,6 +172,13 @@ Follow this sequence for every reported issue:
 - **Unit Tests**: For pure systems and components.
 - **Integration Tests**: For world ordering and cross-system interaction.
 - **Adapter Tests**: For renderer and input boundaries.
+- **E2E / Browser Tests**: Use **Playwright** for audit questions requiring a real browser (FPS measurement, keyboard input, pause behavior, game loop validation). Vitest alone cannot satisfy browser-level audit assertions.
+
+### Test Categorization for Audit Questions
+Audit test coverage MUST be split into three categories:
+1. **Fully Automatable** (Vitest + Playwright): All functional questions F-01 to F-16, and bonus questions B-01 and B-03.
+2. **Semi-Automatable** (Performance API via Playwright `page.evaluate()`): F-17, F-18 — frame timing measured against a threshold.
+3. **Manual-With-Evidence** (DevTools traces attached as artifacts): F-19, F-20, F-21, B-04, B-05, B-06 — these require a signed evidence note, not a Vitest assertion.
 
 ### Invariants
 - SHOULD include seed-based determinism tests for timing/input-sensitive behavior.
@@ -162,7 +193,8 @@ For gameplay-critical update/render/input work, provide profile evidence that:
 
 | Metric | Target |
 |---|---|
-| **Frame Rate** | 60 FPS target maintained during normal play and pause/resume flow. |
+| **Frame Rate** | 60 FPS sustained target during normal play and pause/resume flow. |
+| **Acceptable Range** | ≥ 55 FPS at p95 (only 5% of frames may run below 55 FPS). Any sustained period > 500 ms below 50 FPS is a failure. |
 | **Frame Time** | p95 frame time <= 16.7 ms over a representative 60-second sample. |
 | **Stutter** | No sustained dropped-frame pattern (continuous multi-second stutter bursts). |
 | **Long Tasks** | No recurring long tasks > 50 ms on the main interaction path. |
@@ -190,4 +222,4 @@ A task is complete only when:
 3. **Architecture**: ECS boundaries remain intact (no forbidden DOM calls in simulation systems).
 4. **Functional**: Functional coverage remains intact (single-player, pause Continue/Restart, HUD timer/score/lives).
 5. **Audit**: Performance criteria are validated for gameplay-critical changes.
-6. **Audit Test Coverage**: Every question in `docs/audit.md` has explicit automated test coverage and passing results.
+6. **Audit Test Coverage**: All audit gates defined in the [Testing and Verification](#testing-and-verification) section are satisfied — see the test category split for which questions require Playwright, Performance API, or manual evidence artifacts.

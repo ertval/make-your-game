@@ -15,12 +15,14 @@ If this guide conflicts with [AGENTS.md](../AGENTS.md), [docs/requirements.md](r
 
 ## 2. Team Model for 4 Developers
 
-Use a simple ownership split:
+> **Canonical track ownership is defined in [`docs/implementation-plan.md` §3](implementation-plan.md#3-workflow-tracks-balanced-workload)**. The tracks are: **Track A** (Engine/CI), **Track B** (Physics/Input), **Track C** (AI/Rules/Audio), **Track D** (Rendering/Visual). When this guide conflicts with that document on task ownership, the implementation plan wins.
 
-- Dev 1 owns game loop, timing, pause, and input.
-- Dev 2 owns ECS data, entities, components, and core gameplay systems.
-- Dev 3 owns rendering, DOM commit, HUD, and visual polish.
-- Dev 4 owns test coverage, audit automation, and CI readiness.
+This guide describes the *process layer* on top of those tracks:
+
+- **Track A owner** (Dev 1): game loop, timing, pause, CI gates, schema validation.
+- **Track B owner** (Dev 2): input adapter, movement, collision, bomb/explosion logic.
+- **Track C owner** (Dev 3): ghost AI, scoring, timer, life system, audio, pause/progression systems.
+- **Track D owner** (Dev 4): renderer adapter, DOM batching, sprite pools, HUD, visual assets, and audit e2e test coverage.
 
 That split is not rigid, but each task must have a single DRI. If a task crosses ownership boundaries, write down the boundary before the agent starts.
 
