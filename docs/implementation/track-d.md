@@ -144,7 +144,7 @@
 #### D-11: Visual Manifest & Asset Validation
 **Priority**: 🟡 Medium  
 **Estimate**: 1 hour  
-**Covers**: Asset validation pipeline from `docs/assets-pipeline.md`
+**Covers**: Asset validation pipeline from `assets-pipeline.md`
 
 - [ ] Finalize `docs/schemas/visual-manifest.schema.json` (JSON Schema 2020-12):
   - Required fields: `id`, `category` (sprite|ui|effect), `file`, `format`, `width`, `height`.

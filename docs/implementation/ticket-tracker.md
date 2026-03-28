@@ -2,7 +2,7 @@
 
 This file tracks delivery progress for all Section 3 tickets in `docs/implementation/track-*.md`.
 
-Coverage mapping remains canonical in `docs/audit-traceability-matrix.md`.
+Coverage mapping remains canonical in `audit-traceability-matrix.md`.
 
 ## 🧾 Update Rules
 
@@ -75,5 +75,5 @@ Coverage mapping remains canonical in `docs/audit-traceability-matrix.md`.
 
 - Ticket definitions and verification gates: `docs/implementation/track-a.md`, `docs/implementation/track-b.md`, `docs/implementation/track-c.md`, `docs/implementation/track-d.md`
 - Track summary and milestones: `docs/implementation/implementation-plan.md`
-- Coverage mapping and audit status: `docs/audit-traceability-matrix.md`
+- Coverage mapping and audit status: `audit-traceability-matrix.md`
 - Audit question source of truth: `docs/audit.md`

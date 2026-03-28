@@ -24,7 +24,7 @@
 #### C-2: Audio Manifest Schema & Validation
 **Priority**: 🔴 Critical  
 **Estimate**: 2 hours  
-**Covers**: Asset validation pipeline from `docs/assets-pipeline.md`
+**Covers**: Asset validation pipeline from `assets-pipeline.md`
 
 - [ ] Finalize `docs/schemas/audio-manifest.schema.json` (JSON Schema 2020-12):
   - Required fields: `id`, `category` (sfx|music|ambience|ui), `file`, `format`, `durationMs`, `sampleRate`, `channels`, `loudnessLUFS`.

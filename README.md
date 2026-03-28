@@ -164,13 +164,14 @@ make-your-game/
 ├── docs/                           # 📚 Documentation
 │   ├── requirements.md             # Original project requirements
 │   ├── audit.md                    # Audit checklist for grading
-│   ├── audit-traceability-matrix.md # Canonical requirement/audit/ticket/test coverage mapping and status
-│   ├── assets-pipeline.md          # Visual/audio authoring and validation workflow
 │   ├── schemas/                    # JSON Schema 2020-12 contracts
 │   │   ├── visual-manifest.schema.json
 │   │   └── audio-manifest.schema.json
 │   ├── game-description.md         # Full game rules & mechanics
 │   └── implementation/             # Canonical implementation planning and tracking docs
+│       ├── agentic-workflow-guide.md # Team workflow and PR process
+│       ├── assets-pipeline.md       # Visual/audio authoring and validation workflow
+│       ├── audit-traceability-matrix.md # Canonical requirement/audit/ticket/test coverage mapping and status
 │       ├── implementation-plan.md  # ECS implementation milestones and integration timeline
 │       ├── ticket-tracker.md       # Live ticket progress tracker for Section 3 implementation tickets
 │       ├── track-a.md              # Track A ticket definitions and verification gates
@@ -334,16 +335,16 @@ Recommended reading order for new contributors:
 5. `docs/implementation/implementation-plan.md` (ECS execution plan and milestones)
 6. `docs/implementation/ticket-tracker.md` (live ticket status board and owner/progress updates)
 7. `docs/implementation/track-a.md` + `docs/implementation/track-b.md` + `docs/implementation/track-c.md` + `docs/implementation/track-d.md` (detailed track ticket definitions and verification gates)
-8. `docs/audit-traceability-matrix.md` (single-source requirement/audit/ticket/test coverage mapping and status)
-9. `docs/assets-pipeline.md` (visual/audio asset creation, optimization, and validation workflow)
+8. `docs/implementation/audit-traceability-matrix.md` (single-source requirement/audit/ticket/test coverage mapping and status)
+9. `docs/implementation/assets-pipeline.md` (visual/audio asset creation, optimization, and validation workflow)
 
 ### 📌 Source Of Truth Policy
 
 - Requirement intent and feature scope: `docs/requirements.md` + `docs/game-description.md`
 - Final pass/fail acceptance criteria: `docs/audit.md`
 - Ticket execution progress and owner/status board: `docs/implementation/ticket-tracker.md`
-- Cross-document requirement/audit/ticket/test traceability and coverage status: `docs/audit-traceability-matrix.md`
-- Visual/audio authoring and asset quality gates: `docs/assets-pipeline.md`
+- Cross-document requirement/audit/ticket/test traceability and coverage status: `docs/implementation/audit-traceability-matrix.md`
+- Visual/audio authoring and asset quality gates: `docs/implementation/assets-pipeline.md`
 - If there is ambiguity, decisions MUST be resolved against those references.
 
 ---

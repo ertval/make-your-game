@@ -100,8 +100,8 @@ CI should fail if any of the following occurs:
 
 Schema sources:
 
-1. `docs/schemas/visual-manifest.schema.json`
-2. `docs/schemas/audio-manifest.schema.json`
+1. `../schemas/visual-manifest.schema.json`
+2. `../schemas/audio-manifest.schema.json`
 
 Manifest targets:
 
@@ -146,7 +146,7 @@ Follow the same ticket style as the implementation plan and assign ownership str
 **Priority**: 🔴 Critical  
 **Estimate**: 2h
 
-- [ ] Validate schema fields and enums in `docs/schemas/visual-manifest.schema.json`.
+- [ ] Validate schema fields and enums in `../schemas/visual-manifest.schema.json`.
 - [ ] Ensure all visual manifest IDs are unique and kebab-case.
 
 #### V-02: Character and Enemy Sprite Set
@@ -185,7 +185,7 @@ Follow the same ticket style as the implementation plan and assign ownership str
 **Priority**: 🔴 Critical  
 **Estimate**: 2h
 
-- [ ] Validate schema fields and enums in `docs/schemas/audio-manifest.schema.json`.
+- [ ] Validate schema fields and enums in `../schemas/audio-manifest.schema.json`.
 - [ ] Ensure all audio manifest IDs are unique and kebab-case.
 
 #### A-02: UI and Interaction SFX Set

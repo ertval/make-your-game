@@ -187,7 +187,7 @@
 - [ ] Capture before/after size report for generated visual and audio assets.
 - [ ] Collect runtime evidence notes for paint/layer behavior and audio startup timing.
 - [ ] Produce evidence bundle for `AUDIT-F-17..F-21` and `AUDIT-B-01..B-06`: environment, frame stats (`p50/p95/p99`), long-task notes, paint/layer observations.
-- [ ] Link evidence artifacts to `docs/audit-traceability-matrix.md` rows.
+- [ ] Link evidence artifacts to `audit-traceability-matrix.md` rows.
 - [ ] Final QA pass: play through all 3 levels verifying complete gameplay loop.
 - [ ] Verification gate: evidence links attached and all audit matrix rows covered.
 

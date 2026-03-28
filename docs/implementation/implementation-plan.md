@@ -42,9 +42,9 @@ For this game, ECS helps keep simulation deterministic, isolate DOM side effects
 
 1. `docs/requirements.md` + `docs/game-description.md` define project requirements and intended gameplay behavior.
 2. `docs/audit.md` defines pass/fail acceptance criteria.
-3. `docs/audit-traceability-matrix.md` is the canonical requirement-to-audit-to-ticket-to-test coverage map and status tracker.
-4. `docs/implementation/ticket-tracker.md` tracks live execution status for Section 3 tickets.
-5. `docs/assets-pipeline.md` defines visual/audio authoring and optimization standards.
+3. `audit-traceability-matrix.md` is the canonical requirement-to-audit-to-ticket-to-test coverage map and status tracker.
+4. `ticket-tracker.md` tracks live execution status for Section 3 tickets.
+5. `assets-pipeline.md` defines visual/audio authoring and optimization standards.
 6. When implementation details are ambiguous, resolve against those references first.
 
 ```mermaid
@@ -188,13 +188,15 @@ make-your-game/
 ├── docs/
 │   ├── requirements.md
 │   ├── audit.md
-│   ├── audit-traceability-matrix.md
-│   ├── assets-pipeline.md
+│   ├── game-description.md
+│   ├── README.md
 │   ├── schemas/
 │   │   ├── visual-manifest.schema.json
 │   │   └── audio-manifest.schema.json
-│   ├── game-description.md
 │   └── implementation/
+│       ├── agentic-workflow-guide.md
+│       ├── audit-traceability-matrix.md
+│       ├── assets-pipeline.md
 │       ├── implementation-plan.md      # This file
 │       ├── ticket-tracker.md
 │       ├── track-a.md
@@ -345,18 +347,18 @@ Track ticket definitions, checklists, and verification gates are maintained in d
 
 Live execution status is tracked in [Ticket Progress Tracker](ticket-tracker.md).
 
-When ticket definitions change in any track file, update [../audit-traceability-matrix.md](../audit-traceability-matrix.md) and [ticket-tracker.md](ticket-tracker.md) in the same PR.
+When ticket definitions change in any track file, update [audit-traceability-matrix.md](audit-traceability-matrix.md) and [ticket-tracker.md](ticket-tracker.md) in the same PR.
 
 ### 🔗 Coverage Traceability Reference
 
-Coverage mapping has been centralized in `docs/audit-traceability-matrix.md`.
-Ticket execution status has been centralized in `docs/implementation/ticket-tracker.md`.
+Coverage mapping has been centralized in `audit-traceability-matrix.md`.
+Ticket execution status has been centralized in `ticket-tracker.md`.
 
 1. Requirement-to-audit coverage mapping is maintained only in the matrix.
 2. Audit-to-ticket and audit-to-test/evidence mapping is maintained only in the matrix.
 3. Track ticket documents in `docs/implementation/track-*.md` remain the implementation source of truth and must keep verification-gate checklist items up to date.
 4. Ticket status changes (owner, state, PR/evidence links) must be updated in `docs/implementation/ticket-tracker.md`.
-5. Any ticket, audit, or test-anchor change in this plan must be mirrored in `docs/audit-traceability-matrix.md` in the same PR.
+5. Any ticket, audit, or test-anchor change in this plan must be mirrored in `audit-traceability-matrix.md` in the same PR.
 
 ---
 
@@ -617,7 +619,7 @@ This section is mandatory for delivery readiness and complements Track C (Audio)
 
 1. Track D owns visual asset authoring, rendering, and optimization.
 2. Track C owns audio asset authoring, decoding, and playback.
-3. Asset authoring, optimization, and validation standards are defined in `docs/assets-pipeline.md`.
+3. Asset authoring, optimization, and validation standards are defined in `assets-pipeline.md`.
 4. Asset changes should be reviewed with gameplay and performance in the same PR when behavior is affected.
 
 ### 9.2 Visual Asset Rules (DOM/SVG-first)

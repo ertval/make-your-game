@@ -83,7 +83,7 @@
 
 ###### +Does the project run quickly and effectively? (Favoring recursive, no unnecessary data requests, etc)
 
-###### +Does the code obey the [good practices](../../good-practices/README.md)?
+###### +Does the code obey the [good practices](../AGENTS.md#security-and-code-quality)?
 
 ###### +Does the program reuses memory to avoid jank?
 
