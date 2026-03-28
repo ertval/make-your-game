@@ -2,8 +2,8 @@
 
 - This file is the **pass/fail acceptance source of truth** for project completion.
 - Final integration/e2e validation MUST be based directly on the questions in this file.
-- There MUST be explicit automated test coverage for **every single question** below (functional + bonus).
-- The project is complete only when those mapped tests pass.
+- There MUST be explicit verification coverage for **every single question** below (functional + bonus) following the categories in `AGENTS.md` (Fully Automatable, Semi-Automatable, Manual-With-Evidence).
+- The project is complete only when mapped automated checks pass and required manual evidence artifacts are attached.
 
 #### Functional
 

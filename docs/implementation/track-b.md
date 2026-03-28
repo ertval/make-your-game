@@ -104,7 +104,7 @@
 - [ ] Ghosts cannot pass through indestructible walls or active bombs.
 - [ ] Implement `spawn-system.js`: Staggered ghost-house release timing per level (2/3/4 ghosts). Death-return respawn.
 - [ ] Use zero-allocation heuristics (pre-compute direction scores in-place, no temporary arrays).
-- [ ] **Worker offload gate**: Do NOT add a Web Worker unless profiling shows ghost pathfinding exceeds 2ms/frame.
+- [ ] **Worker offload gate**: Do NOT add a Web Worker unless profiling shows ghost pathfinding exceeds 4 ms per frame.
 - [ ] Verification gate: seeded determinism tests produce identical ghost movement traces.
 
 #### B-7: Scoring, Timer & Life Systems

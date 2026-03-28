@@ -10,16 +10,16 @@ A single-player browser game built with **pure JavaScript, HTML, and CSS** — n
 
 - [Overview](#-overview)
 - [Gameplay](#-gameplay)
-- [Architecture Overview](#️-architecture-overview)
+- [Architecture Overview](#-architecture-overview)
 - [Directory Structure](#-directory-structure)
-- [Frame Pipeline](#️-frame-pipeline)
-- [Rendering & Performance](#-rendering--performance)
+- [Frame Pipeline](#-frame-pipeline)
+- [Rendering & Performance](#-rendering--performance-targets)
 - [Getting Started](#-getting-started)
 - [Scripts & Commands](#-scripts--commands)
 - [Development Workflow](#-development-workflow)
 - [Documentation Flow](#-documentation-flow)
 - [Testing & Verification](#-testing--verification)
-- [Tech Stack & Constraints](#️-tech-stack--constraints)
+- [Tech Stack & Constraints](#-tech-stack--constraints)
 - [Contributing](#-contributing)
 - [License](#-license)
 
@@ -317,8 +317,8 @@ The project is split into **4 parallel workflow tracks** to enable multiple deve
 | Track | Dev | Scope | Key Systems & Files |
 |---|---|---|---|
 | **Track A** | Dev 1 | Core Engine, CI, Schema, and Evidence Wiring | `src/ecs/world/*`, `src/ecs/resources/*`, `main.ecs.js` |
-| **Track B** | Dev 2 | Physics, Input, and Gameplay Event Hooks | `input-system.js`, `player-move-system.js`, `bomb-tick-system.js` |
-| **Track C** | Dev 3 | AI, Rules, and Audio Production and Integration | `ghost-ai-system.js`, `scoring-system.js`, `collision-system.js` |
+| **Track B** | Dev 2 | Physics, Input, and Gameplay Logic & Rules | `input-system.js`, `player-move-system.js`, `ghost-ai-system.js`, `collision-system.js` |
+| **Track C** | Dev 3 | Audio Production and Integration | `audio-adapter.js`, audio manifests, cue mapping, decode/preload flow |
 | **Track D** | Dev 4 | Rendering, DOM Batching, and Visual Production and Integration | `render-collect-system.js`, `render-dom-system.js`, Adapters |
 
 > **Note**: For the full integration milestone breakdown, check `docs/implementation/implementation-plan.md`.
@@ -340,6 +340,7 @@ Recommended reading order for new contributors:
 
 ### 📌 Source Of Truth Policy
 
+- Implementation constraints, architecture boundaries, and audit verification categories: `AGENTS.md`
 - Requirement intent and feature scope: `docs/requirements.md` + `docs/game-description.md`
 - Final pass/fail acceptance criteria: `docs/audit.md`
 - Ticket execution progress and owner/status board: `docs/implementation/ticket-tracker.md`
@@ -377,8 +378,11 @@ tests/
 ### ✅ Audit Coverage Requirement
 
 - The `tests/e2e/audit/audit.e2e.test.js` suite is mapped directly to `docs/audit.md`.
-- Every question in `docs/audit.md` must have explicit automated test coverage.
-- The project is not complete until all mapped audit-question tests pass.
+- Verification follows `AGENTS.md` test categories:
+    - Fully Automatable: `F-01..F-16`, `B-01`, `B-02`, `B-03`
+    - Semi-Automatable: `F-17`, `F-18`
+    - Manual-With-Evidence: `F-19`, `F-20`, `F-21`, `B-04`, `B-05`, `B-06`
+- The project is complete only when all mapped automated checks pass and required manual evidence artifacts are attached.
 
 ---
 
@@ -395,7 +399,7 @@ tests/
 | **Biome** | Linting + formatting |
 | **Vitest** | Unit testing |
 | **SVG** | Sprites and visual assets |
-| **Web Workers** | Offloading heavy AI pathfinding |
+| **Web Workers (profiling-gated)** | Optional offload for heavy computations only when profiling shows > 4 ms/frame main-thread impact |
 | **Trusted Types / CSP** | DOM Security enforcement |
 | **JSON Schema 2020-12** | Map data validation in CI |
 
@@ -416,12 +420,12 @@ tests/
 ## 🤝 Contributing
 
 1. Read `AGENTS.md` for ECS coding standards and constraints.
-2. Read [docs/agentic-workflow-guide.md](docs/agentic-workflow-guide.md) for the 4-dev agent workflow, PR gates, and security checklist.
+2. Read [docs/implementation/agentic-workflow-guide.md](docs/implementation/agentic-workflow-guide.md) for the 4-dev agent workflow, PR gates, and security checklist.
 3. Review `docs/implementation/implementation-plan.md` and the corresponding `docs/implementation/track-*.md` file for your specific track assignment.
 4. Feature branches should isolate specific ECS systems or component additions.
-5. Core systems MUST remain pure functions handling data components; never import DOM adapters into `src/ecs/systems/` except for the dedicated `render-dom-system.js`.
+5. Core systems MUST remain pure functions handling data components; systems MUST access adapters via World resources and MUST NOT import adapters directly (including `render-dom-system.js`).
 6. Run `npm run check && npm run test` before committing.
-7. CI MUST pass all merge gates (schema validation, testing, coverage, lockfile integrity, policy gate) before merge.
+7. CI MUST pass all merge gates (schema validation, testing, lockfile integrity, policy gate) before merge. When coverage/SBOM scripts are configured, those gates MUST also pass.
 8. The policy gate workflow enforces PR review, audit alignment, security boundaries, and dependency pairing.
 9. Request review at integration milestones.
 

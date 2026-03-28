@@ -5,7 +5,7 @@
 > **Genre Alignment**: Pac-Man-inspired maze chase (primary) with Bomberman-style bomb mechanics (secondary)  
 > **Players**: Single-player  
 > **Renderer**: Pure DOM / CSS Grid (no `<canvas>`, no frameworks)  
-> **Target Performance**: Constant 60 FPS via `requestAnimationFrame`
+> **Target Performance**: 60 FPS target via `requestAnimationFrame`, with measurable acceptance criteria defined in `AGENTS.md`
 
 ---
 
@@ -28,7 +28,7 @@ Drop a bomb, run for cover, and watch the explosion rip through walls and any gh
 | **Render Intent** | Data prepared by simulation for visual updates before DOM commit. |
 | **DOM Commit Phase** | Batched write phase where transforms/opacity/text updates are applied. |
 | **Paused State** | rAF remains active for UI responsiveness while simulation progression is frozen. |
-| **Audit Question** | One pass/fail acceptance question from `docs/audit.md` that must be covered by automated tests. |
+| **Audit Question** | One pass/fail acceptance question from `docs/audit.md` that must be covered by required verification (automated checks and/or evidence artifacts per `AGENTS.md`). |
 
 ---
 
@@ -291,7 +291,7 @@ Press **`Escape`** or **`P`** to pause. `requestAnimationFrame` remains active f
 
 | Constraint | Enforced |
 |---|---|
-| Must run at **≥ 60 FPS** with no frame drops | ✅ |
+| Target ≈60 FPS with measured acceptance (`>=60 FPS` at p95 and no sustained period >500ms below 60 FPS) | ✅ |
 | Must use `requestAnimationFrame` for animation | ✅ |
 | **No `<canvas>`** — pure DOM only | ✅ |
 | **No frameworks** — vanilla JS/HTML/CSS | ✅ |

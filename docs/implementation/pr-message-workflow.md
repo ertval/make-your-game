@@ -6,10 +6,10 @@ This file records the reusable PR message workflow for ticket-sized changes. Kee
 
 Follow the agreed ticket order and keep branches short-lived and single-purpose.
 
-- Start with `TA-1`, then continue in order (`TA-2`, `TA-3`, and so on) before moving to another track.
+- Start with your track's first ticket (`A-1`, `B-1`, `C-1`, or `D-1`), then continue in order within that track.
 - Use one branch per ticket slice.
 - Use the same branch only for the one logical change it was created for.
-- Example branch sequence: `ekaramet/TA-1`, `ekaramet/TA-2`, `ekaramet/TA-3`.
+- Example branch sequence (Track A): `ekaramet/A-1`, `ekaramet/A-2`, `ekaramet/A-3`.
 
 ## 2. PR Message Checklist
 

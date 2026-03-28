@@ -15,14 +15,14 @@ If this guide conflicts with [AGENTS.md](../../AGENTS.md), [docs/requirements.md
 
 ## 2. Team Model for 4 Developers
 
-> **Canonical track ownership is defined in [`docs/implementation/implementation-plan.md` §3](implementation-plan.md#3-workflow-tracks-balanced-workload) and detailed in [`docs/implementation/track-a.md`](track-a.md), [`docs/implementation/track-b.md`](track-b.md), [`docs/implementation/track-c.md`](track-c.md), and [`docs/implementation/track-d.md`](track-d.md)**. The tracks are: **Track A** (Engine/CI), **Track B** (Physics/Input), **Track C** (AI/Rules/Audio), **Track D** (Rendering/Visual). When this guide conflicts with those documents on task ownership, the implementation docs win.
+> **Canonical track ownership is defined in [`docs/implementation/implementation-plan.md` §3](implementation-plan.md#section-3-workflow-tracks-balanced-workload) and detailed in [`docs/implementation/track-a.md`](track-a.md), [`docs/implementation/track-b.md`](track-b.md), [`docs/implementation/track-c.md`](track-c.md), and [`docs/implementation/track-d.md`](track-d.md)**. The tracks are: **Track A** (Engine/CI/Testing), **Track B** (Gameplay Logic), **Track C** (Audio), **Track D** (Rendering/Visual). When this guide conflicts with those documents on task ownership, the implementation docs win.
 
 This guide describes the *process layer* on top of those tracks:
 
-- **Track A owner** (Dev 1): game loop, timing, pause, CI gates, schema validation.
-- **Track B owner** (Dev 2): input adapter, movement, collision, bomb/explosion logic.
-- **Track C owner** (Dev 3): ghost AI, scoring, timer, life system, audio, pause/progression systems.
-- **Track D owner** (Dev 4): renderer adapter, DOM batching, sprite pools, HUD, visual assets, and audit e2e test coverage.
+- **Track A owner** (Dev 1): game loop, timing, CI gates, schema validation, and all testing/QA rails.
+- **Track B owner** (Dev 2): gameplay simulation systems (input, movement, collisions, bombs, AI, scoring, timer, lives, pause/progression).
+- **Track C owner** (Dev 3): audio adapter, SFX/music production, manifest/schema integration, cue mapping, and decode/preload performance.
+- **Track D owner** (Dev 4): renderer adapter, DOM batching, sprite pools, HUD, screen overlays, and visual assets.
 
 That split is not rigid, but each task must have a single DRI. If a task crosses ownership boundaries, write down the boundary before the agent starts.
 

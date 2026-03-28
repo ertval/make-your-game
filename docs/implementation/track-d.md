@@ -15,9 +15,8 @@
 - [ ] Apply strict **`will-change` policy**:
   - Player sprite: `will-change: transform` (always moving).
   - Ghost sprites: `will-change: transform` (always moving).
-  - Bomb sprites: `will-change: transform` only while fuse animation is active (add/remove dynamically).
-  - Fire tiles, static grid cells, HUD elements: **NO** `will-change`.
-  - Target layer count: ~6 (player + 4 ghosts + active bomb group).
+  - Bomb sprites, fire tiles, static grid cells, and HUD elements: **NO** `will-change`.
+  - Target layer count baseline: ~5 promoted sprite layers (player + 4 ghosts).
 - [ ] Build `styles/animations.css`: walking pulse, bomb fuse animation, explosion fade, ghost stun flash, invincibility blink, speed boost trail/tint.
 - [ ] Respect `prefers-reduced-motion` for non-gameplay animations (menus, transitions, overlays).
 - [ ] Verification gate: DevTools layer evidence confirms minimal-but-nonzero layers and policy compliance.
@@ -147,8 +146,8 @@
 **Covers**: Asset validation pipeline from `assets-pipeline.md`
 
 - [ ] Finalize `docs/schemas/visual-manifest.schema.json` (JSON Schema 2020-12):
-  - Required fields: `id`, `category` (sprite|ui|effect), `file`, `format`, `width`, `height`.
-  - Optional: `frames`, `animationDuration`, `fallbackClass`.
+  - Required fields: `id`, `path`, `kind` (sprite|ui|tile|effect), `format`, `width`, `height`, `tags`, `critical`.
+  - Optional fields: `maxBytes`, `notes`.
 - [ ] Create/maintain `assets/manifests/visual-manifest.json` with all visual asset entries.
 - [ ] Build manifest-to-renderable mapping table and define missing-asset fallback class behavior.
 - [ ] Optimize SVG/raster outputs and validate against layer/paint constraints.

@@ -9,23 +9,24 @@
 
 ## Table of Contents
 
-1. [Architecture Overview](#1-architecture-overview)
-2. [Directory Structure](#2-directory-structure)
-3. [Workflow Tracks (Balanced Workload)](#3-workflow-tracks-balanced-workload)
+1. [Architecture Overview](#section-1-architecture-overview)
+2. [Directory Structure](#section-2-directory-structure)
+3. [Workflow Tracks (Balanced Workload)](#section-3-workflow-tracks-balanced-workload)
     - [Track A — Orchestration, Scaffolding, Testing & QA (Dev 1)](track-a.md)
     - [Track B — Physics, Input, Gameplay Logic & Rules (Dev 2)](track-b.md)
     - [Track C — Audio Production & Integration (Dev 3)](track-c.md)
     - [Track D — Visual Production & Integration (Dev 4)](track-d.md)
-4. [Integration Milestones](#4-integration-milestones)
-5. [Shared Contracts & Interfaces](#5-shared-contracts--interfaces)
-6. [Testing Strategy](#6-testing-strategy)
-7. [Performance Budget & Acceptance Criteria](#7-performance-budget--acceptance-criteria)
-8. [Done Criteria](#8-done-criteria)
-9. [Asset Creation & Pipeline](#9-asset-creation--pipeline)
-10. [Maintenance Notes](#10-maintenance-notes)
+4. [Integration Milestones](#section-4-integration-milestones)
+5. [Shared Contracts & Interfaces](#section-5-shared-contracts--interfaces)
+6. [Testing Strategy](#section-6-testing-strategy)
+7. [Performance Budget & Acceptance Criteria](#section-7-performance-budget--acceptance-criteria)
+8. [Done Criteria](#section-8-done-criteria)
+9. [Asset Creation & Pipeline](#section-9-asset-creation--pipeline)
+10. [Maintenance Notes](#section-10-maintenance-notes)
 
 ---
 
+<a id="section-1-architecture-overview"></a>
 ## 🏗️ 1. Architecture Overview
 
 ### 1.1 What Is ECS?
@@ -176,6 +177,7 @@ Entity IDs are recycled via a free-list pool in `entity-store.js`. Stale-handle 
 
 ---
 
+<a id="section-2-directory-structure"></a>
 ## 📁 2. Directory Structure
 
 ```text
@@ -209,7 +211,7 @@ make-your-game/
 │   ├── e2e/
 │   │   └── audit/
 │   │       ├── audit-question-map.js
-│   │       └── audit.e2e.test.js       # Playwright-based (F-01..F-21, B-01..B-06)
+│   │       └── audit.e2e.test.js       # Playwright-based audit harness (Fully Automatable + Semi-Automatable checks)
 │   ├── integration/
 │   │   ├── gameplay/               # Multi-system interaction tests
 │   │   └── adapters/               # Adapter boundary tests (jsdom)
@@ -300,6 +302,7 @@ make-your-game/
 
 ---
 
+<a id="section-3-workflow-tracks-balanced-workload"></a>
 ## 🧭 3. Workflow Tracks (Balanced Workload)
 
 The work is divided into **4 independent, balanced tracks**. Each track can be developed in parallel with mocked resources. Track A owns **all** scaffolding, orchestration, testing (unit, integration, e2e, audit), validation, QA, and final polish. Track B owns all gameplay simulation logic (physics, input, AI, rules, scoring). Track C owns everything audio. Track D owns everything visual.
@@ -362,6 +365,7 @@ Ticket execution status has been centralized in `ticket-tracker.md`.
 
 ---
 
+<a id="section-4-integration-milestones"></a>
 ## 🗓️ 4. Integration Milestones
 
 ```mermaid
@@ -429,6 +433,7 @@ gantt
 
 ---
 
+<a id="section-5-shared-contracts--interfaces"></a>
 ## 🤝 5. Shared Contracts & Interfaces
 
 Shared structure inside component storage array definitions. These are documented using JSDoc `typedef` for IDE support and clarity.
@@ -547,6 +552,7 @@ The render-intent buffer is **pre-allocated once** (`new Array(MAX_RENDER_INTENT
 
 ---
 
+<a id="section-6-testing-strategy"></a>
 ## 🧪 6. Testing Strategy
 
 | Boundary Layer | Tool | What to Test |
@@ -561,12 +567,13 @@ The render-intent buffer is **pre-allocated once** (`new Array(MAX_RENDER_INTENT
 | **Security Boundaries** | Vitest + static checks | HUD/menu updates use safe sinks (`textContent`, explicit attributes); untrusted storage data is validated on read. |
 | **Regression Fixes** | Vitest | Repro test first, then fix, then pass. Verify no cross-system side effects outside component/resource contracts. |
 | **Smoke Test** | **Playwright** | Boot game, run headlessly for 60 s with randomised input injections. Assert no unhandled exceptions. Write this first — it is the single highest-value test. |
-| **Audit — Fully Automatable (F-01..F-16, B-01, B-03)** | **Playwright** (real browser) | Crash-free run, rAF usage, pause/continue/restart, hold-to-move, HUD metrics, genre compliance. One test per audit ID. |
-| **Audit — Semi-Automatable (F-17, F-18)** | **Playwright** + `page.evaluate()` | Frame timing via Performance API. Assert p95 frame time ≤ 20 ms over a 30-second measurement window. |
+| **Audit — Fully Automatable (F-01..F-16, B-01, B-02, B-03)** | **Playwright** (real browser) | Crash-free run, rAF usage, pause/continue/restart, hold-to-move, HUD metrics, genre compliance, and good-practices checks via CI/static gates. |
+| **Audit — Semi-Automatable (F-17, F-18)** | **Playwright** + `page.evaluate()` | Frame timing via Performance API. Assert p95 frame time ≤ 16.7 ms over a representative 60-second measurement window. |
 | **Audit — Manual-With-Evidence (F-19, F-20, F-21, B-04, B-05, B-06)** | DevTools traces (PR artifacts) | Paint usage, layer count, layer promotion, SVG usage, async patterns. Require a signed evidence note — NOT a Vitest assertion. |
 
 ---
 
+<a id="section-7-performance-budget--acceptance-criteria"></a>
 ## ⚡ 7. Performance Budget & Acceptance Criteria
 
 Failure to meet these budgets violates the `audit.md` strict pass parameters.
@@ -579,8 +586,8 @@ Failure to meet these budgets violates the `audit.md` strict pass parameters.
 | Frame Time | p95 ≤ 16.7 ms, p99 ≤ 20 ms | Zero internal allocations in hot loops. No recurring long tasks > 50 ms. |
 | DOM Elements | ≤ 500 total (assert at startup) | Dev-mode assertion after level load. Transient rendering uses fixed Object Pools. |
 | Layout Thrashing | **Zero** | Properties ONLY written via single batch function at tail of tick (Render DOM System). |
-| Layer Promotion (`will-change`) | Player + 4 ghost sprites only | `will-change: transform` on always-moving sprites. Target ≈6 compositor layers. |
-| GC Pauses / Jank | **Zero** | SoA TypedArray storage. Entity recycling via free-list pool. Render-intent buffer reused each frame. |
+| Layer Promotion (`will-change`) | Player + 4 ghost sprites only | `will-change: transform` on always-moving sprites. Target baseline ≈5 promoted sprite layers. |
+| GC Pauses / Jank | < 1 ms recurring pause budget after warm-up; no sustained jank bursts | SoA TypedArray storage. Entity recycling via free-list pool. Render-intent buffer reused each frame. |
 | Catch-up Stability | Max `5` fixed steps per frame | Accumulator bounded to prevent spiral-of-death. |
 | Modularity Leak | **Zero** | Simulation systems agnostic of DOM APIs. Adapters injected as World resources. |
 
@@ -595,6 +602,7 @@ For gameplay-critical changes (update/render/input):
 
 ---
 
+<a id="section-8-done-criteria"></a>
 ## ✅ 8. Done Criteria
 
 A change is complete only when:
@@ -607,10 +615,11 @@ A change is complete only when:
    - Timer/score/lives HUD
    - Genre-aligned gameplay
 5. Performance criteria are validated for gameplay-critical changes.
-6. Every question in `docs/audit.md` has explicit automated test coverage and all those tests pass.
+6. Every question in `docs/audit.md` has explicit verification coverage (Fully Automatable, Semi-Automatable, or Manual-With-Evidence), with automated checks passing and required evidence artifacts attached.
 
 ---
 
+<a id="section-9-asset-creation--pipeline"></a>
 ## 🎨 9. Asset Creation & Pipeline
 
 This section is mandatory for delivery readiness and complements Track C (Audio) and Track D (Visual).
@@ -654,6 +663,7 @@ This section is mandatory for delivery readiness and complements Track C (Audio)
 
 ---
 
+<a id="section-10-maintenance-notes"></a>
 ## 🛠️ 10. Maintenance Notes
 
 1. This repository is ECS-only; no legacy alternative-architecture workflow docs are maintained.

@@ -27,8 +27,8 @@
 **Covers**: Asset validation pipeline from `assets-pipeline.md`
 
 - [ ] Finalize `docs/schemas/audio-manifest.schema.json` (JSON Schema 2020-12):
-  - Required fields: `id`, `category` (sfx|music|ambience|ui), `file`, `format`, `durationMs`, `sampleRate`, `channels`, `loudnessLUFS`.
-  - Optional: `loopPoints`, `priority`, `fallbackFile`.
+  - Required fields: `id`, `path`, `category` (sfx|music|ambience|ui), `format`, `durationMs`, `critical`, `loop`.
+  - Optional fields: `channels`, `sampleRateHz`, `loudnessLufs`, `maxBytes`, `notes`.
 - [ ] Create `assets/manifests/audio-manifest.json` with all audio asset entries.
 - [ ] Wire manifest schema validation into CI (fails on invalid entries).
 - [ ] Verification gate: CI rejects invalid manifest entries; valid entries pass.

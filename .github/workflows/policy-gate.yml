@@ -92,8 +92,8 @@ jobs:
       - name: Enforce audit traceability and dependency pairing
         run: |
           set -euo pipefail
-          node <<'NODE'
-          const fs = require('node:fs');
+          node --input-type=module <<'NODE'
+          import fs from 'node:fs';
 
           const changedFiles = fs.readFileSync('changed-files.txt', 'utf8')
             .split(/\r?\n/)
@@ -112,12 +112,12 @@ jobs:
           const touchesAuditDocs = has('docs/audit.md');
           const touchesRequirements = has('docs/requirements.md');
           const touchesGameDescription = has('docs/game-description.md');
-          const touchesTraceability = has('docs/audit-traceability-matrix.md');
+          const touchesTraceability = has('docs/implementation/audit-traceability-matrix.md');
           const touchesAuditTests = touches('tests/e2e/audit/');
 
           if (touchesAuditDocs || touchesRequirements || touchesGameDescription || touchesAuditTests) {
             const required = [];
-            if (!touchesTraceability) required.push('docs/audit-traceability-matrix.md');
+            if (!touchesTraceability) required.push('docs/implementation/audit-traceability-matrix.md');
             if (!touchesAuditTests) required.push('tests/e2e/audit/');
             if ((touchesAuditDocs || touchesRequirements || touchesGameDescription) && !has('docs/audit.md')) {
               required.push('docs/audit.md');
@@ -139,15 +139,15 @@ jobs:
       - name: Scan security and architecture boundaries
         run: |
           set -euo pipefail
-          node <<'NODE'
-          const fs = require('node:fs');
+          node --input-type=module <<'NODE'
+          import fs from 'node:fs';
 
           const changedFiles = fs.readFileSync('changed-files.txt', 'utf8')
             .split(/\r?\n/)
             .map((line) => line.trim())
             .filter(Boolean);
 
-          const sourcePattern = /\.(js|mjs|cjs|ts|tsx|jsx|html|css)$/;
+          const sourcePattern = /\.(js|mjs|cjs|ts|tsx|jsx|html)$/;
           const unsafeSinks = [
             /\binnerHTML\b/,
             /\bouterHTML\b/,
@@ -215,6 +215,32 @@ jobs:
           if [ -f package.json ]; then
             npm run check
             npm run test
+            node --input-type=module <<'NODE'
+            import fs from 'node:fs';
+
+            const pkg = JSON.parse(fs.readFileSync('package.json', 'utf8'));
+            const scripts = pkg.scripts ?? {};
+            const extraScripts = [];
+
+            if (scripts['test:coverage']) {
+              extraScripts.push('test:coverage');
+            } else if (scripts['coverage']) {
+              extraScripts.push('coverage');
+            }
+
+            if (scripts['sbom']) {
+              extraScripts.push('sbom');
+            }
+
+            fs.writeFileSync('.policy-extra-scripts', `${extraScripts.join('\n')}\n`, 'utf8');
+            NODE
+
+            while IFS= read -r script; do
+              [ -z "$script" ] && continue
+              npm run "$script"
+            done < .policy-extra-scripts
+
+            rm -f .policy-extra-scripts
           else
             echo "package.json not present; skipping npm gate."
           fi

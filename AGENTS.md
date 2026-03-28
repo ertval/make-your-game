@@ -145,7 +145,7 @@ Follow this sequence for every reported issue:
 ## Security and Code Quality
 
 - **Tooling**: MUST use Biome for linting and formatting.
-- **CI Governance**: MUST enforce merge gates (linting, tests, coverage) and dependency lockfile policies (with SBOM).
+- **CI Governance**: MUST enforce merge gates (linting and tests). When `package.json` and corresponding scripts are present, CI MUST also enforce coverage and dependency lockfile policies (with SBOM).
 - **Data Validation**: MUST validate JSON maps against JSON Schema 2020-12 in CI.
 - **Sinks and Policies**: MUST use safe DOM sinks (`textContent`, explicit attribute APIs), and strictly enforce Content Security Policy (CSP) and Trusted Types.
 - **Injection**: MUST avoid unsafe HTML injection for untrusted content.
@@ -176,14 +176,14 @@ Follow this sequence for every reported issue:
 
 ### Test Categorization for Audit Questions
 Audit test coverage MUST be split into three categories:
-1. **Fully Automatable** (Vitest + Playwright): All functional questions F-01 to F-16, and bonus questions B-01 and B-03.
+1. **Fully Automatable** (Vitest + Playwright): All functional questions F-01 to F-16, and bonus questions B-01, B-02, and B-03.
 2. **Semi-Automatable** (Performance API via Playwright `page.evaluate()`): F-17, F-18 — frame timing measured against a threshold.
 3. **Manual-With-Evidence** (DevTools traces attached as artifacts): F-19, F-20, F-21, B-04, B-05, B-06 — these require a signed evidence note, not a Vitest assertion.
 
 ### Invariants
 - SHOULD include seed-based determinism tests for timing/input-sensitive behavior.
 - MUST verify pause invariants: rAF active, simulation frozen, HUD responsive.
-- MUST maintain end-to-end/integration test coverage for every question in `docs/audit.md` (functional and bonus), with one or more explicit tests per question.
+- MUST maintain end-to-end/integration verification coverage for every question in `docs/audit.md` (functional and bonus), with explicit automated checks for Fully Automatable and Semi-Automatable items and explicit evidence artifacts for Manual-With-Evidence items.
 
 ---
 
@@ -194,7 +194,7 @@ For gameplay-critical update/render/input work, provide profile evidence that:
 | Metric | Target |
 |---|---|
 | **Frame Rate** | 60 FPS sustained target during normal play and pause/resume flow. |
-| **Acceptable Range** | ≥ 55 FPS at p95 (only 5% of frames may run below 55 FPS). Any sustained period > 500 ms below 50 FPS is a failure. |
+| **Acceptable Range** | ≥ 60 FPS at p95 (only 5% of frames may run below 60 FPS). Any sustained period > 500 ms below 60 FPS is a failure. |
 | **Frame Time** | p95 frame time <= 16.7 ms over a representative 60-second sample. |
 | **Stutter** | No sustained dropped-frame pattern (continuous multi-second stutter bursts). |
 | **Long Tasks** | No recurring long tasks > 50 ms on the main interaction path. |

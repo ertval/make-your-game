@@ -157,10 +157,11 @@
   - F-15: Score increases on player actions (pellet collection, ghost kill).
   - F-16: Lives decrease on death.
   - B-01: Project runs quickly and effectively.
+  - B-02: Code obeys good practices (CI/static/security gates).
   - B-03: Memory reuse (no jank from GC).
 - [ ] **Semi-Automatable tests** (Playwright + `page.evaluate()`):
-  - F-17: No frame drops (Performance API measurement over 30s window).
-  - F-18: Game runs at ~60fps (p95 frame time ≤ 20ms over 30s window).
+  - F-17: No sustained frame-drop periods (Performance API measurement over a representative 60s window).
+  - F-18: Game runs at ~60fps (p95 frame time ≤ 16.7ms over a representative 60s window).
 - [ ] **Manual-With-Evidence** (DevTools traces as PR artifacts):
   - F-19: Paint usage minimal (evidence note with trace).
   - F-20: Layers minimal but non-zero (evidence note with layer count).

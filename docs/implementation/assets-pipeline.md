@@ -20,6 +20,7 @@ assets/
     ui/
     sfx/
     music/
+    ambience/
   manifests/
     visual-manifest.json
     audio-manifest.json
@@ -93,7 +94,7 @@ Recommended baseline formats:
 CI should fail if any of the following occurs:
 
 1. Asset referenced in manifest does not exist.
-2. Required manifest fields are missing (`id`, `path`, `width`, `height`, `kind` for visuals; `id`, `path`, `category`, `durationMs` for audio).
+2. Required manifest fields are missing (`id`, `path`, `kind`, `format`, `width`, `height`, `tags`, `critical` for visuals; `id`, `path`, `category`, `format`, `durationMs`, `critical`, `loop` for audio).
 3. File exceeds configured size budget.
 4. Naming convention check fails.
 5. Duplicate IDs exist in manifests.
@@ -179,37 +180,37 @@ Follow the same ticket style as the implementation plan and assign ownership str
 - [ ] Verify no oversized visual artifacts violate size budgets.
 - [ ] Verify reserved dimensions/aspect behavior for deferred images.
 
-### AI, Rules, and Audio Production and Integration (Dev 3)
+### Audio Production and Integration (Dev 3)
 
-#### A-01: Audio Schema Contract
+#### C-ASSET-01: Audio Schema Contract
 **Priority**: 🔴 Critical  
 **Estimate**: 2h
 
 - [ ] Validate schema fields and enums in `../schemas/audio-manifest.schema.json`.
 - [ ] Ensure all audio manifest IDs are unique and kebab-case.
 
-#### A-02: UI and Interaction SFX Set
+#### C-ASSET-02: UI and Interaction SFX Set
 **Priority**: 🔴 Critical  
 **Estimate**: 3h
 
 - [ ] Create/export UI cues (confirm, cancel, pause open/close).
 - [ ] Create/export interaction cues (pickup, hit, life loss).
 
-#### A-03: Core Gameplay SFX Set
+#### C-ASSET-03: Core Gameplay SFX Set
 **Priority**: 🔴 Critical  
 **Estimate**: 2h
 
 - [ ] Create/export bomb place and bomb explode cues.
 - [ ] Create/export ghost defeat and player defeat cues.
 
-#### A-04: Music and Ambience Set
+#### C-ASSET-04: Music and Ambience Set
 **Priority**: 🟡 Medium  
 **Estimate**: 2h
 
 - [ ] Create/export at least one loop-safe level music track.
 - [ ] Optionally create/export ambience loop for menus.
 
-#### A-05: Loudness and Loop QA
+#### C-ASSET-05: Loudness and Loop QA
 **Priority**: 🟡 Medium  
 **Estimate**: 3h
 
