@@ -11,7 +11,7 @@
 
 1. [Architecture Overview](#section-1-architecture-overview)
 2. [Directory Structure](#section-2-directory-structure)
-3. [Workflow Tracks (Balanced Workload)](#section-3-workflow-tracks-balanced-workload)
+3. [Workflow Tracks (Phase-First MVP Order)](#section-3-workflow-tracks-balanced-workload)
     - [Track A — Orchestration, Scaffolding, Testing & QA (Dev 1)](track-a.md)
     - [Track B — Physics, Input, Gameplay Logic & Rules (Dev 2)](track-b.md)
     - [Track C — Audio Production & Integration (Dev 3)](track-c.md)
@@ -303,15 +303,24 @@ make-your-game/
 ---
 
 <a id="section-3-workflow-tracks-balanced-workload"></a>
-## 🧭 3. Workflow Tracks (Balanced Workload)
+## 🧭 3. Workflow Tracks (Phase-First MVP Order)
 
-The work is divided into **4 independent, balanced tracks**. Each track can be developed in parallel with mocked resources. Track A owns **all** scaffolding, orchestration, testing (unit, integration, e2e, audit), validation, QA, and final polish. Track B owns all gameplay simulation logic (physics, input, AI, rules, scoring). Track C owns everything audio. Track D owns everything visual.
+The work remains divided into **4 ownership tracks** (A, B, C, D), but execution is now **phase-first across all tracks** to minimize time to first playable build. Track ownership remains unchanged; ticket ordering is now driven by global MVP gates instead of per-track linear order.
 
 ### 📌 Ticket Progress Tracking
 
 Live ticket progress for this section is tracked in `docs/implementation/ticket-tracker.md`.
 
-### Workload Summary (Balanced)
+### Phase Gates (Global Execution Order)
+
+| Phase | Goal | Primary Ticket Bands | Exit Criteria |
+|---|---|---|---|
+| P0 Foundation | Boot deterministic runtime and static board | A-01..A-04, B-01, D-01..D-03 | App boots, fixed-step world ticks, static map renders safely |
+| P1 Playable MVP | Deliver fully playable core loop | A-05..A-08, B-02..B-06, C-01, D-04..D-07 | Player can start, move, pause/continue/restart, score/lives/timer update |
+| P2 Feature Complete | Add genre depth and integration hooks | A-09..A-10, B-07..B-10, C-02..C-04, D-08..D-09 | Bomb depth, ghost depth, power-up loop, event/audio integration complete |
+| P3 Polish & Validation | Final production quality and asset governance | A-11, C-05..C-07, D-10..D-11 | Asset schema validation, UI/audio polish, audit-ready evidence |
+
+### Workload Summary (Balanced Ownership)
 
 | Track | Developer | Estimated Hours | Scope |
 |---|---|---:|---|
@@ -325,17 +334,17 @@ Live ticket progress for this section is tracked in `docs/implementation/ticket-
 
 | Dev | Critical Path Focus | Must Land Before | Depends On |
 |---|---|---|---|
-| Dev 1 | ECS core bootstrap, game loop, map loading, CI/schema wiring, **ALL** testing & QA, final evidence | Any gameplay integration | None initially; later depends on B/C/D feature code for integration/e2e tests |
-| Dev 2 | Input, movement, collision, bombs, explosions, ghost AI, scoring, timer, lives, pause, progression | Audio/visual cue integration | Dev 1 world/resource setup |
-| Dev 3 | Audio adapter, SFX/music production, audio manifest, cue mapping, preloading | Final gameplay audio integration | Dev 1 schemas; Dev 2 event contracts |
-| Dev 4 | Render pipeline, DOM batching, sprite pools, HUD, overlays, CSS, visual assets | Visual completeness | Dev 1 render boundary setup; Dev 2 entity state events |
+| Dev 1 | ECS core bootstrap, game loop, map loading, CI/schema wiring, **ALL** testing & QA, final evidence | Any gameplay integration and final acceptance | None initially; later depends on B/C/D feature code for integration/e2e tests |
+| Dev 2 | Input, movement, collision, bombs, explosions, ghost AI, scoring, timer, lives, pause, progression | Audio/visual cue integration and final gameplay coverage | Dev 1 world/resource setup |
+| Dev 3 | Audio adapter, SFX/music production, audio manifest, cue mapping, preloading | Final gameplay audio integration and perf evidence | Dev 1 schemas; Dev 2 event contracts |
+| Dev 4 | Render pipeline, DOM batching, sprite pools, HUD, overlays, CSS, visual assets | Visual completeness and paint/layer evidence | Dev 1 render boundary setup; Dev 2 entity state events |
 
 #### Scheduling Rule
 
-1. Dev 1 starts first to land the boot, world, resource, and test rails.
-2. Dev 2 starts gameplay systems once ECS core is stable.
-3. Dev 3 and Dev 4 work fully independently on audio and visual tracks respectively.
-4. Dev 1 writes all tests against the code produced by Dev 2, 3, and 4.
+1. Execute tickets by global phase (`P0 → P1 → P2 → P3`) across all tracks.
+2. Inside a phase, claim only tickets whose declared dependencies are complete.
+3. Ownership stays by track; phase sequencing controls implementation order.
+4. If a higher-phase ticket is pulled early, record the reason in `ticket-tracker.md`.
 
 ---
 
@@ -370,57 +379,51 @@ Ticket execution status has been centralized in `ticket-tracker.md`.
 
 ```mermaid
 gantt
-    title Ms. Ghostman - ECS Integration Timeline
+    title Ms. Ghostman - Phase-First Integration Timeline
     dateFormat  X
     axisFormat %s
 
-    section Orchestration (A)
-    Scaffolding & ECS Core: a1, 0, 8
-    Game Loop & Map Load: a2, 8, 6
-    Unit Tests Core: a3, 8, 6
-    Unit Tests Systems: a4, 14, 6
-    Integration Tests: a5, 18, 4
-    E2E Audit Tests: a6, 20, 4
+    section P0 Foundation
+    Runtime + ECS Core: p0a, 0, 6
+    Component + Render Contracts: p0b, 1, 5
+    Static Board + CSS Baseline: p0c, 3, 4
 
-    section Gameplay (B)
-    Components & Input: b1, 2, 5
-    Movement & Bombs: b2, 7, 7
-    Collisions & AI: b3, 14, 7
-    Scoring & Progression: b4, 18, 6
+    section P1 Playable MVP
+    Input + Movement + Collision: p1a, 6, 5
+    Scoring + Lives + Timer + Pause: p1b, 8, 5
+    HUD + Screens + Render Commit: p1c, 8, 5
+    Core Integration + E2E: p1d, 10, 4
 
-    section Audio (C)
-    Audio Adapter & Schema: c1, 0, 6
-    SFX Production: c2, 6, 8
-    Music Production: c3, 14, 3
-    Cue Mapping & Preload: c4, 17, 5
+    section P2 Feature Complete
+    Bombs + Ghost AI + Power-ups: p2a, 13, 5
+    Event Hooks + Audio Critical: p2b, 14, 4
+    Pools + Gameplay Sprites: p2c, 14, 4
 
-    section Visual (D)
-    CSS & Renderer: d1, 0, 6
-    Pools & HUD & Screens: d2, 6, 8
-    Render Systems: d3, 14, 5
-    Sprite & UI Assets: d4, 14, 8
+    section P3 Polish & Validation
+    Audio/UI/Manifest Polish: p3a, 18, 4
+    Final Evidence + Audit Hardening: p3b, 20, 4
     
     section Integration
-    M1 ECS Engine + Static Grid: milestone, m1, 8, 0
-    M2 Player Movement + Bombs: milestone, m2, 14, 0
-    M3 AI + Collisions + Render: milestone, m3, 20, 0
+    M1 Engine + Static Grid: milestone, m1, 6, 0
+    M2 Playable MVP: milestone, m2, 12, 0
+    M3 Feature Complete: milestone, m3, 18, 0
     M4 Full Game + Polish: milestone, m4, 24, 0
 ```
 
 ### Milestone 1: Engine + Static View (Day 3)
-**Requires**: A-1, A-2, A-3, A-5, D-1, D-2  
+**Requires**: A-01, A-02, A-03, A-04, A-05, B-01, D-01, D-02, D-03  
 **Result**: Core ECS world schedules a tick, static grid rendered via safe DOM manipulation.
 
 ### Milestone 2: Movement & Actions (Day 4-5)
-**Requires**: M1 + A-4, B-1, B-2, B-3, B-4, D-3, D-7, D-8  
-**Result**: Player moves grid-aligned, bombs place and explode, rendering interpolates via pooled DOM.
+**Requires**: M1 + B-02, B-03, B-04, B-05, B-06, D-04, D-05, D-06, D-07, A-06, A-07, A-08  
+**Result**: First fully playable MVP (start, move, score, lose life, pause/continue/restart, deterministic render/HUD loop).
 
 ### Milestone 3: AI Ecosystem + Full Render (Day 6)
-**Requires**: M2 + B-5, B-6, B-7, B-8, D-4, D-5, C-1, C-6  
-**Result**: Ghosts navigate with all 4 personalities, collisions work, scoring/timer/lives functional, HUD and screens operational, audio cues firing.
+**Requires**: M2 + B-07, B-08, B-09, B-10, D-08, D-09, C-01, C-02, C-03, C-04  
+**Result**: Feature-complete gameplay loop with bomb depth, ghost depth, power-up depth, and gameplay-audio coupling.
 
 ### Milestone 4: Full Game + Polish (Day 7)
-**Requires**: All tracks complete + A-6, A-7, A-8, A-9, A-10, A-11  
+**Requires**: All tracks complete + A-09, A-10, A-11, C-05, C-06, C-07, D-10, D-11  
 **Result**: Playable from Start Menu through all 3 levels to Victory/Game Over. All tests passing, audit evidence collected.
 
 ### Gate Evidence Required (All Milestones)

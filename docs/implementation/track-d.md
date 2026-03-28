@@ -3,12 +3,34 @@
 📎 Source plan: `docs/implementation/implementation-plan.md` (Section 3)
 
 > **Scope**: Everything visual — renderer adapters, sprite pools, HUD, screen overlays, CSS layout, render systems (collect + DOM batch), visual asset creation, visual manifest schema, and all DOM/CSS work. Fully independent from audio work.  
-> **Estimate**: ~22 hours
+> **Estimate**: ~22 hours  
+> **Execution model**: Build render-safe MVP visuals first, then optimize memory and polish assets.
 
-#### D-1: CSS Layout & Grid Structure
+## Phase Order (MVP First)
+
+- **P0 Foundation**: `D-01` to `D-03`
+- **P1 Playable MVP**: `D-04` to `D-07`
+- **P2 Feature Complete**: `D-08`, `D-09`
+- **P3 Polish and Validation**: `D-10`, `D-11`
+
+#### D-01: Render Data Contracts
+**Priority**: 🔴 Critical  
+**Estimate**: 1 hour  
+**Phase**: P0 Foundation  
+**Depends On**: `A-02`, `B-01`  
+**Impacts**: ECS/DOM boundary safety and deterministic render intent contracts
+
+- [ ] Define `renderable.js` (sprite class references mapped to visual kinds) and `visual-state.js` (pure render flags only; no DOM handles in ECS components).
+- [ ] Define `render-intent.js` as a frame-local batch structure consumed by `render-dom-system.js`.
+- [ ] Enforce `classBits`-based visual flags and strict prohibition of DOM references in ECS component data.
+- [ ] Verification gate: contract tests validate no adapter/DOM leakage into ECS storage.
+
+#### D-02: CSS Layout & Grid Structure
 **Priority**: 🔴 Critical  
 **Estimate**: 3 hours  
-**Covers**: `requirements.md` (DOM-only rendering); `audit.md` F-19, F-20, F-21 (paint/layers)
+**Phase**: P0 Foundation  
+**Depends On**: `A-01`  
+**Impacts**: Core board layout, accessibility baseline, layer policy groundwork
 
 - [ ] Build `styles/variables.css`: color palette, spacing tokens, z-index scale, animation timing.
 - [ ] Build `styles/grid.css` using strict grid-template layouts and absolute positioning over grid cells.
@@ -21,10 +43,12 @@
 - [ ] Respect `prefers-reduced-motion` for non-gameplay animations (menus, transitions, overlays).
 - [ ] Verification gate: DevTools layer evidence confirms minimal-but-nonzero layers and policy compliance.
 
-#### D-2: Renderer Adapter & Board Generation
+#### D-03: Renderer Adapter & Board Generation
 **Priority**: 🔴 Critical  
 **Estimate**: 3 hours  
-**Covers**: `AGENTS.md` safe DOM sinks; `audit.md` F-04 (no canvas)
+**Phase**: P0 Foundation  
+**Depends On**: `D-01`, `D-02`, `A-05`  
+**Impacts**: Safe DOM board rendering and no-canvas compliance (`AUDIT-F-04`)
 
 - [ ] Implement `renderer-adapter.js`: Strict `document.createElement` / `createElementNS` logic for generating the static board. Zero `innerHTML`.
 - [ ] Generate static grid cells from `map-resource` data: walls get appropriate CSS classes, empty cells are passable.
@@ -32,23 +56,39 @@
 - [ ] Use `textContent` and explicit attribute APIs for all dynamic content.
 - [ ] Verification gate: adapter tests confirm safe DOM sinks, no innerHTML usage.
 
-#### D-3: Sprite Pool Adapter
-**Priority**: 🔴 Critical  
-**Estimate**: 3 hours  
-**Covers**: `AGENTS.md` DOM pooling rules; `audit.md` B-03 (memory reuse)
-
-- [ ] Implement `sprite-pool-adapter.js`:
-  - Pre-allocates pools sized from `constants.js` (e.g., `POOL_FIRE = maxBombs * fireRadius * 4`, `POOL_BOMBS = MAX_BOMBS`, `POOL_PELLETS = maxPellets`).
-  - Hidden elements MUST use `transform: translate(-9999px, -9999px)` — never `display:none` (triggers layout).
-  - When pool exhausted: log `console.warn` in development; silently recycle oldest active element in production.
-- [ ] Pool acquire/release API for render-dom-system consumption.
-- [ ] Pre-warm pools during level load to avoid runtime allocation bursts.
-- [ ] Verification gate: pool tests validate sizing, hiding strategy, and exhaustion behavior.
-
-#### D-4: HUD Adapter
+#### D-04: Render Collect System
 **Priority**: 🔴 Critical  
 **Estimate**: 2 hours  
-**Covers**: `requirements.md` (score, timer, lives); `audit.md` F-14, F-15, F-16; `game-description.md` §9
+**Phase**: P1 Playable MVP  
+**Depends On**: `D-01`, `B-03`  
+**Impacts**: Smooth interpolation and deterministic intent ordering for frame commits
+
+- [ ] Implement `render-collect-system.js`: Called after simulation but before DOM write. Matches all entities with Position + Renderable. Computes intended transforms using interpolation factor (`alpha`). Outputs a preallocated render-intent buffer.
+- [ ] Use stable intent ordering for deterministic commits.
+- [ ] Verification gate: unit tests validate interpolation math and deterministic intent ordering.
+
+#### D-05: Render DOM System (The Batcher)
+**Priority**: 🔴 Critical  
+**Estimate**: 3 hours  
+**Phase**: P1 Playable MVP  
+**Depends On**: `D-03`, `D-04`  
+**Impacts**: Frame-time stability and compositor-only writes (`AUDIT-F-19`, `AUDIT-F-20`, `AUDIT-F-21`)
+
+- [ ] Implement `render-dom-system.js`: The ONLY system where DOM mutates.
+- [ ] Applies batched writes:
+  - Exclusively updates `.style.transform = "translate3d(x, y, 0)"` and `.style.opacity`.
+  - Swaps `classList` values based on states (stunned, invincible, speed-boosted, dead).
+  - Informs `sprite-pool-adapter` to reclaim/hide nodes not in current frame's render-intent set.
+- [ ] Enforce strict render commit phases: no layout reads interleaved with write loops.
+- [ ] Keep commit path write-only and pool reclaim in same commit window.
+- [ ] Verification gate: traces show no forced-layout thrash loops and no recurring long tasks > 50ms.
+
+#### D-06: HUD Adapter
+**Priority**: 🔴 Critical  
+**Estimate**: 2 hours  
+**Phase**: P1 Playable MVP  
+**Depends On**: `D-02`, `B-05`  
+**Impacts**: Visible gameplay metrics (`AUDIT-F-14`, `AUDIT-F-15`, `AUDIT-F-16`)
 
 - [ ] Implement `hud-adapter.js`:
   - Binds text nodes natively with `.textContent` to update:
@@ -61,10 +101,12 @@
   - Uses throttled `aria-live` updates for accessibility (not per-frame spam).
 - [ ] Verification gate: adapter tests confirm all HUD metrics update correctly via safe sinks.
 
-#### D-5: Screen Overlays Adapter
+#### D-07: Screen Overlays Adapter
 **Priority**: 🔴 Critical  
 **Estimate**: 3 hours  
-**Covers**: `game-description.md` §9.5, §10, §11 (all game screens)
+**Phase**: P1 Playable MVP  
+**Depends On**: `D-02`, `B-06`  
+**Impacts**: Keyboard-first menu flow and pause UX (`AUDIT-F-07`, `AUDIT-F-08`, `AUDIT-F-09`)
 
 - [ ] Implement `screens-adapter.js` with fully distinct game state screens:
   - **Start Screen** (`game-description.md` §9.5): Title, Start Game button, High Scores display, control instructions. `Enter` to start.
@@ -76,43 +118,27 @@
 - [ ] Implement `adapters/io/storage-adapter.js`: High score saving/reading from `localStorage` with untrusted data validation on read.
 - [ ] Verification gate: e2e tests confirm keyboard-only navigation across all screens.
 
-#### D-6: Render Data Contracts
-**Priority**: 🔴 Critical  
-**Estimate**: 1 hour  
-**Covers**: ECS render boundary contracts
-
-- [ ] Define `renderable.js` (sprite class references mapped to visual kinds) and `visual-state.js` (pure render flags only; no DOM handles in ECS components).
-- [ ] Define `render-intent.js` as a frame-local batch structure consumed by `render-dom-system.js`.
-- [ ] Enforce `classBits`-based visual flags and strict prohibition of DOM references in ECS component data.
-- [ ] Verification gate: contract tests validate no adapter/DOM leakage into ECS storage.
-
-#### D-7: Render Collect System
-**Priority**: 🔴 Critical  
-**Estimate**: 2 hours  
-**Covers**: `AGENTS.md` render boundary rules
-
-- [ ] Implement `render-collect-system.js`: Called after simulation but before DOM write. Matches all entities with Position + Renderable. Computes intended transforms using interpolation factor (`alpha`). Outputs a preallocated render-intent buffer.
-- [ ] Use stable intent ordering for deterministic commits.
-- [ ] Verification gate: unit tests validate interpolation math and deterministic intent ordering.
-
-#### D-8: Render DOM System (The Batcher)
+#### D-08: Sprite Pool Adapter
 **Priority**: 🔴 Critical  
 **Estimate**: 3 hours  
-**Covers**: `AGENTS.md` DOM batching rules; `audit.md` F-19, F-20, F-21
+**Phase**: P2 Feature Complete  
+**Depends On**: `D-03`, `D-05`  
+**Impacts**: Allocation stability and memory reuse (`AUDIT-B-03`)
 
-- [ ] Implement `render-dom-system.js`: The ONLY system where DOM mutates.
-- [ ] Applies batched writes:
-  - Exclusively updates `.style.transform = "translate3d(x, y, 0)"` and `.style.opacity`.
-  - Swaps `classList` values based on states (stunned, invincible, speed-boosted, dead).
-  - Informs `sprite-pool-adapter` to reclaim/hide nodes not in current frame's render-intent set.
-- [ ] Enforce strict render commit phases: no layout reads interleaved with write loops.
-- [ ] Keep commit path write-only and pool reclaim in same commit window.
-- [ ] Verification gate: traces show no forced-layout thrash loops and no recurring long tasks > 50ms.
+- [ ] Implement `sprite-pool-adapter.js`:
+  - Pre-allocates pools sized from `constants.js` (e.g., `POOL_FIRE = maxBombs * fireRadius * 4`, `POOL_BOMBS = MAX_BOMBS`, `POOL_PELLETS = maxPellets`).
+  - Hidden elements MUST use `transform: translate(-9999px, -9999px)` — never `display:none` (triggers layout).
+  - When pool exhausted: log `console.warn` in development; silently recycle oldest active element in production.
+- [ ] Pool acquire/release API for render-dom-system consumption.
+- [ ] Pre-warm pools during level load to avoid runtime allocation bursts.
+- [ ] Verification gate: pool tests validate sizing, hiding strategy, and exhaustion behavior.
 
-#### D-9: Visual Asset Production — Gameplay Sprites
+#### D-09: Visual Asset Production — Gameplay Sprites
 **Priority**: 🔴 Critical  
 **Estimate**: 3 hours  
-**Covers**: `game-description.md` §2-§5 (all entity visuals); `audit.md` B-04 (SVG usage)
+**Phase**: P2 Feature Complete  
+**Depends On**: `D-03`, `D-05`  
+**Impacts**: In-game readability and SVG compliance (`AUDIT-B-04`)
 
 - [ ] Create/export core gameplay sprites (SVG preferred, < 50 path elements each):
   - Ms. Ghostman: idle, walking frames (4 directions), death animation, invincibility blink, speed boost tint/trail.
@@ -128,7 +154,9 @@
 #### D-10: Visual Asset Production — UI & Screens
 **Priority**: 🟡 Medium  
 **Estimate**: 2 hours  
-**Covers**: `game-description.md` §9, §9.5, §10, §11 (all UI screens)
+**Phase**: P3 Polish and Validation  
+**Depends On**: `D-06`, `D-07`  
+**Impacts**: Start/pause/game-over/victory visual polish and responsive UI quality
 
 - [ ] Design and build CSS layouts for all screen overlays:
   - Start Screen: title treatment, button styles, high score table.
@@ -143,7 +171,9 @@
 #### D-11: Visual Manifest & Asset Validation
 **Priority**: 🟡 Medium  
 **Estimate**: 1 hour  
-**Covers**: Asset validation pipeline from `assets-pipeline.md`
+**Phase**: P3 Polish and Validation  
+**Depends On**: `D-09`, `D-10`, `A-09`  
+**Impacts**: Asset contract enforcement, fallback robustness, CI validation
 
 - [ ] Finalize `docs/schemas/visual-manifest.schema.json` (JSON Schema 2020-12):
   - Required fields: `id`, `path`, `kind` (sprite|ui|tile|effect), `format`, `width`, `height`, `tags`, `critical`.
@@ -153,3 +183,4 @@
 - [ ] Optimize SVG/raster outputs and validate against layer/paint constraints.
 - [ ] Verification gate: manifest validation passes CI; runtime fallback tests prove robust asset mapping.
 
+---

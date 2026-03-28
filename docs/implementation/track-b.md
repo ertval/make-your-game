@@ -3,12 +3,21 @@
 📎 Source plan: `docs/implementation/implementation-plan.md` (Section 3)
 
 > **Scope**: All ECS components, ALL gameplay systems (input, movement, collision, bombs, explosions, ghost AI, scoring, timer, lives, pause, progression, power-ups), and gameplay event hooks. Pure ECS simulation — no DOM, no audio, no visuals.  
-> **Estimate**: ~24 hours
+> **Estimate**: ~24 hours  
+> **Execution model**: Deliver a playable loop first, then add full genre mechanics and integration hooks.
 
-#### B-1: ECS Components (All Data Definitions)
+## Phase Order (MVP First)
+
+- **P0 Foundation**: `B-01`
+- **P1 Playable MVP**: `B-02` to `B-06`
+- **P2 Feature Complete**: `B-07` to `B-10`
+
+#### B-01: ECS Components (All Data Definitions)
 **Priority**: 🔴 Critical  
 **Estimate**: 2 hours  
-**Covers**: ECS data layer for all gameplay entities (`game-description.md` §2-§5)
+**Phase**: P0 Foundation  
+**Depends On**: `A-02`, `A-03`  
+**Impacts**: Canonical gameplay data model, unblocks all gameplay systems and render contracts
 
 - [ ] Implement `src/ecs/components/spatial.js`:
   - `position` (row, col, prevRow, prevCol, targetRow, targetCol) — SoA Float64Array.
@@ -33,10 +42,12 @@
 - [ ] Ensure component fields cover all gameplay described in `game-description.md` §2-§8.
 - [ ] Verification gate: unit tests assert defaults, shape integrity, and component-mask registration.
 
-#### B-2: Input Adapter & Input System
+#### B-02: Input Adapter & Input System
 **Priority**: 🔴 Critical  
 **Estimate**: 3 hours  
-**Covers**: `requirements.md` (hold-to-move, no spam); `audit.md` F-11, F-12; `game-description.md` §3.1
+**Phase**: P1 Playable MVP  
+**Depends On**: `B-01`, `A-04`  
+**Impacts**: Keyboard control path and hold-to-move (`AUDIT-F-11`, `AUDIT-F-12`)
 
 - [ ] Implement `adapters/io/input-adapter.js`: Captures `keydown`/`keyup` securely mapping into an intent buffer. No OS key repeat reliance.
 - [ ] Ensure held-key state clears on `blur`/`visibilitychange` to prevent stuck movement after focus loss.
@@ -46,10 +57,12 @@
 - [ ] Handle `Enter` key for menu navigation, Start Game, Next Level, and Play Again confirmations.
 - [ ] Verification gate: tests cover hold-to-move behavior, focus-loss clearing, and no dependency on OS key-repeat.
 
-#### B-3: Movement & Grid Collision System
+#### B-03: Movement & Grid Collision System
 **Priority**: 🔴 Critical  
 **Estimate**: 4 hours  
-**Covers**: `game-description.md` §3.1 (grid movement, wall blocking, smooth translation)
+**Phase**: P1 Playable MVP  
+**Depends On**: `B-01`, `B-02`, `A-05`  
+**Impacts**: Core controllable gameplay movement (`AUDIT-F-11`, `AUDIT-F-12`, `AUDIT-F-13`)
 
 - [ ] Implement `player-move-system.js`: Queries the grid from `map-resource` based on Position vs Velocity intentions. Ensures smooth sub-cell locking and prevents walking through walls.
 - [ ] Works using ECS state-machine variables. Updates TargetRow/Col.
@@ -57,23 +70,12 @@
 - [ ] Handle speed boost multiplier (`1.5x`) when player has active speed boost.
 - [ ] Verification gate: unit tests for blocked movement, path continuity, and interpolation correctness.
 
-#### B-4: Bomb & Explosion Systems
-**Priority**: 🔴 Critical  
-**Estimate**: 4 hours  
-**Covers**: `game-description.md` §4 (bomb placement, explosion mechanics, chain reactions)
-
-- [ ] Implement `bomb-tick-system.js`: Decrements fuse, validates explosion radius against `map-resource`.
-- [ ] Implement `explosion-system.js`: Translates detonated bombs into Fire entities mapping over map resources (destructible wall clears). Chain reactions use an **iterative detonation queue** (NOT recursive) with `MAX_CHAIN_DEPTH = 10`.
-- [ ] Enforce one-bomb-per-cell placement, `3000ms` fuse, `500ms` fire lifetime, cross-pattern propagation, and wall-stop rules.
-- [ ] Enforce strict pellet pass-through mechanics (pellets are NEVER destroyed by fire).
-- [ ] Enforce power-up destruction (power-ups ARE destroyed by fire without being collected).
-- [ ] Apply combo explosion multipliers logic (`200 * 2^(n-1)` for `n` ghosts killed in one chain).
-- [ ] Verification gate: unit tests for explosion geometry, chain determinism, pellet immunity, and wall blocking.
-
-#### B-5: Entity Collision System
+#### B-04: Entity Collision System
 **Priority**: 🔴 Critical  
 **Estimate**: 3 hours  
-**Covers**: `game-description.md` §3.3, §4.2, §5.2 (all collision interactions)
+**Phase**: P1 Playable MVP  
+**Depends On**: `B-01`, `B-03`, `A-05`  
+**Impacts**: Player/ghost/pellet interaction correctness and life/score intents
 
 - [ ] Implement `collision-system.js` using a **cell-occupancy map** for O(1) spatial lookups:
   - Fire vs Player → damage/death intent.
@@ -86,10 +88,59 @@
 - [ ] Include bomb-cell occupancy constraints and ghost push-back when bomb dropped on shared cell.
 - [ ] Verification gate: integration tests cover all listed collision permutations.
 
-#### B-6: Ghost AI System & Spawning
+#### B-05: Scoring, Timer & Life Systems
+**Priority**: 🔴 Critical  
+**Estimate**: 3 hours  
+**Phase**: P1 Playable MVP  
+**Depends On**: `B-04`, `A-03`, `A-05`  
+**Impacts**: HUD-critical gameplay metrics (`AUDIT-F-14`, `AUDIT-F-15`, `AUDIT-F-16`)
+
+- [ ] Implement `scoring-system.js` with exact canonical values:
+  - Pellet: +10, Power Pellet: +50, Ghost kill (normal): +200, Ghost kill (stunned): +400.
+  - Chain multiplier: `200 * 2^(n-1)` per ghost. Power-up pickup: +100.
+  - Level clear: +1000 + (remainingSeconds × 10).
+- [ ] Implement `timer-system.js`: countdown per level (120s/180s/240s). Timer hits zero → GAME_OVER.
+- [ ] Implement `life-system.js`: 3 starting lives, decrement on death, respawn with 2000ms invincibility. Zero lives → GAME_OVER.
+- [ ] Verification gate: unit tests match every value in `game-description.md` §6.
+
+#### B-06: Pause & Level Progression Systems
+**Priority**: 🔴 Critical  
+**Estimate**: 2 hours  
+**Phase**: P1 Playable MVP  
+**Depends On**: `B-05`, `A-04`, `A-05`, `D-07`  
+**Impacts**: Pause menu behavior and level/game state transitions (`AUDIT-F-07..F-10`)
+
+- [ ] Implement `pause-system.js`: Freezes simulation timer while `rAF` continues. Fuse timers, invincibility, and stun timers all freeze.
+- [ ] Implement `level-progress-system.js` and `src/game/level-loader.js`:
+  - All pellets eaten → `LEVEL_COMPLETE` state with stats screen.
+  - Level Complete → load next level map or `VICTORY` after level 3.
+  - `GAME_OVER` on timer expiry or zero lives.
+- [ ] Enforce FSM: `MENU → PLAYING ↔ PAUSED → LEVEL_COMPLETE → VICTORY` or `GAME_OVER`.
+- [ ] Pause Continue: resumes exact prior simulation state.
+- [ ] Pause Restart: resets current level, preserves cumulative score from previous levels.
+- [ ] Verification gate: e2e pause open/continue/restart tests pass with keyboard-only flow.
+
+#### B-07: Bomb & Explosion Systems
+**Priority**: 🔴 Critical  
+**Estimate**: 4 hours  
+**Phase**: P2 Feature Complete  
+**Depends On**: `B-03`, `B-04`, `A-03`, `A-05`  
+**Impacts**: Bomberman mechanics, chain reactions, combo rules (`AUDIT-F-13`, `AUDIT-B-03`)
+
+- [ ] Implement `bomb-tick-system.js`: Decrements fuse, validates explosion radius against `map-resource`.
+- [ ] Implement `explosion-system.js`: Translates detonated bombs into Fire entities mapping over map resources (destructible wall clears). Chain reactions use an **iterative detonation queue** (NOT recursive) with `MAX_CHAIN_DEPTH = 10`.
+- [ ] Enforce one-bomb-per-cell placement, `3000ms` fuse, `500ms` fire lifetime, cross-pattern propagation, and wall-stop rules.
+- [ ] Enforce strict pellet pass-through mechanics (pellets are NEVER destroyed by fire).
+- [ ] Enforce power-up destruction (power-ups ARE destroyed by fire without being collected).
+- [ ] Apply combo explosion multipliers logic (`200 * 2^(n-1)` for `n` ghosts killed in one chain).
+- [ ] Verification gate: unit tests for explosion geometry, chain determinism, pellet immunity, and wall blocking.
+
+#### B-08: Ghost AI System & Spawning
 **Priority**: 🔴 Critical  
 **Estimate**: 5 hours  
-**Covers**: `game-description.md` §5 (all ghost types, states, spawning, movement rules)
+**Phase**: P2 Feature Complete  
+**Depends On**: `B-03`, `B-04`, `A-03`, `A-05`  
+**Impacts**: Difficulty curve and personality-driven enemy behavior (`AUDIT-F-13`)
 
 - [ ] Implement `ghost-ai-system.js` with 4 distinct personalities:
   - **Blinky** (Red): Targets direction closest to player at intersections.
@@ -107,23 +158,12 @@
 - [ ] **Worker offload gate**: Do NOT add a Web Worker unless profiling shows ghost pathfinding exceeds 4 ms per frame.
 - [ ] Verification gate: seeded determinism tests produce identical ghost movement traces.
 
-#### B-7: Scoring, Timer & Life Systems
-**Priority**: 🔴 Critical  
-**Estimate**: 3 hours  
-**Covers**: `game-description.md` §6, §7, §3.3 (all scoring values, timer, lives)
-
-- [ ] Implement `scoring-system.js` with exact canonical values:
-  - Pellet: +10, Power Pellet: +50, Ghost kill (normal): +200, Ghost kill (stunned): +400.
-  - Chain multiplier: `200 * 2^(n-1)` per ghost. Power-up pickup: +100.
-  - Level clear: +1000 + (remainingSeconds × 10).
-- [ ] Implement `timer-system.js`: countdown per level (120s/180s/240s). Timer hits zero → GAME_OVER.
-- [ ] Implement `life-system.js`: 3 starting lives, decrement on death, respawn with 2000ms invincibility. Zero lives → GAME_OVER.
-- [ ] Verification gate: unit tests match every value in `game-description.md` §6.
-
-#### B-8: Power-Up System
+#### B-09: Power-Up System
 **Priority**: 🟡 Medium  
 **Estimate**: 2 hours  
-**Covers**: `game-description.md` §2 (all 4 collectibles), §5.3 (stun mechanics)
+**Phase**: P2 Feature Complete  
+**Depends On**: `B-04`, `B-05`, `B-07`, `B-08`  
+**Impacts**: Power progression, stun windows, speed-state timing (`AUDIT-F-13`)
 
 - [ ] Implement `power-up-system.js` processing collection intents from collision system:
   1. **Power Pellet (`⚡`)**: Stuns all ghosts for `5000ms`. Non-stacking (resets timer).
@@ -133,25 +173,12 @@
 - [ ] Manage parallel countdown timers for stun and speed boost expiry.
 - [ ] Verification gate: unit/integration tests cover stun, speed boost, bomb+, fire+ effects and exact durations.
 
-#### B-9: Pause & Level Progression Systems
-**Priority**: 🔴 Critical  
-**Estimate**: 2 hours  
-**Covers**: `audit.md` F-07..F-10; `game-description.md` §8, §10 (pause menu, level progression)
-
-- [ ] Implement `pause-system.js`: Freezes simulation timer while `rAF` continues. Fuse timers, invincibility, and stun timers all freeze.
-- [ ] Implement `level-progress-system.js` and `src/game/level-loader.js`:
-  - All pellets eaten → `LEVEL_COMPLETE` state with stats screen.
-  - Level Complete → load next level map or `VICTORY` after level 3.
-  - `GAME_OVER` on timer expiry or zero lives.
-- [ ] Enforce FSM: `MENU → PLAYING ↔ PAUSED → LEVEL_COMPLETE → VICTORY` or `GAME_OVER`.
-- [ ] Pause Continue: resumes exact prior simulation state.
-- [ ] Pause Restart: resets current level, preserves cumulative score from previous levels.
-- [ ] Verification gate: e2e pause open/continue/restart tests pass with keyboard-only flow.
-
 #### B-10: Gameplay Event Hooks
 **Priority**: 🟡 Medium  
 **Estimate**: 1 hour  
-**Covers**: Cross-system communication contract for audio/visual cues
+**Phase**: P2 Feature Complete  
+**Depends On**: `B-07`, `B-08`, `B-09`, `A-03`  
+**Impacts**: Deterministic integration surface for audio/visual cues (`C-02`, `D-10`)
 
 - [ ] Define deterministic event payloads: `BombPlaced`, `BombDetonated`, `PelletCollected`, `PowerPelletCollected`, `PowerUpCollected`, `LifeLost`, `GhostDefeated`, `GhostStunned`, `LevelCleared`, `GameOver`, `Victory`.
 - [ ] Include `frame` and monotonic `order` fields for deterministic ordering.
@@ -159,4 +186,3 @@
 - [ ] Verification gate: repeated seeded runs produce identical event order and payload schema.
 
 ---
-

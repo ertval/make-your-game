@@ -6,10 +6,11 @@ This file records the reusable PR message workflow for ticket-sized changes. Kee
 
 Follow the agreed ticket order and keep branches short-lived and single-purpose.
 
-- Start with your track's first ticket (`A-1`, `B-1`, `C-1`, or `D-1`), then continue in order within that track.
+- Follow the phase-first execution order (`P0 → P1 → P2 → P3`) from `ticket-tracker.md` and claim only tickets whose dependencies are complete.
+- Typical first-ticket starts are `A-01`, `B-01`, `C-01`, and `D-01`.
 - Use one branch per ticket slice.
 - Use the same branch only for the one logical change it was created for.
-- Example branch sequence (Track A): `ekaramet/A-1`, `ekaramet/A-2`, `ekaramet/A-3`.
+- Example branch sequence (Track A): `ekaramet/A-01`, `ekaramet/A-02`, `ekaramet/A-03`.
 
 ## 2. PR Message Checklist
 
@@ -63,4 +64,4 @@ Use this structure for each PR description.
 
 ## 4. Recording Rule
 
-After a ticket is merged, append the final PR message summary here with the ticket ID, branch name, PR link, and verification notes. Keep the record concise and update it in the same sequence as the ticket order.
+After a ticket is merged, append the final PR message summary here with the ticket ID, branch name, PR link, and verification notes. Keep the record concise and preserve the same phase-first ordering used in `ticket-tracker.md`.

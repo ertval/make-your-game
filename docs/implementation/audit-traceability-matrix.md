@@ -38,20 +38,20 @@ This document is the single source of truth for requirement-to-audit-to-ticket-t
 
 | Requirement ID | Requirement Summary | Owning Tickets (`docs/implementation/track-*.md`) | Covered By Audit IDs | Test/Evidence Anchor | Status |
 |---|---|---|---|---|---|
-| REQ-01 | Run at least 60 FPS and avoid frame drops | A-4, A-9, D-8, A-11 | AUDIT-F-17, AUDIT-F-18, AUDIT-B-01 | `tests/e2e/audit/audit.e2e.test.js` + performance evidence artifacts | Mapped, Planned, Pending |
-| REQ-02 | Use `requestAnimationFrame` correctly | A-4, A-9 | AUDIT-F-02, AUDIT-F-10 | `tests/e2e/audit/audit.e2e.test.js` | Mapped, Planned, Pending |
-| REQ-03 | Pause menu contains Continue and Restart | B-9, D-5, A-9 | AUDIT-F-07, AUDIT-F-08, AUDIT-F-09 | `tests/e2e/audit/audit.e2e.test.js` | Mapped, Planned, Pending |
-| REQ-04 | HUD shows countdown/timer | B-7, D-4, A-9 | AUDIT-F-14 | `tests/e2e/audit/audit.e2e.test.js` | Mapped, Planned, Pending |
-| REQ-05 | HUD shows score and score increments | B-7, D-4, A-9 | AUDIT-F-15 | `tests/e2e/audit/audit.e2e.test.js` + integration scoring checks | Mapped, Planned, Pending |
-| REQ-06 | HUD shows lives and lives decrement | B-7, D-4, A-9 | AUDIT-F-16 | `tests/e2e/audit/audit.e2e.test.js` | Mapped, Planned, Pending |
-| REQ-07 | Keyboard-only control path | B-2, D-5, A-9 | AUDIT-F-11, AUDIT-F-12 | `tests/e2e/audit/audit.e2e.test.js` + adapter focus tests | Mapped, Planned, Pending |
-| REQ-08 | Hold-to-move without key spamming | B-2, B-3, A-9 | AUDIT-F-12 | `tests/e2e/audit/audit.e2e.test.js` + input adapter tests | Mapped, Planned, Pending |
-| REQ-09 | Pause/continue/restart at any time and paused frames unaffected | A-4, B-9, D-8, A-9 | AUDIT-F-08, AUDIT-F-09, AUDIT-F-10, AUDIT-F-17 | `tests/e2e/audit/audit.e2e.test.js` + pause performance traces | Mapped, Planned, Pending |
-| REQ-10 | Layers minimal but non-zero | D-1, D-8, A-11 | AUDIT-F-20, AUDIT-F-21 | DevTools evidence artifacts linked in matrix updates | Mapped, Planned, Pending |
-| REQ-11 | No canvas | A-1, D-2 | AUDIT-F-04 | Static scan + `tests/e2e/audit/audit.e2e.test.js` | Mapped, Planned, Pending |
-| REQ-12 | No frameworks (vanilla JS/DOM only) | A-1 | AUDIT-F-05 | CI dependency gate + `tests/e2e/audit/audit.e2e.test.js` | Mapped, Planned, Pending |
-| REQ-13 | Single-player only | B-2, B-9, A-9 | AUDIT-F-03 | `tests/e2e/audit/audit.e2e.test.js` | Mapped, Planned, Pending |
-| REQ-14 | Genre aligns with pre-approved list | B-3, B-4, B-6, B-8, A-9 | AUDIT-F-06, AUDIT-F-13 | `tests/e2e/audit/audit.e2e.test.js` | Mapped, Planned, Pending |
+| REQ-01 | Run at least 60 FPS and avoid frame drops | A-04, A-08, D-05, A-11 | AUDIT-F-17, AUDIT-F-18, AUDIT-B-01 | `tests/e2e/audit/audit.e2e.test.js` + performance evidence artifacts | Mapped, Planned, Pending |
+| REQ-02 | Use `requestAnimationFrame` correctly | A-04, A-08 | AUDIT-F-02, AUDIT-F-10 | `tests/e2e/audit/audit.e2e.test.js` | Mapped, Planned, Pending |
+| REQ-03 | Pause menu contains Continue and Restart | B-06, D-07, A-08 | AUDIT-F-07, AUDIT-F-08, AUDIT-F-09 | `tests/e2e/audit/audit.e2e.test.js` | Mapped, Planned, Pending |
+| REQ-04 | HUD shows countdown/timer | B-05, D-06, A-08 | AUDIT-F-14 | `tests/e2e/audit/audit.e2e.test.js` | Mapped, Planned, Pending |
+| REQ-05 | HUD shows score and score increments | B-05, D-06, A-08 | AUDIT-F-15 | `tests/e2e/audit/audit.e2e.test.js` + integration scoring checks | Mapped, Planned, Pending |
+| REQ-06 | HUD shows lives and lives decrement | B-05, D-06, A-08 | AUDIT-F-16 | `tests/e2e/audit/audit.e2e.test.js` | Mapped, Planned, Pending |
+| REQ-07 | Keyboard-only control path | B-02, D-07, A-08 | AUDIT-F-11, AUDIT-F-12 | `tests/e2e/audit/audit.e2e.test.js` + adapter focus tests | Mapped, Planned, Pending |
+| REQ-08 | Hold-to-move without key spamming | B-02, B-03, A-08 | AUDIT-F-12 | `tests/e2e/audit/audit.e2e.test.js` + input adapter tests | Mapped, Planned, Pending |
+| REQ-09 | Pause/continue/restart at any time and paused frames unaffected | A-04, B-06, D-05, A-08 | AUDIT-F-08, AUDIT-F-09, AUDIT-F-10, AUDIT-F-17 | `tests/e2e/audit/audit.e2e.test.js` + pause performance traces | Mapped, Planned, Pending |
+| REQ-10 | Layers minimal but non-zero | D-02, D-05, A-11 | AUDIT-F-20, AUDIT-F-21 | DevTools evidence artifacts linked in matrix updates | Mapped, Planned, Pending |
+| REQ-11 | No canvas | A-01, D-03 | AUDIT-F-04 | Static scan + `tests/e2e/audit/audit.e2e.test.js` | Mapped, Planned, Pending |
+| REQ-12 | No frameworks (vanilla JS/DOM only) | A-01 | AUDIT-F-05 | CI dependency gate + `tests/e2e/audit/audit.e2e.test.js` | Mapped, Planned, Pending |
+| REQ-13 | Single-player only | B-02, B-06, A-08 | AUDIT-F-03 | `tests/e2e/audit/audit.e2e.test.js` | Mapped, Planned, Pending |
+| REQ-14 | Genre aligns with pre-approved list | B-03, B-07, B-08, B-09, A-08 | AUDIT-F-06, AUDIT-F-13 | `tests/e2e/audit/audit.e2e.test.js` | Mapped, Planned, Pending |
 
 ## Audit Coverage Matrix (Canonical)
 
@@ -59,37 +59,37 @@ This document is the single source of truth for requirement-to-audit-to-ticket-t
 
 | ID | Audit Question | Requirement IDs | Execution Type | Owning Tickets (`docs/implementation/track-*.md`) | Test/Evidence Anchor | Status |
 |---|---|---|---|---|---|---|
-| AUDIT-F-01 | Does the game run without crashing? | REQ-01, REQ-14 | Fully Automatable | A-4, A-9 | `tests/e2e/audit/audit-question-map.js` + `tests/e2e/audit/audit.e2e.test.js` | Mapped, Planned, Pending |
-| AUDIT-F-02 | Does animation run using `requestAnimationFrame`? | REQ-02 | Fully Automatable | A-4 | Same as above | Mapped, Planned, Pending |
-| AUDIT-F-03 | Is the game single player? | REQ-13 | Fully Automatable | B-2, B-9 | Same as above | Mapped, Planned, Pending |
-| AUDIT-F-04 | Does the game avoid the use of canvas? | REQ-11 | Fully Automatable | A-1, D-2 | Same as above + static scan gate | Mapped, Planned, Pending |
-| AUDIT-F-05 | Does the game avoid the use of frameworks? | REQ-12 | Fully Automatable | A-1 | Same as above + dependency gate | Mapped, Planned, Pending |
-| AUDIT-F-06 | Is the game chosen from the pre-approved list? | REQ-14 | Fully Automatable | B-3, B-4, B-6 | Same as above | Mapped, Planned, Pending |
-| AUDIT-F-07 | Does pause menu show continue and restart? | REQ-03, REQ-09 | Fully Automatable | B-9, D-5 | Same as above | Mapped, Planned, Pending |
-| AUDIT-F-08 | Does continue resume gameplay from pause? | REQ-03, REQ-09 | Fully Automatable | B-9, A-4 | Same as above | Mapped, Planned, Pending |
-| AUDIT-F-09 | Does restart reset correctly from pause? | REQ-03, REQ-09 | Fully Automatable | B-9, A-5 | Same as above | Mapped, Planned, Pending |
-| AUDIT-F-10 | While paused, no dropped frames and rAF unaffected? | REQ-02, REQ-09 | Fully Automatable | A-4, D-8, A-9 | Same as above + pause trace evidence | Mapped, Planned, Pending |
-| AUDIT-F-11 | Does player obey movement commands? | REQ-07 | Fully Automatable | B-2, B-3 | Same as above | Mapped, Planned, Pending |
-| AUDIT-F-12 | Does player move without spamming keys? | REQ-07, REQ-08 | Fully Automatable | B-2, B-3 | Same as above | Mapped, Planned, Pending |
-| AUDIT-F-13 | Does game behave like pre-approved genre? | REQ-14 | Fully Automatable | B-3, B-4, B-6, B-8 | Same as above | Mapped, Planned, Pending |
-| AUDIT-F-14 | Does timer/countdown work? | REQ-04 | Fully Automatable | B-7, D-4 | Same as above | Mapped, Planned, Pending |
-| AUDIT-F-15 | Does score increase on scoring actions? | REQ-05 | Fully Automatable | B-7, D-4 | Same as above | Mapped, Planned, Pending |
-| AUDIT-F-16 | Do lives decrease on life-loss events? | REQ-06 | Fully Automatable | B-7, D-4 | Same as above | Mapped, Planned, Pending |
-| AUDIT-F-17 | Can you confirm there are no frame drops? | REQ-01, REQ-09 | Semi-Automatable | A-9, D-8, A-11 | `tests/e2e/audit/audit.e2e.test.js` + Performance API (`page.evaluate`) | Mapped, Planned, Pending |
-| AUDIT-F-18 | Does game run around 60 FPS? | REQ-01 | Semi-Automatable | A-4, A-9, A-11 | Same as above | Mapped, Planned, Pending |
-| AUDIT-F-19 | Is paint used as little as possible? | REQ-10 | Manual-With-Evidence | D-8, A-11 | DevTools paint evidence linked from PR artifacts | Mapped, Planned, Pending |
-| AUDIT-F-20 | Are layers used as little as possible? | REQ-10 | Manual-With-Evidence | D-1, D-8, A-11 | DevTools layer evidence linked from PR artifacts | Mapped, Planned, Pending |
-| AUDIT-F-21 | Is layer creation promoted properly? | REQ-10 | Manual-With-Evidence | D-1, D-8, A-11 | DevTools layer-promotion evidence linked from PR artifacts | Mapped, Planned, Pending |
+| AUDIT-F-01 | Does the game run without crashing? | REQ-01, REQ-14 | Fully Automatable | A-04, A-08 | `tests/e2e/audit/audit-question-map.js` + `tests/e2e/audit/audit.e2e.test.js` | Mapped, Planned, Pending |
+| AUDIT-F-02 | Does animation run using `requestAnimationFrame`? | REQ-02 | Fully Automatable | A-04 | Same as above | Mapped, Planned, Pending |
+| AUDIT-F-03 | Is the game single player? | REQ-13 | Fully Automatable | B-02, B-06 | Same as above | Mapped, Planned, Pending |
+| AUDIT-F-04 | Does the game avoid the use of canvas? | REQ-11 | Fully Automatable | A-01, D-03 | Same as above + static scan gate | Mapped, Planned, Pending |
+| AUDIT-F-05 | Does the game avoid the use of frameworks? | REQ-12 | Fully Automatable | A-01 | Same as above + dependency gate | Mapped, Planned, Pending |
+| AUDIT-F-06 | Is the game chosen from the pre-approved list? | REQ-14 | Fully Automatable | B-03, B-07, B-08 | Same as above | Mapped, Planned, Pending |
+| AUDIT-F-07 | Does pause menu show continue and restart? | REQ-03, REQ-09 | Fully Automatable | B-06, D-07 | Same as above | Mapped, Planned, Pending |
+| AUDIT-F-08 | Does continue resume gameplay from pause? | REQ-03, REQ-09 | Fully Automatable | B-06, A-04 | Same as above | Mapped, Planned, Pending |
+| AUDIT-F-09 | Does restart reset correctly from pause? | REQ-03, REQ-09 | Fully Automatable | B-06, A-05 | Same as above | Mapped, Planned, Pending |
+| AUDIT-F-10 | While paused, no dropped frames and rAF unaffected? | REQ-02, REQ-09 | Fully Automatable | A-04, D-05, A-08 | Same as above + pause trace evidence | Mapped, Planned, Pending |
+| AUDIT-F-11 | Does player obey movement commands? | REQ-07 | Fully Automatable | B-02, B-03 | Same as above | Mapped, Planned, Pending |
+| AUDIT-F-12 | Does player move without spamming keys? | REQ-07, REQ-08 | Fully Automatable | B-02, B-03 | Same as above | Mapped, Planned, Pending |
+| AUDIT-F-13 | Does game behave like pre-approved genre? | REQ-14 | Fully Automatable | B-03, B-07, B-08, B-09 | Same as above | Mapped, Planned, Pending |
+| AUDIT-F-14 | Does timer/countdown work? | REQ-04 | Fully Automatable | B-05, D-06 | Same as above | Mapped, Planned, Pending |
+| AUDIT-F-15 | Does score increase on scoring actions? | REQ-05 | Fully Automatable | B-05, D-06 | Same as above | Mapped, Planned, Pending |
+| AUDIT-F-16 | Do lives decrease on life-loss events? | REQ-06 | Fully Automatable | B-05, D-06 | Same as above | Mapped, Planned, Pending |
+| AUDIT-F-17 | Can you confirm there are no frame drops? | REQ-01, REQ-09 | Semi-Automatable | A-08, D-05, A-11 | `tests/e2e/audit/audit.e2e.test.js` + Performance API (`page.evaluate`) | Mapped, Planned, Pending |
+| AUDIT-F-18 | Does game run around 60 FPS? | REQ-01 | Semi-Automatable | A-04, A-08, A-11 | Same as above | Mapped, Planned, Pending |
+| AUDIT-F-19 | Is paint used as little as possible? | REQ-10 | Manual-With-Evidence | D-05, A-11 | DevTools paint evidence linked from PR artifacts | Mapped, Planned, Pending |
+| AUDIT-F-20 | Are layers used as little as possible? | REQ-10 | Manual-With-Evidence | D-02, D-05, A-11 | DevTools layer evidence linked from PR artifacts | Mapped, Planned, Pending |
+| AUDIT-F-21 | Is layer creation promoted properly? | REQ-10 | Manual-With-Evidence | D-02, D-05, A-11 | DevTools layer-promotion evidence linked from PR artifacts | Mapped, Planned, Pending |
 
 ### Bonus Questions
 
 | ID | Audit Question | Requirement IDs | Execution Type | Owning Tickets (`docs/implementation/track-*.md`) | Test/Evidence Anchor | Status |
 |---|---|---|---|---|---|---|
-| AUDIT-B-01 | Does project run quickly and effectively? | REQ-01 | Fully Automatable | A-4, D-8, A-11 | `tests/e2e/audit/audit.e2e.test.js` + performance checks | Mapped, Planned, Pending |
-| AUDIT-B-02 | Does code obey good practices? | REQ-12 | Fully Automatable | A-1, A-10 | CI policy gate + lint/test/security check outputs | Mapped, Planned, Pending |
-| AUDIT-B-03 | Does program reuse memory to avoid jank? | REQ-01 | Fully Automatable | A-2, B-4, D-3, D-8 | `tests/e2e/audit/audit.e2e.test.js` + allocation evidence | Mapped, Planned, Pending |
-| AUDIT-B-04 | Does game use SVG? | REQ-14 | Manual-With-Evidence | D-9, D-11 | Manifest validation + runtime asset evidence | Mapped, Planned, Pending |
-| AUDIT-B-05 | Is code using asynchronicity for performance? | REQ-01 | Manual-With-Evidence | C-1, C-7, A-11 | Async loading/decode evidence + traces | Mapped, Planned, Pending |
+| AUDIT-B-01 | Does project run quickly and effectively? | REQ-01 | Fully Automatable | A-04, D-05, A-11 | `tests/e2e/audit/audit.e2e.test.js` + performance checks | Mapped, Planned, Pending |
+| AUDIT-B-02 | Does code obey good practices? | REQ-12 | Fully Automatable | A-01, A-09 | CI policy gate + lint/test/security check outputs | Mapped, Planned, Pending |
+| AUDIT-B-03 | Does program reuse memory to avoid jank? | REQ-01 | Fully Automatable | A-02, B-07, D-08, D-05 | `tests/e2e/audit/audit.e2e.test.js` + allocation evidence | Mapped, Planned, Pending |
+| AUDIT-B-04 | Does game use SVG? | REQ-14 | Manual-With-Evidence | D-09, D-11 | Manifest validation + runtime asset evidence | Mapped, Planned, Pending |
+| AUDIT-B-05 | Is code using asynchronicity for performance? | REQ-01 | Manual-With-Evidence | C-01, C-04, A-11 | Async loading/decode evidence + traces | Mapped, Planned, Pending |
 | AUDIT-B-06 | Is project well done overall? | REQ-01 through REQ-14 | Manual-With-Evidence | All tracks, A-11 | All audit assertions + evidence bundle + review sign-off | Mapped, Planned, Pending |
 
 ## Completion Criteria For This Matrix
