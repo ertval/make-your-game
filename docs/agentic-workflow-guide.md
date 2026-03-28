@@ -31,7 +31,7 @@ Recommended rule for all four devs:
 - Do not let two people or agents edit the same subsystem at the same time unless the work is intentionally paired.
 - Keep branches short-lived.
 - Rebase or sync early and often.
-- Use a visible work board with status, owner, and review state.
+- Use `docs/ticket-tracker.md` as the visible work board with status, owner, and review state.
 
 ## 3. How to Use Agents Well
 
@@ -237,7 +237,7 @@ For a 4-dev team, this cadence works well:
 - During work: keep short status updates on blockers and handoffs.
 - Before PR: run the local gate and attach evidence.
 - During review: review one PR at a time per developer whenever possible.
-- After merge: clean up the branch and update the board.
+- After merge: clean up the branch and update `docs/ticket-tracker.md`.
 
 If a task stalls, stop adding scope. Either finish the slice or split it.
 

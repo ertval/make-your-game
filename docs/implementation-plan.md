@@ -1,8 +1,8 @@
- # 📋 Ms. Ghostman — ECS Implementation Plan
+# 📋 Ms. Ghostman — ECS Implementation Plan v2
 
 > **Architecture**: Entity-Component-System (ECS)  
 > **Stack**: Vanilla JS (ES2026) · HTML · CSS Grid · DOM API only  
-> **Tooling**: Biome (lint + format) · Vite (dev server + bundler) · Vitest (unit tests)  
+> **Tooling**: Biome (lint + format) · Vite (dev server + bundler) · Vitest (unit tests) · Playwright (e2e)  
 > **Target**: 60 FPS via `requestAnimationFrame` · No canvas · No frameworks
 
 ---
@@ -12,10 +12,10 @@
 1. [Architecture Overview](#1-architecture-overview)
 2. [Directory Structure](#2-directory-structure)
 3. [Workflow Tracks (Balanced Workload)](#3-workflow-tracks-balanced-workload)
-    - [Track A — Core Engine, CI, Schema, and Evidence Wiring (Dev 1)](#track-a--core-engine-ci-schema-and-evidence-wiring-dev-1)
-    - [Track B — Physics, Input, and Gameplay Event Hooks (Dev 2)](#track-b--physics-input-and-gameplay-event-hooks-dev-2)
-    - [Track C — AI, Rules, and Audio Production and Integration (Dev 3)](#track-c--ai-rules-and-audio-production-and-integration-dev-3)
-    - [Track D — Rendering, DOM Batching, and Visual Production and Integration (Dev 4)](#track-d--rendering-dom-batching-and-visual-production-and-integration-dev-4)
+   - [Track A — Orchestration, Scaffolding, Testing & QA (Dev 1)](#track-a--orchestration-scaffolding-testing--qa-dev-1)
+   - [Track B — Physics, Input, Gameplay Logic & Rules (Dev 2)](#track-b--physics-input-gameplay-logic--rules-dev-2)
+   - [Track C — Audio Production & Integration (Dev 3)](#track-c--audio-production--integration-dev-3)
+   - [Track D — Visual Production & Integration (Dev 4)](#track-d--visual-production--integration-dev-4)
 4. [Integration Milestones](#4-integration-milestones)
 5. [Shared Contracts & Interfaces](#5-shared-contracts--interfaces)
 6. [Testing Strategy](#6-testing-strategy)
@@ -42,9 +42,10 @@ For this game, ECS helps keep simulation deterministic, isolate DOM side effects
 
 1. `docs/requirements.md` + `docs/game-description.md` define project requirements and intended gameplay behavior.
 2. `docs/audit.md` defines pass/fail acceptance criteria.
-3. `docs/audit-traceability-matrix.md` maps every audit question to requirement, plan, and test anchors.
-4. `docs/assets-pipeline.md` defines visual/audio authoring and optimization standards.
-5. When implementation details are ambiguous, resolve against those references first.
+3. `docs/audit-traceability-matrix.md` is the canonical requirement-to-audit-to-ticket-to-test coverage map and status tracker.
+4. `docs/ticket-tracker.md` tracks live execution status for Section 3 tickets.
+5. `docs/assets-pipeline.md` defines visual/audio authoring and optimization standards.
+6. When implementation details are ambiguous, resolve against those references first.
 
 ```mermaid
 graph TB
@@ -188,6 +189,7 @@ make-your-game/
 │   ├── requirements.md
 │   ├── audit.md
 │   ├── audit-traceability-matrix.md
+│   ├── ticket-tracker.md
 │   ├── assets-pipeline.md
 │   ├── schemas/
 │   │   ├── visual-manifest.schema.json
@@ -293,292 +295,688 @@ make-your-game/
 
 ## 3. Workflow Tracks (Balanced Workload)
 
-The work is divided into 4 tracks with a near-even workload split. Asset production and validation are embedded into Track C (AI, rules, and audio production and integration), Track D (rendering, DOM batching, and visual production and integration), Track A (core engine, CI, schema, and evidence wiring), and Track B (physics, input, and gameplay event hooks). Since systems and components are heavily decoupled, tracks can be developed independently with mocked resources.
+The work is divided into **4 independent, balanced tracks**. Each track can be developed in parallel with mocked resources. Track A owns **all** scaffolding, orchestration, testing (unit, integration, e2e, audit), validation, QA, and final polish. Track B owns all gameplay simulation logic (physics, input, AI, rules, scoring). Track C owns everything audio. Track D owns everything visual.
+
+### Ticket Progress Tracking
+
+Live ticket progress for this section is tracked in `docs/ticket-tracker.md`.
 
 ### Workload Summary (Balanced)
 
-| Track | Developer | Estimated Hours | Notes |
+| Track | Developer | Estimated Hours | Scope |
 |---|---|---:|---|
-| Track A | Dev 1 | ~22h | Core engine, CI, schema, and evidence wiring |
-| Track B | Dev 2 | ~23h | Physics, input, and gameplay event hooks |
-| Track C | Dev 3 | ~23h | AI, rules, and audio production and integration |
-| Track D | Dev 4 | ~23h | Rendering, DOM batching, and visual production and integration |
-| **Total** | **4 Devs** | **~91h** | **~22.75h average per dev** |
+| Track A | Dev 1 | ~24h | Orchestration, scaffolding, ECS core, game loop, testing (all layers), CI, QA & polish |
+| Track B | Dev 2 | ~24h | Input, movement, collisions, bombs, explosions, ghost AI, scoring, timer, lives, pause, progression, power-ups |
+| Track C | Dev 3 | ~22h | Audio adapter, SFX/music creation, audio manifest & schema, audio cue mapping, audio preloading, audio integration |
+| Track D | Dev 4 | ~22h | Renderer, sprite pools, HUD, screen overlays, CSS layout, render systems, visual assets, visual manifest & schema |
+| **Total** | **4 Devs** | **~92h** | **~23h average per dev** |
 
 ### Critical Path By Dev
 
 | Dev | Critical Path Focus | Must Land Before | Depends On |
 |---|---|---|---|
-| Dev 1 | Core engine bootstrap, resource plumbing, CI/schema wiring, and asset validation gates | Any gameplay integration that relies on stable startup, manifests, or CI gates | None for initial scaffolding; later depends on Track B, Track C, and Track D outputs for evidence aggregation |
-| Dev 2 | Input snapshot, movement, collision, and gameplay event emission | Audio cue mapping, visual cue triggers, and deterministic replay checks | Dev 1 world/resource setup; coordinates with Dev 3 and Dev 4 via event payload contracts |
-| Dev 3 | Ghost AI, scoring, timer/life rules, and audio asset runtime cues | Final gameplay loop completeness and audio feedback readiness | Dev 1 ECS/resources; Dev 2 collision/event hooks for cues; Dev 4 for visual state alignment |
-| Dev 4 | Render batching, DOM commit, visual asset mapping, and visual fallback behavior | Visual completeness, pause/menu presentation, and paint/layer constraints | Dev 1 render boundary/setup; Dev 2 entity state events; Dev 3 visual state rules for stun, death, and pause cues |
+| Dev 1 | ECS core bootstrap, game loop, map loading, CI/schema wiring, **ALL** testing & QA, final evidence | Any gameplay integration | None initially; later depends on B/C/D feature code for integration/e2e tests |
+| Dev 2 | Input, movement, collision, bombs, explosions, ghost AI, scoring, timer, lives, pause, progression | Audio/visual cue integration | Dev 1 world/resource setup |
+| Dev 3 | Audio adapter, SFX/music production, audio manifest, cue mapping, preloading | Final gameplay audio integration | Dev 1 schemas; Dev 2 event contracts |
+| Dev 4 | Render pipeline, DOM batching, sprite pools, HUD, overlays, CSS, visual assets | Visual completeness | Dev 1 render boundary setup; Dev 2 entity state events |
 
 #### Scheduling Rule
 
-1. Dev 1 starts first to land the boot, world, and validation rails.
-2. Dev 2 and Dev 4 can then work in parallel once the ECS resource/event contracts are stable.
-3. Dev 3 should integrate against the event contracts early so audio/game rule behavior and visual states do not drift.
-4. Shared asset/CI evidence work stays on Dev 1, but requires inputs from Dev 3 and Dev 4 before it can close.
-
-> **Team model alignment (D-3)**: The track ownership here (Engine / Physics+Input / AI+Rules / Rendering) is the **canonical assignment**. `docs/agentic-workflow-guide.md` describes a simplified cross-cutting model; when there is a conflict, this plan’s track assignments take precedence for day-to-day task ownership.
+1. Dev 1 starts first to land the boot, world, resource, and test rails.
+2. Dev 2 starts gameplay systems once ECS core is stable.
+3. Dev 3 and Dev 4 work fully independently on audio and visual tracks respectively.
+4. Dev 1 writes all tests against the code produced by Dev 2, 3, and 4.
 
 ---
 
-### Track A — Core Engine, CI, Schema, and Evidence Wiring (Dev 1)
+### Track A — Orchestration, Scaffolding, Testing & QA (Dev 1)
 
-> **Scope**: Scaffolding, ECS internals (World, Entity Store, Queries), and Core Resources.
-> **Estimate**: ~22 hours
+> **Scope**: Project scaffolding, ECS internals (World, Entity Store, Queries), core resources, game loop, map loading, CI/schema wiring, **ALL testing** (unit, integration, e2e, audit), QA, polish, and evidence aggregation.  
+> **Estimate**: ~24 hours
 
 #### A-1: Project Scaffolding & Tooling
 **Priority**: 🔴 Critical  
-**Estimate**: 2 hours
+**Estimate**: 2 hours  
+**Covers**: `requirements.md` (vanilla JS, no canvas, no frameworks); `audit.md` F-04, F-05
 
 - [ ] Initialize `package.json` with ES modules, configure Vite and Biome.
 - [ ] Setup Vitest for pure system/component testing.
+- [ ] Setup Playwright for e2e/audit testing.
 - [ ] Configure CI merge gates (lint, tests, coverage minimums, protected branch checks).
 - [ ] Implement dependency governance (strict lockfile policy and SBOM generation).
-- [ ] Create `index.html` structure with core `<div>` mount points.
+- [ ] Create `index.html` structure with core `<div>` mount points (game-board, hud, overlay containers).
 - [ ] Commit basic CSS reset and variable stubs.
+- [ ] Add scripts in `package.json`: `dev`, `build`, `preview`, `lint`, `format`, `test`, `test:unit`, `test:integration`, `test:e2e`, `test:audit`, `coverage`, `ci`, `sbom`.
+- [ ] Add `vite.config.js`, `biome.json`, `vitest.config.js`, and `playwright.config.js` with CI-compatible defaults.
+- [ ] Add a static CI scan that fails on `<canvas>` usage and banned framework dependencies (`react`, `vue`, `angular`, `svelte`).
+- [ ] Verification gate: CI passes on baseline and fails when intentionally introducing a banned dependency or `<canvas>` node.
 
 #### A-2: ECS Architecture Core (World, Entity, Query)
 **Priority**: 🔴 Critical  
-**Estimate**: 5 hours
+**Estimate**: 4 hours  
+**Covers**: ECS architecture requirement from `AGENTS.md`
 
 - [ ] Implement `src/ecs/world/entity-store.js` using ID arrays via a recycling pool to avoid GC chunks.
-- [ ] Implement `src/ecs/world/query.js`: Provides fast entity lookups matching component masks.
+- [ ] Implement `src/ecs/world/query.js`: Provides fast entity lookups matching component masks (bitmask-based).
 - [ ] Implement `src/ecs/world/world.js`:
   - Registers systems and dictates phase ordering (Input -> Physics -> Logic -> Render).
   - Handles fixed-step logic loop (`accumulator`) and calls simulation systems.
   - Passes resource references smoothly without global singleton abuse.
-- [ ] Unit Test: Entity generation, recycling, and system pass ordering.
+- [ ] Enforce deterministic system ordering and a single deferred-structural-mutation sync point per fixed step.
+- [ ] Add generation-based stale-handle protection semantics for recycled entity IDs.
+- [ ] Verification gate: unit tests cover ID recycling, stale-handle rejection, deferred mutation application, and deterministic system order.
 
-#### A-3: Resources (Time, Constants, RNG)
+#### A-3: Resources (Time, Constants, RNG, Events, Game Status)
 **Priority**: 🔴 Critical  
-**Estimate**: 2 hours
+**Estimate**: 2 hours  
+**Covers**: Determinism contracts from `AGENTS.md`; `game-description.md` §6-§8 constants
 
-- [ ] Add `src/ecs/resources/constants.js`: Sizes, rules, entity IDs.
+- [ ] Add `src/ecs/resources/constants.js`: Define all canonical gameplay constants: `SIMULATION_HZ=60`, `MAX_STEPS_PER_FRAME=5`, `PLAYER_START_LIVES=3`, `BOMB_FUSE_MS=3000`, `FIRE_DURATION_MS=500`, `DEFAULT_FIRE_RADIUS=2`, `INVINCIBILITY_MS=2000`, `STUN_MS=5000`, `SPEED_BOOST_MULTIPLIER=1.5`, `SPEED_BOOST_MS=10000`, `MAX_CHAIN_DEPTH=10`.
 - [ ] Implement `src/ecs/resources/clock.js`: Tracks elapsed simulation time, delta, and logic pause-state vs unpaused system state.
 - [ ] Implement `src/ecs/resources/rng.js`: Predictable `Math.random` replacement for deterministic runs.
+- [ ] Implement `src/ecs/resources/event-queue.js`: Deterministic insertion-order event queue for cross-system communication.
+- [ ] Implement `src/ecs/resources/game-status.js`: FSM enum states: `MENU → PLAYING ↔ PAUSED → LEVEL_COMPLETE → VICTORY` or `GAME_OVER`.
+- [ ] Verification gate: unit tests validate deterministic RNG sequences, event ordering, and pause-safe simulation clock progression.
 
 #### A-4: Game Loop & Main Initialization
 **Priority**: 🔴 Critical  
-**Estimate**: 4 hours
+**Estimate**: 3 hours  
+**Covers**: `requirements.md` (60 FPS, rAF); `audit.md` F-02, F-10, F-17, F-18
 
 - [ ] Implement `main.ecs.js`: Boots World, binds `window.requestAnimationFrame`.
 - [ ] Connect `rAF` pipeline into World's internal accumulator update.
 - [ ] Implement basic state-transition flow (playing, paused) handled by checking `clock.isPaused` to freeze simulation while keeping rAF active.
 - [ ] Add resume safety and lifecycle handling: baseline reset (`lastFrameTime = now`) and accumulator clamp/clear on unpause and tab restore.
-- [ ] Test the empty loop verifies consistent 60 FPS overhead with Performance API.
+- [ ] Clamp catch-up using `MAX_STEPS_PER_FRAME` and resync clock baselines on `blur` and `visibilitychange` recovery.
+- [ ] Add instrumentation hooks for Playwright frame-time/FPS collection in semi-automated audit tests.
+- [ ] Implement `src/game/bootstrap.js`: World assembly + system registration order.
+- [ ] Implement `src/game/game-flow.js`: FSM driver that coordinates state transitions.
+- [ ] Verification gate: integration tests prove pause invariants; e2e proves rAF continues while simulation is frozen.
 
 #### A-5: Map Loading Resource
 **Priority**: 🔴 Critical  
-**Estimate**: 4 hours
+**Estimate**: 3 hours  
+**Covers**: `game-description.md` §2, §8 (3 levels, cell types, level timing)
 
-- [ ] Create 3 JSON map blueprints.
+- [ ] Create 3 JSON map blueprints (Levels 1, 2, and 3) matching `game-description.md` §8:
+  - Level 1: Open layout, few destructible walls, 2 ghosts, 120s timer.
+  - Level 2: Tighter corridors, more destructible walls, 3 ghosts, 180s timer.
+  - Level 3: Dense maze, many destructible walls, 4 ghosts, 240s timer.
 - [ ] Implement JSON Schema 2020-12 validation in CI, failing build on invalid level data.
-- [ ] Implement `map-resource.js`: Parses map on load, stores a fixed representation of the static grid cells (walls, emptiness, intersections).
-- [ ] Injects map info into the World context upon level start.
+- [ ] Implement `map-resource.js`: Parses map on load, stores a fixed representation of the static grid cells.
+- [ ] Maps MUST include strict grid placement rules for: empty space (` `), indestructible walls (`🧱`), destructible walls (`📦`), pellets (`·`), power pellets (`⚡`), bomb+ (`💣+`), fire+ (`🔥+`), speed boost (`👟`), and ghost house area.
+- [ ] Load map resources asynchronously and reject invalid data before world injection.
+- [ ] Verification gate: schema tests (valid + invalid fixtures) and e2e restart test prove canonical map reset.
 
-#### A-6: Shared Asset Validation Wiring
+#### A-6: Unit Tests — ECS Core & Resources
 **Priority**: 🔴 Critical  
-**Estimate**: 3 hours
+**Estimate**: 2 hours
+
+- [ ] Write unit tests for `entity-store.js`: ID generation, recycling, stale-handle rejection, capacity limits.
+- [ ] Write unit tests for `query.js`: bitmask matching, multi-component queries, empty result sets.
+- [ ] Write unit tests for `world.js`: system registration, execution ordering, deferred mutation sync, frame context delivery.
+- [ ] Write unit tests for `clock.js`: time progression, pause freeze, resume baseline reset, accumulator clamp.
+- [ ] Write unit tests for `rng.js`: deterministic sequences from same seed, different seeds produce different sequences.
+- [ ] Write unit tests for `event-queue.js`: insertion ordering, flush behavior, deterministic iteration.
+- [ ] Write unit tests for `game-status.js`: FSM transitions, invalid transition rejection.
+- [ ] Write unit tests for `constants.js`: all canonical values correct.
+- [ ] Write unit tests for `map-resource.js`: valid parse, invalid JSON rejection, spawn point extraction.
+- [ ] Verification gate: all core/resource unit tests green with >90% line coverage on tested files.
+
+#### A-7: Unit Tests — All Gameplay Systems
+**Priority**: 🔴 Critical  
+**Estimate**: 3 hours  
+**Dependencies**: Track B systems must be implemented
+
+- [ ] Write unit tests for `input-system.js`: snapshot consumption, direction mapping, bomb request forwarding.
+- [ ] Write unit tests for `player-move-system.js`: grid boundary blocking, interpolation steps, no diagonal drift.
+- [ ] Write unit tests for `ghost-ai-system.js`: each personality (Blinky/Pinky/Inky/Clyde), flee mode, dead return, no-reverse rule, seeded determinism.
+- [ ] Write unit tests for `bomb-tick-system.js`: fuse countdown, one-bomb-per-cell, detonation trigger.
+- [ ] Write unit tests for `explosion-system.js`: cross-pattern geometry, wall blocking, chain reactions (iterative queue), pellet immunity, power-up destruction, combo multiplier `200 * 2^(n-1)`.
+- [ ] Write unit tests for `collision-system.js`: all collision permutations (fire/player, fire/ghost, player/ghost, player/pellet, player/powerup, stunned-ghost harmless).
+- [ ] Write unit tests for `power-up-system.js`: stun entry/exit, speed boost entry/exit, bomb+/fire+ increment.
+- [ ] Write unit tests for `scoring-system.js`: all point values match `game-description.md` §6 exactly.
+- [ ] Write unit tests for `timer-system.js`: countdown, time-up triggers GAME_OVER, time bonus calculation.
+- [ ] Write unit tests for `life-system.js`: life decrement, respawn, invincibility window `2000ms`, zero-lives triggers GAME_OVER.
+- [ ] Write unit tests for `pause-system.js`: simulation freeze, timer freeze, fuse freeze.
+- [ ] Write unit tests for `spawn-system.js`: staggered ghost release, death-return respawn.
+- [ ] Write unit tests for `level-progress-system.js`: all-pellets-eaten detection, level transition, victory after level 3.
+- [ ] Verification gate: all system unit tests green; determinism tests produce identical outputs for identical seed + input.
+
+#### A-8: Integration Tests — Multi-System & Adapter Boundaries
+**Priority**: 🟡 Medium  
+**Estimate**: 2 hours  
+**Dependencies**: Track B, C, D adapter code
+
+- [ ] Write integration tests for `tests/integration/gameplay/`: multi-system interaction scenarios (bomb→explosion→collision→scoring pipeline).
+- [ ] Write integration tests for gameplay event emission: event order, payload schema, deterministic ordering across seeded runs.
+- [ ] Write integration tests for pause invariants: rAF active, simulation frozen, HUD responsive, timer/fuse frozen.
+- [ ] Write integration tests for `tests/integration/adapters/`: adapter boundary tests using jsdom.
+  - `input-adapter.js`: keydown/keyup mapping, blur clearing, no OS key-repeat dependency.
+  - `renderer-adapter.js`: safe DOM sinks (no innerHTML), createElementNS.
+  - `sprite-pool-adapter.js`: pool sizing, offscreen-transform hiding (not display:none), pool exhaustion.
+  - `hud-adapter.js`: textContent updates, no unsafe sinks.
+  - `screens-adapter.js`: overlay toggling, keyboard focus transfer.
+  - `audio-adapter.js`: async decode path, cue mapping, fallback behavior for missing clips.
+  - `storage-adapter.js`: untrusted data validation on read.
+- [ ] Write replay determinism test: same seed + input trace → identical `hashWorldState` at frame N.
+- [ ] Verification gate: all integration tests green.
+
+#### A-9: E2E Audit Tests (Playwright)
+**Priority**: 🔴 Critical  
+**Estimate**: 3 hours  
+**Covers**: `audit.md` ALL questions F-01..F-21, B-01..B-06
+
+- [ ] Implement `tests/e2e/audit/audit-question-map.js` mapping each audit question to a test ID.
+- [ ] **Fully Automatable tests** (Playwright real browser):
+  - F-01: Game runs without crashing (60s smoke test with randomized input).
+  - F-02: Animation uses `requestAnimationFrame` (assert rAF in source/runtime).
+  - F-03: Game is single player.
+  - F-04: No `<canvas>` element in DOM.
+  - F-05: No framework usage.
+  - F-06: Game is from pre-approved list (Pac-Man + Bomberman hybrid).
+  - F-07: Pause menu displays with Continue and Restart options.
+  - F-08: Continue resumes game from exact paused state.
+  - F-09: Restart resets current level.
+  - F-10: No dropped frames during pause (rAF rate unaffected).
+  - F-11: Player obeys keyboard commands (arrow keys move player).
+  - F-12: Hold-to-move works (no key spamming needed).
+  - F-13: Game works as expected (genre-aligned gameplay loop).
+  - F-14: Timer/countdown clock works.
+  - F-15: Score increases on player actions (pellet collection, ghost kill).
+  - F-16: Lives decrease on death.
+  - B-01: Project runs quickly and effectively.
+  - B-03: Memory reuse (no jank from GC).
+- [ ] **Semi-Automatable tests** (Playwright + `page.evaluate()`):
+  - F-17: No frame drops (Performance API measurement over 30s window).
+  - F-18: Game runs at ~60fps (p95 frame time ≤ 20ms over 30s window).
+- [ ] **Manual-With-Evidence** (DevTools traces as PR artifacts):
+  - F-19: Paint usage minimal (evidence note with trace).
+  - F-20: Layers minimal but non-zero (evidence note with layer count).
+  - F-21: Layer promotion proper (evidence note with will-change policy verification).
+  - B-04: SVG usage (evidence note).
+  - B-05: Asynchronicity for performance (evidence note for async decode, preloading).
+  - B-06: Overall project quality (signed evidence note).
+- [ ] Verification gate: all automated audit tests pass; evidence artifacts attached for manual items.
+
+#### A-10: CI, Schema Validation & Asset Gates
+**Priority**: 🟡 Medium  
+**Estimate**: 1 hour
 
 - [ ] Wire schema checks for `assets/manifests/*.json` against `docs/schemas/*.schema.json` into CI.
 - [ ] Add file existence checks for manifest paths and fail CI on missing assets.
 - [ ] Enforce naming and size-budget checks for generated assets.
+- [ ] Verification gate: CI fails on schema mismatch, missing file, naming-rule violation, or budget overrun.
 
-#### A-7: Asset Evidence Aggregation
+#### A-11: Evidence Aggregation & Final QA Polish
 **Priority**: 🟡 Medium  
-**Estimate**: 2 hours
+**Estimate**: 1 hour  
+**Dependencies**: All other tracks complete
 
 - [ ] Capture before/after size report for generated visual and audio assets.
-- [ ] Collect runtime evidence notes for paint/layer behavior and audio startup timing from Dev 3 and Dev 4 outputs.
-- [ ] Link evidence artifacts to `docs/audit-traceability-matrix.md` rows impacted by asset work.
+- [ ] Collect runtime evidence notes for paint/layer behavior and audio startup timing.
+- [ ] Produce evidence bundle for `AUDIT-F-17..F-21` and `AUDIT-B-01..B-06`: environment, frame stats (`p50/p95/p99`), long-task notes, paint/layer observations.
+- [ ] Link evidence artifacts to `docs/audit-traceability-matrix.md` rows.
+- [ ] Final QA pass: play through all 3 levels verifying complete gameplay loop.
+- [ ] Verification gate: evidence links attached and all audit matrix rows covered.
 
 ---
 
-### Track B — Physics, Input, and Gameplay Event Hooks (Dev 2)
+### Track B — Physics, Input, Gameplay Logic & Rules (Dev 2)
 
-> **Scope**: Input acquisition, movement validation, colliding bodies, and explosion logic. All pure ECS.
-> **Estimate**: ~23 hours
+> **Scope**: All ECS components, ALL gameplay systems (input, movement, collision, bombs, explosions, ghost AI, scoring, timer, lives, pause, progression, power-ups), and gameplay event hooks. Pure ECS simulation — no DOM, no audio, no visuals.  
+> **Estimate**: ~24 hours
 
-#### B-1: Action Components
+#### B-1: ECS Components (All Data Definitions)
 **Priority**: 🔴 Critical  
-**Estimate**: 2 hours
+**Estimate**: 2 hours  
+**Covers**: ECS data layer for all gameplay entities (`game-description.md` §2-§5)
 
-- [ ] Implement pure data files in `src/ecs/components/`:
-  - `position.js` (row, col, targetRow, targetCol).
-  - `velocity.js` (direction vector).
-  - `input-state.js` (requested moving direction, bomb requested).
-  - `collider.js` (types: player, entity, obstacle).
-  - `player.js` (lives, stats).
+- [ ] Implement `src/ecs/components/spatial.js`:
+  - `position` (row, col, prevRow, prevCol, targetRow, targetCol) — SoA Float64Array.
+  - `velocity` (direction vector, speed multiplier).
+  - `collider` (type enum: player, ghost, bomb, fire, pellet, powerup, wall).
+- [ ] Implement `src/ecs/components/actors.js`:
+  - `player` (lives, maxBombs, fireRadius, invincibilityMs, speedBoostMs, isSpeedBoosted).
+  - `ghost` (type: blinky/pinky/inky/clyde, state: normal/stunned/dead, timerMs, speed).
+  - `input-state` (up, down, left, right, bomb, pause — snapshot per fixed step).
+- [ ] Implement `src/ecs/components/props.js`:
+  - `bomb` (fuseMs, radius, ownerId, row, col).
+  - `fire` (burnTimerMs, row, col).
+  - `power-up` (type: powerPellet/bombPlus/firePlus/speedBoost).
+  - `pellet` (isPowerPellet flag).
+- [ ] Implement `src/ecs/components/stats.js`:
+  - `score` (total points, combo counter).
+  - `timer` (remainingMs, levelDurationMs).
+  - `health` (lives remaining, invincibility state).
+- [ ] Implement `src/ecs/components/visual.js`:
+  - `renderable` (kind: player/ghost/bomb/fire/pellet/wall/powerup, spriteId).
+  - `visual-state` (classBits bitmask: STUNNED=1, INVINCIBLE=2, HIDDEN=4, DEAD=8, SPEED_BOOST=16).
+- [ ] Ensure component fields cover all gameplay described in `game-description.md` §2-§8.
+- [ ] Verification gate: unit tests assert defaults, shape integrity, and component-mask registration.
 
-#### B-2: Input Adapter & System
+#### B-2: Input Adapter & Input System
 **Priority**: 🔴 Critical  
-**Estimate**: 3 hours
+**Estimate**: 3 hours  
+**Covers**: `requirements.md` (hold-to-move, no spam); `audit.md` F-11, F-12; `game-description.md` §3.1
 
 - [ ] Implement `adapters/io/input-adapter.js`: Captures `keydown`/`keyup` securely mapping into an intent buffer. No OS key repeat reliance.
 - [ ] Ensure held-key state clears on `blur`/`visibilitychange` to prevent stuck movement after focus loss.
 - [ ] Implement `ecs/systems/input-system.js`: Reads adapter, writes into the `input-state` component attached to the Player entity within the frame logic.
 - [ ] Snapshot input state once per fixed simulation step and consume immutable snapshots in gameplay systems.
+- [ ] Use canonical bindings: Arrow keys movement, `Space` bomb, `Escape`/`P` pause toggle.
+- [ ] Handle `Enter` key for menu navigation, Start Game, Next Level, and Play Again confirmations.
+- [ ] Verification gate: tests cover hold-to-move behavior, focus-loss clearing, and no dependency on OS key-repeat.
 
 #### B-3: Movement & Grid Collision System
 **Priority**: 🔴 Critical  
-**Estimate**: 5 hours
+**Estimate**: 4 hours  
+**Covers**: `game-description.md` §3.1 (grid movement, wall blocking, smooth translation)
 
 - [ ] Implement `player-move-system.js`: Queries the grid from `map-resource` based on Position vs Velocity intentions. Ensures smooth sub-cell locking and prevents walking through walls.
-- [ ] Works cleanly using ECS state-machine variables rather than loose classes. Updates TargetRow/Col.
-- [ ] Unit test grid boundaries and interpolation steps.
+- [ ] Works using ECS state-machine variables. Updates TargetRow/Col.
+- [ ] Enforce no diagonal drift and deterministic motion under variable render FPS.
+- [ ] Handle speed boost multiplier (`1.5x`) when player has active speed boost.
+- [ ] Verification gate: unit tests for blocked movement, path continuity, and interpolation correctness.
 
-#### B-4: Bomb Components & Bomb Tick System
+#### B-4: Bomb & Explosion Systems
 **Priority**: 🔴 Critical  
-**Estimate**: 4 hours
+**Estimate**: 4 hours  
+**Covers**: `game-description.md` §4 (bomb placement, explosion mechanics, chain reactions)
 
-- [ ] Implement `bomb.js` (fuse timing) and `fire.js` (burn timer).
 - [ ] Implement `bomb-tick-system.js`: Decrements fuse, validates explosion radius against `map-resource`.
-- [ ] Implement `explosion-system.js`: Translates detonated bombs into Fire entities mapping over map resources (destructible wall clears). Chain reactions use an **iterative detonation queue** (NOT recursive — avoids call-stack risk) with a hard depth limit (`MAX_CHAIN_DEPTH = 10`; pre-allocated queue buffer in `constants.js`). Process the queue within a single fixed step for determinism.
+- [ ] Implement `explosion-system.js`: Translates detonated bombs into Fire entities mapping over map resources (destructible wall clears). Chain reactions use an **iterative detonation queue** (NOT recursive) with `MAX_CHAIN_DEPTH = 10`.
+- [ ] Enforce one-bomb-per-cell placement, `3000ms` fuse, `500ms` fire lifetime, cross-pattern propagation, and wall-stop rules.
+- [ ] Enforce strict pellet pass-through mechanics (pellets are NEVER destroyed by fire).
+- [ ] Enforce power-up destruction (power-ups ARE destroyed by fire without being collected).
+- [ ] Apply combo explosion multipliers logic (`200 * 2^(n-1)` for `n` ghosts killed in one chain).
+- [ ] Verification gate: unit tests for explosion geometry, chain determinism, pellet immunity, and wall blocking.
 
 #### B-5: Entity Collision System
-**Priority**: 🟡 Medium  
-**Estimate**: 4 hours
+**Priority**: 🔴 Critical  
+**Estimate**: 3 hours  
+**Covers**: `game-description.md` §3.3, §4.2, §5.2 (all collision interactions)
 
-- [ ] Implement `collision-system.js` using a **cell-occupancy map** for O(1) spatial lookups (not O(n²) pair checks). Each fixed step: build `cellOccupants: Map<"row,col", Set<EntityId>>` in O(n), then query O(1) per moving entity:
+- [ ] Implement `collision-system.js` using a **cell-occupancy map** for O(1) spatial lookups:
   - Fire vs Player → damage/death intent.
-  - Fire vs Ghost → death intent.
-  - Player vs Ghost → Player death intent. **Ghosts cannot be killed by touch** — only a bomb explosion destroys a ghost.
-  - Player vs Power-up/Pellet → mark for destruction/collection and tag points.
-- [ ] Tests collision permutations locally using mocked World queries.
+  - Fire vs Ghost → ghost death intent.
+  - Player vs Ghost (normal) → Player death intent. **Ghosts cannot be killed by touch**.
+  - Player vs Ghost (stunned) → harmless contact (no damage).
+  - Player vs Pellet → mark for collection (+10 points).
+  - Player vs Power Pellet → mark for collection (+50 points, stun all ghosts).
+  - Player vs Power-up → mark for collection (+100 points, apply effect).
+- [ ] Include bomb-cell occupancy constraints and ghost push-back when bomb dropped on shared cell.
+- [ ] Verification gate: integration tests cover all listed collision permutations.
 
-#### B-6: Gameplay Event Hooks for Asset Cues
+#### B-6: Ghost AI System & Spawning
+**Priority**: 🔴 Critical  
+**Estimate**: 5 hours  
+**Covers**: `game-description.md` §5 (all ghost types, states, spawning, movement rules)
+
+- [ ] Implement `ghost-ai-system.js` with 4 distinct personalities:
+  - **Blinky** (Red): Targets direction closest to player at intersections.
+  - **Pinky** (Pink): Predicts player's heading and attempts to cut them off.
+  - **Inky** (Cyan): Semi-random influenced by both Blinky and player positions.
+  - **Clyde** (Orange): Fully random wildcard at intersections.
+- [ ] Implement ghost state machine: Normal → Stunned (on Power Pellet) → Dead (on bomb kill) → respawn.
+  - **Normal**: Patrols maze, lethal on contact.
+  - **Stunned**: Blue, slow, flees from player for `5000ms`. Harmless. Kill by bomb = 400pts.
+  - **Dead**: Eyes-only return to ghost house, respawn after delay.
+- [ ] Enforce "no reversing" unless Power Pellet triggers flee mode.
+- [ ] Ghosts cannot pass through indestructible walls or active bombs.
+- [ ] Implement `spawn-system.js`: Staggered ghost-house release timing per level (2/3/4 ghosts). Death-return respawn.
+- [ ] Use zero-allocation heuristics (pre-compute direction scores in-place, no temporary arrays).
+- [ ] **Worker offload gate**: Do NOT add a Web Worker unless profiling shows ghost pathfinding exceeds 2ms/frame.
+- [ ] Verification gate: seeded determinism tests produce identical ghost movement traces.
+
+#### B-7: Scoring, Timer & Life Systems
+**Priority**: 🔴 Critical  
+**Estimate**: 3 hours  
+**Covers**: `game-description.md` §6, §7, §3.3 (all scoring values, timer, lives)
+
+- [ ] Implement `scoring-system.js` with exact canonical values:
+  - Pellet: +10, Power Pellet: +50, Ghost kill (normal): +200, Ghost kill (stunned): +400.
+  - Chain multiplier: `200 * 2^(n-1)` per ghost. Power-up pickup: +100.
+  - Level clear: +1000 + (remainingSeconds × 10).
+- [ ] Implement `timer-system.js`: countdown per level (120s/180s/240s). Timer hits zero → GAME_OVER.
+- [ ] Implement `life-system.js`: 3 starting lives, decrement on death, respawn with 2000ms invincibility. Zero lives → GAME_OVER.
+- [ ] Verification gate: unit tests match every value in `game-description.md` §6.
+
+#### B-8: Power-Up System
 **Priority**: 🟡 Medium  
-**Estimate**: 5 hours
+**Estimate**: 2 hours  
+**Covers**: `game-description.md` §2 (all 4 collectibles), §5.3 (stun mechanics)
 
-- [ ] Define deterministic event payloads for audio/visual cue triggers (`BombPlaced`, `BombDetonated`, `PelletCollected`, `LifeLost`, `GhostDefeated`).
-- [ ] Ensure collision and explosion systems emit stable, ordered events usable by adapters.
-- [ ] Add integration tests asserting event order and payload consistency for adapter consumption.
+- [ ] Implement `power-up-system.js` processing collection intents from collision system:
+  1. **Power Pellet (`⚡`)**: Stuns all ghosts for `5000ms`. Non-stacking (resets timer).
+  2. **Bomb Power-Up (`💣+`)**: Increments `maxBombs` by 1.
+  3. **Fire Power-Up (`🔥+`)**: Increments `fireRadius` by 1.
+  4. **Speed Boost (`👟`)**: Applies `1.5x` speed multiplier for `10000ms`. Non-stacking (resets timer). Visual trail/tint indicator.
+- [ ] Manage parallel countdown timers for stun and speed boost expiry.
+- [ ] Verification gate: unit/integration tests cover stun, speed boost, bomb+, fire+ effects and exact durations.
+
+#### B-9: Pause & Level Progression Systems
+**Priority**: 🔴 Critical  
+**Estimate**: 2 hours  
+**Covers**: `audit.md` F-07..F-10; `game-description.md` §8, §10 (pause menu, level progression)
+
+- [ ] Implement `pause-system.js`: Freezes simulation timer while `rAF` continues. Fuse timers, invincibility, and stun timers all freeze.
+- [ ] Implement `level-progress-system.js` and `src/game/level-loader.js`:
+  - All pellets eaten → `LEVEL_COMPLETE` state with stats screen.
+  - Level Complete → load next level map or `VICTORY` after level 3.
+  - `GAME_OVER` on timer expiry or zero lives.
+- [ ] Enforce FSM: `MENU → PLAYING ↔ PAUSED → LEVEL_COMPLETE → VICTORY` or `GAME_OVER`.
+- [ ] Pause Continue: resumes exact prior simulation state.
+- [ ] Pause Restart: resets current level, preserves cumulative score from previous levels.
+- [ ] Verification gate: e2e pause open/continue/restart tests pass with keyboard-only flow.
+
+#### B-10: Gameplay Event Hooks
+**Priority**: 🟡 Medium  
+**Estimate**: 1 hour  
+**Covers**: Cross-system communication contract for audio/visual cues
+
+- [ ] Define deterministic event payloads: `BombPlaced`, `BombDetonated`, `PelletCollected`, `PowerPelletCollected`, `PowerUpCollected`, `LifeLost`, `GhostDefeated`, `GhostStunned`, `LevelCleared`, `GameOver`, `Victory`.
+- [ ] Include `frame` and monotonic `order` fields for deterministic ordering.
+- [ ] Ensure collision, explosion, and scoring systems emit stable, ordered events.
+- [ ] Verification gate: repeated seeded runs produce identical event order and payload schema.
 
 ---
 
-### Track C — AI, Rules, and Audio Production and Integration (Dev 3)
+### Track C — Audio Production & Integration (Dev 3)
 
-> **Scope**: Ghost behaviors, score keeping, lives management, pause, and high-level progression.
-> **Estimate**: ~23 hours
+> **Scope**: Everything audio — adapter implementation, SFX/music asset creation, audio manifest schema, cue mapping from gameplay events, preloading/decoding strategy, and runtime integration. Fully independent from visual work.  
+> **Estimate**: ~22 hours
 
-#### C-1: AI Components & Spawning Logic
+#### C-1: Audio Adapter Implementation
 **Priority**: 🔴 Critical  
-**Estimate**: 3 hours
+**Estimate**: 4 hours  
+**Covers**: `AGENTS.md` audio preload rules; `audit.md` B-05 (asynchronicity)
 
-- [ ] Implement `ghost.js` (AI behaviors: blinky, pinky, inky, clyde).
-- [ ] Setup a ghost-spawning sub-routine via map resource that creates entities utilizing `World.EntityStore`.
+- [ ] Implement `adapters/io/audio-adapter.js`:
+  - `AudioContext` initialization on first user interaction (browser autoplay policy).
+  - Pre-decode gameplay-critical SFX using `AudioContext.decodeAudioData()` during level load.
+  - Provide `playSfx(cueId)` and `playMusic(trackId)` methods that map to decoded buffers.
+  - Support volume control per category (SFX, music, UI).
+  - Support simultaneous SFX playback (bomb + pellet collect can overlap).
+- [ ] Provide fallback behavior for missing clips: `console.warn` and continue without breaking the game loop.
+- [ ] Register adapter as a World resource (never imported directly by systems).
+- [ ] Handle `visibilitychange` to suspend/resume AudioContext for battery and tab-throttle.
+- [ ] Verification gate: adapter tests validate async decode path, playback, and fallback behavior.
 
-#### C-2: Ghost AI System
+#### C-2: Audio Manifest Schema & Validation
 **Priority**: 🔴 Critical  
-**Estimate**: 6 hours
+**Estimate**: 2 hours  
+**Covers**: Asset validation pipeline from `docs/assets-pipeline.md`
 
-- [ ] Implement `ghost-ai-system.js`. For every ghost:
-  - Pathfinding based on its personality (chase target offsets, intersection evaluation).
-  - Must not mutate target positions when not at cell centers.
-  - Enforce "no reversing" logic unless a Power Pellet is eaten (flee mode).
-  - Fleeing: Random intersection logic aiming to maximize player distance.
-  - Dead state: Eyes-only return to ghost house.
-- [ ] Use zero-allocation heuristics for distance computing (pre-compute direction scores in-place; no temporary arrays).
-- [ ] **Worker offload gate**: BFS on a ≤ 20×20 grid for 4 entities takes microseconds. Do NOT add a Web Worker unless profiling shows ghost pathfinding exceeds **2 ms per frame** on a representative device. If that threshold is crossed, define message contracts at that point.
+- [ ] Finalize `docs/schemas/audio-manifest.schema.json` (JSON Schema 2020-12):
+  - Required fields: `id`, `category` (sfx|music|ambience|ui), `file`, `format`, `durationMs`, `sampleRate`, `channels`, `loudnessLUFS`.
+  - Optional: `loopPoints`, `priority`, `fallbackFile`.
+- [ ] Create `assets/manifests/audio-manifest.json` with all audio asset entries.
+- [ ] Wire manifest schema validation into CI (fails on invalid entries).
+- [ ] Verification gate: CI rejects invalid manifest entries; valid entries pass.
 
-#### C-3: Power Up & Stun Routines
+#### C-3: UI Sound Effects Production
 **Priority**: 🟡 Medium  
-**Estimate**: 3 hours
+**Estimate**: 4 hours  
+**Covers**: `game-description.md` §9.5, §10, §11 (start screen, pause menu, game over, victory)
 
-- [ ] Process power-pellet collection events from the Collision System.
-- [ ] Toggles ghost states across components to "stunned".
-- [ ] Countdown timers within the Ghost System that flicker out and return to normal chasing routines.
+- [ ] Create/export UI SFX set:
+  - Menu navigate (button hover/focus change).
+  - Menu confirm (start game, continue, restart, play again).
+  - Menu cancel (back/close).
+  - Pause open.
+  - Pause close (resume).
+  - Level complete jingle.
+  - Game over sting.
+  - Victory fanfare.
+- [ ] Normalize loudness across UI category.
+- [ ] Export in `.mp3` (primary) and `.ogg` (optional higher-efficiency variant).
+- [ ] Pre-trim all clips (no silence padding) for instant playback.
+- [ ] Verification gate: all UI SFX listed in manifest with correct metadata.
 
-#### C-4: Timer System & Scoring System
+#### C-4: Gameplay Sound Effects Production
 **Priority**: 🔴 Critical  
-**Estimate**: 4 hours
+**Estimate**: 4 hours  
+**Covers**: `game-description.md` §3-§5 (player actions, bombs, ghosts, pellets, power-ups)
 
-- [ ] Implement `scoring-system.js`: Reacts to collision events (dead ghosts, cleared pellets, powerups) and updates a singular `stats.js` Score component. Handles combo multipliers.
-- [ ] Implement `timer-system.js`: Manages level timing, applying time bonuses when levels complete.
-- [ ] Implement `life-system.js`: Handles loss of lives from player death intents.
+- [ ] Create/export gameplay SFX set:
+  - Bomb place.
+  - Bomb fuse ticking (loopable, ~3s duration).
+  - Bomb explode.
+  - Chain reaction explode (variant or layered).
+  - Wall destroy.
+  - Pellet collect (short, satisfying).
+  - Power pellet collect (distinct, impactful).
+  - Power-up collect (generic for bomb+/fire+/speed).
+  - Speed boost activate (whoosh).
+  - Speed boost deactivate.
+  - Ghost stun (all ghosts turn blue).
+  - Ghost kill (bomb hit ghost).
+  - Ghost return to house.
+  - Player death.
+  - Player respawn.
+  - Player hit (life lost).
+- [ ] Normalize loudness across gameplay category.
+- [ ] Export in `.mp3` (primary) and `.ogg` (optional).
+- [ ] Keep SFX short (< 1s for most, except fuse tick loop).
+- [ ] Verification gate: all gameplay SFX listed in manifest with correct metadata.
 
-#### C-5: Pause & Progression Systems
+#### C-5: Music Track Production
+**Priority**: 🟡 Medium  
+**Estimate**: 3 hours  
+**Covers**: Ambient audio experience; `audit.md` B-06 (overall quality)
+
+- [ ] Create/export at least one loop-safe level music track:
+  - Loop-safe edit points with crossfade handling (no seam artifacts).
+  - Appropriate energy level for maze-chase gameplay.
+  - Duration: 60-120s loop.
+- [ ] Optional: Create an ambience loop for menus/overlays.
+- [ ] Normalize loudness below gameplay SFX to avoid masking.
+- [ ] Export in `.mp3` with optional `.ogg` variant.
+- [ ] Record metadata fields (duration, sample rate, channels, loudness) in manifest.
+- [ ] Verification gate: music plays loop-safe without audible seam; manifest metadata complete.
+
+#### C-6: Audio Cue Mapping & Runtime Integration
 **Priority**: 🔴 Critical  
-**Estimate**: 3 hours
+**Estimate**: 3 hours  
+**Covers**: Connecting gameplay event hooks (B-10) to audio playback
 
-- [ ] Implement `pause-system.js` and `level-progress-system.js`: Triggering pause freezes the global simulation timer while `clock.elapsedMs` and actual `rAF` continue. This ensures the pause UI transitions cleanly. Handles level resets and map reloading.
+- [ ] Define audio cue mapping table from gameplay event types to manifest audio IDs:
+  - `BombPlaced` → `sfx-bomb-place`
+  - `BombDetonated` → `sfx-bomb-explode`
+  - `PelletCollected` → `sfx-pellet-collect`
+  - `PowerPelletCollected` → `sfx-power-pellet-collect`
+  - `PowerUpCollected` → `sfx-powerup-collect`
+  - `LifeLost` → `sfx-player-hit`
+  - `GhostDefeated` → `sfx-ghost-kill`
+  - `GhostStunned` → `sfx-ghost-stun`
+  - `LevelCleared` → `sfx-level-complete`
+  - `GameOver` → `sfx-game-over`
+  - `Victory` → `sfx-victory`
+- [ ] Implement cue consumption in audio adapter: read event queue each frame and trigger corresponding audio.
+- [ ] Handle overlapping SFX (multiple pellets, chain explosions) without clipping.
+- [ ] Ensure music stops/changes appropriately across game states (MENU, PLAYING, PAUSED, GAME_OVER, VICTORY).
+- [ ] Verification gate: integration tests validate every event→audio mapping fires correctly.
 
-#### C-6: Audio Assets and Runtime Cues (Dev 3)
-**Priority**: 🔴 Critical  
-**Estimate**: 4 hours
+#### C-7: Audio Preloading & Performance
+**Priority**: 🟡 Medium  
+**Estimate**: 2 hours  
+**Covers**: `AGENTS.md` audio preload rules; `audit.md` B-05
 
-- [ ] Finalize `docs/schemas/audio-manifest.schema.json` and maintain `assets/manifests/audio-manifest.json`.
-- [ ] Create/export UI and gameplay SFX set (confirm/cancel/pause, bomb place/explode, hit/death, pickup).
-- [ ] Create/export at least one loop-safe level music track and optional ambience loop.
-- [ ] Normalize loudness across categories and record metadata fields (duration, sample rate, channels, loudness).
-- [ ] Define audio cue mapping from gameplay events to manifest IDs in adapter integration notes (using Dev 2 event contracts).
+- [ ] Implement preloading strategy during level load:
+  - Decode all gameplay-critical SFX asynchronously using `decodeAudioData()`.
+  - Show loading state if decode takes > 200ms.
+  - Cache decoded buffers for reuse across levels.
+- [ ] Implement lazy loading for non-critical audio (music, ambience) — start decoding after critical SFX are ready.
+- [ ] Audio decode MUST NOT block the main thread or game loop startup.
+- [ ] Verification gate: evidence artifact shows async decode timing and no main-thread blocking.
 
 ---
 
-### Track D — Rendering, DOM Batching, and Visual Production and Integration (Dev 4)
+### Track D — Visual Production & Integration (Dev 4)
 
-> **Scope**: Safe, minimal DOM mutation. Adapting ECS simulation outputs into visual representations using CSS grids and pooled DOM elements without leaking memory or `frames`.
-> **Estimate**: ~23 hours
+> **Scope**: Everything visual — renderer adapters, sprite pools, HUD, screen overlays, CSS layout, render systems (collect + DOM batch), visual asset creation, visual manifest schema, and all DOM/CSS work. Fully independent from audio work.  
+> **Estimate**: ~22 hours
 
-#### D-1: Renderer Structure & CSS Layout
+#### D-1: CSS Layout & Grid Structure
 **Priority**: 🔴 Critical  
-**Estimate**: 3 hours
+**Estimate**: 3 hours  
+**Covers**: `requirements.md` (DOM-only rendering); `audit.md` F-19, F-20, F-21 (paint/layers)
 
-- [ ] Build `styles/grid.css` using strict grid-template layouts and absolute positioning over grid cells. Apply a strict **`will-change` policy**:
+- [ ] Build `styles/variables.css`: color palette, spacing tokens, z-index scale, animation timing.
+- [ ] Build `styles/grid.css` using strict grid-template layouts and absolute positioning over grid cells.
+- [ ] Apply strict **`will-change` policy**:
   - Player sprite: `will-change: transform` (always moving).
   - Ghost sprites: `will-change: transform` (always moving).
   - Bomb sprites: `will-change: transform` only while fuse animation is active (add/remove dynamically).
   - Fire tiles, static grid cells, HUD elements: **NO** `will-change`.
-  - Target layer count: ~6 (player + 4 ghosts + active bomb group). Satisfies “minimal but non-zero.”
-- [ ] Implement CSS animations (walking pulse, explosion fade, flashings).
+  - Target layer count: ~6 (player + 4 ghosts + active bomb group).
+- [ ] Build `styles/animations.css`: walking pulse, bomb fuse animation, explosion fade, ghost stun flash, invincibility blink, speed boost trail/tint.
+- [ ] Respect `prefers-reduced-motion` for non-gameplay animations (menus, transitions, overlays).
+- [ ] Verification gate: DevTools layer evidence confirms minimal-but-nonzero layers and policy compliance.
 
-#### D-2: Adapters (DOM & HUD)
+#### D-2: Renderer Adapter & Board Generation
 **Priority**: 🔴 Critical  
-**Estimate**: 4 hours
+**Estimate**: 3 hours  
+**Covers**: `AGENTS.md` safe DOM sinks; `audit.md` F-04 (no canvas)
 
-- [ ] Implement `renderer-adapter.js`: Strict `document.createElementNS` logic for generating the static board. Zero `innerHTML`.
-- [ ] Define Content Security Policy (CSP) and Trusted Types rollout plan. **During development with Vite, CSP enforcement MAY be relaxed to allow HMR inline scripts. Production builds MUST enforce strict CSP.**
-- [ ] Implement `sprite-pool-adapter.js`: Pre-allocates pools sized from `constants.js` (e.g., `POOL_FIRE = maxBombs * fireRadius * 4`, `POOL_BOMBS = MAX_BOMBS`). Hidden elements MUST use `transform: translate(-9999px, -9999px)` — never `display:none` (which triggers layout). When pool is exhausted: log `console.warn` in development; silently recycle the oldest active element in production.
-- [ ] Implement `hud-adapter.js` and `screens-adapter.js`: Binds text nodes natively with `.textContent` to update metrics securely.
+- [ ] Implement `renderer-adapter.js`: Strict `document.createElement` / `createElementNS` logic for generating the static board. Zero `innerHTML`.
+- [ ] Generate static grid cells from `map-resource` data: walls get appropriate CSS classes, empty cells are passable.
+- [ ] Define Content Security Policy (CSP) and Trusted Types rollout plan (relaxed for Vite dev, strict for production).
+- [ ] Use `textContent` and explicit attribute APIs for all dynamic content.
+- [ ] Verification gate: adapter tests confirm safe DOM sinks, no innerHTML usage.
 
-#### D-3: Render Data Contracts
+#### D-3: Sprite Pool Adapter
 **Priority**: 🔴 Critical  
-**Estimate**: 2 hours
+**Estimate**: 3 hours  
+**Covers**: `AGENTS.md` DOM pooling rules; `audit.md` B-03 (memory reuse)
+
+- [ ] Implement `sprite-pool-adapter.js`:
+  - Pre-allocates pools sized from `constants.js` (e.g., `POOL_FIRE = maxBombs * fireRadius * 4`, `POOL_BOMBS = MAX_BOMBS`, `POOL_PELLETS = maxPellets`).
+  - Hidden elements MUST use `transform: translate(-9999px, -9999px)` — never `display:none` (triggers layout).
+  - When pool exhausted: log `console.warn` in development; silently recycle oldest active element in production.
+- [ ] Pool acquire/release API for render-dom-system consumption.
+- [ ] Pre-warm pools during level load to avoid runtime allocation bursts.
+- [ ] Verification gate: pool tests validate sizing, hiding strategy, and exhaustion behavior.
+
+#### D-4: HUD Adapter
+**Priority**: 🔴 Critical  
+**Estimate**: 2 hours  
+**Covers**: `requirements.md` (score, timer, lives); `audit.md` F-14, F-15, F-16; `game-description.md` §9
+
+- [ ] Implement `hud-adapter.js`:
+  - Binds text nodes natively with `.textContent` to update:
+    - Lives display: heart icons (decrement on death).
+    - Score display: 5-digit counter.
+    - Timer display: `M:SS` countdown format.
+    - Bomb count: current max simultaneous bombs.
+    - Fire radius: current explosion range.
+    - Level number: current level.
+  - Uses throttled `aria-live` updates for accessibility (not per-frame spam).
+- [ ] Verification gate: adapter tests confirm all HUD metrics update correctly via safe sinks.
+
+#### D-5: Screen Overlays Adapter
+**Priority**: 🔴 Critical  
+**Estimate**: 3 hours  
+**Covers**: `game-description.md` §9.5, §10, §11 (all game screens)
+
+- [ ] Implement `screens-adapter.js` with fully distinct game state screens:
+  - **Start Screen** (`game-description.md` §9.5): Title, Start Game button, High Scores display, control instructions. `Enter` to start.
+  - **Pause Menu** (`game-description.md` §10): Continue and Restart options. Arrow keys to select, `Enter` to confirm.
+  - **Level Complete Screen** (`game-description.md` §8): Level stats (score, time, ghosts killed). `Enter` for next level.
+  - **Game Over Screen** (`game-description.md` §11): Final score, Play Again button.
+  - **Victory Screen** (`game-description.md` §11): Final score, ghosts killed, total time, Play Again button.
+- [ ] Implement keyboard focus transfer: Arrow keys for menu navigation, Enter for confirm. Focus enters overlay on open, restores to gameplay on close.
+- [ ] Implement `adapters/io/storage-adapter.js`: High score saving/reading from `localStorage` with untrusted data validation on read.
+- [ ] Verification gate: e2e tests confirm keyboard-only navigation across all screens.
+
+#### D-6: Render Data Contracts
+**Priority**: 🔴 Critical  
+**Estimate**: 1 hour  
+**Covers**: ECS render boundary contracts
 
 - [ ] Define `renderable.js` (sprite class references mapped to visual kinds) and `visual-state.js` (pure render flags only; no DOM handles in ECS components).
 - [ ] Define `render-intent.js` as a frame-local batch structure consumed by `render-dom-system.js`.
+- [ ] Enforce `classBits`-based visual flags and strict prohibition of DOM references in ECS component data.
+- [ ] Verification gate: contract tests validate no adapter/DOM leakage into ECS storage.
 
-#### D-4: Render Collect System
+#### D-7: Render Collect System
 **Priority**: 🔴 Critical  
-**Estimate**: 4 hours
+**Estimate**: 2 hours  
+**Covers**: `AGENTS.md` render boundary rules
 
-- [ ] Implement `render-collect-system.js`: Called after Simulation but before Batch DOM write. Matches all entities with Position + Renderable logic. Checks bounds. Computes intended absolute pixels or transform positions using the interpolation factor (`alpha`) passed by the `accumulator` logic. Outputs a purely structured batch-write array.
+- [ ] Implement `render-collect-system.js`: Called after simulation but before DOM write. Matches all entities with Position + Renderable. Computes intended transforms using interpolation factor (`alpha`). Outputs a preallocated render-intent buffer.
+- [ ] Use stable intent ordering for deterministic commits.
+- [ ] Verification gate: unit tests validate interpolation math and deterministic intent ordering.
 
-#### D-5: Render DOM System (The Batcher)
+#### D-8: Render DOM System (The Batcher)
 **Priority**: 🔴 Critical  
-**Estimate**: 5 hours
+**Estimate**: 3 hours  
+**Covers**: `AGENTS.md` DOM batching rules; `audit.md` F-19, F-20, F-21
 
-- [ ] Implement `render-dom-system.js`: The ONLY system in the loop where the DOM mutates.
-- [ ] Applies calculated batched writes:
+- [ ] Implement `render-dom-system.js`: The ONLY system where DOM mutates.
+- [ ] Applies batched writes:
   - Exclusively updates `.style.transform = "translate3d(x, y, 0)"` and `.style.opacity`.
-  - Swaps `classList` values based on states (like stunned/invincible).
-  - Informs `sprite-pool-adapter` to reclaim or hide nodes not present in the current frame's render-intent set (entity death/despawn).
+  - Swaps `classList` values based on states (stunned, invincible, speed-boosted, dead).
+  - Informs `sprite-pool-adapter` to reclaim/hide nodes not in current frame's render-intent set.
 - [ ] Enforce strict render commit phases: no layout reads interleaved with write loops.
-- [ ] DevTools trace verification to prove zero multi-pass layout recalcs (layout thrashing) during a full bomb explosion.
+- [ ] Keep commit path write-only and pool reclaim in same commit window.
+- [ ] Verification gate: traces show no forced-layout thrash loops and no recurring long tasks > 50ms.
 
-#### D-6: Visual Assets and Render Mapping (Dev 4)
+#### D-9: Visual Asset Production — Gameplay Sprites
 **Priority**: 🔴 Critical  
-**Estimate**: 5 hours
+**Estimate**: 3 hours  
+**Covers**: `game-description.md` §2-§5 (all entity visuals); `audit.md` B-04 (SVG usage)
 
-- [ ] Finalize `docs/schemas/visual-manifest.schema.json` and maintain `assets/manifests/visual-manifest.json`.
-- [ ] Create/export player, ghost states, bombs, fire, pellets, power-ups, HUD icons, and pause UI visuals.
-- [ ] Optimize SVG/raster outputs and ensure all deferred visuals have reserved dimensions in manifest metadata.
+- [ ] Create/export core gameplay sprites (SVG preferred, < 50 path elements each):
+  - Ms. Ghostman: idle, walking frames (4 directions), death animation, invincibility blink, speed boost tint/trail.
+  - 4 Ghost types: Blinky (red), Pinky (pink), Inky (cyan), Clyde (orange) — each with normal, stunned (blue), and dead (eyes-only) variants.
+  - Bombs: idle, fuse ticking animation frames.
+  - Fire: explosion cross tiles (animated fade).
+  - Pellets: regular dot, power pellet (larger, pulsing).
+  - Walls: indestructible (brick pattern), destructible (crate/box), destruction animation.
+- [ ] Create/export power-up sprites/icons: Power Pellet `⚡`, Bomb+ `💣+`, Fire+ `🔥+`, Speed Boost `👟`.
+- [ ] Ensure all sprites have declared dimensions in metadata for layout reservation.
+- [ ] Verification gate: all sprites render correctly at target display size.
+
+#### D-10: Visual Asset Production — UI & Screens
+**Priority**: 🟡 Medium  
+**Estimate**: 2 hours  
+**Covers**: `game-description.md` §9, §9.5, §10, §11 (all UI screens)
+
+- [ ] Design and build CSS layouts for all screen overlays:
+  - Start Screen: title treatment, button styles, high score table.
+  - Pause Menu: semi-transparent overlay, button styles.
+  - Level Complete: stats layout, next level button.
+  - Game Over: final score display, play again button.
+  - Victory: celebration treatment, final stats, play again button.
+- [ ] Create HUD layout CSS: lives icons, score counter, timer, bomb/fire indicators, level number.
+- [ ] Ensure responsive sizing within the game viewport.
+- [ ] Verification gate: all screens render correctly with keyboard focus indicators visible.
+
+#### D-11: Visual Manifest & Asset Validation
+**Priority**: 🟡 Medium  
+**Estimate**: 1 hour  
+**Covers**: Asset validation pipeline from `docs/assets-pipeline.md`
+
+- [ ] Finalize `docs/schemas/visual-manifest.schema.json` (JSON Schema 2020-12):
+  - Required fields: `id`, `category` (sprite|ui|effect), `file`, `format`, `width`, `height`.
+  - Optional: `frames`, `animationDuration`, `fallbackClass`.
+- [ ] Create/maintain `assets/manifests/visual-manifest.json` with all visual asset entries.
 - [ ] Build manifest-to-renderable mapping table and define missing-asset fallback class behavior.
-- [ ] Validate visual assets against layer/paint constraints using DevTools traces.
+- [ ] Optimize SVG/raster outputs and validate against layer/paint constraints.
+- [ ] Verification gate: manifest validation passes CI; runtime fallback tests prove robust asset mapping.
+
+### Coverage Traceability Reference
+
+Coverage mapping has been centralized in `docs/audit-traceability-matrix.md`.
+Ticket execution status has been centralized in `docs/ticket-tracker.md`.
+
+1. Requirement-to-audit coverage mapping is maintained only in the matrix.
+2. Audit-to-ticket and audit-to-test/evidence mapping is maintained only in the matrix.
+3. Section 3 tickets remain the implementation source of truth and must keep verification-gate checklist items up to date.
+4. Ticket status changes (owner, state, PR/evidence links) must be updated in `docs/ticket-tracker.md`.
+5. Any ticket, audit, or test-anchor change in this plan must be mirrored in `docs/audit-traceability-matrix.md` in the same PR.
 
 ---
 
@@ -590,52 +988,54 @@ gantt
     dateFormat  X
     axisFormat %s
 
-    section Engine (A)
-    Scaffolding & Core World: a1, 0, 7
-    Resources & Map Load: a2, 7, 6
-    Game Loop Wrap: a3, 13, 4
+    section Orchestration (A)
+    Scaffolding & ECS Core: a1, 0, 8
+    Game Loop & Map Load: a2, 8, 6
+    Unit Tests Core: a3, 8, 6
+    Unit Tests Systems: a4, 14, 6
+    Integration Tests: a5, 18, 4
+    E2E Audit Tests: a6, 20, 4
 
-    section Physics (B)
-    Adapter & Input Sys: b1, 2, 5
-    Movement Grid Resolve: b2, 7, 5
-    Bomb & Collision: b3, 12, 8
+    section Gameplay (B)
+    Components & Input: b1, 2, 5
+    Movement & Bombs: b2, 7, 7
+    Collisions & AI: b3, 14, 7
+    Scoring & Progression: b4, 18, 6
 
-    section AI & Rule (C)
-    Ghost AI Sys: c1, 4, 9
-    Mechanics & Scoring: c2, 13, 6
+    section Audio (C)
+    Audio Adapter & Schema: c1, 0, 6
+    SFX Production: c2, 6, 8
+    Music Production: c3, 14, 3
+    Cue Mapping & Preload: c4, 17, 5
 
-    section Shell (D)
-    CSS Structure & Gen: d1, 0, 7
-    Sprite Pools & Adapts: d2, 7, 6
-    Render Batcher: d3, 13, 10
+    section Visual (D)
+    CSS & Renderer: d1, 0, 6
+    Pools & HUD & Screens: d2, 6, 8
+    Render Systems: d3, 14, 5
+    Sprite & UI Assets: d4, 14, 8
     
     section Integration
-    M1 Complete ECS Engine + Static Grid: milestone, m1, 7, 0
-    M2 Player Intention -> Bounds: milestone, m2, 14, 0
-    M3 Render Maps Chasing AI: milestone, m3, 18, 0
-    M4 Full Mechanics, 60fps Lock: milestone, m4, 21, 0
-    M5 Audit and Performance Hardening: milestone, m5, 23, 0
+    M1 ECS Engine + Static Grid: milestone, m1, 8, 0
+    M2 Player Movement + Bombs: milestone, m2, 14, 0
+    M3 AI + Collisions + Render: milestone, m3, 20, 0
+    M4 Full Game + Polish: milestone, m4, 24, 0
 ```
 
 ### Milestone 1: Engine + Static View (Day 3)
-**Requires**: A-2, A-5, D-1, D-2  
-**Result**: The core world schedules a tick, generating a layout based on pure simulation mapping of static `Grid` resource entities via safe DOM manipulation.
+**Requires**: A-1, A-2, A-3, A-5, D-1, D-2  
+**Result**: Core ECS world schedules a tick, static grid rendered via safe DOM manipulation.
 
-### Milestone 2: Movement & Actions (Day 4)
-**Requires**: M1 + A-4, B-2, B-3, B-4, D-4, D-5  
-**Result**: Player moves flawlessly aligned to grid offsets. Bombs are tracked physically. Rendering interpolates movement using pooled DOM components.
+### Milestone 2: Movement & Actions (Day 4-5)
+**Requires**: M1 + A-4, B-1, B-2, B-3, B-4, D-3, D-7, D-8  
+**Result**: Player moves grid-aligned, bombs place and explode, rendering interpolates via pooled DOM.
 
-### Milestone 3: AI Ecosystem (Day 5)
-**Requires**: M2 + C-1, C-2, B-5  
-**Result**: Ghosts navigate intersecting pathways appropriately utilizing distance vectors. Collision sets are triggered.
+### Milestone 3: AI Ecosystem + Full Render (Day 6)
+**Requires**: M2 + B-5, B-6, B-7, B-8, D-4, D-5, C-1, C-6  
+**Result**: Ghosts navigate with all 4 personalities, collisions work, scoring/timer/lives functional, HUD and screens operational, audio cues firing.
 
-### Milestone 4: Game Polish & Audit Lock (Day 6-7)
-**Requires**: M3 + A-4, C-3, C-4, C-5, D-2, D-5  
-**Result**: Playable from Start Menu to Win/Loss. Fully measurable 60fps loop via profiler with zero component pooling GC delays. Strict ECS conformance met. Pause logic bypasses simulation accurately.
-
-### Milestone 5: Audit and Performance Hardening
-**Requires**: All tracks complete
-**Result**: Audit checklist pass evidence and performance trace summary.
+### Milestone 4: Full Game + Polish (Day 7)
+**Requires**: All tracks complete + A-6, A-7, A-8, A-9, A-10, A-11  
+**Result**: Playable from Start Menu through all 3 levels to Victory/Game Over. All tests passing, audit evidence collected.
 
 ### Gate Evidence Required (All Milestones)
 
@@ -713,11 +1113,13 @@ Shared structure inside component storage array definitions. These are documente
  * @property {number} maxBombs
  * @property {number} fireRadius
  * @property {number} invincibilityMs - Protection timer
+ * @property {number} speedBoostMs - Speed boost remaining time
+ * @property {boolean} isSpeedBoosted - Speed boost active flag
  */
 
 /**
  * @typedef {Object} Ghost
- * @property {number} type - Personality ID
+ * @property {number} type - Personality ID (0=Blinky, 1=Pinky, 2=Inky, 3=Clyde)
  * @property {number} state - Chasing, Fleeing, Dead, Stunned
  * @property {number} speed
  * @property {number} timerMs - State duration timer
@@ -745,7 +1147,7 @@ The render-intent buffer is **pre-allocated once** (`new Array(MAX_RENDER_INTENT
  * @property {number} classBits - Bitmask of visual state flags (see VISUAL_FLAGS in constants.js)
  */
 // Visual state bit flags (combine with bitwise OR):
-// const VISUAL_FLAGS = { STUNNED: 1, INVINCIBLE: 2, HIDDEN: 4, DEAD: 8 };
+// const VISUAL_FLAGS = { STUNNED: 1, INVINCIBLE: 2, HIDDEN: 4, DEAD: 8, SPEED_BOOST: 16 };
 ```
 
 ### Map Resource
@@ -791,14 +1193,14 @@ Failure to meet these budgets violates the `audit.md` strict pass parameters.
 
 | Metric | Budget | ECS Implementation Enforcement |
 |---|---|---|
-| FPS | **Target: 60 FPS sustained. Acceptable: ≥ 55 FPS at p95 (only 5% of frames may run below 55 FPS). Unacceptable: any sustained period > 500 ms below 50 FPS.** | Engine decouples fixed-step loop (systems) from rAF render pass. Audit criterion accepts “50–60 or more” — internal target is 60. |
-| Frame Time | p95 ≤ 16.7 ms, p99 ≤ 20 ms | Logic routines perform zero internal allocations (no `.map` or `.filter` in hot loops, strict `for` loops over entity Query buffers). No recurring long tasks > 50 ms in interaction-critical path. |
-| DOM Elements | ≤ 500 total (assert at startup) | A dev-mode assertion after level load counts `document.querySelectorAll('*').length` and logs a warning if > 400 (80% of budget). Transient rendering uses fixed Object Pools. Static map blocks rendered once. |
-| Layout Thrashing | **Zero** | System boundaries ensure properties are ONLY written via single batch function at the tail of the tick (Render DOM System). Minimal paint and minimal-but-nonzero layer promotion. |
-| Layer Promotion (`will-change`) | Player + 4 ghost sprites only | `will-change: transform` applied to always-moving sprites. Bomb sprites get it dynamically during fuse animation only. Fire tiles, grid cells, HUD carry none. Target ≈6 compositor layers. |
-| GC Pauses / Jank | **Zero** | SoA TypedArray component storage for hot-path data. Entity recycling via free-list pool. Render-intent buffer pre-allocated and reused each frame. |
-| Catch-up Stability | Max `5` fixed steps per frame enforced | Accumulator bounded to `5 × FIXED_DT_MS` to avoid spiral-of-death after tab throttling. |
-| Modularity Leak | **Zero** | All simulation systems agnostic of DOM APIs. Adapters injected as World resources, never imported directly by systems. |
+| FPS | **Target: 60 FPS sustained. Acceptable: ≥ 55 FPS at p95. Unacceptable: any sustained period > 500 ms below 50 FPS.** | Engine decouples fixed-step loop (systems) from rAF render pass. |
+| Frame Time | p95 ≤ 16.7 ms, p99 ≤ 20 ms | Zero internal allocations in hot loops. No recurring long tasks > 50 ms. |
+| DOM Elements | ≤ 500 total (assert at startup) | Dev-mode assertion after level load. Transient rendering uses fixed Object Pools. |
+| Layout Thrashing | **Zero** | Properties ONLY written via single batch function at tail of tick (Render DOM System). |
+| Layer Promotion (`will-change`) | Player + 4 ghost sprites only | `will-change: transform` on always-moving sprites. Target ≈6 compositor layers. |
+| GC Pauses / Jank | **Zero** | SoA TypedArray storage. Entity recycling via free-list pool. Render-intent buffer reused each frame. |
+| Catch-up Stability | Max `5` fixed steps per frame | Accumulator bounded to prevent spiral-of-death. |
+| Modularity Leak | **Zero** | Simulation systems agnostic of DOM APIs. Adapters injected as World resources. |
 
 ### Required Evidence
 
@@ -829,13 +1231,14 @@ A change is complete only when:
 
 ## 9. Asset Creation & Pipeline
 
-This section is mandatory for delivery readiness and complements Track D — Rendering, DOM Batching, and Visual Production and Integration.
+This section is mandatory for delivery readiness and complements Track C (Audio) and Track D (Visual).
 
 ### 9.1 Scope and Ownership
 
-1. Rendering systems own only runtime placement/state; they do not define asset authoring rules.
-2. Asset authoring, optimization, and validation are defined in `docs/assets-pipeline.md`.
-3. Asset changes should be reviewed with gameplay and performance in the same PR when behavior is affected.
+1. Track D owns visual asset authoring, rendering, and optimization.
+2. Track C owns audio asset authoring, decoding, and playback.
+3. Asset authoring, optimization, and validation standards are defined in `docs/assets-pipeline.md`.
+4. Asset changes should be reviewed with gameplay and performance in the same PR when behavior is affected.
 
 ### 9.2 Visual Asset Rules (DOM/SVG-first)
 
@@ -866,15 +1269,6 @@ This section is mandatory for delivery readiness and complements Track D — Ren
 2. Defer non-critical/offscreen assets and prefetch upcoming-level bundles during safe frames.
 3. Reserve dimensions for lazily loaded visual media to avoid layout shifts.
 4. Keep object pools warm for high-churn entities and map visual instances from render intents only.
-
-### 9.6 External Best-Practice Basis
-
-The asset standards in this plan align with:
-
-1. MDN audio codec guidance (format compatibility and compression tradeoffs): https://developer.mozilla.org/en-US/docs/Web/Media/Guides/Formats/Audio_codecs
-2. MDN SVG guidance (web-native vector workflow and scripting compatibility): https://developer.mozilla.org/en-US/docs/Web/SVG
-3. web.dev lazy-loading guidance (defer offscreen media, keep in-viewport eager): https://web.dev/articles/browser-level-image-lazy-loading
-4. web.dev CLS guidance (always reserve dimensions/aspect ratio): https://web.dev/articles/optimize-cls
 
 ---
 

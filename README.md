@@ -164,7 +164,8 @@ make-your-game/
 ├── docs/                           # 📚 Documentation
 │   ├── requirements.md             # Original project requirements
 │   ├── audit.md                    # Audit checklist for grading
-│   ├── audit-traceability-matrix.md # Audit question mapping and status
+│   ├── audit-traceability-matrix.md # Canonical requirement/audit/ticket/test coverage mapping and status
+│   ├── ticket-tracker.md           # Live ticket progress tracker for Section 3 implementation tickets
 │   ├── assets-pipeline.md          # Visual/audio authoring and validation workflow
 │   ├── schemas/                    # JSON Schema 2020-12 contracts
 │   │   ├── visual-manifest.schema.json
@@ -315,6 +316,7 @@ The project is split into **4 parallel workflow tracks** to enable multiple deve
 | **Track D** | Dev 4 | Rendering, DOM Batching, and Visual Production and Integration | `render-collect-system.js`, `render-dom-system.js`, Adapters |
 
 > **Note**: For the full integration milestone breakdown, check `implementation-plan.md`.
+> **Execution tracking**: Update `docs/ticket-tracker.md` as tickets move from Not Started -> In Progress -> Blocked/Done.
 
 ## 🧭 Documentation Flow
 
@@ -324,15 +326,17 @@ Recommended reading order for new contributors:
 2. `docs/requirements.md` (project requirement source of truth)
 3. `docs/game-description.md` (gameplay behavior source of truth)
 4. `docs/audit.md` (acceptance/pass criteria source of truth)
-5. `docs/audit-traceability-matrix.md` (question-by-question requirement/plan/test mapping)
-6. `docs/assets-pipeline.md` (visual/audio asset creation, optimization, and validation workflow)
-7. `docs/implementation-plan.md` (ECS execution plan and milestones)
+5. `docs/implementation-plan.md` (ECS execution plan and milestones)
+6. `docs/ticket-tracker.md` (live ticket status board and owner/progress updates)
+7. `docs/audit-traceability-matrix.md` (single-source requirement/audit/ticket/test coverage mapping and status)
+8. `docs/assets-pipeline.md` (visual/audio asset creation, optimization, and validation workflow)
 
 ### 📌 Source Of Truth Policy
 
 - Requirement intent and feature scope: `docs/requirements.md` + `docs/game-description.md`
 - Final pass/fail acceptance criteria: `docs/audit.md`
-- Cross-document audit traceability and test status: `docs/audit-traceability-matrix.md`
+- Ticket execution progress and owner/status board: `docs/ticket-tracker.md`
+- Cross-document requirement/audit/ticket/test traceability and coverage status: `docs/audit-traceability-matrix.md`
 - Visual/audio authoring and asset quality gates: `docs/assets-pipeline.md`
 - If there is ambiguity, decisions MUST be resolved against those references.
 
