@@ -405,12 +405,14 @@ tests/
 ## 🤝 Contributing
 
 1. Read `AGENTS.md` for ECS coding standards and constraints.
-2. Review `implementation-plan.md` for your specific track assignment.
-3. Feature branches should isolate specific ECS systems or component additions.
-4. Core systems MUST remain pure functions handling data components; never import DOM adapters into `src/ecs/systems/` except for the dedicated `render-dom-system.js`.
-5. Run `npm run check && npm run test` before committing.
-6. CI MUST pass all merge gates (schema validation, testing, coverage, lockfile integrity) before merge.
-7. Request review at integration milestones.
+2. Read [docs/agentic-workflow-guide.md](docs/agentic-workflow-guide.md) for the 4-dev agent workflow, PR gates, and security checklist.
+3. Review `implementation-plan.md` for your specific track assignment.
+4. Feature branches should isolate specific ECS systems or component additions.
+5. Core systems MUST remain pure functions handling data components; never import DOM adapters into `src/ecs/systems/` except for the dedicated `render-dom-system.js`.
+6. Run `npm run check && npm run test` before committing.
+7. CI MUST pass all merge gates (schema validation, testing, coverage, lockfile integrity, policy gate) before merge.
+8. The policy gate workflow enforces PR review, audit alignment, security boundaries, and dependency pairing.
+9. Request review at integration milestones.
 
 ---
 

@@ -1,0 +1,303 @@
+# Agentic Workflow Guide for Ms. Ghostman
+
+This document is the working guide for a 4-developer team using coding agents in this repository. It turns the repo constraints into an operating model for planning, coding, review, testing, security, and release readiness.
+
+If this guide conflicts with [AGENTS.md](../AGENTS.md), [docs/requirements.md](requirements.md), [docs/game-description.md](game-description.md), or [docs/audit.md](audit.md), those files win.
+
+## 1. Operating Principles
+
+1. One human owns one slice of work. The agent drafts code, but a human is accountable for the result.
+2. Keep every task small enough to review in one pass. Prefer one feature, one ECS system, or one bug fix per branch.
+3. Make behavior deterministic. If a change affects timing, input, pause, scoring, or replay state, prove it with tests.
+4. Keep simulation pure and DOM side effects isolated. Simulation code must not reach into the DOM.
+5. Treat agent output as untrusted until reviewed and tested.
+6. Optimize for mergeability. Small PRs and clear ownership reduce conflicts more than parallelism does.
+
+## 2. Team Model for 4 Developers
+
+Use a simple ownership split:
+
+- Dev 1 owns game loop, timing, pause, and input.
+- Dev 2 owns ECS data, entities, components, and core gameplay systems.
+- Dev 3 owns rendering, DOM commit, HUD, and visual polish.
+- Dev 4 owns test coverage, audit automation, and CI readiness.
+
+That split is not rigid, but each task must have a single DRI. If a task crosses ownership boundaries, write down the boundary before the agent starts.
+
+Recommended rule for all four devs:
+
+- Do not let two people or agents edit the same subsystem at the same time unless the work is intentionally paired.
+- Keep branches short-lived.
+- Rebase or sync early and often.
+- Use a visible work board with status, owner, and review state.
+
+## 3. How to Use Agents Well
+
+Use an agent for bounded work, not open-ended exploration.
+
+A good task brief includes:
+
+- Objective: what must change.
+- Scope: exact files or subsystems allowed.
+- Out of scope: what the agent must not touch.
+- Constraints: performance, ECS boundaries, DOM safety, and style rules.
+- Acceptance: tests and manual checks that define done.
+- Stop condition: the smallest proof that the task is complete.
+
+Good examples:
+
+- Implement hold-to-move input for one player system and add regression tests.
+- Add pause-state timer freeze coverage and verify resume behavior.
+- Replace unsafe DOM writes in one HUD path with safe sinks and test them.
+
+Bad examples:
+
+- Make the game better.
+- Fix performance.
+- Improve architecture everywhere.
+
+If the task is risky, require the agent to work in a draft PR and stop at the first verified pass of the relevant tests.
+
+## 4. Workflow for Each Task
+
+1. Define the slice.
+2. Assign one human owner.
+3. Give the agent a bounded prompt.
+4. Have the agent implement the smallest viable change.
+5. Add or update tests in the same branch.
+6. Run the relevant checks.
+7. Review the diff as a human.
+8. Merge only after the PR gate passes.
+
+For bug fixes, follow the repo bug-fix workflow:
+
+1. Reproduce the issue.
+2. Add a failing test.
+3. Implement the minimal fix.
+4. Prove the fix passes.
+5. Check nearby systems for regressions.
+
+## 5. Branch and PR Rules
+
+Every branch should represent one logical change.
+
+- Keep the branch focused on one feature, bug, or refactor.
+- Avoid mixing cleanup and behavior changes unless they are inseparable.
+- Delete the branch after merge.
+- Do not use a feature branch as a shared workspace.
+- Rebase or sync before the PR gets large.
+
+PRs should be easy to scan in under 15 minutes.
+
+A good PR description answers:
+
+- What changed?
+- Why was it needed?
+- How was it tested?
+- What is risky or still unknown?
+
+## 6. Pre-PR Gate
+
+A PR is not ready until the following are true.
+
+### Required checks
+
+- Formatting and linting pass for the changed scope.
+- Relevant unit tests pass.
+- Relevant integration tests pass.
+- Audit-related e2e coverage exists for any affected audit question.
+- Gameplay-critical changes include performance evidence.
+- The diff does not introduce forbidden APIs or unsafe DOM patterns.
+- The change does not break the repo’s ECS boundaries.
+- Documentation is updated if behavior, constraints, or testing expectations changed.
+
+### Required evidence for gameplay-critical changes
+
+Attach a short note with:
+
+- Scenario tested.
+- Browser and machine context.
+- Frame-time observations.
+- Pause and resume observations.
+- Memory or allocation notes if relevant.
+
+## 7. Audit Queries to Check Before PR
+
+Use `docs/audit.md` as the acceptance checklist. For any change that touches gameplay, input, pause, HUD, rendering, or performance, ask these questions before opening the PR:
+
+### Core functionality
+
+- Does the game run without crashing?
+- Does animation run using `requestAnimationFrame`?
+- Is the game single player?
+- Does the game avoid `canvas`?
+- Does the game avoid frameworks?
+- Is the game aligned with the approved genre?
+
+### Pause and resume
+
+- Does the pause menu show Continue and Restart?
+- Does Continue resume gameplay from the same state?
+- Does Restart reset the current run correctly?
+- While paused, does rAF stay active without advancing simulation?
+
+### Input and HUD
+
+- Does the player obey movement commands?
+- Does hold-to-move work without key spamming?
+- Does the timer or countdown work?
+- Does score increase on scoring actions?
+- Do lives decrease on life-loss events?
+
+### Performance and rendering
+
+- Are there no dropped frames in the relevant scenario?
+- Does the game run around 60 FPS?
+- Is paint used as little as possible?
+- Are layers used as little as possible?
+- Is layer promotion intentional and minimal?
+- Does the code reuse memory to avoid jank?
+
+### Quality and bonus checks
+
+- Does the project run quickly and effectively?
+- Does the code obey the repo’s good practices?
+- Is the game implemented with SVG where appropriate for visuals?
+- Is the code using asynchronous work only where it actually improves performance?
+- Is the project well done overall?
+
+If a PR touches one of these areas, the author should state which audit IDs changed and how they were verified. If a change affects several audit items, list them explicitly in the PR description.
+
+## 8. Security Rules
+
+Security is part of code review, not a separate afterthought.
+
+### DOM and browser safety
+
+- Prefer `textContent`, `createElement`, `appendChild`, and explicit attribute APIs.
+- Avoid `innerHTML`, `outerHTML`, `insertAdjacentHTML`, `document.write`, and string-based event handlers.
+- Never route untrusted data into `eval`, `Function`, or string timers.
+- Treat local storage and session storage as untrusted input on read.
+- Keep rendering and simulation separate so untrusted data does not flow into DOM sinks by accident.
+
+### Input and validation
+
+- Validate external or persisted data on read.
+- Use allowlists and length bounds instead of denylists.
+- Reject malformed map data, configuration, and saved state early.
+- Keep client-side validation as UX only; do not rely on it for trust.
+
+### Dependency and supply-chain hygiene
+
+- Keep lockfiles committed and current.
+- Review new dependencies before adding them.
+- Minimize lifecycle scripts and other installation-time surprises.
+- Do not commit secrets, tokens, or private keys.
+- Do not print sensitive data in logs, tests, or debug output.
+
+### Trusted Types and CSP
+
+- Use CSP and Trusted Types where deployment allows.
+- Prefer failing closed when a sink can execute script or HTML.
+- If a feature needs a richer sink, require a clear justification and a safe path.
+
+## 9. Code Review Checklist
+
+Reviewers should check the following before approving:
+
+- The change is small enough to understand quickly.
+- The implementation matches the stated requirement.
+- The code keeps ECS boundaries intact.
+- The code is deterministic where expected.
+- The code does not add unsafe DOM access.
+- The code does not add unnecessary allocations in hot paths.
+- The code has tests that fail before the fix and pass after it.
+- The PR description explains the impact and the verification.
+- The change does not break audit coverage.
+
+## 10. Suggested Review Questions
+
+Ask these questions on every non-trivial PR:
+
+- What is the smallest behavior change this PR makes?
+- What could regress if this lands?
+- How is the behavior verified automatically?
+- Which audit questions does this affect?
+- Does the PR add any new trust boundary?
+- Is there any safer API or simpler approach?
+- Could this be split into two smaller PRs?
+
+## 11. Team Cadence
+
+For a 4-dev team, this cadence works well:
+
+- Morning: claim or confirm one task each.
+- During work: keep short status updates on blockers and handoffs.
+- Before PR: run the local gate and attach evidence.
+- During review: review one PR at a time per developer whenever possible.
+- After merge: clean up the branch and update the board.
+
+If a task stalls, stop adding scope. Either finish the slice or split it.
+
+## 12. Quick PR Template
+
+Use this structure in PR descriptions:
+
+```md
+## What changed
+- 
+
+## Why
+- 
+
+## Tests
+- 
+
+## Audit questions affected
+- 
+
+## Security notes
+- 
+
+## Architecture / dependency notes
+- 
+
+## Risks
+- 
+```
+
+## 13. Practical Standard
+
+If you only remember one rule, use this one:
+
+> Every agent task must be small, owned, testable, and reviewable before it becomes a PR.
+
+That single rule keeps the team fast without turning the repository into a pile of unreviewable agent output.
+
+## 14. Automated Enforcement
+
+Use repository automation to block unsafe or incomplete PRs before merge.
+
+### What the gate enforces
+
+- Independent human approval on every PR.
+- Required PR checklist completion.
+- Audit doc and audit test synchronization.
+- Security sink checks for unsafe DOM and script-adjacent APIs.
+- Architecture boundaries, especially ECS system isolation from the DOM.
+- Dependency lockfile pairing when dependency metadata changes.
+- Local project checks when code or test files are touched.
+
+### What the gate should block
+
+- `docs/audit.md` changes without matching traceability and test updates.
+- Source changes that introduce `innerHTML`, `outerHTML`, `insertAdjacentHTML`, `document.write`, `eval`, string timers, or CommonJS imports.
+- ECS system changes that touch the DOM outside the dedicated render adapter.
+- Dependency edits that skip the lockfile.
+- PRs that are still missing the required human review approval.
+
+### How to use it
+
+- Keep the PR template filled out.
+- Treat a green gate as the minimum for review readiness, not the finish line.
+- If the gate fails, fix the root cause in the same branch before asking for another review.
