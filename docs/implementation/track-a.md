@@ -8,8 +8,8 @@
 
 ## Phase Order (MVP First)
 
-- **P0 Foundation**: `A-01` to `A-04`
-- **P1 Playable MVP**: `A-05` to `A-08`
+- **P0 Foundation**: `A-01` to `A-05`
+- **P1 Playable MVP**: `A-06` to `A-08`
 - **P2 Hardening**: `A-09` to `A-10`
 - **P3 Final Acceptance**: `A-11`
 
@@ -46,6 +46,7 @@
   - Handles fixed-step logic loop (`accumulator`) and calls simulation systems.
   - Passes resource references smoothly without global singleton abuse.
 - [ ] Enforce deterministic system ordering and a single deferred-structural-mutation sync point per fixed step.
+- [ ] Catch exceptions at the system-dispatch boundary, log them, and skip the faulting system for the current frame rather than crashing the loop.
 - [ ] Add generation-based stale-handle protection semantics for recycled entity IDs.
 - [ ] Verification gate: unit tests cover ID recycling, stale-handle rejection, deferred mutation application, and deterministic system order.
 
@@ -75,6 +76,7 @@
 - [ ] Implement basic state-transition flow (playing, paused) handled by checking `clock.isPaused` to freeze simulation while keeping rAF active.
 - [ ] Add resume safety and lifecycle handling: baseline reset (`lastFrameTime = now`) and accumulator clamp/clear on unpause and tab restore.
 - [ ] Clamp catch-up using `MAX_STEPS_PER_FRAME` and resync clock baselines on `blur` and `visibilitychange` recovery.
+- [ ] Add global `unhandledrejection` handler that logs the error and displays a visible error overlay for critical failures.
 - [ ] Add instrumentation hooks for Playwright frame-time/FPS collection in semi-automated audit tests.
 - [ ] Implement `src/game/bootstrap.js`: World assembly + system registration order.
 - [ ] Implement `src/game/game-flow.js`: FSM driver that coordinates state transitions.
@@ -83,7 +85,7 @@
 #### A-05: Map Loading Resource
 **Priority**: 🔴 Critical  
 **Estimate**: 3 hours  
-**Phase**: P1 Playable MVP  
+**Phase**: P0 Foundation  
 **Depends On**: `A-01`, `A-02`, `A-03`  
 **Impacts**: Level data contract, restart/reset determinism, progression correctness
 

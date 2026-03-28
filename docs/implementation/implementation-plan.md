@@ -315,8 +315,8 @@ Live ticket progress for this section is tracked in `docs/implementation/ticket-
 
 | Phase | Goal | Primary Ticket Bands | Exit Criteria |
 |---|---|---|---|
-| P0 Foundation | Boot deterministic runtime and static board | A-01..A-04, B-01, D-01..D-03 | App boots, fixed-step world ticks, static map renders safely |
-| P1 Playable MVP | Deliver fully playable core loop | A-05..A-08, B-02..B-06, C-01, D-04..D-07 | Player can start, move, pause/continue/restart, score/lives/timer update |
+| P0 Foundation | Boot deterministic runtime and static board | A-01..A-05, B-01, D-01..D-03 | App boots, fixed-step world ticks, static map renders safely |
+| P1 Playable MVP | Deliver fully playable core loop | A-06..A-08, B-02..B-06, C-01, D-04..D-07 | Player can start, move, pause/continue/restart, score/lives/timer update |
 | P2 Feature Complete | Add genre depth and integration hooks | A-09..A-10, B-07..B-10, C-02..C-04, D-08..D-09 | Bomb depth, ghost depth, power-up loop, event/audio integration complete |
 | P3 Polish & Validation | Final production quality and asset governance | A-11, C-05..C-07, D-10..D-11 | Asset schema validation, UI/audio polish, audit-ready evidence |
 
@@ -324,11 +324,11 @@ Live ticket progress for this section is tracked in `docs/implementation/ticket-
 
 | Track | Developer | Estimated Hours | Scope |
 |---|---|---:|---|
-| Track A | Dev 1 | ~24h | Orchestration, scaffolding, ECS core, game loop, testing (all layers), CI, QA & polish |
-| Track B | Dev 2 | ~24h | Input, movement, collisions, bombs, explosions, ghost AI, scoring, timer, lives, pause, progression, power-ups |
+| Track A | Dev 1 | ~26h | Orchestration, scaffolding, ECS core, game loop, testing (all layers), CI, QA & polish |
+| Track B | Dev 2 | ~29h | Input, movement, collisions, bombs, explosions, ghost AI, scoring, timer, lives, pause, progression, power-ups |
 | Track C | Dev 3 | ~22h | Audio adapter, SFX/music creation, audio manifest & schema, audio cue mapping, audio preloading, audio integration |
-| Track D | Dev 4 | ~22h | Renderer, sprite pools, HUD, screen overlays, CSS layout, render systems, visual assets, visual manifest & schema |
-| **Total** | **4 Devs** | **~92h** | **~23h average per dev** |
+| Track D | Dev 4 | ~26h | Renderer, sprite pools, HUD, screen overlays, CSS layout, render systems, visual assets, visual manifest & schema |
+| **Total** | **4 Devs** | **~103h** | **~25.75h average per dev** |
 
 ### Critical Path By Dev
 
@@ -585,7 +585,7 @@ Failure to meet these budgets violates the `audit.md` strict pass parameters.
 
 | Metric | Budget | ECS Implementation Enforcement |
 |---|---|---|
-| FPS | **Target: 60 FPS sustained. Acceptable: ≥ 55 FPS at p95. Unacceptable: any sustained period > 500 ms below 50 FPS.** | Engine decouples fixed-step loop (systems) from rAF render pass. |
+| FPS | **Target: 60 FPS sustained. Acceptable: ≥ 60 FPS at p95. Unacceptable: any sustained period > 500 ms below 60 FPS.** | Engine decouples fixed-step loop (systems) from rAF render pass. |
 | Frame Time | p95 ≤ 16.7 ms, p99 ≤ 20 ms | Zero internal allocations in hot loops. No recurring long tasks > 50 ms. |
 | DOM Elements | ≤ 500 total (assert at startup) | Dev-mode assertion after level load. Transient rendering uses fixed Object Pools. |
 | Layout Thrashing | **Zero** | Properties ONLY written via single batch function at tail of tick (Render DOM System). |

@@ -107,7 +107,7 @@
 **Priority**: 🔴 Critical  
 **Estimate**: 2 hours  
 **Phase**: P1 Playable MVP  
-**Depends On**: `B-05`, `A-04`, `A-05`, `D-07`  
+**Depends On**: `B-05`, `A-04`, `A-05`  
 **Impacts**: Pause menu behavior and level/game state transitions (`AUDIT-F-07..F-10`)
 
 - [ ] Implement `pause-system.js`: Freezes simulation timer while `rAF` continues. Fuse timers, invincibility, and stun timers all freeze.

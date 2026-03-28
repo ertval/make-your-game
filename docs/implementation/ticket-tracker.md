@@ -41,7 +41,7 @@ Coverage mapping remains canonical in `audit-traceability-matrix.md`.
 | A-02 | P0 | ECS Architecture Core (World, Entity, Query) | Dev 1 | Critical | A-01 | Deterministic ECS runtime backbone | Not Started | - | - |
 | A-03 | P0 | Resources (Time, Constants, RNG, Events, Game Status) | Dev 1 | Critical | A-01, A-02 | Clock/input determinism contracts | Not Started | - | - |
 | A-04 | P0 | Game Loop & Main Initialization | Dev 1 | Critical | A-02, A-03 | rAF loop, pause semantics, instrumentation | Not Started | - | - |
-| A-05 | P1 | Map Loading Resource | Dev 1 | Critical | A-01, A-02, A-03 | Level loading, restart determinism | Not Started | - | - |
+| A-05 | P0 | Map Loading Resource | Dev 1 | Critical | A-01, A-02, A-03 | Level loading, restart determinism | Not Started | - | - |
 | A-06 | P1 | Unit Tests — ECS Core & Resources | Dev 1 | Critical | A-02, A-03, A-04, A-05 | Foundational regression safety | Not Started | - | - |
 | A-07 | P1 | Integration Tests — Multi-System & Adapter Boundaries | Dev 1 | Medium | A-04, A-05, B-03, B-05, B-06, D-05, D-06, D-07 | Cross-system and adapter correctness | Not Started | - | - |
 | A-08 | P1 | E2E Audit Tests (Playwright) | Dev 1 | Critical | A-04, A-05, B-06, D-07 | Automated acceptance coverage | Not Started | - | - |
@@ -58,7 +58,7 @@ Coverage mapping remains canonical in `audit-traceability-matrix.md`.
 | B-03 | P1 | Movement & Grid Collision System | Dev 2 | Critical | B-01, B-02, A-05 | Core player movement loop | Not Started | - | - |
 | B-04 | P1 | Entity Collision System | Dev 2 | Critical | B-01, B-03, A-05 | Player/ghost/pellet interaction | Not Started | - | - |
 | B-05 | P1 | Scoring, Timer & Life Systems | Dev 2 | Critical | B-04, A-03, A-05 | HUD-critical metrics and failure states | Not Started | - | - |
-| B-06 | P1 | Pause & Level Progression Systems | Dev 2 | Critical | B-05, A-04, A-05, D-07 | Pause menu and game-state flow | Not Started | - | - |
+| B-06 | P1 | Pause & Level Progression Systems | Dev 2 | Critical | B-05, A-04, A-05 | Pause menu and game-state flow | Not Started | - | - |
 | B-07 | P2 | Bomb & Explosion Systems | Dev 2 | Critical | B-03, B-04, A-03, A-05 | Bomberman mechanics + chain rules | Not Started | - | - |
 | B-08 | P2 | Ghost AI System & Spawning | Dev 2 | Critical | B-03, B-04, A-03, A-05 | Enemy behavior and difficulty curve | Not Started | - | - |
 | B-09 | P2 | Power-Up System | Dev 2 | Medium | B-04, B-05, B-07, B-08 | Progression and timed states | Not Started | - | - |
