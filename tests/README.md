@@ -7,7 +7,7 @@ This folder organizes all automated tests for the ECS project.
 - Requirement intent and gameplay rules: `docs/requirements.md` and `docs/game-description.md`
 - Acceptance/pass criteria: `docs/audit.md`
 - Requirement/audit to ticket/test traceability and coverage status: `docs/audit-traceability-matrix.md` (canonical coverage source)
-- Live ticket owner/progress state and linked implementation evidence: `docs/ticket-tracker.md`
+- Live ticket owner/progress state and linked implementation evidence: `docs/implementation/ticket-tracker.md`
 
 When in doubt, test behavior must be validated against those files.
 
@@ -31,4 +31,4 @@ The project is complete only when:
 2. All mapped audit tests pass.
 3. Functional behavior remains aligned with `docs/requirements.md` and `docs/game-description.md`.
 4. Coverage statuses in `docs/audit-traceability-matrix.md` are updated to match the latest passing artifacts.
-5. Ticket statuses and evidence links in `docs/ticket-tracker.md` are updated for any touched implementation tickets.
+5. Ticket statuses and evidence links in `docs/implementation/ticket-tracker.md` are updated for any touched implementation tickets.

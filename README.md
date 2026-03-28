@@ -165,13 +165,18 @@ make-your-game/
 │   ├── requirements.md             # Original project requirements
 │   ├── audit.md                    # Audit checklist for grading
 │   ├── audit-traceability-matrix.md # Canonical requirement/audit/ticket/test coverage mapping and status
-│   ├── ticket-tracker.md           # Live ticket progress tracker for Section 3 implementation tickets
 │   ├── assets-pipeline.md          # Visual/audio authoring and validation workflow
 │   ├── schemas/                    # JSON Schema 2020-12 contracts
 │   │   ├── visual-manifest.schema.json
 │   │   └── audio-manifest.schema.json
 │   ├── game-description.md         # Full game rules & mechanics
-│   └── implementation-plan.md      # Canonical ECS implementation milestones
+│   └── implementation/             # Canonical implementation planning and tracking docs
+│       ├── implementation-plan.md  # ECS implementation milestones and integration timeline
+│       ├── ticket-tracker.md       # Live ticket progress tracker for Section 3 implementation tickets
+│       ├── track-a.md              # Track A ticket definitions and verification gates
+│       ├── track-b.md              # Track B ticket definitions and verification gates
+│       ├── track-c.md              # Track C ticket definitions and verification gates
+│       └── track-d.md              # Track D ticket definitions and verification gates
 │
 ├── tests/                          # 🧪 Automated test suites
 │   ├── README.md                   # Coverage policy and completion rules
@@ -315,8 +320,8 @@ The project is split into **4 parallel workflow tracks** to enable multiple deve
 | **Track C** | Dev 3 | AI, Rules, and Audio Production and Integration | `ghost-ai-system.js`, `scoring-system.js`, `collision-system.js` |
 | **Track D** | Dev 4 | Rendering, DOM Batching, and Visual Production and Integration | `render-collect-system.js`, `render-dom-system.js`, Adapters |
 
-> **Note**: For the full integration milestone breakdown, check `implementation-plan.md`.
-> **Execution tracking**: Update `docs/ticket-tracker.md` as tickets move from Not Started -> In Progress -> Blocked/Done.
+> **Note**: For the full integration milestone breakdown, check `docs/implementation/implementation-plan.md`.
+> **Execution tracking**: Update `docs/implementation/ticket-tracker.md` as tickets move from Not Started -> In Progress -> Blocked/Done.
 
 ## 🧭 Documentation Flow
 
@@ -326,16 +331,17 @@ Recommended reading order for new contributors:
 2. `docs/requirements.md` (project requirement source of truth)
 3. `docs/game-description.md` (gameplay behavior source of truth)
 4. `docs/audit.md` (acceptance/pass criteria source of truth)
-5. `docs/implementation-plan.md` (ECS execution plan and milestones)
-6. `docs/ticket-tracker.md` (live ticket status board and owner/progress updates)
-7. `docs/audit-traceability-matrix.md` (single-source requirement/audit/ticket/test coverage mapping and status)
-8. `docs/assets-pipeline.md` (visual/audio asset creation, optimization, and validation workflow)
+5. `docs/implementation/implementation-plan.md` (ECS execution plan and milestones)
+6. `docs/implementation/ticket-tracker.md` (live ticket status board and owner/progress updates)
+7. `docs/implementation/track-a.md` + `docs/implementation/track-b.md` + `docs/implementation/track-c.md` + `docs/implementation/track-d.md` (detailed track ticket definitions and verification gates)
+8. `docs/audit-traceability-matrix.md` (single-source requirement/audit/ticket/test coverage mapping and status)
+9. `docs/assets-pipeline.md` (visual/audio asset creation, optimization, and validation workflow)
 
 ### 📌 Source Of Truth Policy
 
 - Requirement intent and feature scope: `docs/requirements.md` + `docs/game-description.md`
 - Final pass/fail acceptance criteria: `docs/audit.md`
-- Ticket execution progress and owner/status board: `docs/ticket-tracker.md`
+- Ticket execution progress and owner/status board: `docs/implementation/ticket-tracker.md`
 - Cross-document requirement/audit/ticket/test traceability and coverage status: `docs/audit-traceability-matrix.md`
 - Visual/audio authoring and asset quality gates: `docs/assets-pipeline.md`
 - If there is ambiguity, decisions MUST be resolved against those references.
@@ -410,7 +416,7 @@ tests/
 
 1. Read `AGENTS.md` for ECS coding standards and constraints.
 2. Read [docs/agentic-workflow-guide.md](docs/agentic-workflow-guide.md) for the 4-dev agent workflow, PR gates, and security checklist.
-3. Review `implementation-plan.md` for your specific track assignment.
+3. Review `docs/implementation/implementation-plan.md` and the corresponding `docs/implementation/track-*.md` file for your specific track assignment.
 4. Feature branches should isolate specific ECS systems or component additions.
 5. Core systems MUST remain pure functions handling data components; never import DOM adapters into `src/ecs/systems/` except for the dedicated `render-dom-system.js`.
 6. Run `npm run check && npm run test` before committing.
