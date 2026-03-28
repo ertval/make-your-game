@@ -1,0 +1,40 @@
+# OS files
+.DS_Store
+Thumbs.db
+Desktop.ini
+
+# Editor settings and swap files
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Local environment files
+.env
+.env.*
+!.env.example
+
+# Dependency and build outputs
+node_modules/
+dist/
+coverage/
+playwright-report/
+test-results/
+.vitest/
+.cache/
+.parcel-cache/
+.turbo/
+*.tsbuildinfo
+
+# Logs and temporary files
+*.log
+npm-debug.log*
+yarn-debug.log*
+pnpm-debug.log*
+tmp/
+temp/
+
+# CI runtime artifacts
+.policy-pr-meta.json
+changed-files.txt
+reviews.json

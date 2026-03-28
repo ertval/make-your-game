@@ -18,6 +18,7 @@
 | 8 | [`implementation/audit-traceability-matrix.md`](implementation/audit-traceability-matrix.md) | **Coverage source of truth** — maps requirements and audit questions to implementation tickets, e2e/manual anchors, and execution status | During planning, test implementation, and PR review |
 | 9 | [`implementation/assets-pipeline.md`](implementation/assets-pipeline.md) | **Asset authoring** — visual and audio creation standards, naming rules, CI validation | When creating or modifying assets |
 | 10 | [`implementation/pr-message-workflow.md`](implementation/pr-message-workflow.md) | **PR message workflow** — PR checklist, message template, branch sequencing, and message archival notes | When drafting or recording a PR |
+| 11 | [`deployment/github-pages.md`](deployment/github-pages.md) | **Deployment guide** — GitHub Pages publishing options and static-hosting constraints | When publishing a static site or documentation site |
 
 ---
 

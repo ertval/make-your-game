@@ -12,6 +12,7 @@ A single-player browser game built with **pure JavaScript, HTML, and CSS** — n
 - [Gameplay](#-gameplay)
 - [Architecture Overview](#-architecture-overview)
 - [Directory Structure](#-directory-structure)
+- [Deployment](#-deployment)
 - [Frame Pipeline](#-frame-pipeline)
 - [Rendering & Performance](#-rendering--performance-targets)
 - [Getting Started](#-getting-started)
@@ -154,6 +155,8 @@ graph TB
 
 ## 📁 Directory Structure
 
+> **Note**: The tree below reflects the target implementation layout described by the project docs. This repository snapshot is still documentation-first, so the runtime/build files shown here are not all checked in yet.
+
 ```text
 make-your-game/
 ├── index.html                      # Single-page entry point
@@ -216,6 +219,14 @@ make-your-game/
 
 ---
 
+## 🚀 Deployment
+
+GitHub Pages can host this project only after the repository contains a static site entry point or a generated build artifact. See [docs/deployment/github-pages.md](docs/deployment/github-pages.md) for the deployment options and the current repository constraints.
+
+For a free GitHub account, the repository must be public to publish a Pages site.
+
+---
+
 ## ⚙️ Frame Pipeline
 
 1. **rAF Start**: `requestAnimationFrame` initiates the frame.
@@ -266,6 +277,8 @@ make-your-game/
 
 ## 🏁 Getting Started
 
+> **Current state**: this repository snapshot does not yet include the runtime/build toolchain files referenced below. The commands describe the intended local workflow once the app shell is added.
+
 ### Prerequisites
 
 - **Node.js** ≥ 20.x
@@ -293,6 +306,8 @@ Open `http://localhost:5173` in your browser. Vite serves the app with hot-reloa
 ---
 
 ## 📜 Scripts & Commands
+
+> These commands describe the planned toolchain. They become usable after the project adds the runtime files referenced in the directory layout above.
 
 | Command | Description |
 |---|---|
@@ -337,6 +352,7 @@ Recommended reading order for new contributors:
 7. `docs/implementation/track-a.md` + `docs/implementation/track-b.md` + `docs/implementation/track-c.md` + `docs/implementation/track-d.md` (detailed track ticket definitions and verification gates)
 8. `docs/implementation/audit-traceability-matrix.md` (single-source requirement/audit/ticket/test coverage mapping and status)
 9. `docs/implementation/assets-pipeline.md` (visual/audio asset creation, optimization, and validation workflow)
+10. `docs/deployment/github-pages.md` (GitHub Pages publishing options and static-hosting constraints)
 
 ### 📌 Source Of Truth Policy
 
@@ -387,6 +403,8 @@ tests/
 ---
 
 ## 🛠️ Tech Stack & Constraints
+
+> The stack below reflects the intended implementation target for the game. It is the roadmap for the runtime that will eventually live alongside this documentation, not a claim about the current checked-in files.
 
 ### Used
 
