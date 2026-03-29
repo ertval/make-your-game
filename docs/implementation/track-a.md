@@ -3,7 +3,7 @@
 📎 Source plan: `docs/implementation/implementation-plan.md` (Section 3)
 
 > **Scope**: Project scaffolding, ECS internals (World, Entity Store, Queries), core resources, game loop, map loading, CI/schema wiring, **ALL testing** (unit, integration, e2e, audit), QA, polish, and evidence aggregation.  
-> **Estimate**: ~24 hours  
+> **Estimate**: ~26 hours  
 > **Execution model**: Phase-first delivery for fastest playable MVP, then feature-complete hardening.
 
 ## Phase Order (MVP First)
@@ -27,7 +27,7 @@
 - [ ] Implement dependency governance (strict lockfile policy and SBOM generation).
 - [ ] Create `index.html` structure with core `<div>` mount points (game-board, hud, overlay containers).
 - [ ] Commit basic CSS reset and variable stubs.
-- [ ] Add scripts in `package.json`: `dev`, `build`, `preview`, `lint`, `format`, `test`, `test:unit`, `test:integration`, `test:e2e`, `test:audit`, `coverage`, `ci`, `sbom`.
+- [ ] Add scripts in `package.json`: `dev`, `build`, `preview`, `lint`, `format`, `check`, `test`, `test:watch`, `test:unit`, `test:integration`, `test:e2e`, `test:audit`, `coverage`, `ci`, `validate:schema`, `sbom`.
 - [ ] Add `vite.config.js`, `biome.json`, `vitest.config.js`, and `playwright.config.js` with CI-compatible defaults.
 - [ ] Add a static CI scan that fails on `<canvas>` usage and banned framework dependencies (`react`, `vue`, `angular`, `svelte`).
 - [ ] Verification gate: CI passes on baseline and fails when intentionally introducing a banned dependency or `<canvas>` node.
@@ -142,7 +142,7 @@
 **Estimate**: 3 hours  
 **Phase**: P1 Playable MVP  
 **Depends On**: `A-04`, `A-05`, `B-06`, `D-07`  
-**Impacts**: Acceptance automation coverage (`AUDIT-F-01..F-18`, `AUDIT-B-01..B-03`)
+**Impacts**: Acceptance automation coverage (`AUDIT-F-01..F-18`, `AUDIT-B-01..B-05`)
 
 - [ ] Implement `tests/e2e/audit/audit-question-map.js` mapping each audit question to a test ID.
 - [ ] **Fully Automatable tests** (Playwright real browser):
@@ -165,15 +165,15 @@
   - B-01: Project runs quickly and effectively.
   - B-02: Code obeys good practices (CI/static/security gates).
   - B-03: Memory reuse (no jank from GC).
+  - B-04: SVG usage (static SVG scan + runtime DOM/assertion checks).
 - [ ] **Semi-Automatable tests** (Playwright + `page.evaluate()`):
   - F-17: No sustained frame-drop periods (Performance API measurement over a representative 60s window).
   - F-18: Game runs at ~60fps (p95 frame time ≤ 16.7ms over a representative 60s window).
+  - B-05: Async performance (Performance API measurement against async-decode and startup thresholds).
 - [ ] **Manual-With-Evidence** (DevTools traces as PR artifacts):
   - F-19: Paint usage minimal (evidence note with trace).
   - F-20: Layers minimal but non-zero (evidence note with layer count).
   - F-21: Layer promotion proper (evidence note with will-change policy verification).
-  - B-04: SVG usage (evidence note).
-  - B-05: Asynchronicity for performance (evidence note for async decode, preloading).
   - B-06: Overall project quality (signed evidence note).
 - [ ] Verification gate: all automated audit tests pass; evidence artifacts attached for manual items.
 
@@ -216,7 +216,7 @@
 **Estimate**: 1 hour  
 **Phase**: P3 Final Acceptance  
 **Depends On**: `A-07`, `A-08`, `A-09`, `A-10`, `C-04`, `D-11`  
-**Impacts**: Final audit sign-off (`AUDIT-F-19..F-21`, `AUDIT-B-04..B-06`), release readiness
+**Impacts**: Final audit sign-off (`AUDIT-F-19..F-21`, `AUDIT-B-06`), release readiness
 
 - [ ] Capture before/after size report for generated visual and audio assets.
 - [ ] Collect runtime evidence notes for paint/layer behavior and audio startup timing.

@@ -29,7 +29,7 @@ The project is complete only when:
 
 1. Every question in `docs/audit.md` has explicit verification coverage following `AGENTS.md` categories (Fully Automatable, Semi-Automatable, or Manual-With-Evidence).
 2. All mapped automated audit checks pass.
-3. Required manual evidence artifacts are attached and linked for Manual-With-Evidence audit IDs.
+3. Required manual evidence artifacts are attached and linked for Manual-With-Evidence audit IDs only.
 4. Functional behavior remains aligned with `docs/requirements.md` and `docs/game-description.md`.
 5. Coverage statuses in `../docs/implementation/audit-traceability-matrix.md` are updated to match the latest passing artifacts.
 6. Ticket statuses and evidence links in `../docs/implementation/ticket-tracker.md` are updated for any touched implementation tickets.

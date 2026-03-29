@@ -3,7 +3,7 @@
 📎 Source plan: `docs/implementation/implementation-plan.md` (Section 3)
 
 > **Scope**: Everything visual — renderer adapters, sprite pools, HUD, screen overlays, CSS layout, render systems (collect + DOM batch), visual asset creation, visual manifest schema, and all DOM/CSS work. Fully independent from audio work.  
-> **Estimate**: ~22 hours  
+> **Estimate**: ~26 hours  
 > **Execution model**: Build render-safe MVP visuals first, then optimize memory and polish assets.
 
 ## Phase Order (MVP First)
@@ -30,7 +30,7 @@
 **Estimate**: 3 hours  
 **Phase**: P0 Foundation  
 **Depends On**: `A-01`  
-**Impacts**: Core board layout, accessibility baseline, layer policy groundwork
+**Impacts**: Core board layout, accessibility baseline, layer policy groundwork (`AUDIT-F-20`, `AUDIT-F-21`)
 
 - [ ] Build `styles/variables.css`: color palette, spacing tokens, z-index scale, animation timing.
 - [ ] Build `styles/grid.css` using strict grid-template layouts and absolute positioning over grid cells.
@@ -138,7 +138,7 @@
 **Estimate**: 3 hours  
 **Phase**: P2 Feature Complete  
 **Depends On**: `D-03`, `D-05`  
-**Impacts**: In-game readability and SVG compliance (`AUDIT-B-04`)
+**Impacts**: In-game readability and SVG compliance (`AUDIT-B-04`, Fully Automatable)
 
 - [ ] Create/export core gameplay sprites (SVG preferred, < 50 path elements each):
   - Ms. Ghostman: idle, walking frames (4 directions), death animation, invincibility blink, speed boost tint/trail.

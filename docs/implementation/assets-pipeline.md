@@ -137,99 +137,27 @@ ffmpeg -i assets/source/audio/music-level-01.wav -c:a libopus -b:a 128k assets/g
 3. web.dev browser-level image lazy loading: https://web.dev/articles/browser-level-image-lazy-loading
 4. web.dev optimize CLS: https://web.dev/articles/optimize-cls
 
-## 12. Detailed Asset Tickets (Execution Board)
+## 12. Asset Implementation Reference (Track Integration)
 
-Follow the same ticket style as the implementation plan and assign ownership strictly.
+Asset implementation tasks are integrated into the canonical implementation tracks. Follow the verification gates in each track file:
 
-### Rendering, DOM Batching, and Visual Production and Integration (Dev 4)
+### [Track D — Visual Production & Integration](track-d.md) (Dev 4)
 
-#### V-01: Visual Schema Contract
-**Priority**: 🔴 Critical  
-**Estimate**: 2h
+- **D-01 (Render Data Contracts)**: Includes `V-01 (Visual Schema Contract)`.
+- **D-09 (Visual Asset Production — Gameplay Sprites)**: Includes `V-02 (Character Set)` and `V-03 (Gameplay Props)`.
+- **D-10 (Visual Asset Production — UI & Screens)**: Includes `V-04 (HUD/Menu Visuals)`.
+- **D-11 (Visual Manifest & Asset Validation)**: Includes `V-05 (Optimization/QA)`.
 
-- [ ] Validate schema fields and enums in `../schemas/visual-manifest.schema.json`.
-- [ ] Ensure all visual manifest IDs are unique and kebab-case.
+### [Track C — Audio Production & Integration](track-c.md) (Dev 3)
 
-#### V-02: Character and Enemy Sprite Set
-**Priority**: 🔴 Critical  
-**Estimate**: 3h
+- **C-03 (Gameplay Sound Effects Production)**: Includes `C-ASSET-03 (Core Gameplay SFX)`.
+- **C-05 (Audio Manifest Schema & Validation)**: Includes `C-ASSET-01 (Audio Schema Contract)`.
+- **C-06 (UI Sound Effects Production)**: Includes `C-ASSET-02 (UI SFX)`.
+- **C-07 (Music Track Production)**: Includes `C-ASSET-04 (Music/Ambience)`.
+- **QA/Normalization**: Integrated into `C-05` and `C-07`.
 
-- [ ] Create/export player sprite states (idle, move).
-- [ ] Create/export four ghost state variants (normal, stunned, dead-eyes).
-- [ ] Register every sprite in `assets/manifests/visual-manifest.json`.
+### [Track A — Orchestration, Scaffolding, Testing & QA](track-a.md) (Dev 1)
 
-#### V-03: Gameplay Prop Set
-**Priority**: 🔴 Critical  
-**Estimate**: 2h
+- **A-09 (CI, Schema Validation & Asset Gates)**: Includes `X-01 (Path Validation)` and `X-02 (Budget Guardrails)`.
 
-- [ ] Create/export bomb, fire, pellet, power pellet, and power-up visuals.
-- [ ] Confirm dimension metadata for each asset entry.
-
-#### V-04: HUD and Menu Visuals
-**Priority**: 🟡 Medium  
-**Estimate**: 2h
-
-- [ ] Create/export HUD icons (lives, timer, score accents).
-- [ ] Create/export pause menu visual assets.
-
-#### V-05: Visual Optimization and QA
-**Priority**: 🟡 Medium  
-**Estimate**: 3h
-
-- [ ] Run SVG optimization pass.
-- [ ] Verify no oversized visual artifacts violate size budgets.
-- [ ] Verify reserved dimensions/aspect behavior for deferred images.
-
-### Audio Production and Integration (Dev 3)
-
-#### C-ASSET-01: Audio Schema Contract
-**Priority**: 🔴 Critical  
-**Estimate**: 2h
-
-- [ ] Validate schema fields and enums in `../schemas/audio-manifest.schema.json`.
-- [ ] Ensure all audio manifest IDs are unique and kebab-case.
-
-#### C-ASSET-02: UI and Interaction SFX Set
-**Priority**: 🔴 Critical  
-**Estimate**: 3h
-
-- [ ] Create/export UI cues (confirm, cancel, pause open/close).
-- [ ] Create/export interaction cues (pickup, hit, life loss).
-
-#### C-ASSET-03: Core Gameplay SFX Set
-**Priority**: 🔴 Critical  
-**Estimate**: 2h
-
-- [ ] Create/export bomb place and bomb explode cues.
-- [ ] Create/export ghost defeat and player defeat cues.
-
-#### C-ASSET-04: Music and Ambience Set
-**Priority**: 🟡 Medium  
-**Estimate**: 2h
-
-- [ ] Create/export at least one loop-safe level music track.
-- [ ] Optionally create/export ambience loop for menus.
-
-#### C-ASSET-05: Loudness and Loop QA
-**Priority**: 🟡 Medium  
-**Estimate**: 3h
-
-- [ ] Normalize loudness across categories with consistent headroom.
-- [ ] Validate loop boundaries and remove click artifacts.
-- [ ] Capture duration/sample-rate/channel metadata in manifest.
-
-### Core Integration and Validation (Dev 1 with Dev 3 and Dev 4 input)
-
-#### X-01: Schema and Path Validation in CI
-**Priority**: 🔴 Critical  
-**Estimate**: 2h
-
-- [ ] Add schema validation checks for both manifests.
-- [ ] Add file existence checks for all manifest paths.
-
-#### X-02: Asset Budget Guardrails
-**Priority**: 🟡 Medium  
-**Estimate**: 1h
-
-- [ ] Add checks for per-file max bytes.
-- [ ] Document PR override procedure for justified exceptions.
+---

@@ -45,7 +45,7 @@ The result is a strategic game where every move matters. Block off ghost routes,
 
 Why this project uses ECS: it keeps gameplay logic modular, deterministic, and fast enough for stable 60 FPS DOM rendering.
 
-### ✨ Key Features
+### ✨ Target Feature Set
 
 - 🕹️ **Hold-to-move controls** — smooth, responsive keyboard input processed via input systems.
 - 💣 **Bomb mechanics** — 3-second fuse, cross-shaped explosions, chain reactions.
@@ -56,8 +56,6 @@ Why this project uses ECS: it keeps gameplay logic modular, deterministic, and f
 - ⏸️ **Pause menu** — continue or restart without losing progress.
 - 📊 **3 difficulty levels** — increasing maze density, ghost count, and speed.
 - 🎨 **60 FPS DOM rendering** — no canvas, pure CSS Grid + transform animations via a dedicated Render Batcher.
-
----
 
 ## 🎮 Gameplay
 

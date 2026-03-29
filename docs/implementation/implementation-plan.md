@@ -211,7 +211,7 @@ make-your-game/
 │   ├── e2e/
 │   │   └── audit/
 │   │       ├── audit-question-map.js
-│   │       └── audit.e2e.test.js       # Playwright-based audit harness (Fully Automatable + Semi-Automatable checks)
+│   │       └── audit.e2e.test.js       # Audit inventory scaffold; execution types are tracked in audit-question-map.js
 │   ├── integration/
 │   │   ├── gameplay/               # Multi-system interaction tests
 │   │   └── adapters/               # Adapter boundary tests (jsdom)
@@ -325,10 +325,10 @@ Live ticket progress for this section is tracked in `docs/implementation/ticket-
 | Track | Developer | Estimated Hours | Scope |
 |---|---|---:|---|
 | Track A | Dev 1 | ~26h | Orchestration, scaffolding, ECS core, game loop, testing (all layers), CI, QA & polish |
-| Track B | Dev 2 | ~26h | Input, movement, collisions, bombs, explosions, ghost AI, scoring, timer, lives, pause, progression, power-ups |
-| Track C | Dev 3 | ~26h | Audio adapter, SFX/music creation, audio manifest & schema, audio cue mapping, audio preloading, audio integration |
+| Track B | Dev 2 | ~29h | Input, movement, collisions, bombs, explosions, ghost AI, scoring, timer, lives, pause, progression, power-ups |
+| Track C | Dev 3 | ~22h | Audio adapter, SFX/music creation, audio manifest & schema, audio cue mapping, audio preloading, audio integration |
 | Track D | Dev 4 | ~26h | Renderer, sprite pools, HUD, screen overlays, CSS layout, render systems, visual assets, visual manifest & schema |
-| **Total** | **4 Devs** | **~104h** |
+| **Total** | **4 Devs** | **~103h** |
 
 ### Critical Path By Dev
 
@@ -570,9 +570,9 @@ The render-intent buffer is **pre-allocated once** (`new Array(MAX_RENDER_INTENT
 | **Security Boundaries** | Vitest + static checks | HUD/menu updates use safe sinks (`textContent`, explicit attributes); untrusted storage data is validated on read. |
 | **Regression Fixes** | Vitest | Repro test first, then fix, then pass. Verify no cross-system side effects outside component/resource contracts. |
 | **Smoke Test** | **Playwright** | Boot game, run headlessly for 60 s with randomised input injections. Assert no unhandled exceptions. Write this first — it is the single highest-value test. |
-| **Audit — Fully Automatable (F-01..F-16, B-01, B-02, B-03)** | **Playwright** (real browser) | Crash-free run, rAF usage, pause/continue/restart, hold-to-move, HUD metrics, genre compliance, and good-practices checks via CI/static gates. |
-| **Audit — Semi-Automatable (F-17, F-18)** | **Playwright** + `page.evaluate()` | Frame timing via Performance API. Assert p95 frame time ≤ 16.7 ms over a representative 60-second measurement window. |
-| **Audit — Manual-With-Evidence (F-19, F-20, F-21, B-04, B-05, B-06)** | DevTools traces (PR artifacts) | Paint usage, layer count, layer promotion, SVG usage, async patterns. Require a signed evidence note — NOT a Vitest assertion. |
+| **Audit — Fully Automatable (F-01..F-16, B-01, B-02, B-03, B-04)** | **Playwright** (real browser) | Crash-free run, rAF usage, pause/continue/restart, hold-to-move, HUD metrics, genre compliance, good-practices checks, and SVG presence/asset checks via CI/static gates. |
+| **Audit — Semi-Automatable (F-17, F-18, B-05)** | **Playwright** + `page.evaluate()` | Frame timing and async-performance measurements via Performance API thresholds. |
+| **Audit — Manual-With-Evidence (F-19, F-20, F-21, B-06)** | DevTools traces (PR artifacts) | Paint usage, layer count, layer promotion, and overall-project judgment. Require a signed evidence note — NOT a Vitest assertion. |
 
 ---
 

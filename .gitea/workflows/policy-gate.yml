@@ -23,7 +23,7 @@ jobs:
       EVENT_PATH: ${{ github.event_path }}
       EVENT_NAME: ${{ github.event_name }}
       CI_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      GITEA_TOKEN: ${{ secrets.RUNNER_TOKEN  }}
+      GITEA_TOKEN: ${{ secrets.GITEA_TOKEN }}
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4

@@ -68,14 +68,14 @@ This document is the single source of truth for requirement-to-audit-to-ticket-t
 | AUDIT-F-07 | Does pause menu show continue and restart? | REQ-03, REQ-09 | Fully Automatable | B-06, D-07 | Same as above | Mapped, Planned, Pending |
 | AUDIT-F-08 | Does continue resume gameplay from pause? | REQ-03, REQ-09 | Fully Automatable | B-06, A-04 | Same as above | Mapped, Planned, Pending |
 | AUDIT-F-09 | Does restart reset correctly from pause? | REQ-03, REQ-09 | Fully Automatable | B-06, A-05 | Same as above | Mapped, Planned, Pending |
-| AUDIT-F-10 | While paused, no dropped frames and rAF unaffected? | REQ-02, REQ-09 | Fully Automatable | A-04, D-05, A-08 | Same as above + pause trace evidence | Mapped, Planned, Pending |
+| AUDIT-F-10 | While paused, no dropped frames and rAF unaffected? | REQ-02, REQ-09 | Fully Automatable | A-04, B-06, D-05, A-08 | Same as above + pause trace evidence | Mapped, Planned, Pending |
 | AUDIT-F-11 | Does player obey movement commands? | REQ-07 | Fully Automatable | B-02, B-03 | Same as above | Mapped, Planned, Pending |
 | AUDIT-F-12 | Does player move without spamming keys? | REQ-07, REQ-08 | Fully Automatable | B-02, B-03 | Same as above | Mapped, Planned, Pending |
 | AUDIT-F-13 | Does game behave like pre-approved genre? | REQ-14 | Fully Automatable | B-03, B-07, B-08, B-09 | Same as above | Mapped, Planned, Pending |
 | AUDIT-F-14 | Does timer/countdown work? | REQ-04 | Fully Automatable | B-05, D-06 | Same as above | Mapped, Planned, Pending |
 | AUDIT-F-15 | Does score increase on scoring actions? | REQ-05 | Fully Automatable | B-05, D-06 | Same as above | Mapped, Planned, Pending |
 | AUDIT-F-16 | Do lives decrease on life-loss events? | REQ-06 | Fully Automatable | B-05, D-06 | Same as above | Mapped, Planned, Pending |
-| AUDIT-F-17 | Can you confirm there are no frame drops? | REQ-01, REQ-09 | Semi-Automatable | A-08, D-05, A-11 | `tests/e2e/audit/audit.e2e.test.js` + Performance API (`page.evaluate`) | Mapped, Planned, Pending |
+| AUDIT-F-17 | Can you confirm there are no frame drops? | REQ-01, REQ-09 | Semi-Automatable | A-04, A-08, D-05, A-11 | `tests/e2e/audit/audit.e2e.test.js` + Performance API (`page.evaluate`) | Mapped, Planned, Pending |
 | AUDIT-F-18 | Does game run around 60 FPS? | REQ-01 | Semi-Automatable | A-04, A-08, A-11 | Same as above | Mapped, Planned, Pending |
 | AUDIT-F-19 | Is paint used as little as possible? | REQ-10 | Manual-With-Evidence | D-05, A-11 | DevTools paint evidence linked from PR artifacts | Mapped, Planned, Pending |
 | AUDIT-F-20 | Are layers used as little as possible? | REQ-10 | Manual-With-Evidence | D-02, D-05, A-11 | DevTools layer evidence linked from PR artifacts | Mapped, Planned, Pending |
@@ -88,8 +88,8 @@ This document is the single source of truth for requirement-to-audit-to-ticket-t
 | AUDIT-B-01 | Does project run quickly and effectively? | REQ-01 | Fully Automatable | A-04, D-05, A-11 | `tests/e2e/audit/audit.e2e.test.js` + performance checks | Mapped, Planned, Pending |
 | AUDIT-B-02 | Does code obey good practices? | REQ-12 | Fully Automatable | A-01, A-09 | CI policy gate + lint/test/security check outputs | Mapped, Planned, Pending |
 | AUDIT-B-03 | Does program reuse memory to avoid jank? | REQ-01 | Fully Automatable | A-02, B-07, D-08, D-05 | `tests/e2e/audit/audit.e2e.test.js` + allocation evidence | Mapped, Planned, Pending |
-| AUDIT-B-04 | Does game use SVG? | REQ-14 | Manual-With-Evidence | D-09, D-11 | Manifest validation + runtime asset evidence | Mapped, Planned, Pending |
-| AUDIT-B-05 | Is code using asynchronicity for performance? | REQ-01 | Manual-With-Evidence | C-01, C-04, A-11 | Async loading/decode evidence + traces | Mapped, Planned, Pending |
+| AUDIT-B-04 | Does game use SVG? | REQ-14 | Fully Automatable | D-09, D-11 | Static SVG scan + runtime DOM/assertion checks | Mapped, Planned, Pending |
+| AUDIT-B-05 | Is code using asynchronicity for performance? | REQ-01 | Semi-Automatable | C-01, C-04, A-11 | Playwright `page.evaluate()` + Performance API threshold checks | Mapped, Planned, Pending |
 | AUDIT-B-06 | Is project well done overall? | REQ-01 through REQ-14 | Manual-With-Evidence | All tracks, A-11 | All audit assertions + evidence bundle + review sign-off | Mapped, Planned, Pending |
 
 ## Completion Criteria For This Matrix

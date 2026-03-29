@@ -17,7 +17,7 @@
 **Estimate**: 4 hours  
 **Phase**: P1 Playable MVP support  
 **Depends On**: `A-01`, `A-03`  
-**Impacts**: Runtime audio boundary, fallback resilience, async decode baseline
+**Impacts**: Runtime audio boundary, fallback resilience, async decode baseline (`AUDIT-B-05`, Semi-Automatable)
 
 - [ ] Implement `adapters/io/audio-adapter.js`:
   - `AudioContext` initialization on first user interaction (browser autoplay policy).
@@ -88,7 +88,7 @@
 **Estimate**: 2 hours  
 **Phase**: P2 Feature Complete  
 **Depends On**: `C-01`, `C-03`  
-**Impacts**: Async performance evidence and startup responsiveness (`AUDIT-B-05`)
+**Impacts**: Async performance measurement and startup responsiveness (`AUDIT-B-05`, Semi-Automatable)
 
 - [ ] Implement preloading strategy during level load:
   - Decode all gameplay-critical SFX asynchronously using `decodeAudioData()`.
