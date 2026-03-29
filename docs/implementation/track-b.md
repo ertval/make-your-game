@@ -3,7 +3,7 @@
 📎 Source plan: `docs/implementation/implementation-plan.md` (Section 3)
 
 > **Scope**: All ECS components, ALL gameplay systems (input, movement, collision, bombs, explosions, ghost AI, scoring, timer, lives, pause, progression, power-ups), and gameplay event hooks. Pure ECS simulation — no DOM, no audio, no visuals.  
-> **Estimate**: ~24 hours  
+> **Estimate**: ~29 hours  
 > **Execution model**: Deliver a playable loop first, then add full genre mechanics and integration hooks.
 
 ## Phase Order (MVP First)
@@ -30,7 +30,7 @@
 - [ ] Implement `src/ecs/components/props.js`:
   - `bomb` (fuseMs, radius, ownerId, row, col).
   - `fire` (burnTimerMs, row, col).
-  - `power-up` (type: powerPellet/bombPlus/firePlus/speedBoost).
+  - `power-up` (type: bombPlus/firePlus/speedBoost).
   - `pellet` (isPowerPellet flag).
 - [ ] Implement `src/ecs/components/stats.js`:
   - `score` (total points, combo counter).
@@ -79,13 +79,17 @@
 **Impacts**: Player/ghost/pellet interaction correctness and life/score intents
 
 - [ ] Implement `collision-system.js` using a **cell-occupancy map** for O(1) spatial lookups:
-  - Fire vs Player → damage/death intent.
-  - Fire vs Ghost → ghost death intent.
-  - Player vs Ghost (normal) → Player death intent. **Ghosts cannot be killed by touch**.
+  - **Mandatory Hierarchy**: `Invincibility > Fire > Ghost Contact`.
+  - Fire vs Player → damage/death intent (unless Player `isInvincible`).
+  - Fire vs Ghost → ghost death intent (Normal/Stunned ghosts).
+  - Player vs Ghost (normal) → Player death intent (unless `isInvincible`).
   - Player vs Ghost (stunned) → harmless contact (no damage).
   - Player vs Pellet → mark for collection (+10 points).
   - Player vs Power Pellet → mark for collection (+50 points, stun all ghosts).
   - Player vs Power-up → mark for collection (+100 points, apply effect).
+- [ ] Enforce **Ghost House Barrier** logic:
+  - Ghosts can exit `G` tiles; only `Dead` (eyes-only) ghosts can enter.
+  - Player is hard-blocked from entering any `G` tile.
 - [ ] Include bomb-cell occupancy constraints and ghost push-back when bomb dropped on shared cell.
 - [ ] Verification gate: integration tests cover all listed collision permutations.
 

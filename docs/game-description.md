@@ -82,14 +82,15 @@ The playing field is a **rigid CSS Grid**. Every cell sits at an integer `(row, 
 - Each bomb has a **3-second fuse timer**, displayed visually on the bomb sprite.
 - Only one bomb per cell — dropping on an existing bomb does nothing.
 
-### 3.3 Lives
+### 3.3 Lives & Invincibility
 
 - The player starts with **3 lives**.
 - A life is lost when:
-  - A ghost touches the player.
+  - A **Normal state** ghost touches the player.
   - The player is caught in a bomb explosion (including their own).
-- On death, the player respawns at the starting position after a brief invincibility window (2 seconds).
-- **Game Over** when all lives are depleted.
+- **Invincibility Window**: On death, the player respawns at the starting position and is **invincible for 2000ms**.
+  - **Invincibility Rule**: While invincible, the player is immune to ghost contact AND bomb explosions.
+- **Game Over** when all lives are depleted or timer hits zero.
 
 ---
 
@@ -106,18 +107,20 @@ The playing field is a **rigid CSS Grid**. Every cell sits at an integer `(row, 
 When the fuse expires:
 
 1. The bomb detonates in a **cross pattern (+)** extending `N` tiles in each cardinal direction (default `N = 2`).
-2. Fire tiles appear along the cross for **0.5 seconds**, then disappear.
+2. Fire tiles appear along the cross for **0.5 seconds**.
 
-**Explosion interactions:**
+Explosion interactions (Collision Hierarchy):
+
+Priority: `Invincibility (Immunity) > Fire (Damage) > Ghost Contact (Normal=Damage, Stunned=Safe)`.
 
 | Target Hit | Effect |
 |---|---|
 | **Indestructible Wall** | Fire stops at this tile (does NOT pass through). |
-| **Destructible Wall** | Wall is destroyed. Fire stops here (does NOT pass through). May reveal a power-up. |
-| **Ghost** | Ghost is destroyed. Player earns **200 bonus points** per ghost kill. |
-| **Player** | Player loses **1 life**. |
+| **Destructible Wall** | Wall is destroyed. Fire stops here. May reveal power-up. |
+| **Ghost** | Ghost is destroyed. Player earns **200 bonus points** (400 if stunned). |
+| **Player** | Player loses **1 life** (unless in 2s Invincibility window). |
 | **Another Bomb** | Chain reaction — the second bomb detonates immediately. |
-| **Pellet** | Fire passes through pellets **harmlessly**. Pellets are **never destroyed** by explosions — this prevents accidental soft-locks where required pellets become uncollectable. |
+| **Pellet** | Fire passes through pellets **harmlessly**. |
 | **Power-Up** | Power-up is destroyed (lost, not collected). |
 
 ### 4.3 Chain Reactions
@@ -163,9 +166,12 @@ There are **4 ghost types**, each with a distinct color and deterministic target
 | **Stunned (Frenzy)** | ~5 seconds | Triggered by Power Pellet. Ghost turns blue, moves slowly, and flees from the player. Stunned ghosts are **harmless on contact** and cannot be killed by touch — only a bomb explosion can destroy a ghost. A bomb kill during stun yields **400 points** as a skill bonus. |
 | **Dead** | ~5 seconds | After being killed by a bomb, the ghost's "eyes" travel back to the ghost spawn area, where it regenerates. |
 
-### 5.4 Ghost Spawning & Release Timings
+### 5.4 Ghost Spawning & Ghost House Rules
 
-- Ghosts spawn from a dedicated **ghost house** in the center of the map.
+- Ghosts spawn from a dedicated **ghost house** (`G`) in the center of the map.
+- **Ghost House Barrier**: 
+  - The top row of the `G` area acts as a **one-way gate**. Ghosts can exit at any time, but only **Dead** ghosts (eyes) can re-enter.
+  - The **Player** can NEVER enter the `G` area. 
 - At the start of the level, ghosts leave the house with staggered temporal delays based on the simulation clock:
   - **Ghost 1 (Blinky)**: Spawns immediately (0s).
   - **Ghost 2 (Pinky)**: Leaves ghost house at 5 seconds.

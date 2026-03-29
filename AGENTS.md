@@ -176,9 +176,9 @@ Follow this sequence for every reported issue:
 
 ### Test Categorization for Audit Questions
 Audit test coverage MUST be split into three categories:
-1. **Fully Automatable** (Vitest + Playwright): All functional questions F-01 to F-16, and bonus questions B-01, B-02, and B-03.
-2. **Semi-Automatable** (Performance API via Playwright `page.evaluate()`): F-17, F-18 — frame timing measured against a threshold.
-3. **Manual-With-Evidence** (DevTools traces attached as artifacts): F-19, F-20, F-21, B-04, B-05, B-06 — these require a signed evidence note, not a Vitest assertion.
+1. **Fully Automatable** (Vitest + Playwright): All functional questions F-01 to F-16, and bonus questions B-01, B-02, B-03, and B-04.
+2. **Semi-Automatable** (Performance API via Playwright `page.evaluate()`): F-17, F-18, B-05 — frame timing or async-performance measured against a threshold.
+3. **Manual-With-Evidence** (DevTools traces attached as artifacts): F-19, F-20, F-21, B-06 — these require a signed evidence note, not a Vitest assertion.
 
 ### Invariants
 - SHOULD include seed-based determinism tests for timing/input-sensitive behavior.
