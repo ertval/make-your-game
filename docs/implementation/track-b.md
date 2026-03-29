@@ -67,6 +67,7 @@
 - [ ] Implement `player-move-system.js`: Queries the grid from `map-resource` based on Position vs Velocity intentions. Ensures smooth sub-cell locking and prevents walking through walls.
 - [ ] Works using ECS state-machine variables. Updates TargetRow/Col.
 - [ ] Enforce no diagonal drift and deterministic motion under variable render FPS.
+- [ ] Apply exact base speed from `game-description.md` §8 (Player = 5.0 tiles/sec).
 - [ ] Handle speed boost multiplier (`1.5x`) when player has active speed boost.
 - [ ] Verification gate: unit tests for blocked movement, path continuity, and interpolation correctness.
 
@@ -129,6 +130,7 @@
 
 - [ ] Implement `bomb-tick-system.js`: Decrements fuse, validates explosion radius against `map-resource`.
 - [ ] Implement `explosion-system.js`: Translates detonated bombs into Fire entities mapping over map resources (destructible wall clears). Chain reactions use an **iterative detonation queue** (NOT recursive) with `MAX_CHAIN_DEPTH = 10`.
+- [ ] Enforce exact Power-Up drop rates when destructible walls are destroyed based on `game-description.md` §4.4 (85% empty, 5% bomb+, 5% fire+, 5% speed boost). Use seeded RNG generator for drop logic to retain determinism.
 - [ ] Enforce one-bomb-per-cell placement, `3000ms` fuse, `500ms` fire lifetime, cross-pattern propagation, and wall-stop rules.
 - [ ] Enforce strict pellet pass-through mechanics (pellets are NEVER destroyed by fire).
 - [ ] Enforce power-up destruction (power-ups ARE destroyed by fire without being collected).
@@ -142,18 +144,18 @@
 **Depends On**: `B-03`, `B-04`, `A-03`, `A-05`  
 **Impacts**: Difficulty curve and personality-driven enemy behavior (`AUDIT-F-13`)
 
-- [ ] Implement `ghost-ai-system.js` with 4 distinct personalities:
-  - **Blinky** (Red): Targets direction closest to player at intersections.
-  - **Pinky** (Pink): Predicts player's heading and attempts to cut them off.
-  - **Inky** (Cyan): Semi-random influenced by both Blinky and player positions.
-  - **Clyde** (Orange): Fully random wildcard at intersections.
+- [ ] Implement `ghost-ai-system.js` with exact pathfinding math per `game-description.md` §5.1:
+  - **Blinky**: Targets player current tile.
+  - **Pinky**: Targets 4 spaces ahead of player.
+  - **Inky**: Double-vector targeting based on Blinky+Player.
+  - **Clyde**: Distance-based toggle (chase vs retreat to corner).
 - [ ] Implement ghost state machine: Normal → Stunned (on Power Pellet) → Dead (on bomb kill) → respawn.
-  - **Normal**: Patrols maze, lethal on contact.
-  - **Stunned**: Blue, slow, flees from player for `5000ms`. Harmless. Kill by bomb = 400pts.
-  - **Dead**: Eyes-only return to ghost house, respawn after delay.
+  - **Normal**: Patrols maze at level-specific speeds (4.0/4.5/5.0 tiles/sec).
+  - **Stunned**: Slows to flat 2.0 tiles/sec, flees from player for `5000ms`. Harmless. Kill by bomb = 400pts.
+  - **Dead**: Eyes-only return to ghost house, respawn after `5000ms` delay.
 - [ ] Enforce "no reversing" unless Power Pellet triggers flee mode.
 - [ ] Ghosts cannot pass through indestructible walls or active bombs.
-- [ ] Implement `spawn-system.js`: Staggered ghost-house release timing per level (2/3/4 ghosts). Death-return respawn.
+- [ ] Implement `spawn-system.js`: Apply absolute staggered ghost-house release timings per `game-description.md` §5.4 (0s, 5s, 10s, 15s). Death-return respawn is 5 seconds.
 - [ ] Use zero-allocation heuristics (pre-compute direction scores in-place, no temporary arrays).
 - [ ] **Worker offload gate**: Do NOT add a Web Worker unless profiling shows ghost pathfinding exceeds 4 ms per frame.
 - [ ] Verification gate: seeded determinism tests produce identical ghost movement traces.

@@ -89,10 +89,9 @@
 **Depends On**: `A-01`, `A-02`, `A-03`  
 **Impacts**: Level data contract, restart/reset determinism, progression correctness
 
-- [ ] Create 3 JSON map blueprints (Levels 1, 2, and 3) matching `game-description.md` §8:
-  - Level 1: Open layout, few destructible walls, 2 ghosts, 120s timer.
-  - Level 2: Tighter corridors, more destructible walls, 3 ghosts, 180s timer.
-  - Level 3: Dense maze, many destructible walls, 4 ghosts, 240s timer.
+- [ ] Create 3 JSON map blueprints (Levels 1, 2, and 3) by strictly parsing the exact ASCII map layouts provided in `game-description.md` §8.1.
+  - Apply the exact Level 1, Level 2, and Level 3 grid structures and entity spawn placements without manually balancing or altering the design.
+  - Configure the level JSON timers per §8 (120s, 180s, 240s) and ghost limits per level (2, 3, 4 ghosts).
 - [ ] Implement JSON Schema 2020-12 validation in CI, failing build on invalid level data.
 - [ ] Implement `map-resource.js`: Parses map on load, stores a fixed representation of the static grid cells.
 - [ ] Maps MUST include strict grid placement rules for: empty space (` `), indestructible walls (`🧱`), destructible walls (`📦`), pellets (`·`), power pellets (`⚡`), bomb+ (`💣+`), fire+ (`🔥+`), speed boost (`👟`), and ghost house area.
