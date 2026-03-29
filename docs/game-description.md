@@ -124,20 +124,28 @@ When the fuse expires:
 
 If a bomb explosion hits another bomb, that bomb detonates instantly, creating spectacular chain reactions. Players can set up multi-bomb traps for ghost-clearing combos (**combo bonus**: `200 × 2^(n-1)` points for `n` ghosts killed in one chain).
 
+### 4.4 Power-Up Drop Rates
+
+When a Destructible Wall (`📦`) is destroyed by a bomb explosion, it has a fixed RNG chance to spawn a power-up. Power Pellets (`⚡`) are pre-placed in the level map and do not drop from walls.
+- **85% Chance**: Empty space (no drop).
+- **5% Chance**: Bomb Power-Up (`💣+`).
+- **5% Chance**: Fire Power-Up (`🔥+`).
+- **5% Chance**: Speed Boost (`👟`).
+
 ---
 
 ## 5. The Enemies — Ghosts
 
-### 5.1 Ghost Types
+### 5.1 Ghost Types & Pathfinding Math
 
-There are **4 ghost types**, each with a distinct color and subtle behavior bias:
+There are **4 ghost types**, each with a distinct color and deterministic targeting formula at intersections:
 
-| Ghost | Color | Behavior Tendency |
+| Ghost | Color | Target Tile Math |
 |---|---|---|
-| **Blinky** | 🔴 Red | Tends to choose the direction closest to the player at intersections. |
-| **Pinky** | 🩷 Pink | Tends to predict the player's heading and cut them off. |
-| **Inky** | 🔵 Cyan | Semi-random — influenced by both Blinky's position and the player's. |
-| **Clyde** | 🟠 Orange | Fully random at intersections. Unpredictable wildcard. |
+| **Blinky** | 🔴 Red | Targets the player's exact current grid tile. (Aggressive chaser) |
+| **Pinky** | 🩷 Pink | Targets the tile exactly **4 spaces ahead** of the player in the direction the player is currently moving. If player is idle, target player's tile. (Ambush) |
+| **Inky** | 🔵 Cyan | Finds the tile 2 spaces ahead of the player. Draws a vector from Blinky's current tile to that 2-spaces-ahead tile, and doubles its length to find the target tile. (Flanker) |
+| **Clyde** | 🟠 Orange | If Euclidean distance to player > 8 tiles, targets the player like Blinky. If distance ≤ 8 tiles, targets the bottom-left corner of the map. (Wildcard) |
 
 ### 5.2 Ghost Movement
 
@@ -155,11 +163,15 @@ There are **4 ghost types**, each with a distinct color and subtle behavior bias
 | **Stunned (Frenzy)** | ~5 seconds | Triggered by Power Pellet. Ghost turns blue, moves slowly, and flees from the player. Stunned ghosts are **harmless on contact** and cannot be killed by touch — only a bomb explosion can destroy a ghost. A bomb kill during stun yields **400 points** as a skill bonus. |
 | **Dead** | ~5 seconds | After being killed by a bomb, the ghost's "eyes" travel back to the ghost spawn area, where it regenerates. |
 
-### 5.4 Ghost Spawning
+### 5.4 Ghost Spawning & Release Timings
 
 - Ghosts spawn from a dedicated **ghost house** in the center of the map.
-- At the start of the level, ghosts leave the house one at a time with staggered delays.
-- Dead ghosts return to the ghost house and respawn after a delay.
+- At the start of the level, ghosts leave the house with staggered temporal delays based on the simulation clock:
+  - **Ghost 1 (Blinky)**: Spawns immediately (0s).
+  - **Ghost 2 (Pinky)**: Leaves ghost house at 5 seconds.
+  - **Ghost 3 (Inky)**: Leaves ghost house at 10 seconds.
+  - **Ghost 4 (Clyde)**: Leaves ghost house at 15 seconds.
+- Dead ghosts return to the ghost house and respawn after a **5-second** penalty delay.
 
 ---
 
@@ -187,14 +199,69 @@ There are **4 ghost types**, each with a distinct color and subtle behavior bias
 
 ---
 
-## 8. Level Progression
+## 8. Level Progression & Difficulty
 
-- The game ships with **3 levels** of increasing difficulty:
-  - **Level 1**: Open layout, few destructible walls, 2 ghosts. Timer: **120 seconds**.
-  - **Level 2**: Tighter corridors, more destructible walls, 3 ghosts. Timer: **180 seconds**.
-  - **Level 3**: Dense maze, many destructible walls, 4 ghosts. Timer: **240 seconds**.
+- The game ships with **3 levels** of increasing difficulty.
+- **Base Player Speed**: 5.0 tiles per second.
+- **Stunned Ghost Speed**: 2.0 tiles per second (constant across levels).
+
+| Level | Timer | Active Ghosts | Ghost Normal Speed |
+|---|---|---|---|
+| **Level 1** | 120s | 2 (Blinky, Pinky) | 4.0 tiles/sec |
+| **Level 2** | 180s | 3 (Blinky, Pinky, Inky) | 4.5 tiles/sec |
+| **Level 3** | 240s | 4 (All ghosts) | 5.0 tiles/sec |
+
 - Between levels, a brief **level-complete screen** shows stats (score, time, ghosts killed).
-- Ghost speed and aggression increase with each level.
+
+### 8.1 Level Maps (ASCII Layouts)
+
+Developers MUST parse these explicit ASCII blueprints into the JSON map pipeline. 
+**Legend**: `#` = Indestructible Wall (`🧱`), `+` = Destructible Wall (`📦`), `.` = Pellet (`·`), `*` = Power Pellet (`⚡`), `G` = Ghost House area (passable for ghosts only), `@` = Player Start, ` ` (space) = Empty passage.
+
+**Level 1 Map Blueprint (15x11)**
+```text
+###############
+#*....+...#..*#
+#.###.###.#.#.#
+#.+.......+.#.#
+###.#.GGG.#.###
+#...#.GGG.#...+
+###.#.###.#.###
+#.+....@....#.#
+#.###.###.###.#
+#*+......+...*#
+###############
+```
+
+**Level 2 Map Blueprint (15x11)**
+```text
+###############
+#*++#+...+#++*#
+#+###+###+###+#
+#......+......#
+###+#.GGG.#+###
+#...#.GGG.#...+
+###+#.###.#+###
+#......@......#
+#+###+###+###+#
+#*++#+...+#++*#
+###############
+```
+
+**Level 3 Map Blueprint (15x11)**
+```text
+###############
+#*+++++++++++*#
+#+###+###+###+#
+#++#+++++++#++#
+###+#.GGG.#+###
+++.+#.GGG.#+.++
+###+#.###.#+###
+#++++++@++++++#
+#+###+###+###+#
+#*+++++++++++*#
+###############
+```
 
 ---
 
