@@ -23,6 +23,16 @@ if (!validCheckSets.has(checkSet)) {
 }
 
 const meta = fs.existsSync(metaPath) ? readJson(metaPath) : {};
+if (args['pr-body-file']) {
+  const prBodyPath = String(args['pr-body-file']);
+  if (!fs.existsSync(prBodyPath)) {
+    throw new Error(`PR body file not found: ${prBodyPath}`);
+  }
+  meta.body = readText(prBodyPath);
+}
+if (args['pr-body']) {
+  meta.body = String(args['pr-body']);
+}
 const changedFiles = readLines(changedPath);
 
 function assertPrBody() {

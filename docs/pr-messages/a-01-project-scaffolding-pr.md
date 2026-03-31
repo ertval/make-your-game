@@ -4,7 +4,9 @@
 
 - [x] I read AGENTS.md and the agentic workflow guide
 - [x] I ran `npm run ci:quality` locally
+- [x] I ran `npm run policy:quality` locally
 - [x] I ran `npm run ci:policy -- --pr-body-file docs/pr-messages/<ticket>-pr.md`
+- [x] I ran `npm run policy -- --pr-body-file docs/pr-messages/<ticket>-pr.md`
 - [x] I ran the applicable local checks
 - [x] I listed the audit IDs affected by this change
 - [x] I checked security sinks and trust boundaries
@@ -31,7 +33,9 @@
 
 ## Tests
 - `npm run ci:quality`
+- `npm run policy:quality`
 - `npm run ci:policy -- --pr-body-file docs/pr-messages/a-01-project-scaffolding-pr.md`
+- `npm run policy -- --pr-body-file docs/pr-messages/a-01-project-scaffolding-pr.md`
 - `npm run check`
 - `npm run test`
 - `npm run validate:schema`
@@ -52,3 +56,6 @@
 
 ## Risks
 - Policy checks require a prepared PR body file; if not provided, `npm run ci:policy` validation can fail by design.
+
+## Recent updates
+- Added the simplified all-in-one gate command: `npm run policy -- --pr-body-file docs/pr-messages/<ticket>-pr.md`.

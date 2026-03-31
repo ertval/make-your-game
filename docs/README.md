@@ -48,6 +48,12 @@ As detailed in the [`implementation/agentic-workflow-guide.md`](implementation/a
 - **Implementation Plan First**: Use [`implementation/implementation-plan.md`](implementation/implementation-plan.md) as the execution map and keep changes aligned with the active track's ticket definition and verification gates.
 - **Audit and Regression Check**: Audit the agent result carefully against [`../AGENTS.md`](../AGENTS.md), [`implementation/implementation-plan.md`](implementation/implementation-plan.md), [`implementation/agentic-workflow-guide.md`](implementation/agentic-workflow-guide.md), and [`audit.md`](audit.md) before you continue.
 
+Gate hierarchy reference:
+
+- `npm run policy -- --pr-body-file docs/pr-messages/<ticket>-pr.md` for the default all-in-one gate.
+- `npm run policy:repo` for the repo-wide gate.
+- `npm run policy:quality`, `npm run policy:checks`, `npm run policy:forbid`, `npm run policy:header`, `npm run policy:forbidrepo`, `npm run policy:headerrepo`, `npm run policy:trace`, and `npm run policy:approve` when you need a narrower rerun.
+
 ### 4. Open the Pull Request
 - **Use the Template**: When opening a PR, the [`../.github/pull_request_template.md`](../.github/pull_request_template.md) will automatically apply. Fill out the entire checklist and follow the PR message structure in [PR Message and Gate Workflow](implementation/agentic-workflow-guide.md#12-pr-message-and-gate-workflow). Store the PR body in [`pr-messages/`](pr-messages/).
 - **Attach Evidence**: If your PR touches gameplay-critical paths (e.g., performance, rendering, or pausing), attach the required performance evidence (frame stats, traces) as defined in [`../AGENTS.md`](../AGENTS.md).
@@ -70,14 +76,14 @@ This repository uses [`../.gitea/workflows/policy-gate.yml`](../.gitea/workflows
 2. Keep the workflow file on the default branch so PR events can trigger it.
 3. Open PRs with the required sections from [`../.github/pull_request_template.md`](../.github/pull_request_template.md) in the body. If your Gitea instance does not auto-apply that template, paste it manually.
 4. Add a repo secret named `GITEA_TOKEN` if you want the approval API check to run. If the secret is missing, the workflow will skip that step and you should enforce approvals with branch protection instead.
-5. The npm quality gate runs when `package.json` is present and currently enforces `npm run ci:quality` (`check`, `test`, plus coverage/SBOM when configured).
+5. The npm quality gate runs when `package.json` is present and currently enforces `npm run policy:quality` (`check`, `test`, plus coverage/SBOM when configured).
 
 ### Test It
 
 1. Push a small branch change, open a PR in Gitea, and confirm the workflow starts on the PR event.
 2. Verify a valid PR passes the checklist, traceability, and boundary scans.
 3. Remove one required checklist item or introduce an audit traceability mismatch, then confirm the workflow fails at the expected step.
-4. Verify both the policy and quality jobs run (`npm run ci:policy`, then `npm run ci:quality`) by checking workflow logs.
+4. Verify the PR gate and repo gate run as expected (`npm run policy` and `npm run policy:repo`) by checking workflow logs.
 
 ---
 

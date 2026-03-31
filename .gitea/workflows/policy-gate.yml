@@ -45,12 +45,7 @@ jobs:
             npm install
           fi
 
-      - name: Run policy checks
+      - name: Run all policy checks
         run: |
           set -euo pipefail
-          npm run ci:policy
-
-      - name: Run quality checks
-        run: |
-          set -euo pipefail
-          npm run ci:quality
+          npm run policy -- --require-approval=true

@@ -1,10 +1,12 @@
 # PR Gate Checklist
 
+Gate hierarchy: use `npm run policy -- --pr-body-file docs/pr-messages/<ticket>-pr.md` for the all-in-one gate, `npm run policy:repo` for the repo-wide gate, and one-word reruns such as `policy:quality`, `policy:checks`, `policy:forbid`, `policy:header`, `policy:approve`, `policy:forbidrepo`, `policy:headerrepo`, and `policy:trace` when needed.
+
 ## Required checks
 
 - [ ] I read AGENTS.md and the agentic workflow guide
-- [ ] I ran `npm run ci:quality` locally
-- [ ] I ran `npm run ci:policy -- --pr-body-file docs/pr-messages/<ticket>-pr.md`
+- [ ] I ran `npm run policy:quality` locally
+- [ ] I ran `npm run policy -- --pr-body-file docs/pr-messages/<ticket>-pr.md`
 - [ ] I ran the applicable local checks
 - [ ] I listed the audit IDs affected by this change
 - [ ] I checked security sinks and trust boundaries

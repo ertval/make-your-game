@@ -112,7 +112,7 @@ A PR is not ready until the following are true.
 - The diff does not introduce forbidden APIs or unsafe DOM patterns.
 - The change does not break the repo’s ECS boundaries.
 - Documentation is updated if behavior, constraints, or testing expectations changed.
-- The script-driven gates pass locally: `npm run ci:quality` and `npm run ci:policy -- --pr-body-file docs/pr-messages/<ticket>-pr.md`.
+- The script-driven gates pass locally: `npm run policy -- --pr-body-file docs/pr-messages/<ticket>-pr.md` and `npm run policy:repo`.
 
 ### Required evidence for gameplay-critical changes
 
@@ -261,8 +261,8 @@ Follow the agreed ticket order and keep branches short-lived and single-purpose.
 Before opening a PR, confirm the description and checklist cover all required items:
 
 - [ ] I read AGENTS.md and the agentic workflow guide.
-- [ ] I ran `npm run ci:quality` locally.
-- [ ] I ran `npm run ci:policy -- --pr-body-file docs/pr-messages/<ticket>-pr.md`.
+- [ ] I ran `npm run policy -- --pr-body-file docs/pr-messages/<ticket>-pr.md` locally.
+- [ ] I ran `npm run policy:repo` locally.
 - [ ] I ran the applicable local checks.
 - [ ] I listed the audit IDs affected by this change.
 - [ ] I checked security sinks and trust boundaries.
@@ -284,27 +284,37 @@ Layer boundary confirmations (repository-specific):
 Run the local checks before opening a PR:
 
 1. Save the final PR message to a local file (example: `docs/pr-messages/<ticket>-pr.md`).
-2. Run the quality gate:
+2. Run the single PR gate:
 
 ```bash
-npm run ci:quality
+npm run policy -- --pr-body-file docs/pr-messages/<ticket>-pr.md
 ```
 
-3. Run policy checks with the saved PR body:
+3. If that fails, rerun the narrower command that matches the failure:
 
 ```bash
-npm run ci:policy -- --pr-body-file docs/pr-messages/<ticket>-pr.md
+npm run policy:quality
+npm run policy:checks
+npm run policy:forbid
+npm run policy:header
+npm run policy:approve
 ```
 
-`ci:policy` runs both PR-context checks and repo-wide policy/integrity checks in one command (`--scope=all`). It validates PR body content and does not require a PR title.
-
-4. If you need the aggregated final gate, run:
+4. Run the repo gate:
 
 ```bash
-npm run pr:gate -- --pr-body-file docs/pr-messages/<ticket>-pr.md
+npm run policy:repo
 ```
 
-5. If you changed HTML/JS tech stack boundaries, run explicit static scan:
+5. If the repo gate fails, rerun the narrower command that matches the failure:
+
+```bash
+npm run policy:forbidrepo
+npm run policy:headerrepo
+npm run policy:trace
+```
+
+6. If you changed HTML/JS tech stack boundaries, run explicit static scan:
 
 ```bash
 npm run check:forbidden
@@ -340,6 +350,17 @@ Use this structure in PR descriptions:
 ### Recording rule
 
 After a ticket is merged, store the final PR body in `docs/pr-messages/` with the ticket ID in the filename and add any final verification notes to the matching ticket entry in `ticket-tracker.md`.
+
+### Gate hierarchy
+
+- `npm run policy` runs the default all-in-one gate. It covers PR-context quality/checks/scans/approval and repo-wide scans/trace checks in one command.
+- `npm run policy:repo` runs the repo-wide gate. It covers repo forbidden-tech scans, repo source headers, and traceability and dependency pairing checks.
+- `npm run policy:quality` is the narrow quality-only rerun.
+- `npm run policy:checks` is the narrow rerun for PR body, checklist, layer-boundary, and PR traceability failures.
+- `npm run policy:forbid` and `npm run policy:forbidrepo` isolate forbidden-tech failures.
+- `npm run policy:header` and `npm run policy:headerrepo` isolate source-header failures.
+- `npm run policy:trace` isolates repo traceability and dependency pairing failures.
+- `npm run policy:approve` isolates approval failures.
 
 ## 13. Practical Standard
 

@@ -306,6 +306,55 @@ Open `http://localhost:5173` in your browser. Vite serves the app with hot-reloa
 ## 📜 Scripts & Commands
 
 > These commands describe the planned toolchain. They become usable after the project adds the runtime files referenced in the directory layout above.
+>
+> The fastest way to understand any command is to follow the implementation path: `package.json` defines the npm alias, and the underlying behavior lives in `scripts/policy-gate/*.mjs`.
+
+### Command Hierarchy
+
+The command graph is easiest to read from the top down:
+
+```text
+policy command family
+├── PR all-in-one gate (single command before opening a PR)
+│   └── npm run policy -- --pr-body-file docs/pr-messages/<ticket>-pr.md
+├── Repo-only gate
+│   └── npm run policy:repo
+└── Narrow reruns (one-word subcommands)
+    ├── npm run policy:quality
+    ├── npm run policy:checks -- --pr-body-file docs/pr-messages/<ticket>-pr.md
+    ├── npm run policy:forbid
+    ├── npm run policy:header
+    ├── npm run policy:approve
+    ├── npm run policy:forbidrepo
+    ├── npm run policy:headerrepo
+    └── npm run policy:trace
+```
+
+Use the broadest command first, then drop to the narrower command below if you need to isolate a failure.
+
+| If this fails | Re-run this narrower command | What it checks |
+|---|---|---|
+| `npm run policy` | `npm run policy:quality` | Biome, tests, coverage, and SBOM via the project quality gate |
+| `npm run policy` | `npm run policy:checks -- --pr-body-file docs/pr-messages/<ticket>-pr.md` | PR body sections, required checklist items, layer-boundary confirmations, and PR traceability checks |
+| `npm run policy` | `npm run policy:forbid` | Forbidden tech in changed files only |
+| `npm run policy` | `npm run policy:header` | Source headers in changed files only |
+| `npm run policy` | `npm run policy:approve` | Human approval/review requirement |
+| `npm run policy` | `npm run policy:repo` | Repo-wide scans and traceability/dependency pairing |
+| `npm run policy:repo` | `npm run policy:forbidrepo` | Forbidden tech across the repository |
+| `npm run policy:repo` | `npm run policy:headerrepo` | Source headers across the repository |
+| `npm run policy:repo` | `npm run policy:trace` | Requirement/audit matrix coverage and dependency pairing |
+
+### Where To Read The Implementation
+
+- `package.json` shows the npm alias graph and the names of the narrow troubleshooting commands.
+- `scripts/policy-gate/run-all.mjs` orchestrates the PR/repo umbrella gates and prints the step-level failure hints.
+- `scripts/policy-gate/run-checks.mjs` validates PR sections, checklist items, layer-boundary confirmations, and traceability coverage.
+- `scripts/policy-gate/run-project-gate.mjs` runs the quality gate (`check`, `test`, coverage, SBOM).
+- `scripts/policy-gate/check-forbidden.mjs` is the narrow forbidden-tech scan.
+- `scripts/policy-gate/check-source-headers.mjs` is the narrow source-header scan.
+- `scripts/policy-gate/lib/policy-utils.mjs` holds the shared checklist labels and traceability rules.
+
+### Quick Script Map
 
 | Command | Description |
 |---|---|
@@ -320,11 +369,6 @@ Open `http://localhost:5173` in your browser. Vite serves the app with hot-reloa
 | `npm run check` | Run Biome lint + format check |
 | `npm run validate:schema` | Run JSON Schema 2020-12 validation for maps |
 | `npm run sbom` | Generate SPDX SBOM for dependency auditing |
-| `npm run policy:pr -- --pr-body-file docs/pr-messages/<ticket>-pr.md` | Run PR-context policy checks locally (checklist, traceability pairing, changed-file boundary scans) |
-| `npm run policy:repo` | Run repo-wide policy checks (forbidden tech scan + traceability integrity validation) |
-| `npm run ci:policy -- --pr-body-file docs/pr-messages/<ticket>-pr.md` | Run the same combined policy checks used by CI |
-| `npm run ci:quality` | Run quality checks (`check`, `test`, coverage/SBOM when configured) |
-| `npm run pr:gate -- --pr-body-file <path>` | Run the full final PR gate (policy + project checks) |
 
 ---
 

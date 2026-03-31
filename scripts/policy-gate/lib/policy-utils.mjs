@@ -16,8 +16,8 @@ export const REQUIRED_SECTIONS = [
 
 export const REQUIRED_CHECKBOXES = [
   'I read AGENTS.md and the agentic workflow guide',
-  'I ran `npm run ci:quality` locally',
-  'I ran `npm run ci:policy -- --pr-body-file docs/pr-messages/<ticket>-pr.md`',
+  'I ran `npm run policy:quality` locally',
+  'I ran `npm run policy -- --pr-body-file docs/pr-messages/<ticket>-pr.md`',
   'I ran the applicable local checks',
   'I listed the audit IDs affected by this change',
   'I checked security sinks and trust boundaries',
