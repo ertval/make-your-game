@@ -1,9 +1,8 @@
 # ��� Track C — Scoring, Game Flow UI, Audio & Runtime Feedback (Dev 3)
 
-��� Source plan: `docs/implementation/implementation-plan-v3.md` (Section 3)
+��� Source plan: `docs/implementation/implementation-plan.md` (Section 3)
 
 > **Scope**: Scoring/timer/lives systems, spawn timing, pause/progression gameplay flow systems, HUD and screen overlay adapters, storage adapter, audio adapter, audio cue mapping, SFX/music production, and audio manifest governance. Dev 3 owns the player-facing runtime feedback loop across gameplay state, UI feedback, and sound.
-> **Estimate**: ~28 hours (10 tickets)
 > **Execution model**: Deliver scoring/lives/timer + gameplay flow UI for MVP, then layer audio integration and polish.
 
 ## Phase Order (MVP First)
@@ -16,7 +15,6 @@
 
 #### C-01: Scoring System
 **Priority**: ��� Critical
-**Estimate**: 2 hours
 **Phase**: P1 Playable MVP
 **Depends On**: `B-04` (collision intents), `D-01` (event-queue resource)
 **Impacts**: HUD-critical score metric (`AUDIT-F-15`)
@@ -39,7 +37,6 @@
 
 #### C-02: Timer & Life Systems
 **Priority**: ��� Critical
-**Estimate**: 3 hours
 **Phase**: P1 Playable MVP
 **Depends On**: `D-01` (clock/constants resources), `B-04` (collision intents for death)
 **Impacts**: HUD-critical timer and lives metrics (`AUDIT-F-14`, `AUDIT-F-16`)
@@ -60,7 +57,6 @@
 
 #### C-03: Spawn System
 **Priority**: ��� Critical
-**Estimate**: 1 hour
 **Phase**: P1 Playable MVP
 **Depends On**: `D-01` (constants/clock), `D-03` (map resource — ghost spawn points)
 **Impacts**: Ghost stagger timing and death-return respawn
@@ -80,7 +76,6 @@
 
 #### C-04: Pause & Level Progression Systems
 **Priority**: ��� Critical
-**Estimate**: 3 hours
 **Phase**: P1 Playable MVP
 **Depends On**: `D-01` (clock/game-status), `D-03` (map resource), `C-02` (timer/lives), `A-03` (game loop)
 **Impacts**: Pause menu behavior and level/game state transitions (`AUDIT-F-07..F-10`)
@@ -106,7 +101,6 @@
 
 #### C-05: HUD Adapter & Screen Overlays
 **Priority**: ��� Critical
-**Estimate**: 4 hours
 **Phase**: P1 Playable MVP
 **Depends On**: `D-05` (CSS layout), `C-02` (scoring/timer/lives data), `C-04` (pause/progression states)
 **Impacts**: Visible gameplay metrics (`AUDIT-F-14..F-16`), pause/start/restart UX (`AUDIT-F-07..F-09`)
@@ -136,7 +130,6 @@
 
 #### C-06: Audio Adapter Implementation
 **Priority**: ��� Critical
-**Estimate**: 4 hours
 **Phase**: P2 Feature Complete
 **Depends On**: `A-01` (scaffolding), `D-01` (constants resource)
 **Impacts**: Runtime audio boundary, fallback resilience, async decode baseline (`AUDIT-B-05`)
@@ -162,7 +155,6 @@
 
 #### C-07: Audio Cue Mapping & Runtime Integration
 **Priority**: ��� Critical
-**Estimate**: 3 hours
 **Phase**: P2 Feature Complete
 **Depends On**: `C-06` (audio adapter), `B-09` (event hooks)
 **Impacts**: Event-driven audio feedback loop across gameplay states and menus
@@ -196,7 +188,6 @@
 
 #### C-08: Sound Effects & Music Production
 **Priority**: ��� Critical
-**Estimate**: 5 hours
 **Phase**: P3 Polish and Validation
 **Depends On**: `C-06` (audio adapter)
 **Impacts**: Gameplay feel, action clarity, overall production quality (`AUDIT-B-06`)
@@ -228,7 +219,6 @@
 
 #### C-09: Audio Preloading & Performance
 **Priority**: ��� Medium
-**Estimate**: 1 hour
 **Phase**: P3 Polish and Validation
 **Depends On**: `C-06`, `C-08`
 **Impacts**: Async performance measurement and startup responsiveness (`AUDIT-B-05`)
@@ -253,7 +243,6 @@
 
 #### C-10: Audio Manifest Schema & Validation
 **Priority**: ��� Critical
-**Estimate**: 2 hours
 **Phase**: P3 Polish and Validation
 **Depends On**: `C-08`, `A-07` (CI schema gates)
 **Impacts**: CI asset governance and contract consistency

@@ -141,23 +141,20 @@ ffmpeg -i assets/source/audio/music-level-01.wav -c:a libopus -b:a 128k assets/g
 
 Asset implementation tasks are integrated into the canonical implementation tracks. Follow the verification gates in each track file:
 
-### [Track D — Visual Production & Integration](track-d.md) (Dev 4)
+### [Track D — Resources, Map, Rendering & Visual Assets](track-d-v3.md) (Dev 4)
 
-- **D-01 (Render Data Contracts)**: Includes `V-01 (Visual Schema Contract)`.
-- **D-09 (Visual Asset Production — Gameplay Sprites)**: Includes `V-02 (Character Set)` and `V-03 (Gameplay Props)`.
-- **D-10 (Visual Asset Production — UI & Screens)**: Includes `V-04 (HUD/Menu Visuals)`.
-- **D-11 (Visual Manifest & Asset Validation)**: Includes `V-05 (Optimization/QA)`.
+- **D-04 (Render Data Contracts)**: Includes `V-01 (Visual Schema Contract)`.
+- **D-10 (Visual Asset Production — Gameplay Sprites)**: Includes `V-02 (Character Set)` and `V-03 (Gameplay Props)`.
+- **D-11 (Visual Assets UI/Screens + Visual Manifest/Validation)**: Includes `V-04 (HUD/Menu Visuals)` and `V-05 (Optimization/QA)`.
 
-### [Track C — Audio Production & Integration](track-c.md) (Dev 3)
+### [Track C — Scoring, Game Flow UI, Audio & Runtime Feedback](track-c-v3.md) (Dev 3)
 
-- **C-03 (Gameplay Sound Effects Production)**: Includes `C-ASSET-03 (Core Gameplay SFX)`.
-- **C-05 (Audio Manifest Schema & Validation)**: Includes `C-ASSET-01 (Audio Schema Contract)`.
-- **C-06 (UI Sound Effects Production)**: Includes `C-ASSET-02 (UI SFX)`.
-- **C-07 (Music Track Production)**: Includes `C-ASSET-04 (Music/Ambience)`.
-- **QA/Normalization**: Integrated into `C-05` and `C-07`.
+- **C-08 (Sound Effects & Music Production)**: Includes `C-ASSET-02 (UI SFX)`, `C-ASSET-03 (Core Gameplay SFX)`, and `C-ASSET-04 (Music/Ambience)`.
+- **C-10 (Audio Manifest Schema & Validation)**: Includes `C-ASSET-01 (Audio Schema Contract)`.
+- **QA/Normalization**: Integrated into `C-08`, `C-09`, and `C-10`.
 
-### [Track A — Orchestration, Scaffolding, Testing & QA](track-a.md) (Dev 1)
+### [Track A — World, Game Flow, Scaffolding, Testing & QA](track-a-v3.md) (Dev 1)
 
-- **A-09 (CI, Schema Validation & Asset Gates)**: Includes `X-01 (Path Validation)` and `X-02 (Budget Guardrails)`.
+- **A-07 (CI, Schema Validation & Asset Gates)**: Includes `X-01 (Path Validation)` and `X-02 (Budget Guardrails)`.
 
 ---

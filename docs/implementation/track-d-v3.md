@@ -1,9 +1,8 @@
 # ��� Track D — Resources, Map, Rendering & Visual Assets (Dev 4)
 
-��� Source plan: `docs/implementation/implementation-plan-v3.md` (Section 3)
+��� Source plan: `docs/implementation/implementation-plan.md` (Section 3)
 
 > **Scope**: ECS resources (time, constants, RNG, events, game-status), map loading, renderer adapters, sprite pools, CSS layout, render systems (collect + DOM batch), gameplay sprite production, and UI visual/manifest governance. Dev 4 owns deterministic world-state infrastructure and the full DOM render/visual pipeline.
-> **Estimate**: ~27 hours (11 tickets)
 > **Execution model**: Build resource/map/render foundations first, then lock memory-stable rendering, then finish visual polish and manifest governance.
 
 ## Phase Order (MVP First)
@@ -17,7 +16,6 @@
 
 #### D-01: Resources (Time, Constants, RNG, Events, Game Status)
 **Priority**: ��� Critical
-**Estimate**: 3 hours
 **Phase**: P0 Foundation
 **Depends On**: `A-02` (world engine — resource API)
 **Impacts**: Determinism contract, clock/pause correctness, cross-system event ordering
@@ -46,7 +44,6 @@
 
 #### D-02: Map Schema & JSON Blueprints
 **Priority**: ��� Critical
-**Estimate**: 2 hours
 **Phase**: P0 Foundation
 **Depends On**: `D-01` (constants for timer/ghost config)
 **Impacts**: Level data contract, JSON Schema 2020-12 validation in CI
@@ -69,7 +66,6 @@
 
 #### D-03: Map Loading Resource
 **Priority**: ��� Critical
-**Estimate**: 2 hours
 **Phase**: P0 Foundation
 **Depends On**: `D-01`, `D-02`
 **Impacts**: Level loading, restart determinism, progression correctness
@@ -92,7 +88,6 @@
 
 #### D-04: Render Data Contracts
 **Priority**: ��� Critical
-**Estimate**: 1 hour
 **Phase**: P0 Foundation
 **Depends On**: `A-02` (world engine), `B-01` (components)
 **Impacts**: ECS/DOM boundary safety and deterministic render intent contracts
@@ -114,7 +109,6 @@
 
 #### D-05: CSS Layout & Grid Structure
 **Priority**: ��� Critical
-**Estimate**: 3 hours
 **Phase**: P1 Playable MVP
 **Depends On**: `A-01` (scaffolding)
 **Impacts**: Core board layout, accessibility baseline, layer policy groundwork (`AUDIT-F-20`, `AUDIT-F-21`)
@@ -143,7 +137,6 @@
 
 #### D-06: Renderer Adapter & Board Generation
 **Priority**: ��� Critical
-**Estimate**: 3 hours
 **Phase**: P1 Playable MVP
 **Depends On**: `D-04`, `D-05`, `D-03`
 **Impacts**: Safe DOM board rendering and no-canvas compliance (`AUDIT-F-04`)
@@ -164,7 +157,6 @@
 
 #### D-07: Render Collect System
 **Priority**: ��� Critical
-**Estimate**: 2 hours
 **Phase**: P1 Playable MVP
 **Depends On**: `D-04`, `B-03` (movement — position data to interpolate)
 **Impacts**: Smooth interpolation and deterministic intent ordering for frame commits
@@ -183,7 +175,6 @@
 
 #### D-08: Render DOM System (The Batcher)
 **Priority**: ��� Critical
-**Estimate**: 3 hours
 **Phase**: P1 Playable MVP
 **Depends On**: `D-06`, `D-07`
 **Impacts**: Frame-time stability and compositor-only writes (`AUDIT-F-19`, `AUDIT-F-20`, `AUDIT-F-21`)
@@ -207,7 +198,6 @@
 
 #### D-09: Sprite Pool Adapter
 **Priority**: ��� Critical
-**Estimate**: 3 hours
 **Phase**: P2 Feature Complete
 **Depends On**: `D-06`, `D-08`
 **Impacts**: Allocation stability and memory reuse (`AUDIT-B-03`)
@@ -230,7 +220,6 @@
 
 #### D-10: Visual Asset Production — Gameplay Sprites
 **Priority**: ��� Critical
-**Estimate**: 3 hours
 **Phase**: P3 Polish and Validation
 **Depends On**: `D-06`, `D-08`
 **Impacts**: In-game readability and SVG compliance (`AUDIT-B-04`)
@@ -258,7 +247,6 @@
 
 #### D-11: Visual Assets (UI & Screens) + Visual Manifest & Validation
 **Priority**: ��� Medium
-**Estimate**: 2 hours
 **Phase**: P3 Polish and Validation
 **Depends On**: `C-05`, `D-10`, `A-07` (CI schema gates)
 **Impacts**: Start/pause/game-over/victory visual polish; asset contract enforcement; CI validation

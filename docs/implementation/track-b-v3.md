@@ -1,9 +1,8 @@
 # ��� Track B — Components, Input, Movement, Combat & AI Simulation (Dev 2)
 
-��� Source plan: `docs/implementation/implementation-plan-v3.md` (Section 3)
+��� Source plan: `docs/implementation/implementation-plan.md` (Section 3)
 
 > **Scope**: All ECS component data definitions, input adapter/system, movement & grid collision, entity collision, bomb/explosion simulation, power-up effects, ghost AI behavior, and deterministic gameplay event emission from simulation systems. Pure ECS simulation — no DOM, no audio playback, no visual asset work. **Does NOT own** scoring/timer/lives, pause/progression UX, HUD/screens adapters, or visual rendering infrastructure.
-> **Estimate**: ~29 hours (9 tickets)
 > **Execution model**: Deliver the core physics pipeline first, then add combat depth, AI behavior, and final event-contract consolidation.
 
 ## Phase Order (MVP First)
@@ -16,7 +15,6 @@
 
 #### B-01: ECS Components (All Data Definitions)
 **Priority**: ��� Critical
-**Estimate**: 3 hours
 **Phase**: P0 Foundation
 **Depends On**: `A-02` (world engine)
 **Impacts**: Canonical gameplay data model, unblocks all simulation systems and render contracts
@@ -60,7 +58,6 @@
 
 #### B-02: Input Adapter & Input System
 **Priority**: ��� Critical
-**Estimate**: 3 hours
 **Phase**: P1 Playable MVP
 **Depends On**: `B-01`, `A-03` (game loop), `D-01` (resources/constants)
 **Impacts**: Keyboard control path and hold-to-move (`AUDIT-F-11`, `AUDIT-F-12`)
@@ -84,7 +81,6 @@
 
 #### B-03: Movement & Grid Collision System
 **Priority**: ��� Critical
-**Estimate**: 4 hours
 **Phase**: P1 Playable MVP
 **Depends On**: `B-01`, `B-02`, `D-03` (map resource from Track D)
 **Impacts**: Core controllable gameplay movement (`AUDIT-F-11`, `AUDIT-F-12`, `AUDIT-F-13`)
@@ -109,7 +105,6 @@
 
 #### B-04: Entity Collision System
 **Priority**: ��� Critical
-**Estimate**: 4 hours
 **Phase**: P1 Playable MVP
 **Depends On**: `B-01`, `B-03`, `D-03` (map resource)
 **Impacts**: Player/ghost/pellet interaction correctness and life/score intents
@@ -143,7 +138,6 @@
 
 #### B-05: Core Gameplay Event Surface
 **Priority**: ��� Medium
-**Estimate**: 2 hours
 **Phase**: P2 Feature Complete
 **Depends On**: `B-04`, `D-01` (event-queue resource)
 **Impacts**: Deterministic base event emission from collision/movement systems for scoring, audio, and visual consumers
@@ -168,7 +162,6 @@
 
 #### B-06: Bomb & Explosion Systems
 **Priority**: ��� Critical
-**Estimate**: 4 hours
 **Phase**: P2 Feature Complete
 **Depends On**: `B-03` (movement/grid), `B-04` (collision), `D-01` (constants/rng), `D-03` (map resource)
 **Impacts**: Bomberman mechanics, chain reactions, combo rules (`AUDIT-F-13`, `AUDIT-B-03`)
@@ -194,7 +187,6 @@
 
 #### B-07: Power-Up System
 **Priority**: ��� Critical
-**Estimate**: 2 hours
 **Phase**: P2 Feature Complete
 **Depends On**: `B-04` (collision intents), `B-06` (explosions spawn power-ups), `D-01` (canonical duration constants)
 **Impacts**: Power progression, stun windows, speed-state timing (`AUDIT-F-13`)
@@ -217,7 +209,6 @@
 
 #### B-08: Ghost AI System
 **Priority**: ��� Critical
-**Estimate**: 5 hours
 **Phase**: P2 Feature Complete
 **Depends On**: `B-03` (movement/grid), `B-04` (collision), `B-07` (stun/speed effect states), `D-01` (constants/rng), `D-03` (map resource), `C-03` (spawn timing)
 **Impacts**: Difficulty curve and personality-driven enemy behavior (`AUDIT-F-13`)
@@ -247,7 +238,6 @@
 
 #### B-09: Cross-System Gameplay Event Hooks
 **Priority**: ��� Medium
-**Estimate**: 2 hours
 **Phase**: P2 Feature Complete
 **Depends On**: `C-01` (scoring), `C-02` (timer/lives), `B-05` (event baseline), `B-06` (bombs/explosions), `B-08` (ghost AI), `D-01` (event-queue)
 **Impacts**: Final deterministic integration surface for audio/visual cues
