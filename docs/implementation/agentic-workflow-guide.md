@@ -15,7 +15,7 @@ If this guide conflicts with [AGENTS.md](../../AGENTS.md), [docs/requirements.md
 
 ## 2. Team Model for 4 Developers
 
-> **Canonical track ownership is defined in [`docs/implementation/implementation-plan.md` §3](implementation-plan.md#section-3-workflow-tracks-balanced-workload) and detailed in [`docs/implementation/track-a-v3.md`](track-a-v3.md), [`docs/implementation/track-b-v3.md`](track-b-v3.md), [`docs/implementation/track-c-v3.md`](track-c-v3.md), and [`docs/implementation/track-d-v3.md`](track-d-v3.md)**. The tracks are: **Track A** (Engine/CI/Testing), **Track B** (Simulation Gameplay Systems), **Track C** (Gameplay Feedback + Audio), **Track D** (Resources/Rendering/Visual). When this guide conflicts with those documents on task ownership, the implementation docs win.
+> **Canonical track ownership is defined in [`docs/implementation/implementation-plan.md` §3](implementation-plan.md#section-3-workflow-tracks-balanced-workload) and detailed in [`docs/implementation/track-a.md`](track-a.md), [`docs/implementation/track-b.md`](track-b.md), [`docs/implementation/track-c.md`](track-c.md), and [`docs/implementation/track-d.md`](track-d.md)**. The tracks are: **Track A** (Engine/CI/Testing), **Track B** (Simulation Gameplay Systems), **Track C** (Gameplay Feedback + Audio), **Track D** (Resources/Rendering/Visual). When this guide conflicts with those documents on task ownership, the implementation docs win.
 
 This guide describes the *process layer* on top of those tracks:
 
