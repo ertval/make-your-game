@@ -320,7 +320,10 @@ Open `http://localhost:5173` in your browser. Vite serves the app with hot-reloa
 | `npm run check` | Run Biome lint + format check |
 | `npm run validate:schema` | Run JSON Schema 2020-12 validation for maps |
 | `npm run sbom` | Generate SPDX SBOM for dependency auditing |
-| `npm run policy:local -- --pr-body-file <path>` | Run script-driven policy gate locally before opening a PR |
+| `npm run policy:pr -- --pr-body-file docs/pr-messages/<ticket>-pr.md` | Run PR-context policy checks locally (checklist, traceability pairing, changed-file boundary scans) |
+| `npm run policy:repo` | Run repo-wide policy checks (forbidden tech scan + traceability integrity validation) |
+| `npm run ci:policy -- --pr-body-file docs/pr-messages/<ticket>-pr.md` | Run the same combined policy checks used by CI |
+| `npm run ci:quality` | Run quality checks (`check`, `test`, coverage/SBOM when configured) |
 | `npm run pr:gate -- --pr-body-file <path>` | Run the full final PR gate (policy + project checks) |
 
 ---

@@ -3,13 +3,23 @@
 ## Required checks
 
 - [x] I read AGENTS.md and the agentic workflow guide
+- [x] I ran `npm run ci:quality` locally
+- [x] I ran `npm run ci:policy -- --pr-body-file docs/pr-messages/<ticket>-pr.md`
 - [x] I ran the applicable local checks
 - [x] I listed the audit IDs affected by this change
 - [x] I checked security sinks and trust boundaries
 - [x] I checked architecture boundaries
 - [x] I checked dependency and lockfile impact
-- [x] I ran `npm run pr:gate -- --pr-body-file <path-to-pr-message>`
 - [x] I requested human review
+- [x] I stored this PR body under `docs/pr-messages/`
+
+## Layer boundary confirmation
+
+- [x] `src/ecs/systems/` has no DOM references except `render-dom-system.js`
+- [x] Simulation systems access adapters only through World resources (no direct adapter imports)
+- [x] `src/adapters/` owns DOM and browser I/O side effects
+- [x] Untrusted UI content uses safe sinks (`textContent` / explicit attributes), not HTML injection
+- [x] No framework imports or canvas APIs were introduced in this change
 
 ## What changed
 - Added A-01 scaffolding files: package/tooling configs, app shell HTML/CSS, and initial entry module.
@@ -20,6 +30,8 @@
 - Establishes the baseline development toolchain and merge gate automation for Track A.
 
 ## Tests
+- `npm run ci:quality`
+- `npm run ci:policy -- --pr-body-file docs/pr-messages/a-01-project-scaffolding-pr.md`
 - `npm run check`
 - `npm run test`
 - `npm run validate:schema`
@@ -39,4 +51,4 @@
 - Added lockfile to pair dependency metadata with deterministic installs.
 
 ## Risks
-- Local PR gate requires a prepared PR body file; if not provided, local `policy:local` will fail by design.
+- Policy checks require a prepared PR body file; if not provided, `npm run ci:policy` validation can fail by design.

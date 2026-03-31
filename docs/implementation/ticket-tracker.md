@@ -37,8 +37,8 @@ Coverage mapping remains canonical in `audit-traceability-matrix.md`.
 
 | Status | ID | Phase | Ticket | Depends On | Blocks | PR | Evidence / Notes |
 |---|---|---|---|---|---|---|---|
-| In Progress | A-01 | P0 | Project Scaffolding & Tooling | None | Repo boot + CI policy gates | - | Branch `ekaramet/A-01`; local gate: `npm run pr:gate -- --pr-body-file docs/pr-messages/a-01-project-scaffolding-pr.md` |
-| In Progress | A-02 | P0 | ECS Architecture Core (World, Entity, Query) | A-01 | Deterministic ECS runtime backbone | - | Branch `ekaramet/A-02`; unit gate: `npm run test:unit` |
+| In Progress | A-01 | P0 | Project Scaffolding & Tooling | None | Repo boot + CI policy gates | - | Branch `ekaramet/A-01`; local policy: `npm run ci:policy -- --pr-body-file docs/pr-messages/a-01-project-scaffolding-pr.md`; quality: `npm run ci:quality` |
+| In Progress | A-02 | P0 | ECS Architecture Core (World, Entity, Query) | A-01 | Deterministic ECS runtime backbone | - | Branch `ekaramet/A-02`; local policy: `npm run ci:policy -- --pr-body-file docs/pr-messages/a-02-ecs-core-pr.md`; unit gate: `npm run test:unit` |
 | Not Started | A-03 | P0 | Game Loop & Main Initialization | A-02, D-01 | rAF loop, pause semantics, instrumentation | - | - |
 | Not Started | A-04 | P1 | Unit Tests — ECS Core & Resources | A-02, A-03, D-01, D-03 | Foundational regression safety | - | - |
 | Not Started | A-05 | P1 | Integration Tests — Multi-System & Adapter Boundaries | A-03, B-03, C-02, C-04, C-05, D-08 | Cross-system and adapter correctness | - | - |

@@ -3,13 +3,23 @@
 ## Required checks
 
 - [x] I read AGENTS.md and the agentic workflow guide
+- [x] I ran `npm run ci:quality` locally
+- [x] I ran `npm run ci:policy -- --pr-body-file docs/pr-messages/<ticket>-pr.md`
 - [x] I ran the applicable local checks
 - [x] I listed the audit IDs affected by this change
 - [x] I checked security sinks and trust boundaries
 - [x] I checked architecture boundaries
 - [x] I checked dependency and lockfile impact
-- [x] I ran `npm run pr:gate -- --pr-body-file <path-to-pr-message>`
 - [x] I requested human review
+- [x] I stored this PR body under `docs/pr-messages/`
+
+## Layer boundary confirmation
+
+- [x] `src/ecs/systems/` has no DOM references except `render-dom-system.js`
+- [x] Simulation systems access adapters only through World resources (no direct adapter imports)
+- [x] `src/adapters/` owns DOM and browser I/O side effects
+- [x] Untrusted UI content uses safe sinks (`textContent` / explicit attributes), not HTML injection
+- [x] No framework imports or canvas APIs were introduced in this change
 
 ## What changed
 - Added ECS core world primitives for A-02:
@@ -23,6 +33,8 @@
 - Establishes deterministic ECS world behavior and test-backed contracts required before gameplay systems and resources can be implemented.
 
 ## Tests
+- `npm run ci:quality`
+- `npm run ci:policy -- --pr-body-file docs/pr-messages/a-02-ecs-core-pr.md`
 - `npm run check`
 - `npm run test:unit`
 - `npm run pr:gate -- --pr-body-file docs/pr-messages/a-02-ecs-core-pr.md`

@@ -3,6 +3,7 @@ import path from 'node:path';
 import process from 'node:process';
 import {
   REQUIRED_CHECKBOXES,
+  REQUIRED_LAYER_CHECKBOXES,
   REQUIRED_SECTIONS,
   escapeRegex,
   parseArgs,
@@ -49,12 +50,23 @@ function assertPrBody() {
   }
 
   const missingChecks = REQUIRED_CHECKBOXES.filter((label) => {
-    const pattern = new RegExp(`^\\s*- \\[xX\\]\\s+${escapeRegex(label)}\\s*$`, 'im');
+    const pattern = new RegExp(`^\\s*- \\[[xX]\\]\\s+${escapeRegex(label)}\\s*$`, 'im');
     return !pattern.test(body);
   });
 
   if (missingChecks.length) {
     throw new Error(`Missing required PR checklist items: ${missingChecks.join(', ')}`);
+  }
+
+  const missingLayerChecks = REQUIRED_LAYER_CHECKBOXES.filter((label) => {
+    const pattern = new RegExp(`^\\s*- \\[[xX]\\]\\s+${escapeRegex(label)}\\s*$`, 'im');
+    return !pattern.test(body);
+  });
+
+  if (missingLayerChecks.length) {
+    throw new Error(
+      `Missing required layer-boundary checklist items: ${missingLayerChecks.join(', ')}`,
+    );
   }
 }
 

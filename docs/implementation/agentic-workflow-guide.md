@@ -31,7 +31,7 @@ Recommended rule for all four devs:
 - Do not let two people or agents edit the same subsystem at the same time unless the work is intentionally paired.
 - Keep branches short-lived.
 - Rebase or sync early and often.
-- Use `ticket-tracker.md` as the visible work board with status, owner, and review state.
+- Use `ticket-tracker.md` as the visible work board with status, dependencies, PR links, and review state.
 
 ## 3. How to Use Agents Well
 
@@ -112,7 +112,7 @@ A PR is not ready until the following are true.
 - The diff does not introduce forbidden APIs or unsafe DOM patterns.
 - The change does not break the repo’s ECS boundaries.
 - Documentation is updated if behavior, constraints, or testing expectations changed.
-- The script-driven policy gate passes locally: `npm run pr:gate -- --pr-body-file <path>`.
+- The script-driven gates pass locally: `npm run ci:quality` and `npm run ci:policy -- --pr-body-file docs/pr-messages/<ticket>-pr.md`.
 
 ### Required evidence for gameplay-critical changes
 
@@ -271,6 +271,14 @@ Before opening a PR, confirm the description and checklist cover all required it
 - [ ] I requested human review.
 - [ ] I stored this PR body under `docs/pr-messages/`.
 
+Layer boundary confirmations (repository-specific):
+
+- [ ] `src/ecs/systems/` has no DOM references except `render-dom-system.js`.
+- [ ] Simulation systems access adapters only through World resources (no direct adapter imports).
+- [ ] `src/adapters/` owns DOM and browser I/O side effects.
+- [ ] Untrusted UI content uses safe sinks (`textContent` / explicit attributes), not HTML injection.
+- [ ] No framework imports or canvas APIs were introduced in this change.
+
 ### Manual gate workflow (required)
 
 Run the local checks before opening a PR:
@@ -287,6 +295,8 @@ npm run ci:quality
 ```bash
 npm run ci:policy -- --pr-body-file docs/pr-messages/<ticket>-pr.md
 ```
+
+`ci:policy` runs both PR-context checks and repo-wide policy/integrity checks in one command (`--scope=all`). It validates PR body content and does not require a PR title.
 
 4. If you need the aggregated final gate, run:
 
