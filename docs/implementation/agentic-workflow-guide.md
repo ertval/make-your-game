@@ -112,6 +112,7 @@ A PR is not ready until the following are true.
 - The diff does not introduce forbidden APIs or unsafe DOM patterns.
 - The change does not break the repo’s ECS boundaries.
 - Documentation is updated if behavior, constraints, or testing expectations changed.
+- The script-driven policy gate passes locally: `npm run pr:gate -- --pr-body-file <path>`.
 
 ### Required evidence for gameplay-critical changes
 
@@ -303,3 +304,4 @@ Use repository automation to block unsafe or incomplete PRs before merge.
 - Keep the PR template filled out.
 - Treat a green gate as the minimum for review readiness, not the finish line.
 - If the gate fails, fix the root cause in the same branch before asking for another review.
+- The workflow now delegates policy enforcement to `scripts/policy-gate/*.mjs`, so local and CI gates share the same implementation.

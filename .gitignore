@@ -25,6 +25,7 @@ test-results/
 .parcel-cache/
 .turbo/
 *.tsbuildinfo
+sbom.json
 
 # Logs and temporary files
 *.log

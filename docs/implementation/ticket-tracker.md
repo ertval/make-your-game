@@ -29,15 +29,15 @@ Coverage mapping remains canonical in `audit-traceability-matrix.md`.
 
 - Total tickets: `39`
 - Done: `0`
-- In Progress: `0`
+- In Progress: `1`
 - Blocked: `0`
-- Not Started: `39`
+- Not Started: `38`
 
 ## ⚙️ Track A (Dev 1)
 
 | ID | Phase | Ticket | Owner | Priority | Depends On | Primary Impacts | Status | PR | Evidence / Notes |
 |---|---|---|---|---|---|---|---|---|---|
-| A-01 | P0 | Project Scaffolding & Tooling | Dev 1 | Critical | None | Repo boot + CI policy gates | Not Started | - | - |
+| A-01 | P0 | Project Scaffolding & Tooling | Dev 1 | Critical | None | Repo boot + CI policy gates | In Progress | - | Branch `ekaramet/A-01`; local gate: `npm run pr:gate -- --pr-body-file docs/pr-messages/a-01-project-scaffolding-pr.md` |
 | A-02 | P0 | ECS Architecture Core (World, Entity, Query) | Dev 1 | Critical | A-01 | Deterministic ECS runtime backbone | Not Started | - | - |
 | A-03 | P0 | Game Loop & Main Initialization | Dev 1 | Critical | A-02, D-01 | rAF loop, pause semantics, instrumentation | Not Started | - | - |
 | A-04 | P1 | Unit Tests — ECS Core & Resources | Dev 1 | Critical | A-02, A-03, D-01, D-03 | Foundational regression safety | Not Started | - | - |
