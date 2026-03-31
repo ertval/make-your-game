@@ -45,7 +45,7 @@ Coverage mapping remains canonical in `audit-traceability-matrix.md`.
 | A-06 | P1 | E2E Audit Tests (Playwright) | Dev 1 | Critical | A-03, B-04, C-04, C-05 | Automated acceptance coverage | Not Started | - | - |
 | A-07 | P2 | CI, Schema Validation & Asset Gates | Dev 1 | Medium | A-01, D-03 | Merge safety and schema governance | Not Started | - | - |
 | A-08 | P2 | Unit Tests — All Gameplay Systems | Dev 1 | Critical | B-01 through B-09, C-01 through C-05, C-07 | Gameplay/system regression coverage | Not Started | - | - |
-| A-09 | P3 | Evidence Aggregation & Final QA Polish | Dev 1 | Medium | A-05, A-06, A-07, A-08, C-09, C-11 | Manual evidence + release sign-off | Not Started | - | - |
+| A-09 | P3 | Evidence Aggregation & Final QA Polish | Dev 1 | Medium | A-05, A-06, A-07, A-08, C-09, D-11 | Manual evidence + release sign-off | Not Started | - | - |
 
 ## 🎮 Track B (Dev 2)
 
@@ -75,8 +75,6 @@ Coverage mapping remains canonical in `audit-traceability-matrix.md`.
 | C-08 | P3 | Sound Effects & Music Production | Dev 3 | Critical | C-06 | Gameplay feel and production quality | Not Started | - | - |
 | C-09 | P3 | Audio Preloading & Performance | Dev 3 | Medium | C-06, C-08 | Async decode and startup responsiveness | Not Started | - | - |
 | C-10 | P3 | Audio Manifest Schema & Validation | Dev 3 | Critical | C-08, A-07 | CI audio asset governance | Not Started | - | - |
-| C-11 | P3 | Visual Assets (UI & Screens) + Visual Manifest & Validation | Dev 3 | Medium | C-05, D-10, A-07 | UI visual polish, manifest contracts, fallbacks | Not Started | - | - |
-
 ## 🎨 Track D (Dev 4)
 
 | ID | Phase | Ticket | Owner | Priority | Depends On | Primary Impacts | Status | PR | Evidence / Notes |
@@ -91,6 +89,7 @@ Coverage mapping remains canonical in `audit-traceability-matrix.md`.
 | D-08 | P1 | Render DOM System (The Batcher) | Dev 4 | Critical | D-06, D-07 | Compositor-safe commit pipeline | Not Started | - | - |
 | D-09 | P2 | Sprite Pool Adapter | Dev 4 | Critical | D-06, D-08 | Memory reuse and allocation stability | Not Started | - | - |
 | D-10 | P3 | Visual Asset Production — Gameplay Sprites | Dev 4 | Critical | D-06, D-08 | Gameplay readability + SVG quality | Not Started | - | - |
+| D-11 | P3 | Visual Assets (UI & Screens) + Visual Manifest & Validation | Dev 4 | Medium | C-05, D-10, A-07 | UI visual polish, manifest contracts, fallbacks | Not Started | - | - |
 
 ## 🔗 Cross-Document References
 

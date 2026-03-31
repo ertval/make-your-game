@@ -2,16 +2,16 @@
 
 ��� Source plan: `docs/implementation/implementation-plan-v3.md` (Section 3)
 
-> **Scope**: ECS resources (time, constants, RNG, events, game-status), map loading, renderer adapters, sprite pools, CSS layout, render systems (collect + DOM batch), and gameplay visual sprite production. Dev 4 owns deterministic world-state infrastructure and the DOM render pipeline.
-> **Estimate**: ~25 hours (10 tickets)
-> **Execution model**: Build resource/map/render foundations first, then lock memory-stable rendering, then finish gameplay visual sprite production.
+> **Scope**: ECS resources (time, constants, RNG, events, game-status), map loading, renderer adapters, sprite pools, CSS layout, render systems (collect + DOM batch), gameplay sprite production, and UI visual/manifest governance. Dev 4 owns deterministic world-state infrastructure and the full DOM render/visual pipeline.
+> **Estimate**: ~27 hours (11 tickets)
+> **Execution model**: Build resource/map/render foundations first, then lock memory-stable rendering, then finish visual polish and manifest governance.
 
 ## Phase Order (MVP First)
 
 - **P0 Foundation**: `D-01` to `D-04`
 - **P1 Playable MVP**: `D-05` to `D-08`
 - **P2 Feature Complete**: `D-09`
-- **P3 Polish and Validation**: `D-10`
+- **P3 Polish and Validation**: `D-10`, `D-11`
 
 ---
 
@@ -240,7 +240,7 @@
 - `assets/source/visual/` — source design files
 
 **Blocks**:
-- C-11 (Track C — UI visual/manifest governance consumes sprite metadata and fallback mappings)
+- D-11 (same track — manifest needs sprite metadata)
 
 - [ ] Create/export core gameplay sprites (SVG preferred, < 50 path elements each):
   - Ms. Ghostman: idle, walking frames (4 directions), death animation, invincibility blink, speed boost tint/trail.
@@ -251,7 +251,42 @@
   - Walls: indestructible (brick pattern), destructible (crate/box), destruction animation.
 - [ ] Create/export power-up sprites/icons: Power Pellet `⚡`, Bomb+ `���+`, Fire+ `���+`, Speed Boost `���`.
 - [ ] Ensure all sprites have declared dimensions in metadata for layout reservation.
-- [ ] Emit a sprite metadata handoff table (`spriteId`, `width`, `height`, `className`) consumed by `C-11` manifest mapping.
+- [ ] Emit a sprite metadata handoff table (`spriteId`, `width`, `height`, `className`) consumed by `D-11` manifest mapping.
 - [ ] Verification gate: all sprites render correctly at target display size.
+
+---
+
+#### D-11: Visual Assets (UI & Screens) + Visual Manifest & Validation
+**Priority**: ��� Medium
+**Estimate**: 2 hours
+**Phase**: P3 Polish and Validation
+**Depends On**: `C-05`, `D-10`, `A-07` (CI schema gates)
+**Impacts**: Start/pause/game-over/victory visual polish; asset contract enforcement; CI validation
+
+**Deliverables**:
+- `assets/generated/ui/*.svg` — UI screen assets
+- `docs/schemas/visual-manifest.schema.json` (JSON Schema 2020-12)
+- `assets/manifests/visual-manifest.json` — all visual asset entries
+- CSS layouts for all screen overlays
+- HUD layout CSS
+
+**Blocks**:
+- A-09 (Track A — final QA evidence requires validated visual manifests and fallback behavior)
+
+- [ ] Design and build CSS layouts for all screen overlays:
+  - Start Screen: title treatment, button styles, high score table.
+  - Pause Menu: semi-transparent overlay, button styles.
+  - Level Complete: stats layout, next level button.
+  - Game Over: final score display, play again button.
+  - Victory: celebration treatment, final stats, play again button.
+- [ ] Create HUD layout CSS: lives icons, score counter, timer, bomb/fire indicators, level number.
+- [ ] Finalize `docs/schemas/visual-manifest.schema.json` (JSON Schema 2020-12):
+  - Required fields: `id`, `path`, `kind` (sprite|ui|tile|effect), `format`, `width`, `height`, `tags`, `critical`.
+  - Optional fields: `maxBytes`, `notes`.
+- [ ] Create/maintain `assets/manifests/visual-manifest.json` with all visual asset entries.
+- [ ] Build manifest-to-renderable mapping table and define missing-asset fallback class behavior.
+- [ ] Optimize SVG/raster outputs and validate against layer/paint constraints.
+- [ ] Ensure responsive sizing within the game viewport.
+- [ ] Verification gate: manifest validation passes CI; all screens render correctly with keyboard focus indicators visible; runtime fallback tests prove robust asset mapping.
 
 ---

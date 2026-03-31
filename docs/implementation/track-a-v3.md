@@ -280,7 +280,7 @@
 **Priority**: ��� Medium
 **Estimate**: 2 hours
 **Phase**: P3 Final Acceptance
-**Depends On**: `A-05`, `A-06`, `A-07`, `A-08`, `C-09`, `C-11`
+**Depends On**: `A-05`, `A-06`, `A-07`, `A-08`, `C-09`, `D-11`
 **Impacts**: Final audit sign-off (`AUDIT-F-19..F-21`, `AUDIT-B-06`), release readiness
 
 **Deliverables**:

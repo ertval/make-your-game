@@ -2,15 +2,15 @@
 
 ��� Source plan: `docs/implementation/implementation-plan-v3.md` (Section 3)
 
-> **Scope**: Scoring/timer/lives systems, spawn timing, pause/progression gameplay flow systems, HUD and screen overlay adapters, storage adapter, audio adapter, audio cue mapping, SFX/music production, audio manifest governance, and UI visual/visual-manifest governance. Dev 3 owns the player-facing runtime feedback loop across gameplay state, UI feedback, and sound.
-> **Estimate**: ~30 hours (11 tickets)
+> **Scope**: Scoring/timer/lives systems, spawn timing, pause/progression gameplay flow systems, HUD and screen overlay adapters, storage adapter, audio adapter, audio cue mapping, SFX/music production, and audio manifest governance. Dev 3 owns the player-facing runtime feedback loop across gameplay state, UI feedback, and sound.
+> **Estimate**: ~28 hours (10 tickets)
 > **Execution model**: Deliver scoring/lives/timer + gameplay flow UI for MVP, then layer audio integration and polish.
 
 ## Phase Order (MVP First)
 
 - **P1 Playable MVP**: `C-01` to `C-05`
 - **P2 Feature Complete**: `C-06`, `C-07`
-- **P3 Polish and Validation**: `C-08` to `C-11`
+- **P3 Polish and Validation**: `C-08` to `C-10`
 
 ---
 
@@ -117,7 +117,7 @@
 - `src/adapters/io/storage-adapter.js` — high score localStorage with untrusted data validation
 
 **Blocks**:
-- C-11 (same track — final visual UI assets and manifest wiring align to screen contracts)
+- D-11 (Track D — final visual UI assets and manifest wiring align to screen contracts)
 
 - [ ] Implement `hud-adapter.js`:
   - Binds text nodes natively with `.textContent` to update: lives (heart icons), score (5-digit), timer (M:SS), bomb count, fire radius, level number.
@@ -271,40 +271,5 @@
 - [ ] Create `assets/manifests/audio-manifest.json` with all audio asset entries.
 - [ ] Wire manifest schema validation into CI (fails on invalid entries).
 - [ ] Verification gate: CI rejects invalid manifest entries; valid entries pass.
-
----
-
-#### C-11: Visual Assets (UI & Screens) + Visual Manifest & Validation
-**Priority**: ��� Medium
-**Estimate**: 2 hours
-**Phase**: P3 Polish and Validation
-**Depends On**: `C-05`, `D-10`, `A-07` (CI schema gates)
-**Impacts**: Start/pause/game-over/victory visual polish; asset contract enforcement; CI validation
-
-**Deliverables**:
-- `assets/generated/ui/*.svg` — UI screen assets
-- `docs/schemas/visual-manifest.schema.json` (JSON Schema 2020-12)
-- `assets/manifests/visual-manifest.json` — all visual asset entries
-- CSS layouts for all screen overlays
-- HUD layout CSS
-
-**Blocks**:
-- A-09 (Track A — final QA evidence requires validated visual manifests and fallback behavior)
-
-- [ ] Design and build CSS layouts for all screen overlays:
-  - Start Screen: title treatment, button styles, high score table.
-  - Pause Menu: semi-transparent overlay, button styles.
-  - Level Complete: stats layout, next level button.
-  - Game Over: final score display, play again button.
-  - Victory: celebration treatment, final stats, play again button.
-- [ ] Create HUD layout CSS: lives icons, score counter, timer, bomb/fire indicators, level number.
-- [ ] Finalize `docs/schemas/visual-manifest.schema.json` (JSON Schema 2020-12):
-  - Required fields: `id`, `path`, `kind` (sprite|ui|tile|effect), `format`, `width`, `height`, `tags`, `critical`.
-  - Optional fields: `maxBytes`, `notes`.
-- [ ] Create/maintain `assets/manifests/visual-manifest.json` with all visual asset entries.
-- [ ] Build manifest-to-renderable mapping table and define missing-asset fallback class behavior.
-- [ ] Optimize SVG/raster outputs and validate against layer/paint constraints.
-- [ ] Ensure responsive sizing within the game viewport.
-- [ ] Verification gate: manifest validation passes CI; all screens render correctly with keyboard focus indicators visible; runtime fallback tests prove robust asset mapping.
 
 ---
