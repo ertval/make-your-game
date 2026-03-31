@@ -144,8 +144,11 @@ export function collectChangedFiles(baseSha, headSha) {
 
   if (baseSha && headSha) {
     output = runCommand('git', ['diff', '--name-only', baseSha, headSha]);
-  } else if (commandSucceeded('git', ['rev-parse', '--verify', 'HEAD~1'])) {
-    output = runCommand('git', ['diff', '--name-only', 'HEAD~1', 'HEAD']);
+  } else if (commandSucceeded('git', ['rev-parse', '--verify', 'HEAD'])) {
+    output = runCommand('git', ['diff', '--name-only', 'HEAD']);
+    if (!output.trim() && commandSucceeded('git', ['rev-parse', '--verify', 'HEAD~1'])) {
+      output = runCommand('git', ['diff', '--name-only', 'HEAD~1', 'HEAD']);
+    }
   } else {
     output = runCommand('git', ['ls-files']);
   }
