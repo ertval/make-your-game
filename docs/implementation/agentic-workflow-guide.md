@@ -242,7 +242,65 @@ For a 4-dev team, this cadence works well:
 
 If a task stalls, stop adding scope. Either finish the slice or split it.
 
-## 12. Quick PR Template
+## 12. PR Message and Gate Workflow
+
+This is the canonical workflow for PR messages and gate execution. Keep PR descriptions, local gate runs, and message archival aligned with this section.
+
+### Branch sequencing
+
+Follow the agreed ticket order and keep branches short-lived and single-purpose.
+
+- Follow the phase-first execution order (`P0 -> P1 -> P2 -> P3`) from `ticket-tracker.md` and claim only tickets whose dependencies are complete.
+- Typical first-ticket starts are `A-01`, `B-01`, `C-01`, and `D-01`.
+- Use one branch per ticket slice.
+- Use the same branch only for the one logical change it was created for.
+- Example branch sequence (Track A): `ekaramet/A-01`, `ekaramet/A-02`, `ekaramet/A-03`.
+
+### PR message checklist
+
+Before opening a PR, confirm the description and checklist cover all required items:
+
+- [ ] I read AGENTS.md and the agentic workflow guide.
+- [ ] I ran `npm run ci:quality` locally.
+- [ ] I ran `npm run ci:policy -- --pr-body-file docs/pr-messages/<ticket>-pr.md`.
+- [ ] I ran the applicable local checks.
+- [ ] I listed the audit IDs affected by this change.
+- [ ] I checked security sinks and trust boundaries.
+- [ ] I checked architecture boundaries.
+- [ ] I checked dependency and lockfile impact.
+- [ ] I requested human review.
+- [ ] I stored this PR body under `docs/pr-messages/`.
+
+### Manual gate workflow (required)
+
+Run the local checks before opening a PR:
+
+1. Save the final PR message to a local file (example: `docs/pr-messages/<ticket>-pr.md`).
+2. Run the quality gate:
+
+```bash
+npm run ci:quality
+```
+
+3. Run policy checks with the saved PR body:
+
+```bash
+npm run ci:policy -- --pr-body-file docs/pr-messages/<ticket>-pr.md
+```
+
+4. If you need the aggregated final gate, run:
+
+```bash
+npm run pr:gate -- --pr-body-file docs/pr-messages/<ticket>-pr.md
+```
+
+5. If you changed HTML/JS tech stack boundaries, run explicit static scan:
+
+```bash
+npm run check:forbidden
+```
+
+### PR message template
 
 Use this structure in PR descriptions:
 
@@ -268,6 +326,10 @@ Use this structure in PR descriptions:
 ## Risks
 - 
 ```
+
+### Recording rule
+
+After a ticket is merged, store the final PR body in `docs/pr-messages/` with the ticket ID in the filename and add any final verification notes to the matching ticket entry in `ticket-tracker.md`.
 
 ## 13. Practical Standard
 

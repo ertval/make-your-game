@@ -348,18 +348,20 @@ Recommended reading order for new contributors:
 3. `docs/game-description.md` (gameplay behavior source of truth)
 4. `docs/audit.md` (acceptance/pass criteria source of truth)
 5. `docs/implementation/implementation-plan.md` (ECS execution plan and milestones)
-6. `docs/implementation/ticket-tracker.md` (live ticket status board and owner/progress updates)
-7. `docs/implementation/track-a.md` + `docs/implementation/track-b.md` + `docs/implementation/track-c.md` + `docs/implementation/track-d.md` (detailed track ticket definitions and verification gates)
-8. `docs/implementation/audit-traceability-matrix.md` (single-source requirement/audit/ticket/test coverage mapping and status)
-9. `docs/implementation/assets-pipeline.md` (visual/audio asset creation, optimization, and validation workflow)
-10. `docs/deployment/github-pages.md` (GitHub Pages publishing options and static-hosting constraints)
+6. `docs/implementation/ticket-tracker.md` (live ticket status board with PR and evidence progress updates)
+7. `docs/implementation/agentic-workflow-guide.md` (team process, PR checklist, and PR Message and Gate Workflow)
+8. `docs/implementation/track-a.md` + `docs/implementation/track-b.md` + `docs/implementation/track-c.md` + `docs/implementation/track-d.md` (detailed track ticket definitions and verification gates)
+9. `docs/implementation/audit-traceability-matrix.md` (single-source requirement/audit/ticket/test coverage mapping and status)
+10. `docs/implementation/assets-pipeline.md` (visual/audio asset creation, optimization, and validation workflow)
+11. `docs/deployment/github-pages.md` (GitHub Pages publishing options and static-hosting constraints)
 
 ### 📌 Source Of Truth Policy
 
 - Implementation constraints, architecture boundaries, and audit verification categories: `AGENTS.md`
 - Requirement intent and feature scope: `docs/requirements.md` + `docs/game-description.md`
 - Final pass/fail acceptance criteria: `docs/audit.md`
-- Ticket execution progress and owner/status board: `docs/implementation/ticket-tracker.md`
+- Ticket execution progress, PR links, and evidence status board: `docs/implementation/ticket-tracker.md`
+- PR message and gate workflow: `docs/implementation/agentic-workflow-guide.md#12-pr-message-and-gate-workflow`
 - Cross-document requirement/audit/ticket/test traceability and coverage status: `docs/implementation/audit-traceability-matrix.md`
 - Visual/audio authoring and asset quality gates: `docs/implementation/assets-pipeline.md`
 - If there is ambiguity, decisions MUST be resolved against those references.

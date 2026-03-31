@@ -37,7 +37,7 @@ If rules conflict, prioritize in the following order:
 
 | Requirement | Description |
 |---|---|
-| **Tech Stack** | Vanilla JavaScript (ES modules only), semantic HTML, CSS, and SVG. |
+| **Tech Stack** | Modern (2026) Vanilla JavaScript (ES modules only), semantic HTML, CSS, and SVG. |
 | **Forbidden** | MUST NOT use canvas, WebGL, WebGPU, or rendering frameworks. |
 | **Gameplay** | MUST preserve single-player gameplay and genre alignment with requirements docs. |
 | **Pause Menu** | MUST preserve actions: Continue and Restart. |
@@ -145,6 +145,7 @@ Follow this sequence for every reported issue:
 ## Security and Code Quality
 
 - **Tooling**: MUST use Biome for linting and formatting.
+- **Comments**: Always have single-line comments for every non-trivial line of code. Comments should explain the "why" and "how", not the "what". Also in the begining of each file, have a comment block that explains the file's purpose, its public API (if applicable), and any important implementation notes or constraints.
 - **CI Governance**: MUST enforce merge gates (linting and tests). When `package.json` and corresponding scripts are present, CI MUST also enforce coverage and dependency lockfile policies (with SBOM).
 - **Data Validation**: MUST validate JSON maps against JSON Schema 2020-12 in CI.
 - **Sinks and Policies**: MUST use safe DOM sinks (`textContent`, explicit attribute APIs), and strictly enforce Content Security Policy (CSP) and Trusted Types.

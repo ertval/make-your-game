@@ -13,12 +13,11 @@
 | 3 | [`game-description.md`](game-description.md) | **How** it plays — full gameplay rules, map layout, ghosts, bombs, scoring, timers, screens | Before gameplay/system logic work |
 | 4 | [`audit.md`](audit.md) | **Pass/fail criteria** — every question that must pass for project acceptance | Before testing and PR review |
 | 5 | [`implementation/implementation-plan.md`](implementation/implementation-plan.md) | **How** we build it — ECS architecture, directory structure, 4-track workplan, testing strategy, performance budget | Before starting any implementation task |
-| 6 | [`implementation/ticket-tracker.md`](implementation/ticket-tracker.md) | **Execution board** — live ticket-by-ticket status, owner, PR links, and evidence links for Section 3 implementation tickets | Update continuously during implementation |
-| 7 | [`implementation/agentic-workflow-guide.md`](implementation/agentic-workflow-guide.md) | **Team workflow** — how to use agents, PR process, review checklist, branch rules | Before starting collaborative work |
+| 6 | [`implementation/ticket-tracker.md`](implementation/ticket-tracker.md) | **Execution board** — live ticket-by-ticket status, PR links, and evidence links for Section 3 implementation tickets | Update continuously during implementation |
+| 7 | [`implementation/agentic-workflow-guide.md`](implementation/agentic-workflow-guide.md) | **Team workflow** — how to use agents, PR process, PR message and gate workflow, review checklist, branch rules | Before starting collaborative work |
 | 8 | [`implementation/audit-traceability-matrix.md`](implementation/audit-traceability-matrix.md) | **Coverage source of truth** — maps requirements and audit questions to implementation tickets, e2e/manual anchors, and execution status | During planning, test implementation, and PR review |
 | 9 | [`implementation/assets-pipeline.md`](implementation/assets-pipeline.md) | **Asset authoring** — visual and audio creation standards, naming rules, CI validation | When creating or modifying assets |
-| 10 | [`implementation/pr-message-workflow.md`](implementation/pr-message-workflow.md) | **PR message workflow** — PR checklist, message template, branch sequencing, and message archival notes | When drafting or recording a PR |
-| 11 | [`deployment/github-pages.md`](deployment/github-pages.md) | **Deployment guide** — GitHub Pages publishing options and static-hosting constraints | When publishing a static site or documentation site |
+| 10 | [`deployment/github-pages.md`](deployment/github-pages.md) | **Deployment guide** — GitHub Pages publishing options and static-hosting constraints | When publishing a static site or documentation site |
 
 ---
 
@@ -28,7 +27,7 @@ Welcome to the Ms. Ghostman project! If you are picking up a ticket for the firs
 
 ### 1. Claim a Ticket
 - **Find your Track**: The workload is divided into 4 tracks (A, B, C, D) defined in [`implementation/implementation-plan.md`](implementation/implementation-plan.md#section-3-workflow-tracks-balanced-workload) and detailed in [`implementation/track-a.md`](implementation/track-a.md), [`implementation/track-b.md`](implementation/track-b.md), [`implementation/track-c.md`](implementation/track-c.md), and [`implementation/track-d.md`](implementation/track-d.md).
-- **Assign Yourself**: Open [`implementation/ticket-tracker.md`](implementation/ticket-tracker.md), find an unassigned ticket in your track, and update its status to **In Progress** with your name.
+- **Set Status and Notes**: Open [`implementation/ticket-tracker.md`](implementation/ticket-tracker.md), find an unstarted ticket in your track, and update its status to **In Progress**. Record assignment or handoff context in `Evidence / Notes` when useful.
 - **Understand the Scope**: Read the ticket description carefully. Identify the bounded scope and exactly what needs to change.
 - **Follow the Phase-First Order**: Execute tickets by global phase (`P0 → P1 → P2 → P3`) using [`implementation/ticket-tracker.md`](implementation/ticket-tracker.md). Claim only tickets whose dependencies are complete. In most cases, first-ticket starting points are `A-01`, `B-01`, `C-01`, and `D-01`.
 
@@ -50,7 +49,7 @@ As detailed in the [`implementation/agentic-workflow-guide.md`](implementation/a
 - **Audit and Regression Check**: Audit the agent result carefully against [`../AGENTS.md`](../AGENTS.md), [`implementation/implementation-plan.md`](implementation/implementation-plan.md), [`implementation/agentic-workflow-guide.md`](implementation/agentic-workflow-guide.md), and [`audit.md`](audit.md) before you continue.
 
 ### 4. Open the Pull Request
-- **Use the Template**: When opening a PR, the [`../.github/pull_request_template.md`](../.github/pull_request_template.md) will automatically apply. Fill out the entire checklist and mirror the same structure in the PR message draft stored in [`implementation/pr-message-workflow.md`](implementation/pr-message-workflow.md).
+- **Use the Template**: When opening a PR, the [`../.github/pull_request_template.md`](../.github/pull_request_template.md) will automatically apply. Fill out the entire checklist and follow the PR message structure in [PR Message and Gate Workflow](implementation/agentic-workflow-guide.md#12-pr-message-and-gate-workflow). Store the PR body in [`pr-messages/`](pr-messages/).
 - **Attach Evidence**: If your PR touches gameplay-critical paths (e.g., performance, rendering, or pausing), attach the required performance evidence (frame stats, traces) as defined in [`../AGENTS.md`](../AGENTS.md).
 - **Reference Audits**: Explicitly list which `AUDIT-*` IDs from [`implementation/audit-traceability-matrix.md`](implementation/audit-traceability-matrix.md) this PR satisfies and how each affected question was verified.
 - **Review and Merge**: Ensure another dev verifies that the ECS boundaries are intact and security rules are met. Review the diff as a human before merging, and do not merge until the applicable local checks and audit coverage pass.
@@ -59,7 +58,7 @@ As detailed in the [`implementation/agentic-workflow-guide.md`](implementation/a
 - **Pre-PR Gates**: Ensure Biome linting, unit tests, and Playwright tests all pass locally.
 - **Review**: Ensure another dev verifies that the ECS boundaries are intact and security rules are met.
 - **Update Tracker**: Once merged, go back to [`implementation/ticket-tracker.md`](implementation/ticket-tracker.md) and update your task status to **Done** with a link to the merged PR.
-- **Archive the PR Message**: Save the final PR message, checklist status, and verification summary in [`implementation/pr-message-workflow.md`](implementation/pr-message-workflow.md) so each ticket has a durable record.
+- **Archive the PR Message**: Save the final PR message and verification summary under [`pr-messages/`](pr-messages/) so each ticket has a durable record.
 
 ## Gitea Actions Setup and Verification
 
@@ -92,7 +91,7 @@ AGENTS.md                         ← normative for all implementation constrain
   └── game-description.md         ← normative for gameplay rules and feature intent
   └── audit.md                    ← normative for pass/fail acceptance
         └── implementation/implementation-plan.md  ← execution guide (canonical for track/task ownership)
-              └── implementation/ticket-tracker.md  ← live ticket execution status and ownership board
+              └── implementation/ticket-tracker.md  ← live ticket execution status, PR links, and evidence board
               └── implementation/audit-traceability-matrix.md  ← canonical requirement/audit/ticket/test coverage mapping
               └── implementation/agentic-workflow-guide.md  ← process guide (references plan for ownership)
               └── implementation/assets-pipeline.md  ← visual/audio asset authoring and validation workflow
