@@ -329,7 +329,7 @@ The project is split into **4 parallel workflow tracks** to enable multiple deve
 
 | Track | Dev | Scope | Key Systems & Files |
 |---|---|---|---|
-| **Track A** | Dev 1 | Core Engine, CI, Schema, and Evidence Wiring | `src/ecs/world/*`, `src/ecs/resources/*`, `main.ecs.js` |
+| **Track A** | Dev 1 | Core Engine, CI, Schema, Testing, QA, and Evidence Wiring | `src/ecs/world/*`, `src/ecs/resources/*`, `main.ecs.js`, `tests/**/*`, `vitest.config.js`, `playwright.config.js` |
 | **Track B** | Dev 2 | Physics, Input, and Gameplay Logic & Rules | `input-system.js`, `player-move-system.js`, `ghost-ai-system.js`, `collision-system.js` |
 | **Track C** | Dev 3 | Audio Production and Integration | `audio-adapter.js`, audio manifests, cue mapping, decode/preload flow |
 | **Track D** | Dev 4 | Rendering, DOM Batching, and Visual Production and Integration | `render-collect-system.js`, `render-dom-system.js`, Adapters |
@@ -393,9 +393,9 @@ tests/
 
 - The `tests/e2e/audit/audit.e2e.test.js` suite is mapped directly to `docs/audit.md`.
 - Verification follows `AGENTS.md` test categories:
-    - Fully Automatable: `F-01..F-16`, `B-01`, `B-02`, `B-03`
-    - Semi-Automatable: `F-17`, `F-18`
-    - Manual-With-Evidence: `F-19`, `F-20`, `F-21`, `B-04`, `B-05`, `B-06`
+    - Fully Automatable: `F-01..F-16`, `B-01`, `B-02`, `B-03`, `B-04`
+    - Semi-Automatable: `F-17`, `F-18`, `B-05`
+    - Manual-With-Evidence: `F-19`, `F-20`, `F-21`, `B-06`
 - The project is complete only when all mapped automated checks pass and required manual evidence artifacts are attached.
 
 ---
