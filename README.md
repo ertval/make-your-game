@@ -332,6 +332,21 @@ policy command family
 
 Use the broadest command first, then drop to the narrower command below if you need to isolate a failure.
 
+### What Each Command Does
+
+| Command | Purpose |
+|---|---|
+| `npm run policy` | Runs the full pre-PR gate: project quality, PR checklist and traceability checks, changed-file forbidden-tech scan, changed-file header scan, and approval check. |
+| `npm run policy:repo` | Runs the repo-wide gate: repository forbidden-tech scan, repository header scan, and repo integrity/traceability checks. |
+| `npm run policy:quality` | Runs the project quality gate: Biome, tests, coverage, and SBOM. |
+| `npm run policy:checks` | Validates the PR body sections, required checklist items, layer-boundary confirmations, and PR traceability rules. |
+| `npm run policy:forbid` | Scans only the changed files for forbidden tech or patterns. |
+| `npm run policy:header` | Checks only the changed files for required source headers. |
+| `npm run policy:approve` | Verifies the PR approval / human-review requirement. |
+| `npm run policy:forbidrepo` | Scans the entire repository for forbidden tech or patterns. |
+| `npm run policy:headerrepo` | Checks the entire repository for required source headers. |
+| `npm run policy:trace` | Verifies requirement-to-audit traceability and dependency pairing across the repository. |
+
 | If this fails | Re-run this narrower command | What it checks |
 |---|---|---|
 | `npm run policy` | `npm run policy:quality` | Biome, tests, coverage, and SBOM via the project quality gate |

@@ -3,9 +3,9 @@
 ## Required checks
 
 - [x] I read AGENTS.md and the agentic workflow guide
-- [x] I ran `npm run ci:quality` locally
 - [x] I ran `npm run policy:quality` locally
-- [x] I ran `npm run ci:policy -- --pr-body-file docs/pr-messages/<ticket>-pr.md`
+- [x] I ran `npm run policy:quality` locally
+- [x] I ran `npm run policy -- --pr-body-file docs/pr-messages/<ticket>-pr.md`
 - [x] I ran `npm run policy -- --pr-body-file docs/pr-messages/<ticket>-pr.md`
 - [x] I ran the applicable local checks
 - [x] I listed the audit IDs affected by this change
@@ -32,14 +32,14 @@
 - Establishes the baseline development toolchain and merge gate automation for Track A.
 
 ## Tests
-- `npm run ci:quality`
 - `npm run policy:quality`
-- `npm run ci:policy -- --pr-body-file docs/pr-messages/a-01-project-scaffolding-pr.md`
+- `npm run policy:quality`
+- `npm run policy -- --pr-body-file docs/pr-messages/a-01-project-scaffolding-pr.md`
 - `npm run policy -- --pr-body-file docs/pr-messages/a-01-project-scaffolding-pr.md`
 - `npm run check`
 - `npm run test`
 - `npm run validate:schema`
-- `npm run pr:gate -- --pr-body-file docs/pr-messages/a-01-project-scaffolding-pr.md`
+- `npm run policy -- --pr-body-file docs/pr-messages/a-01-project-scaffolding-pr.md`
 
 ## Audit questions affected
 - AUDIT-F-04
@@ -55,7 +55,7 @@
 - Added lockfile to pair dependency metadata with deterministic installs.
 
 ## Risks
-- Policy checks require a prepared PR body file; if not provided, `npm run ci:policy` validation can fail by design.
+- Policy checks require a prepared PR body file; if not provided, `npm run policy` validation can fail by design.
 
 ## Recent updates
 - Added the simplified all-in-one gate command: `npm run policy -- --pr-body-file docs/pr-messages/<ticket>-pr.md`.
