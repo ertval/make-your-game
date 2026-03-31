@@ -4,9 +4,8 @@
 
 - [x] I read AGENTS.md and the agentic workflow guide
 - [x] I ran `npm run policy:quality` locally
-- [x] I ran `npm run policy:quality` locally
-- [x] I ran `npm run policy -- --pr-body-file docs/pr-messages/<ticket>-pr.md`
-- [x] I ran `npm run policy -- --pr-body-file docs/pr-messages/<ticket>-pr.md`
+- [x] I ran `npm run policy -- --pr-body-file docs/pr-messages/a-02-ecs-core-pr.md` locally
+- [x] I ran `npm run policy:repo` locally
 - [x] I ran the applicable local checks
 - [x] I listed the audit IDs affected by this change
 - [x] I checked security sinks and trust boundaries
@@ -24,42 +23,43 @@
 - [x] No framework imports or canvas APIs were introduced in this change
 
 ## What changed
-- Updated the README scripts section to explain the command hierarchy more clearly.
-- Added a nested breakdown for app, quality, policy, and final gate commands.
-- Added a small reference map showing which script files implement each gate layer.
+- Implemented ECS core world primitives: `src/ecs/world/entity-store.js`, `src/ecs/world/query.js`, and `src/ecs/world/world.js`.
+- Added unit coverage for the ECS core in `tests/unit/world/entity-store.test.js`, `query.test.js`, and `world.test.js`.
+- Updated policy command documentation and workflow messaging so local gate usage is clearer (`README.md`, workflow docs, and PR message guidance).
 
 ## Why
-- Makes the repository documentation easier to use by showing what each npm command includes and where its implementation lives.
+- Delivers the A-02 deterministic ECS runtime backbone required by downstream gameplay tracks.
+- Reduces policy-gate command ambiguity so PR checks are easier to run and troubleshoot.
 
 ## Tests
-- `npm run test`
-- `npm run policy:quality`
-- `npm run policy:quality`
-- `npm run policy -- --pr-body-file docs/pr-messages/a-02-ecs-core-pr.md`
-- `npm run policy -- --pr-body-file docs/pr-messages/a-02-ecs-core-pr.md`
-- `npm run check`
-- `npm run policy -- --pr-body-file docs/pr-messages/a-02-ecs-core-pr.md`
-- `npm run policy:repo` (passed after the gate hierarchy updates)
-- `npm run policy:quality` (blocked by pre-existing formatting drift in unrelated files outside this docs-only change)
-- `npm run policy -- --pr-body-file docs/pr-messages/a-02-ecs-core-pr.md` (blocked by the same formatting drift)
+- `npm run policy -- --pr-body-file docs/pr-messages/a-02-ecs-core-pr.md` (passed)
+- `npm run policy:repo` (passed)
+- `npm run policy:quality` (passed)
 - `npm run policy:checks -- --pr-body-file docs/pr-messages/a-02-ecs-core-pr.md` (passed)
-- `npm run policy:repo` (passed after one-word command rename)
-- `npm run policy -- --pr-body-file docs/pr-messages/a-02-ecs-core-pr.md` (blocked by pre-existing Biome formatting drift in unrelated files)
-- `npm run policy -- --pr-body-file docs/pr-messages/a-02-ecs-core-pr.md` (blocked by the same formatting drift)
+- `npm run policy:forbid -- --pr-body-file docs/pr-messages/a-02-ecs-core-pr.md` (passed)
+- `npm run policy:header -- --pr-body-file docs/pr-messages/a-02-ecs-core-pr.md` (passed)
+- `npm run policy:approve -- --pr-body-file docs/pr-messages/a-02-ecs-core-pr.md` (passed; approval API check skipped in local mode)
+- `npm run policy:forbidrepo -- --pr-body-file docs/pr-messages/a-02-ecs-core-pr.md` (passed)
+- `npm run policy:headerrepo -- --pr-body-file docs/pr-messages/a-02-ecs-core-pr.md` (passed)
+- `npm run policy:trace -- --pr-body-file docs/pr-messages/a-02-ecs-core-pr.md` (passed)
+- `npm run test:unit` (passed)
+- `npm run check:forbidden` (passed)
 
 ## Audit questions affected
-- None. This is a documentation-only change.
+- AUDIT-B-03 (memory reuse / deterministic ECS foundation via entity ID recycling and stale-handle semantics).
+- No direct gameplay-facing functional audit behavior changes in this slice.
 
 ## Security notes
-- No runtime code changed.
-- The documentation now points readers to the policy-gate scripts that enforce repo checks.
+- ECS runtime additions do not introduce DOM sinks, unsafe HTML injection, or framework/canvas APIs.
+- Documentation updates now point to the policy-gate scripts that enforce repo checks.
 
 ## Architecture / dependency notes
-- The README now separates the all-in-one gate, repo gate, quality gate, and narrow reruns so their responsibilities are easier to distinguish.
-- The implementation pointers now map the README commands to `scripts/policy-gate/run-all.mjs`, `run-checks.mjs`, `run-project-gate.mjs`, and `lib/policy-utils.mjs`.
+- ECS boundaries remain intact: world/query/entity-store are data-oriented and isolated from adapter/DOM side effects.
+- The README separates all-in-one, repo, quality, and narrow policy reruns; command mapping points to `scripts/policy-gate/run-all.mjs`, `run-checks.mjs`, `run-project-gate.mjs`, and `lib/policy-utils.mjs`.
 
 ## Risks
-- This is a documentation-only update, so the main risk is stale wording if the npm script graph changes again without a matching docs refresh.
+- World-level behavior now depends on deterministic phase ordering and deferred mutation semantics; regressions here could cascade to all gameplay systems.
+- Policy documentation can still drift if npm script names change without corresponding docs updates.
 
 ## Recent updates
 - Added a clearer README gate hierarchy so the all-in-one gate, repo gate, quality gate, and narrow reruns are easier to distinguish.
