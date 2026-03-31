@@ -12,10 +12,10 @@
 1. [Architecture Overview](#section-1-architecture-overview)
 2. [Directory Structure](#section-2-directory-structure)
 3. [Workflow Tracks (Phase-First MVP Order)](#section-3-workflow-tracks-balanced-workload)
-    - [Track A — World, Game Flow, Scaffolding, Testing & QA (Dev 1)](track-a-v3.md)
-    - [Track B — Components, Input, Movement, Bombs & Gameplay Physics (Dev 2)](track-b-v3.md)
-    - [Track C — Scoring, Game Flow UI, Audio & Runtime Feedback (Dev 3)](track-c-v3.md)
-    - [Track D — Resources, Map, Rendering & Visual Assets (Dev 4)](track-d-v3.md)
+    - [Track A — World, Game Flow, Scaffolding, Testing & QA (Dev 1)](track-a.md)
+    - [Track B — Components, Input, Movement, Bombs & Gameplay Physics (Dev 2)](track-b.md)
+    - [Track C — Scoring, Game Flow UI, Audio & Runtime Feedback (Dev 3)](track-c.md)
+    - [Track D — Resources, Map, Rendering & Visual Assets (Dev 4)](track-d.md)
 4. [Integration Milestones](#section-4-integration-milestones)
 5. [Shared Contracts & Interfaces](#section-5-shared-contracts--interfaces)
 6. [Testing Strategy](#section-6-testing-strategy)
@@ -201,10 +201,10 @@ make-your-game/
 │       ├── assets-pipeline.md
 │       ├── implementation-plan.md      # This file
 │       ├── ticket-tracker.md
-│       ├── track-a-v3.md
-│       ├── track-b-v3.md
-│       ├── track-c-v3.md
-│       └── track-d-v3.md
+│       ├── track-a.md
+│       ├── track-b.md
+│       ├── track-c.md
+│       └── track-d.md
 │
 ├── tests/
 │   ├── README.md
@@ -352,10 +352,10 @@ Live ticket progress for this section is tracked in `docs/implementation/ticket-
 
 Track ticket definitions, checklists, and verification gates are maintained in dedicated documents:
 
-- [Track A — World, Game Flow, Scaffolding, Testing & QA (Dev 1)](track-a-v3.md)
-- [Track B — Components, Input, Movement, Bombs & Gameplay Physics (Dev 2)](track-b-v3.md)
-- [Track C — Scoring, Game Flow UI, Audio & Runtime Feedback (Dev 3)](track-c-v3.md)
-- [Track D — Resources, Map, Rendering & Visual Assets (Dev 4)](track-d-v3.md)
+- [Track A — World, Game Flow, Scaffolding, Testing & QA (Dev 1)](track-a.md)
+- [Track B — Components, Input, Movement, Bombs & Gameplay Physics (Dev 2)](track-b.md)
+- [Track C — Scoring, Game Flow UI, Audio & Runtime Feedback (Dev 3)](track-c.md)
+- [Track D — Resources, Map, Rendering & Visual Assets (Dev 4)](track-d.md)
 
 Live execution status is tracked in [Ticket Progress Tracker](ticket-tracker.md).
 

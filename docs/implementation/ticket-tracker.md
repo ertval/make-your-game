@@ -93,7 +93,7 @@ Coverage mapping remains canonical in `audit-traceability-matrix.md`.
 
 ## 🔗 Cross-Document References
 
-- Ticket definitions and verification gates: `docs/implementation/track-a-v3.md`, `docs/implementation/track-b-v3.md`, `docs/implementation/track-c-v3.md`, `docs/implementation/track-d-v3.md`
+- Ticket definitions and verification gates: `docs/implementation/track-a.md`, `docs/implementation/track-b.md`, `docs/implementation/track-c.md`, `docs/implementation/track-d.md`
 - Track summary and milestones: `docs/implementation/implementation-plan.md`
 - Coverage mapping and audit status: `audit-traceability-matrix.md`
 - Audit question source of truth: `docs/audit.md`
