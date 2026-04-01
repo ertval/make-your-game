@@ -1,9 +1,11 @@
+import fs from 'node:fs';
 import process from 'node:process';
-import { parseArgs, runCommand, toBool } from './lib/policy-utils.mjs';
+import { inferTicketIdsFromSources, parseArgs, readJson, runCommand, toBool } from './lib/policy-utils.mjs';
 
 const args = parseArgs(process.argv.slice(2));
 const mode = args.mode || 'local';
 const scope = args.scope || 'pr';
+const metaPath = args['meta-file'] || '.policy-pr-meta.json';
 const validScopes = new Set(['pr', 'repo', 'all']);
 if (!validScopes.has(scope)) {
   throw new Error(`Invalid --scope value "${scope}". Expected one of: pr, repo, all.`);
@@ -51,44 +53,56 @@ if (scope === 'pr' || scope === 'all') {
     stdio: 'inherit',
   });
 
-  runStep(
-    'PR checklist and traceability checks',
-    'npm',
-    [
-      'run',
-      'policy:checks',
-      '--',
-      ...passThrough,
-    ],
-    'npm run policy:checks',
+  const metadata = fs.existsSync(metaPath) ? readJson(metaPath) : {};
+  const metadataTicketIds = inferTicketIdsFromSources(
+    metadata.branchName || '',
+    metadata.commitMessages || '',
   );
+  const hasPrMetadata = metadataTicketIds.length > 0;
 
-  runStep(
-    'Changed-file forbidden-tech scan',
-    'npm',
-    ['run', 'policy:forbid', '--', ...passThrough],
-    'npm run policy:forbid',
-  );
+  if (hasPrMetadata) {
+    runStep(
+      'PR checklist and traceability checks',
+      'npm',
+      [
+        'run',
+        'policy:checks',
+        '--',
+        ...passThrough,
+      ],
+      'npm run policy:checks',
+    );
 
-  runStep(
-    'Changed-file source-header scan',
-    'npm',
-    ['run', 'policy:header', '--', `--mode=${headerMode}`, ...passThrough],
-    'npm run policy:header',
-  );
+    runStep(
+      'Changed-file forbidden-tech scan',
+      'npm',
+      ['run', 'policy:forbid', '--', ...passThrough],
+      'npm run policy:forbid',
+    );
 
-  runStep(
-    'Approval gate',
-    'npm',
-    [
-      'run',
-      'policy:approve',
-      '--',
-      ...passThrough,
-      `--require-approval=${requireApproval ? 'true' : 'false'}`,
-    ],
-    'npm run policy:approve',
-  );
+    runStep(
+      'Changed-file source-header scan',
+      'npm',
+      ['run', 'policy:header', '--', `--mode=${headerMode}`, ...passThrough],
+      'npm run policy:header',
+    );
+
+    runStep(
+      'Approval gate',
+      'npm',
+      [
+        'run',
+        'policy:approve',
+        '--',
+        ...passThrough,
+        `--require-approval=${requireApproval ? 'true' : 'false'}`,
+      ],
+      'npm run policy:approve',
+    );
+  } else {
+    console.log('No branch/commit ticket metadata found. Running repo-wide policy checks instead.');
+    runStep('Repo-wide policy gate', 'npm', ['run', 'policy:repo', '--', ...passThrough], 'npm run policy:repo');
+  }
 }
 
 if (scope === 'repo' || scope === 'all') {

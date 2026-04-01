@@ -9,7 +9,7 @@ This document includes the full PR template content used in `.github/pull_reques
 
 Local test command reference (run what applies to your change and list what you ran in the `## Tests` section below):
 
-- Baseline for every change: `npm run check`, `npm run test`, `npm run ci:quality`, `npm run ci:policy`
+- Baseline for every change: `npm run check`, `npm run test`, `npm run policy`
 - Unit-only slices: `npm run test:unit`
 - Cross-system or adapter changes: `npm run test:integration`
 - Browser/runtime behavior changes (pause, input, HUD, rendering, gameplay): `npm run test:e2e`
@@ -20,8 +20,7 @@ Local test command reference (run what applies to your change and list what you 
 ## Required checks
 
 - [ ] I read AGENTS.md and the agentic workflow guide.
-- [ ] I ran `npm run ci:quality` locally.
-- [ ] I ran `npm run ci:policy` locally.
+- [ ] I ran `npm run policy` locally.
 - [ ] I verified my branch commits reference at least one ticket ID from `docs/tickets.md`.
 - [ ] I confirmed changed files stay within the declared ticket ownership scope.
 - [ ] I ran the applicable local checks for this change.

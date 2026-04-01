@@ -52,9 +52,9 @@ As detailed in the [`implementation/agentic-workflow-guide.md`](implementation/a
 
 Gate command reference:
 
-- `npm run ci:policy` for the default all-in-one gate.
+- `npm run policy` for the default all-in-one gate.
 - `npm run policy:repo` for the repo-wide gate.
-- `npm run ci:quality`, `npm run policy:checks`, `npm run policy:forbid`, `npm run policy:header`, `npm run policy:forbidrepo`, `npm run policy:headerrepo`, `npm run policy:trace`, and `npm run policy:approve` when you need a narrower rerun.
+- `npm run policy:quality`, `npm run policy:checks`, `npm run policy:forbid`, `npm run policy:header`, `npm run policy:forbidrepo`, `npm run policy:headerrepo`, `npm run policy:trace`, and `npm run policy:approve` when you need a narrower rerun.
 
 ### 4. Open the Pull Request
 - **Use the Template**: Read [`implementation/pr-template.md`](implementation/pr-template.md), then open the PR with [`.github/pull_request_template.md`](../.github/pull_request_template.md). This template is the enforced PR contract for required checklist labels, layer boundaries, and section format. Fill out the entire checklist and follow the PR message structure in [PR Message and Gate Workflow](implementation/agentic-workflow-guide.md#12-pr-message-and-gate-workflow).
@@ -63,7 +63,7 @@ Gate command reference:
 - **Review and Merge**: Ensure another dev verifies that the ECS boundaries are intact and security rules are met. Review the diff as a human before merging, and do not merge until the applicable local checks and audit coverage pass.
 
 ### 5. Review and Merge
-- **Pre-PR Gates**: Run `npm run ci:policy` first, then run `npm run policy:repo` or narrower reruns only when needed. Ensure scope-appropriate tests (`test:unit`, `test:integration`, `test:e2e`, `test:audit`) are covered.
+- **Pre-PR Gates**: Run `npm run policy` first, then run `npm run policy:repo` or narrower reruns only when needed. Ensure scope-appropriate tests (`test:unit`, `test:integration`, `test:e2e`, `test:audit`) are covered.
 - **Review**: Ensure another dev verifies that the ECS boundaries are intact and security rules are met.
 - **Update Tracker**: Once merged, go back to [`implementation/ticket-tracker.md`](implementation/ticket-tracker.md) and update your task status symbol to `[x]` (Done).
 - **Archive the PR Message (Optional)**: Save the final PR message and verification summary under [`pr-messages/`](pr-messages/) if you want a durable local copy.
@@ -78,14 +78,14 @@ This repository uses [`../.gitea/workflows/policy-gate.yml`](../.gitea/workflows
 2. Keep the workflow file on the default branch so PR events can trigger it.
 3. Open PRs with the required sections from [`../.github/pull_request_template.md`](../.github/pull_request_template.md) in the body. If your Gitea instance does not auto-apply that template, paste it manually.
 4. Add a repo secret named `GITEA_TOKEN` if you want the approval API check to run. If the secret is missing, the workflow will skip that step and you should enforce approvals with branch protection instead.
-5. The npm quality gate runs when `package.json` is present and currently enforces `npm run ci:quality` (`check`, `test`, plus coverage/SBOM when configured).
+5. The npm quality gate runs when `package.json` is present and currently enforces `npm run policy:quality` (`check`, `test`, plus coverage/SBOM when configured).
 
 ### Test It
 
 1. Push a small branch change, open a PR in Gitea, and confirm the workflow starts on the PR event.
 2. Verify a valid PR passes the checklist, traceability, and boundary scans.
 3. Remove one required checklist item or introduce an audit traceability mismatch, then confirm the workflow fails at the expected step.
-4. Verify the PR gate and repo gate run as expected (`npm run ci:policy` and `npm run policy:repo`) by checking workflow logs.
+4. Verify the PR gate and repo gate run as expected (`npm run policy` and `npm run policy:repo`) by checking workflow logs.
 
 ---
 

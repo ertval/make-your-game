@@ -35,10 +35,7 @@
     "policy:headerrepo": "node scripts/policy-gate/check-source-headers.mjs --scope=repo --mode=fail",
     "policy:approve": "node scripts/policy-gate/require-approval.mjs",
     "policy:prep": "node scripts/policy-gate/prepare-context.mjs",
-    "ci:quality": "npm run policy:quality",
-    "ci:policy": "npm run policy",
-    "sbom": "npm ls --all --json > sbom.json",
-    "ci": "npm run ci:policy"
+    "sbom": "npm ls --all --json > sbom.json"
   },
   "devDependencies": {
     "@biomejs/biome": "^1.9.4",

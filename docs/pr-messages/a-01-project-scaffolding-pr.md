@@ -2,18 +2,16 @@
 
 ## Required checks
 
-- [x] I read AGENTS.md and the agentic workflow guide
-- [x] I ran `npm run ci:quality` locally
-- [x] I ran `npm run ci:quality` locally
-- [x] I ran `npm run ci:policy`
-- [x] I ran `npm run ci:policy`
-- [x] I ran the applicable local checks
-- [x] I listed the audit IDs affected by this change
-- [x] I checked security sinks and trust boundaries
-- [x] I checked architecture boundaries
-- [x] I checked dependency and lockfile impact
-- [x] I requested human review
-- [x] I stored this PR body under `docs/pr-messages/`
+- [x] I read AGENTS.md and the agentic workflow guide.
+- [x] I ran `npm run policy:quality` locally.
+- [x] I ran `npm run policy` locally.
+- [x] I ran the applicable local checks.
+- [x] I listed the audit IDs affected by this change.
+- [x] I checked security sinks and trust boundaries.
+- [x] I checked architecture boundaries.
+- [x] I checked dependency and lockfile impact.
+- [x] I requested human review.
+- [x] I stored this PR body under `docs/pr-messages/`.
 
 ## Layer boundary confirmation
 
@@ -32,14 +30,12 @@
 - Establishes the baseline development toolchain and merge gate automation for Track A.
 
 ## Tests
-- `npm run ci:quality`
-- `npm run ci:quality`
-- `npm run ci:policy`
-- `npm run ci:policy`
+- `npm run policy:quality`
+- `npm run policy`
 - `npm run check`
 - `npm run test`
 - `npm run validate:schema`
-- `npm run ci:policy`
+- `npm run policy`
 
 ## Audit questions affected
 - AUDIT-F-04
@@ -58,4 +54,4 @@
 - Policy checks depend on valid ticket IDs in branch and commit metadata plus ownership-scope compliance.
 
 ## Recent updates
-- Added the simplified all-in-one gate command: `npm run ci:policy`.
+- Added the simplified all-in-one gate command: `npm run policy`.

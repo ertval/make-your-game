@@ -314,13 +314,13 @@ Open `http://localhost:5173` in your browser. Vite serves the app with hot-reloa
 The command graph is easiest to read from the top down:
 
 ```text
-ci command family
+policy command family
 ├── PR all-in-one gate (single command before opening a PR)
-│   └── npm run ci:policy
+│   └── npm run policy
 ├── Repo-only gate
 │   └── npm run policy:repo
 └── Narrow reruns (one-word subcommands)
-    ├── npm run ci:quality
+    ├── npm run policy:quality
     ├── npm run policy:checks
     ├── npm run policy:forbid
     ├── npm run policy:header
@@ -336,10 +336,8 @@ Use the broadest command first, then drop to the narrower command below if you n
 
 | Command | Purpose |
 |---|---|
-| `npm run ci:policy` | Canonical all-in-one pre-PR gate alias. Equivalent to `npm run policy`. |
-| `npm run policy` | Runs the full pre-PR gate: project quality, ticket/track ownership checks from branch commits, changed-file forbidden-tech scan, changed-file header scan, approval check, and repo traceability scans. |
+| `npm run policy` | Runs the full pre-PR gate: project quality, ticket/track ownership checks from branch commits, changed-file forbidden-tech scan, changed-file header scan, approval check, and repo traceability scans. If branch/commit ticket metadata is missing, the gate falls back to repo-wide checks. |
 | `npm run policy:repo` | Runs the repo-wide gate: repository forbidden-tech scan, repository header scan, and repo integrity/traceability checks. |
-| `npm run ci:quality` | Canonical quality gate alias. Equivalent to `npm run policy:quality`. |
 | `npm run policy:quality` | Runs the project quality gate: Biome, tests, coverage, and SBOM. |
 | `npm run policy:checks` | Validates branch ticket association and single-track ownership boundaries. |
 | `npm run policy:forbid` | Scans only the changed files for forbidden tech or patterns. |
@@ -351,7 +349,7 @@ Use the broadest command first, then drop to the narrower command below if you n
 
 | If this fails | Re-run this narrower command | What it checks |
 |---|---|---|
-| `npm run ci:policy` | `npm run ci:quality` | Biome, tests, coverage, and SBOM via the project quality gate |
+| `npm run policy` | `npm run policy:quality` | Biome, tests, coverage, and SBOM via the project quality gate |
 | `npm run policy` | `npm run policy:checks` | Ticket association, ticket list membership, and single-track ownership boundaries |
 | `npm run policy` | `npm run policy:forbid` | Forbidden tech in changed files only |
 | `npm run policy` | `npm run policy:header` | Source headers in changed files only |
@@ -513,8 +511,8 @@ tests/
 5. Feature branches should isolate specific ECS systems or component additions.
 6. Core systems MUST remain pure functions handling data components; systems MUST access adapters via World resources and MUST NOT import adapters directly (including `render-dom-system.js`).
 7. Run baseline checks locally: `npm run check`, `npm run test`, and any scope-specific tests (`npm run test:unit`, `npm run test:integration`, `npm run test:e2e`, `npm run test:audit`, `npm run validate:schema`).
-8. Run the all-in-one PR gate before opening the PR: `npm run ci:policy`.
-9. Use `npm run policy:repo` and narrow reruns (`ci:quality`, `policy:checks`, `policy:forbid`, `policy:header`, `policy:forbidrepo`, `policy:headerrepo`, `policy:trace`, `policy:approve`) only as needed for troubleshooting.
+8. Run the all-in-one PR gate before opening the PR: `npm run policy`.
+9. Use `npm run policy:repo` and narrow reruns (`policy:quality`, `policy:checks`, `policy:forbid`, `policy:header`, `policy:forbidrepo`, `policy:headerrepo`, `policy:trace`, `policy:approve`) only as needed for troubleshooting.
 10. CI MUST pass all merge gates (schema validation, testing, lockfile integrity, policy gate) before merge. When coverage/SBOM scripts are configured, those gates MUST also pass.
 11. The policy gate workflow enforces PR review, audit alignment, security boundaries, and dependency pairing.
 12. Request review at integration milestones.

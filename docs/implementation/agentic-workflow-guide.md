@@ -112,7 +112,7 @@ A PR is not ready until the following are true.
 - The diff does not introduce forbidden APIs or unsafe DOM patterns.
 - The change does not break the repo’s ECS boundaries.
 - Documentation is updated if behavior, constraints, or testing expectations changed.
-- The script-driven gates pass locally: `npm run ci:policy` and `npm run policy:repo`.
+- The script-driven gates pass locally: `npm run policy` and `npm run policy:repo`.
 
 ### Required evidence for gameplay-critical changes
 
@@ -263,8 +263,7 @@ Follow the agreed ticket order and keep branches short-lived and single-purpose.
 Before opening a PR, confirm the description and checklist cover all required items:
 
 - [ ] I read AGENTS.md and the agentic workflow guide.
-- [ ] I ran `npm run ci:quality` locally.
-- [ ] I ran `npm run ci:policy` locally.
+- [ ] I ran `npm run policy` locally.
 - [ ] I verified my branch commits reference at least one ticket ID from `docs/tickets.md`.
 - [ ] I confirmed changed files stay within the declared ticket track ownership scope.
 - [ ] I ran the applicable local checks for this change.
@@ -284,7 +283,7 @@ Layer boundary confirmations (repository-specific):
 
 Local test command reference (run what applies to your change and list what you ran in the PR `## Tests` section):
 
-- Baseline for every change: `npm run check`, `npm run test`, `npm run ci:quality`, `npm run ci:policy`
+- Baseline for every change: `npm run check`, `npm run test`, `npm run policy`
 - Unit-only slices: `npm run test:unit`
 - Cross-system or adapter changes: `npm run test:integration`
 - Browser/runtime behavior changes (pause, input, HUD, rendering, gameplay): `npm run test:e2e`
@@ -298,13 +297,13 @@ Run the local checks before opening a PR:
 1. Run the single PR gate:
 
 ```bash
-npm run ci:policy
+npm run policy
 ```
 
 3. If that fails, rerun the narrower command that matches the failure:
 
 ```bash
-npm run ci:quality
+npm run policy:quality
 npm run policy:checks
 npm run policy:forbid
 npm run policy:header
@@ -365,9 +364,9 @@ After a ticket is merged, update the matching ticket entry in `ticket-tracker.md
 
 ### Gate hierarchy
 
-- `npm run ci:policy` (alias of `npm run policy`) runs the default all-in-one gate. It covers quality/checks/scans/approval and repo-wide scans/trace checks in one command.
+- `npm run policy` runs the default all-in-one gate. It covers quality/checks/scans/approval when PR metadata is present, and falls back to repo-wide checks when it is not.
 - `npm run policy:repo` runs the repo-wide gate. It covers repo forbidden-tech scans, repo source headers, and traceability and dependency pairing checks.
-- `npm run ci:quality` (alias of `npm run policy:quality`) is the narrow quality-only rerun.
+- `npm run policy:quality` is the narrow quality-only rerun.
 - `npm run policy:checks` is the narrow rerun for branch-ticket association, ticket list membership, and single-track ownership checks.
 - `npm run policy:forbid` and `npm run policy:forbidrepo` isolate forbidden-tech failures.
 - `npm run policy:header` and `npm run policy:headerrepo` isolate source-header failures.
