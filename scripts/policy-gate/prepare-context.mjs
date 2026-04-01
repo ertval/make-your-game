@@ -57,7 +57,8 @@ if (eventPath && fs.existsSync(eventPath)) {
   console.log('No event payload available. Using manual metadata mode.');
 }
 
-const preferredBaseRef = args['base-ref'] || process.env.BASE_REF || process.env.GITHUB_BASE_REF || '';
+const preferredBaseRef =
+  args['base-ref'] || process.env.BASE_REF || process.env.GITHUB_BASE_REF || '';
 const baseRef = resolveBaseRef(preferredBaseRef);
 const headRef = metadata.headSha || args['head-ref'] || 'HEAD';
 const mergeBase = getMergeBase(baseRef, headRef);

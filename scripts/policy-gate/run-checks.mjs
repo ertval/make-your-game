@@ -5,10 +5,10 @@ import {
   inferTicketIdsFromSources,
   inferTracksFromTicketIds,
   parseArgs,
-  readTicketIdsFromTracker,
   readJson,
   readLines,
   readText,
+  readTicketIdsFromTracker,
   sortTicketIds,
 } from './lib/policy-utils.mjs';
 
@@ -25,7 +25,10 @@ const meta = fs.existsSync(metaPath) ? readJson(metaPath) : {};
 const changedFiles = readLines(changedPath);
 
 function deriveTicketContext() {
-  const explicitTicketIds = inferTicketIdsFromSources(args['ticket-id'] || '', args['ticket-ids'] || '');
+  const explicitTicketIds = inferTicketIdsFromSources(
+    args['ticket-id'] || '',
+    args['ticket-ids'] || '',
+  );
   const branchTicketIds = inferTicketIdsFromSources(meta.branchName || '');
   const commitTicketIds = inferTicketIdsFromSources(meta.commitMessages || '');
   const metaTicketIds = Array.isArray(meta.ticketIds) ? meta.ticketIds : [];
@@ -126,7 +129,9 @@ function assertTicketAssociation() {
 
 function assertTrackOwnership(trackCode, ticketIds) {
   if (changedFiles.length === 0) {
-    console.warn('No changed files found in changed-files context. Skipping ownership path validation.');
+    console.warn(
+      'No changed files found in changed-files context. Skipping ownership path validation.',
+    );
     return;
   }
 

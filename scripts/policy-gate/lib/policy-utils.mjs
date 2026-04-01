@@ -250,7 +250,9 @@ export function inferTicketIdsFromSources(...sources) {
 export function inferTracksFromTicketIds(ticketIds) {
   const tracks = new Set();
   for (const ticketId of ticketIds || []) {
-    const normalized = String(ticketId || '').trim().toUpperCase();
+    const normalized = String(ticketId || '')
+      .trim()
+      .toUpperCase();
     if (!normalized) {
       continue;
     }
@@ -262,9 +264,7 @@ export function inferTracksFromTicketIds(ticketIds) {
   return [...tracks].sort();
 }
 
-export function readTicketIdsFromTracker(
-  trackerPath = 'docs/tickets.md',
-) {
+export function readTicketIdsFromTracker(trackerPath = 'docs/tickets.md') {
   if (!fs.existsSync(trackerPath)) {
     return [];
   }
@@ -299,7 +299,9 @@ export function matchesOwnership(filePath, patterns) {
 }
 
 export function findOwnershipViolations(trackCode, files) {
-  const normalizedTrack = String(trackCode || '').trim().toUpperCase();
+  const normalizedTrack = String(trackCode || '')
+    .trim()
+    .toUpperCase();
   const rule = TRACK_OWNERSHIP_RULES[normalizedTrack];
   if (!rule) {
     return {

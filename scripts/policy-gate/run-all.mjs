@@ -1,6 +1,12 @@
 import fs from 'node:fs';
 import process from 'node:process';
-import { inferTicketIdsFromSources, parseArgs, readJson, runCommand, toBool } from './lib/policy-utils.mjs';
+import {
+  inferTicketIdsFromSources,
+  parseArgs,
+  readJson,
+  runCommand,
+  toBool,
+} from './lib/policy-utils.mjs';
 
 const args = parseArgs(process.argv.slice(2));
 const mode = args.mode || 'local';
@@ -46,6 +52,8 @@ function runStep(label, command, commandArgs, retryHint) {
   }
 }
 
+let ranRepoFallback = false;
+
 if (scope === 'pr' || scope === 'all') {
   runStep('Project quality gate', 'npm', ['run', 'policy:quality'], 'npm run policy:quality');
 
@@ -54,22 +62,15 @@ if (scope === 'pr' || scope === 'all') {
   });
 
   const metadata = fs.existsSync(metaPath) ? readJson(metaPath) : {};
-  const metadataTicketIds = inferTicketIdsFromSources(
-    metadata.branchName || '',
-    metadata.commitMessages || '',
-  );
-  const hasPrMetadata = metadataTicketIds.length > 0;
+  const branchTicketIds = inferTicketIdsFromSources(metadata.branchName || '');
+  const commitTicketIds = inferTicketIdsFromSources(metadata.commitMessages || '');
+  const hasPrMetadata = branchTicketIds.length > 0 && commitTicketIds.length > 0;
 
   if (hasPrMetadata) {
     runStep(
       'PR checklist and traceability checks',
       'npm',
-      [
-        'run',
-        'policy:checks',
-        '--',
-        ...passThrough,
-      ],
+      ['run', 'policy:checks', '--', ...passThrough],
       'npm run policy:checks',
     );
 
@@ -101,11 +102,17 @@ if (scope === 'pr' || scope === 'all') {
     );
   } else {
     console.log('No branch/commit ticket metadata found. Running repo-wide policy checks instead.');
-    runStep('Repo-wide policy gate', 'npm', ['run', 'policy:repo', '--', ...passThrough], 'npm run policy:repo');
+    runStep(
+      'Repo-wide policy gate',
+      'npm',
+      ['run', 'policy:repo', '--', ...passThrough],
+      'npm run policy:repo',
+    );
+    ranRepoFallback = true;
   }
 }
 
-if (scope === 'repo' || scope === 'all') {
+if ((scope === 'repo' || scope === 'all') && !(scope === 'all' && ranRepoFallback)) {
   runStep(
     'Repo-wide forbidden-tech scan',
     'npm',
