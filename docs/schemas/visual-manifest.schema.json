@@ -15,16 +15,7 @@
       "minItems": 1,
       "items": {
         "type": "object",
-        "required": [
-          "id",
-          "path",
-          "kind",
-          "format",
-          "width",
-          "height",
-          "tags",
-          "critical"
-        ],
+        "required": ["id", "path", "kind", "format", "width", "height", "tags", "critical"],
         "additionalProperties": false,
         "properties": {
           "id": {

@@ -26,7 +26,30 @@ Before opening a PR, confirm the message covers the same items as the PR templat
 - [ ] Required local checks completed
 - [ ] Required audit and review steps completed
 
-## 3. PR Message Template
+## 3. Manual Policy Gate (Required)
+
+The PR policy gate is now script-driven. Run the same checks locally before opening a PR.
+
+1. Save the final PR message to a local file (example: `docs/pr-messages/<ticket>-pr.md`).
+2. Run the full pre-PR gate with that message body:
+
+```bash
+npm run pr:gate -- --pr-body-file docs/pr-messages/<ticket>-pr.md
+```
+
+3. If you only need policy checks (without rerunning all project checks), run:
+
+```bash
+npm run policy:checks -- --pr-body-file docs/pr-messages/<ticket>-pr.md
+```
+
+4. If you changed HTML/JS tech stack boundaries, run explicit static scan:
+
+```bash
+npm run check:forbidden
+```
+
+## 4. PR Message Template
 
 Use this structure for each PR description.
 
@@ -62,6 +85,6 @@ Use this structure for each PR description.
 - 
 ```
 
-## 4. Recording Rule
+## 5. Recording Rule
 
 After a ticket is merged, append the final PR message summary here with the ticket ID, branch name, PR link, and verification notes. Keep the record concise and preserve the same phase-first ordering used in `ticket-tracker.md`.

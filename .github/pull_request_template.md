@@ -8,6 +8,7 @@
 - [ ] I checked security sinks and trust boundaries
 - [ ] I checked architecture boundaries
 - [ ] I checked dependency and lockfile impact
+- [ ] I ran `npm run pr:gate -- --pr-body-file <path-to-pr-message>`
 - [ ] I requested human review
 
 ## What changed

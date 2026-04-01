@@ -15,15 +15,7 @@
       "minItems": 1,
       "items": {
         "type": "object",
-        "required": [
-          "id",
-          "path",
-          "category",
-          "format",
-          "durationMs",
-          "critical",
-          "loop"
-        ],
+        "required": ["id", "path", "category", "format", "durationMs", "critical", "loop"],
         "additionalProperties": false,
         "properties": {
           "id": {

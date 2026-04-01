@@ -56,7 +56,8 @@ export const AUDIT_QUESTIONS = [
   {
     id: 'AUDIT-F-10',
     category: 'Functional',
-    question: 'While paused, are there no dropped frames and requestAnimationFrame remains unaffected?',
+    question:
+      'While paused, are there no dropped frames and requestAnimationFrame remains unaffected?',
     executionType: 'Fully Automatable',
   },
   {

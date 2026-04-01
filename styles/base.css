@@ -1,0 +1,43 @@
+:root {
+  --color-bg: #12131a;
+  --color-surface: #1d2333;
+  --color-ink: #f0f3f8;
+  --color-accent: #ffb703;
+  --tile-size: 32px;
+  --board-width: 21;
+  --board-height: 17;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+  min-height: 100%;
+}
+
+body {
+  background: radial-gradient(circle at top, #1a2540, var(--color-bg) 70%);
+  color: var(--color-ink);
+  font-family: "Segoe UI", "Trebuchet MS", sans-serif;
+}
+
+.app-shell {
+  min-height: 100vh;
+  display: grid;
+  grid-template-rows: auto 1fr auto;
+  gap: 1rem;
+  padding: 1rem;
+}
+
+#hud,
+#game-board,
+#overlay-root {
+  background: color-mix(in srgb, var(--color-surface) 88%, #000 12%);
+  border: 1px solid color-mix(in srgb, var(--color-accent) 40%, transparent 60%);
+  border-radius: 12px;
+  padding: 0.75rem;
+}
