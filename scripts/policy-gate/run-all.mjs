@@ -14,7 +14,7 @@ const requireApproval =
 const allowMissingPrBody =
   args['allow-missing-pr-body'] !== undefined
     ? toBool(args['allow-missing-pr-body'])
-    : mode !== 'ci';
+    : true;
 const runIntegrityChecks =
   args['run-integrity-checks'] !== undefined ? toBool(args['run-integrity-checks']) : true;
 const headerMode = String(args['header-mode'] || process.env.POLICY_HEADER_MODE || 'warn')
@@ -66,7 +66,7 @@ if (scope === 'pr' || scope === 'all') {
       ...passThrough,
       `--allow-missing-pr-body=${allowMissingPrBody ? 'true' : 'false'}`,
     ],
-    'npm run policy:checks -- --pr-body-file docs/pr-messages/<ticket>-pr.md --allow-missing-pr-body=false',
+    'npm run policy:checks -- --allow-missing-pr-body=true',
   );
 
   runStep(

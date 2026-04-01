@@ -2,20 +2,26 @@ import fs from 'node:fs';
 import path from 'node:path';
 import process from 'node:process';
 import {
+  findOwnershipViolations,
+  inferTicketIdsFromSources,
+  inferTracksFromTicketIds,
   REQUIRED_CHECKBOXES,
   REQUIRED_LAYER_CHECKBOXES,
   REQUIRED_SECTIONS,
   escapeRegex,
   parseArgs,
+  readTicketIdsFromTracker,
   readJson,
   readLines,
   readText,
+  sortTicketIds,
+  toBool,
 } from './lib/policy-utils.mjs';
 
 const args = parseArgs(process.argv.slice(2));
 const metaPath = args['meta-file'] || '.policy-pr-meta.json';
 const changedPath = args['changed-file'] || 'changed-files.txt';
-const allowMissingPrBody = args['allow-missing-pr-body'] === 'true';
+const allowMissingPrBody = toBool(args['allow-missing-pr-body'], true);
 const checkSet = args['check-set'] || 'pr';
 const validCheckSets = new Set(['pr', 'repo', 'all']);
 if (!validCheckSets.has(checkSet)) {
@@ -35,12 +41,104 @@ if (args['pr-body']) {
 }
 const changedFiles = readLines(changedPath);
 
+function deriveTicketContext() {
+  const explicitTicketIds = inferTicketIdsFromSources(args['ticket-id'] || '', args['ticket-ids'] || '');
+  const metaTicketIds = Array.isArray(meta.ticketIds) ? meta.ticketIds : [];
+  const inferredTicketIds = inferTicketIdsFromSources(
+    meta.branchName || '',
+    meta.commitMessages || '',
+  );
+  const ticketIds = sortTicketIds([...explicitTicketIds, ...metaTicketIds, ...inferredTicketIds]);
+  const trackCodes = inferTracksFromTicketIds(ticketIds);
+
+  return {
+    ticketIds,
+    trackCodes,
+  };
+}
+
+function assertTicketAssociation() {
+  const context = deriveTicketContext();
+
+  if (context.ticketIds.length === 0) {
+    throw new Error(
+      [
+        'No ticket ID found in branch commits or branch name.',
+        'Expected ticket IDs matching A-01, B-12, C-03, or D-11.',
+        'Action: include ticket ID in commit subject/body or branch name (for example user/A-01-task), or pass --ticket-id=A-01.',
+      ].join('\n'),
+    );
+  }
+
+  if (context.trackCodes.length !== 1) {
+    throw new Error(
+      [
+        `Ticket IDs resolve to ${context.trackCodes.length} tracks: ${context.trackCodes.join(', ') || '(none)'}.`,
+        `Detected ticket IDs: ${context.ticketIds.join(', ')}.`,
+        'Action: keep one ticket track per branch or split the branch into separate track-specific PRs.',
+      ].join('\n'),
+    );
+  }
+
+  const trackerPath = String(
+    args['ticket-tracker-file'] || 'docs/implementation/ticket-tracker.md',
+  );
+  const knownTicketIds = readTicketIdsFromTracker(trackerPath);
+  if (knownTicketIds.length > 0) {
+    const knownSet = new Set(knownTicketIds);
+    const unknownTicketIds = context.ticketIds.filter((ticketId) => !knownSet.has(ticketId));
+    if (unknownTicketIds.length > 0) {
+      throw new Error(
+        [
+          `Detected ticket IDs are not present in ${trackerPath}: ${unknownTicketIds.join(', ')}.`,
+          `Detected ticket IDs: ${context.ticketIds.join(', ')}.`,
+          'Action: use a ticket ID from docs/implementation/ticket-tracker.md or update the tracker first.',
+        ].join('\n'),
+      );
+    }
+  } else {
+    console.warn(`Ticket tracker file has no discoverable ticket IDs: ${trackerPath}`);
+  }
+
+  return {
+    ticketIds: context.ticketIds,
+    trackCode: context.trackCodes[0],
+  };
+}
+
+function assertTrackOwnership(trackCode, ticketIds) {
+  if (changedFiles.length === 0) {
+    console.warn('No changed files found in changed-files context. Skipping ownership path validation.');
+    return;
+  }
+
+  const result = findOwnershipViolations(trackCode, changedFiles);
+  if (result.violations.length === 0) {
+    console.log(
+      `Ownership check passed for track ${trackCode} from tickets ${ticketIds.join(', ')} (${changedFiles.length} changed file(s)).`,
+    );
+    return;
+  }
+
+  const allowedSummary = result.allowedPatterns.join(', ');
+  throw new Error(
+    [
+      `Ownership violation for ${result.trackName || `Track ${trackCode}`}.`,
+      `Tickets: ${ticketIds.join(', ')}.`,
+      'The following changed files are outside allowed ownership:',
+      ...result.violations.map((file) => `- ${file}`),
+      `Allowed path patterns for this track: ${allowedSummary}`,
+      'Action: move out-of-scope file changes to the correct track branch, or use a ticket that matches the modified ownership area.',
+    ].join('\n'),
+  );
+}
+
 function assertPrBody() {
   const body = String(meta.body ?? '').trim();
   if (!body) {
     if (allowMissingPrBody) {
       console.warn(
-        'Skipping PR body validation because body is missing and allow-missing-pr-body is true.',
+        'Skipping PR body validation because PR body text is missing and allow-missing-pr-body is true.',
       );
       return;
     }
@@ -425,6 +523,8 @@ function scanSecurityAndArchitectureBoundaries() {
 verifyTraceabilityCoverage();
 
 if (checkSet === 'pr' || checkSet === 'all') {
+  const ticketContext = assertTicketAssociation();
+  assertTrackOwnership(ticketContext.trackCode, ticketContext.ticketIds);
   assertPrBody();
   enforceAuditAndDependencyPairing();
   scanSecurityAndArchitectureBoundaries();

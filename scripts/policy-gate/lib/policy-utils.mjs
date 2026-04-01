@@ -17,14 +17,14 @@ export const REQUIRED_SECTIONS = [
 export const REQUIRED_CHECKBOXES = [
   'I read AGENTS.md and the agentic workflow guide',
   'I ran `npm run policy:quality` locally',
-  'I ran `npm run policy -- --pr-body-file docs/pr-messages/<ticket>-pr.md`',
+  'I ran `npm run policy`',
   'I ran the applicable local checks',
   'I listed the audit IDs affected by this change',
   'I checked security sinks and trust boundaries',
   'I checked architecture boundaries',
   'I checked dependency and lockfile impact',
   'I requested human review',
-  'I stored this PR body under `docs/pr-messages/`',
+  'I ensured branch commits map to the ticket ownership scope',
 ];
 
 export const REQUIRED_LAYER_CHECKBOXES = [
@@ -43,6 +43,91 @@ const IGNORED_DIRS = new Set([
   'playwright-report',
   'test-results',
 ]);
+
+export const TICKET_ID_PATTERN = /\b([ABCD]-\d{2})\b/gi;
+
+export const SHARED_OWNERSHIP_PATTERNS = [
+  'AGENTS.md',
+  'README.md',
+  '.github/**',
+  '.gitea/**',
+  'docs/**',
+  'package-lock.json',
+  '**/.gitkeep',
+];
+
+export const TRACK_OWNERSHIP_RULES = {
+  A: {
+    name: 'Track A (Engine/CI/Testing)',
+    patterns: [
+      'package.json',
+      'index.html',
+      'vite.config.js',
+      'vitest.config.js',
+      'playwright.config.js',
+      'biome.json',
+      'scripts/**',
+      'src/main.ecs.js',
+      'src/game/**',
+      'src/debug/**',
+      'src/ecs/world/**',
+      'tests/**',
+    ],
+  },
+  B: {
+    name: 'Track B (Simulation Gameplay Systems)',
+    patterns: [
+      'src/ecs/components/**',
+      'src/adapters/io/input-adapter.js',
+      'src/ecs/systems/input-system.js',
+      'src/ecs/systems/player-move-system.js',
+      'src/ecs/systems/collision-system.js',
+      'src/ecs/systems/bomb-tick-system.js',
+      'src/ecs/systems/explosion-system.js',
+      'src/ecs/systems/power-up-system.js',
+      'src/ecs/systems/ghost-ai-system.js',
+    ],
+  },
+  C: {
+    name: 'Track C (Gameplay Feedback + Audio)',
+    patterns: [
+      'src/ecs/systems/scoring-system.js',
+      'src/ecs/systems/timer-system.js',
+      'src/ecs/systems/life-system.js',
+      'src/ecs/systems/spawn-system.js',
+      'src/ecs/systems/pause-system.js',
+      'src/ecs/systems/level-progress-system.js',
+      'src/adapters/dom/hud-adapter.js',
+      'src/adapters/dom/screens-adapter.js',
+      'src/adapters/io/storage-adapter.js',
+      'src/adapters/io/audio-adapter.js',
+      'assets/generated/sfx/**',
+      'assets/generated/music/**',
+      'assets/source/audio/**',
+      'assets/manifests/audio-manifest.json',
+      'docs/schemas/audio-manifest.schema.json',
+    ],
+  },
+  D: {
+    name: 'Track D (Resources/Rendering/Visual)',
+    patterns: [
+      'src/ecs/resources/**',
+      'src/ecs/components/visual.js',
+      'src/ecs/systems/render-collect-system.js',
+      'src/ecs/systems/render-dom-system.js',
+      'src/adapters/dom/renderer-adapter.js',
+      'src/adapters/dom/sprite-pool-adapter.js',
+      'styles/**',
+      'assets/maps/**',
+      'assets/generated/sprites/**',
+      'assets/generated/ui/**',
+      'assets/source/visual/**',
+      'assets/manifests/visual-manifest.json',
+      'docs/schemas/map.schema.json',
+      'docs/schemas/visual-manifest.schema.json',
+    ],
+  },
+};
 
 export function parseArgs(argv) {
   const args = {};
@@ -118,6 +203,127 @@ export function getEventPath(args) {
   return args['event-path'] || process.env.EVENT_PATH || process.env.GITHUB_EVENT_PATH || '';
 }
 
+export function normalizePolicyPath(filePath) {
+  return String(filePath || '')
+    .trim()
+    .replaceAll('\\', '/')
+    .replace(/^\.\//, '');
+}
+
+export function sortTicketIds(ticketIds) {
+  return [...new Set(ticketIds)]
+    .map((id) => String(id).toUpperCase())
+    .sort((left, right) => {
+      const leftTrack = left[0] || '';
+      const rightTrack = right[0] || '';
+      if (leftTrack !== rightTrack) {
+        return leftTrack.localeCompare(rightTrack);
+      }
+
+      const leftNumber = Number(left.split('-')[1] || 0);
+      const rightNumber = Number(right.split('-')[1] || 0);
+      return leftNumber - rightNumber;
+    });
+}
+
+export function extractTicketIds(text) {
+  const found = [];
+  if (!text) {
+    return found;
+  }
+
+  for (const match of String(text).matchAll(TICKET_ID_PATTERN)) {
+    found.push(String(match[1]).toUpperCase());
+  }
+
+  return sortTicketIds(found);
+}
+
+export function inferTicketIdsFromSources(...sources) {
+  const all = [];
+  for (const source of sources) {
+    all.push(...extractTicketIds(source));
+  }
+  return sortTicketIds(all);
+}
+
+export function inferTracksFromTicketIds(ticketIds) {
+  const tracks = new Set();
+  for (const ticketId of ticketIds || []) {
+    const normalized = String(ticketId || '').trim().toUpperCase();
+    if (!normalized) {
+      continue;
+    }
+    const [trackCode] = normalized.split('-');
+    if (TRACK_OWNERSHIP_RULES[trackCode]) {
+      tracks.add(trackCode);
+    }
+  }
+  return [...tracks].sort();
+}
+
+export function readTicketIdsFromTracker(
+  trackerPath = 'docs/implementation/ticket-tracker.md',
+) {
+  if (!fs.existsSync(trackerPath)) {
+    return [];
+  }
+
+  const content = readText(trackerPath);
+  const ids = [];
+  for (const match of content.matchAll(/\*\*([ABCD]-\d{2})\*\*/g)) {
+    ids.push(String(match[1]).toUpperCase());
+  }
+
+  if (ids.length > 0) {
+    return sortTicketIds(ids);
+  }
+
+  return extractTicketIds(content);
+}
+
+function globToRegExp(pattern) {
+  const normalized = normalizePolicyPath(pattern);
+  const escaped = escapeRegex(normalized)
+    .replace(/\\\*\\\*/g, '.*')
+    .replace(/\\\*/g, '[^/]*');
+  return new RegExp(`^${escaped}$`);
+}
+
+export function pathMatchesPattern(filePath, pattern) {
+  return globToRegExp(pattern).test(normalizePolicyPath(filePath));
+}
+
+export function matchesOwnership(filePath, patterns) {
+  return patterns.some((pattern) => pathMatchesPattern(filePath, pattern));
+}
+
+export function findOwnershipViolations(trackCode, files) {
+  const normalizedTrack = String(trackCode || '').trim().toUpperCase();
+  const rule = TRACK_OWNERSHIP_RULES[normalizedTrack];
+  if (!rule) {
+    return {
+      trackCode: normalizedTrack,
+      trackName: '',
+      allowedPatterns: [],
+      violations: [...files],
+    };
+  }
+
+  const allowedPatterns = [...SHARED_OWNERSHIP_PATTERNS, ...rule.patterns];
+  const violations = (files || [])
+    .map((file) => normalizePolicyPath(file))
+    .filter(Boolean)
+    .filter((file) => !matchesOwnership(file, allowedPatterns));
+
+  return {
+    trackCode: normalizedTrack,
+    trackName: rule.name,
+    allowedPatterns,
+    violations,
+  };
+}
+
 export function runCommand(command, commandArgs, options = {}) {
   const isWindowsNpm = process.platform === 'win32' && command === 'npm';
 
@@ -150,15 +356,112 @@ export function commandSucceeded(command, commandArgs) {
   return result.status === 0;
 }
 
-export function collectChangedFiles(baseSha, headSha) {
+export function getCurrentBranchName() {
+  const fromEnv = process.env.GITHUB_HEAD_REF || process.env.HEAD_REF || '';
+  if (fromEnv) {
+    return String(fromEnv).trim();
+  }
+
+  if (!commandSucceeded('git', ['rev-parse', '--verify', 'HEAD'])) {
+    return '';
+  }
+
+  return runCommand('git', ['rev-parse', '--abbrev-ref', 'HEAD']).trim();
+}
+
+function expandBaseRefCandidate(candidate) {
+  const normalized = String(candidate || '')
+    .trim()
+    .replace(/^refs\/heads\//, '');
+  if (!normalized) {
+    return [];
+  }
+  if (normalized.startsWith('origin/')) {
+    return [normalized];
+  }
+  return [`origin/${normalized}`, normalized];
+}
+
+export function resolveBaseRef(preferredBaseRef = '') {
+  const candidates = [];
+  const seen = new Set();
+
+  const addCandidates = (value) => {
+    for (const candidate of expandBaseRefCandidate(value)) {
+      if (seen.has(candidate)) {
+        continue;
+      }
+      seen.add(candidate);
+      candidates.push(candidate);
+    }
+  };
+
+  addCandidates(preferredBaseRef);
+  addCandidates(process.env.BASE_REF || process.env.GITHUB_BASE_REF || '');
+
+  if (commandSucceeded('git', ['symbolic-ref', 'refs/remotes/origin/HEAD'])) {
+    const symbolic = runCommand('git', ['symbolic-ref', 'refs/remotes/origin/HEAD']).trim();
+    addCandidates(symbolic.replace('refs/remotes/', ''));
+  }
+
+  addCandidates('origin/main');
+  addCandidates('main');
+  addCandidates('origin/master');
+  addCandidates('master');
+
+  for (const candidate of candidates) {
+    if (commandSucceeded('git', ['rev-parse', '--verify', `${candidate}^{commit}`])) {
+      return candidate;
+    }
+  }
+
+  return '';
+}
+
+export function getMergeBase(baseRef, headRef = 'HEAD') {
+  if (!baseRef) {
+    return '';
+  }
+  if (!commandSucceeded('git', ['rev-parse', '--verify', `${headRef}^{commit}`])) {
+    return '';
+  }
+  if (!commandSucceeded('git', ['merge-base', baseRef, headRef])) {
+    return '';
+  }
+  return runCommand('git', ['merge-base', baseRef, headRef]).trim();
+}
+
+export function collectBranchCommitMessages(options = {}) {
+  const headRef = options.headRef || 'HEAD';
+  const baseRef = options.baseRef || '';
+  const mergeBase = options.mergeBase || getMergeBase(baseRef, headRef);
+
+  if (!commandSucceeded('git', ['rev-parse', '--verify', `${headRef}^{commit}`])) {
+    return '';
+  }
+
+  if (mergeBase) {
+    return runCommand('git', ['log', '--format=%s%n%b', `${mergeBase}..${headRef}`]).trim();
+  }
+
+  return runCommand('git', ['log', '--format=%s%n%b', '-n', '30', headRef]).trim();
+}
+
+export function collectChangedFiles(baseSha, headSha, options = {}) {
   let output = '';
+  const headRef = options.headRef || 'HEAD';
+  const resolvedBaseRef = resolveBaseRef(options.baseRef || '');
+  const mergeBase = getMergeBase(resolvedBaseRef, headRef);
 
   if (baseSha && headSha) {
     output = runCommand('git', ['diff', '--name-only', baseSha, headSha]);
-  } else if (commandSucceeded('git', ['rev-parse', '--verify', 'HEAD'])) {
-    output = runCommand('git', ['diff', '--name-only', 'HEAD']);
-    if (!output.trim() && commandSucceeded('git', ['rev-parse', '--verify', 'HEAD~1'])) {
-      output = runCommand('git', ['diff', '--name-only', 'HEAD~1', 'HEAD']);
+  } else if (mergeBase) {
+    output = runCommand('git', ['diff', '--name-only', mergeBase, headRef]);
+  } else if (commandSucceeded('git', ['rev-parse', '--verify', `${headRef}^{commit}`])) {
+    if (commandSucceeded('git', ['rev-parse', '--verify', `${headRef}~1`])) {
+      output = runCommand('git', ['diff', '--name-only', `${headRef}~1`, headRef]);
+    } else {
+      output = runCommand('git', ['show', '--pretty=format:', '--name-only', headRef]);
     }
   } else {
     output = runCommand('git', ['ls-files']);

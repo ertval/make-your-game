@@ -368,7 +368,7 @@ Ticket execution status has been centralized in `ticket-tracker.md`.
 
 1. Requirement-to-audit coverage mapping is maintained only in the matrix.
 2. Audit-to-ticket and audit-to-test/evidence mapping is maintained only in the matrix.
-3. Track ticket documents in `docs/implementation/track-*-v3.md` remain the implementation source of truth and must keep verification-gate checklist items up to date.
+3. Track ticket documents in `docs/implementation/track-*.md` remain the implementation source of truth and must keep verification-gate checklist items up to date.
 4. Ticket status changes (owner, state, PR/evidence links) must be updated in `docs/implementation/ticket-tracker.md`.
 5. Any ticket, audit, or test-anchor change in this plan must be mirrored in `audit-traceability-matrix.md` in the same PR.
 
