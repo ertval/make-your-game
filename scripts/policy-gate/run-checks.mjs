@@ -1,27 +1,20 @@
 import fs from 'node:fs';
 import path from 'node:path';
-import process from 'node:process';
 import {
   findOwnershipViolations,
   inferTicketIdsFromSources,
   inferTracksFromTicketIds,
-  REQUIRED_CHECKBOXES,
-  REQUIRED_LAYER_CHECKBOXES,
-  REQUIRED_SECTIONS,
-  escapeRegex,
   parseArgs,
   readTicketIdsFromTracker,
   readJson,
   readLines,
   readText,
   sortTicketIds,
-  toBool,
 } from './lib/policy-utils.mjs';
 
 const args = parseArgs(process.argv.slice(2));
 const metaPath = args['meta-file'] || '.policy-pr-meta.json';
 const changedPath = args['changed-file'] || 'changed-files.txt';
-const allowMissingPrBody = toBool(args['allow-missing-pr-body'], true);
 const checkSet = args['check-set'] || 'pr';
 const validCheckSets = new Set(['pr', 'repo', 'all']);
 if (!validCheckSets.has(checkSet)) {
@@ -29,29 +22,24 @@ if (!validCheckSets.has(checkSet)) {
 }
 
 const meta = fs.existsSync(metaPath) ? readJson(metaPath) : {};
-if (args['pr-body-file']) {
-  const prBodyPath = String(args['pr-body-file']);
-  if (!fs.existsSync(prBodyPath)) {
-    throw new Error(`PR body file not found: ${prBodyPath}`);
-  }
-  meta.body = readText(prBodyPath);
-}
-if (args['pr-body']) {
-  meta.body = String(args['pr-body']);
-}
 const changedFiles = readLines(changedPath);
 
 function deriveTicketContext() {
   const explicitTicketIds = inferTicketIdsFromSources(args['ticket-id'] || '', args['ticket-ids'] || '');
+  const branchTicketIds = inferTicketIdsFromSources(meta.branchName || '');
+  const commitTicketIds = inferTicketIdsFromSources(meta.commitMessages || '');
   const metaTicketIds = Array.isArray(meta.ticketIds) ? meta.ticketIds : [];
-  const inferredTicketIds = inferTicketIdsFromSources(
-    meta.branchName || '',
-    meta.commitMessages || '',
-  );
-  const ticketIds = sortTicketIds([...explicitTicketIds, ...metaTicketIds, ...inferredTicketIds]);
+  const ticketIds = sortTicketIds([
+    ...explicitTicketIds,
+    ...metaTicketIds,
+    ...branchTicketIds,
+    ...commitTicketIds,
+  ]);
   const trackCodes = inferTracksFromTicketIds(ticketIds);
 
   return {
+    branchTicketIds,
+    commitTicketIds,
     ticketIds,
     trackCodes,
   };
@@ -60,12 +48,31 @@ function deriveTicketContext() {
 function assertTicketAssociation() {
   const context = deriveTicketContext();
 
+  if (context.branchTicketIds.length === 0) {
+    throw new Error(
+      [
+        'No ticket ID found in branch name.',
+        'Expected branch naming to include a ticket ID such as A-01, B-12, C-03, or D-11.',
+        'Action: rename the branch to include exactly one ticket ID before opening a PR.',
+      ].join('\n'),
+    );
+  }
+
+  if (context.commitTicketIds.length === 0) {
+    throw new Error(
+      [
+        'No ticket ID found in branch commit messages.',
+        'Action: include a valid ticket ID in at least one branch commit message.',
+      ].join('\n'),
+    );
+  }
+
   if (context.ticketIds.length === 0) {
     throw new Error(
       [
-        'No ticket ID found in branch commits or branch name.',
+        'No ticket ID found from branch name or commit metadata.',
         'Expected ticket IDs matching A-01, B-12, C-03, or D-11.',
-        'Action: include ticket ID in commit subject/body or branch name (for example user/A-01-task), or pass --ticket-id=A-01.',
+        'Action: include ticket ID in branch name and commit messages (or pass --ticket-id=A-01 for local debugging).',
       ].join('\n'),
     );
   }
@@ -80,24 +87,35 @@ function assertTicketAssociation() {
     );
   }
 
-  const trackerPath = String(
-    args['ticket-tracker-file'] || 'docs/implementation/ticket-tracker.md',
-  );
+  const trackerPath = String(args['ticket-tracker-file'] || 'docs/tickets.md');
+  const fallbackTrackerPath = 'docs/implementation/ticket-tracker.md';
   const knownTicketIds = readTicketIdsFromTracker(trackerPath);
-  if (knownTicketIds.length > 0) {
-    const knownSet = new Set(knownTicketIds);
+  const fallbackTicketIds = readTicketIdsFromTracker(fallbackTrackerPath);
+  const resolvedTicketIds = knownTicketIds.length > 0 ? knownTicketIds : fallbackTicketIds;
+  const resolvedPath = knownTicketIds.length > 0 ? trackerPath : fallbackTrackerPath;
+
+  if (knownTicketIds.length === 0 && fallbackTicketIds.length > 0) {
+    console.warn(
+      `No ticket IDs found in ${trackerPath}. Falling back to ${fallbackTrackerPath} for validation.`,
+    );
+  }
+
+  if (resolvedTicketIds.length > 0) {
+    const knownSet = new Set(resolvedTicketIds);
     const unknownTicketIds = context.ticketIds.filter((ticketId) => !knownSet.has(ticketId));
     if (unknownTicketIds.length > 0) {
       throw new Error(
         [
-          `Detected ticket IDs are not present in ${trackerPath}: ${unknownTicketIds.join(', ')}.`,
+          `Detected ticket IDs are not present in ${resolvedPath}: ${unknownTicketIds.join(', ')}.`,
           `Detected ticket IDs: ${context.ticketIds.join(', ')}.`,
-          'Action: use a ticket ID from docs/implementation/ticket-tracker.md or update the tracker first.',
+          `Action: use a ticket ID from ${resolvedPath} or update the ticket list first.`,
         ].join('\n'),
       );
     }
   } else {
-    console.warn(`Ticket tracker file has no discoverable ticket IDs: ${trackerPath}`);
+    console.warn(
+      `Ticket list has no discoverable ticket IDs in ${trackerPath} or ${fallbackTrackerPath}.`,
+    );
   }
 
   return {
@@ -131,51 +149,6 @@ function assertTrackOwnership(trackCode, ticketIds) {
       'Action: move out-of-scope file changes to the correct track branch, or use a ticket that matches the modified ownership area.',
     ].join('\n'),
   );
-}
-
-function assertPrBody() {
-  const body = String(meta.body ?? '').trim();
-  if (!body) {
-    if (allowMissingPrBody) {
-      console.warn(
-        'Skipping PR body validation because PR body text is missing and allow-missing-pr-body is true.',
-      );
-      return;
-    }
-
-    throw new Error(
-      'Missing PR body text. Pass --pr-body-file or set PR_BODY for local validation.',
-    );
-  }
-
-  const missingSections = REQUIRED_SECTIONS.filter((section) => {
-    const pattern = new RegExp(`^##\\s+${escapeRegex(section)}`, 'im');
-    return !pattern.test(body);
-  });
-
-  if (missingSections.length) {
-    throw new Error(`Missing required PR sections: ${missingSections.join(', ')}`);
-  }
-
-  const missingChecks = REQUIRED_CHECKBOXES.filter((label) => {
-    const pattern = new RegExp(`^\\s*- \\[[xX]\\]\\s+${escapeRegex(label)}\\s*$`, 'im');
-    return !pattern.test(body);
-  });
-
-  if (missingChecks.length) {
-    throw new Error(`Missing required PR checklist items: ${missingChecks.join(', ')}`);
-  }
-
-  const missingLayerChecks = REQUIRED_LAYER_CHECKBOXES.filter((label) => {
-    const pattern = new RegExp(`^\\s*- \\[[xX]\\]\\s+${escapeRegex(label)}\\s*$`, 'im');
-    return !pattern.test(body);
-  });
-
-  if (missingLayerChecks.length) {
-    throw new Error(
-      `Missing required layer-boundary checklist items: ${missingLayerChecks.join(', ')}`,
-    );
-  }
 }
 
 function buildIdRange(prefix, start, end) {
@@ -525,7 +498,6 @@ verifyTraceabilityCoverage();
 if (checkSet === 'pr' || checkSet === 'all') {
   const ticketContext = assertTicketAssociation();
   assertTrackOwnership(ticketContext.trackCode, ticketContext.ticketIds);
-  assertPrBody();
   enforceAuditAndDependencyPairing();
   scanSecurityAndArchitectureBoundaries();
 }

@@ -39,12 +39,8 @@ function parsePullRequestPayload(filePath) {
 }
 
 function buildManualMetadata() {
-  const bodyFromFile = args['pr-body-file'] ? readText(args['pr-body-file']) : '';
-  const body = args['pr-body'] || process.env.PR_BODY || bodyFromFile || '';
-
   return {
     number: Number(args['pr-number'] || process.env.PR_NUMBER || 0),
-    body,
     author: args.author || process.env.PR_AUTHOR || '',
     baseSha: args['base-sha'] || process.env.BASE_SHA || '',
     headSha: args['head-sha'] || process.env.HEAD_SHA || '',

@@ -24,7 +24,7 @@
     "test:coverage": "vitest run --coverage",
     "coverage": "npm run test:coverage",
     "validate:schema": "node scripts/validate-schema.mjs",
-    "policy": "node scripts/policy-gate/run-all.mjs --mode=local --scope=all --allow-missing-pr-body=true",
+    "policy": "node scripts/policy-gate/run-all.mjs --mode=local --scope=all",
     "policy:repo": "node scripts/policy-gate/run-all.mjs --mode=local --scope=repo",
     "policy:quality": "node scripts/policy-gate/run-project-gate.mjs",
     "policy:checks": "node scripts/policy-gate/run-checks.mjs --check-set=pr",
@@ -35,8 +35,10 @@
     "policy:headerrepo": "node scripts/policy-gate/check-source-headers.mjs --scope=repo --mode=fail",
     "policy:approve": "node scripts/policy-gate/require-approval.mjs",
     "policy:prep": "node scripts/policy-gate/prepare-context.mjs",
+    "ci:quality": "npm run policy:quality",
+    "ci:policy": "npm run policy",
     "sbom": "npm ls --all --json > sbom.json",
-    "ci": "npm run policy --"
+    "ci": "npm run ci:policy"
   },
   "devDependencies": {
     "@biomejs/biome": "^1.9.4",

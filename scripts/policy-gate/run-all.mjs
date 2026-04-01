@@ -11,10 +11,6 @@ if (!validScopes.has(scope)) {
 
 const requireApproval =
   args['require-approval'] !== undefined ? toBool(args['require-approval']) : mode === 'ci';
-const allowMissingPrBody =
-  args['allow-missing-pr-body'] !== undefined
-    ? toBool(args['allow-missing-pr-body'])
-    : true;
 const runIntegrityChecks =
   args['run-integrity-checks'] !== undefined ? toBool(args['run-integrity-checks']) : true;
 const headerMode = String(args['header-mode'] || process.env.POLICY_HEADER_MODE || 'warn')
@@ -30,7 +26,6 @@ for (const [key, value] of Object.entries(args)) {
     key === 'mode' ||
     key === 'scope' ||
     key === 'require-approval' ||
-    key === 'allow-missing-pr-body' ||
     key === 'run-integrity-checks' ||
     key === 'header-mode'
   ) {
@@ -64,9 +59,8 @@ if (scope === 'pr' || scope === 'all') {
       'policy:checks',
       '--',
       ...passThrough,
-      `--allow-missing-pr-body=${allowMissingPrBody ? 'true' : 'false'}`,
     ],
-    'npm run policy:checks -- --allow-missing-pr-body=true',
+    'npm run policy:checks',
   );
 
   runStep(

@@ -16,15 +16,16 @@ export const REQUIRED_SECTIONS = [
 
 export const REQUIRED_CHECKBOXES = [
   'I read AGENTS.md and the agentic workflow guide',
-  'I ran `npm run policy:quality` locally',
-  'I ran `npm run policy`',
+  'I ran `npm run ci:quality` locally',
+  'I ran `npm run ci:policy` locally',
+  'I verified my branch commits reference at least one ticket ID from docs/tickets.md',
+  'I confirmed changed files stay within the declared ticket track ownership scope',
   'I ran the applicable local checks',
   'I listed the audit IDs affected by this change',
   'I checked security sinks and trust boundaries',
   'I checked architecture boundaries',
   'I checked dependency and lockfile impact',
   'I requested human review',
-  'I ensured branch commits map to the ticket ownership scope',
 ];
 
 export const REQUIRED_LAYER_CHECKBOXES = [
@@ -263,7 +264,7 @@ export function inferTracksFromTicketIds(ticketIds) {
 }
 
 export function readTicketIdsFromTracker(
-  trackerPath = 'docs/implementation/ticket-tracker.md',
+  trackerPath = 'docs/tickets.md',
 ) {
   if (!fs.existsSync(trackerPath)) {
     return [];

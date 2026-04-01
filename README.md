@@ -314,13 +314,13 @@ Open `http://localhost:5173` in your browser. Vite serves the app with hot-reloa
 The command graph is easiest to read from the top down:
 
 ```text
-policy command family
+ci command family
 ├── PR all-in-one gate (single command before opening a PR)
-│   └── npm run policy
+│   └── npm run ci:policy
 ├── Repo-only gate
 │   └── npm run policy:repo
 └── Narrow reruns (one-word subcommands)
-    ├── npm run policy:quality
+    ├── npm run ci:quality
     ├── npm run policy:checks
     ├── npm run policy:forbid
     ├── npm run policy:header
@@ -336,10 +336,12 @@ Use the broadest command first, then drop to the narrower command below if you n
 
 | Command | Purpose |
 |---|---|
-| `npm run policy` | Runs the full pre-PR gate: project quality, ticket/track ownership checks from branch commits, changed-file forbidden-tech scan, changed-file header scan, approval check, and repo traceability scans. PR body validation is optional unless `--allow-missing-pr-body=false` is provided. |
+| `npm run ci:policy` | Canonical all-in-one pre-PR gate alias. Equivalent to `npm run policy`. |
+| `npm run policy` | Runs the full pre-PR gate: project quality, ticket/track ownership checks from branch commits, changed-file forbidden-tech scan, changed-file header scan, approval check, and repo traceability scans. |
 | `npm run policy:repo` | Runs the repo-wide gate: repository forbidden-tech scan, repository header scan, and repo integrity/traceability checks. |
+| `npm run ci:quality` | Canonical quality gate alias. Equivalent to `npm run policy:quality`. |
 | `npm run policy:quality` | Runs the project quality gate: Biome, tests, coverage, and SBOM. |
-| `npm run policy:checks` | Validates ticket association from branch commits, single-track ownership boundaries, and PR checklist/body sections when PR text is supplied (`--pr-body-file` or `--pr-body`). |
+| `npm run policy:checks` | Validates branch ticket association and single-track ownership boundaries. |
 | `npm run policy:forbid` | Scans only the changed files for forbidden tech or patterns. |
 | `npm run policy:header` | Checks only the changed files for required source headers. |
 | `npm run policy:approve` | Verifies the PR approval / human-review requirement. |
@@ -349,8 +351,8 @@ Use the broadest command first, then drop to the narrower command below if you n
 
 | If this fails | Re-run this narrower command | What it checks |
 |---|---|---|
-| `npm run policy` | `npm run policy:quality` | Biome, tests, coverage, and SBOM via the project quality gate |
-| `npm run policy` | `npm run policy:checks` | Ticket association, single-track ownership boundaries, and PR body sections/checklist when PR text is provided |
+| `npm run ci:policy` | `npm run ci:quality` | Biome, tests, coverage, and SBOM via the project quality gate |
+| `npm run policy` | `npm run policy:checks` | Ticket association, ticket list membership, and single-track ownership boundaries |
 | `npm run policy` | `npm run policy:forbid` | Forbidden tech in changed files only |
 | `npm run policy` | `npm run policy:header` | Source headers in changed files only |
 | `npm run policy` | `npm run policy:approve` | Human approval/review requirement |
@@ -363,7 +365,7 @@ Use the broadest command first, then drop to the narrower command below if you n
 
 - `package.json` shows the npm alias graph and the names of the narrow troubleshooting commands.
 - `scripts/policy-gate/run-all.mjs` orchestrates the PR/repo umbrella gates and prints the step-level failure hints.
-- `scripts/policy-gate/run-checks.mjs` validates PR sections, checklist items, layer-boundary confirmations, and traceability coverage.
+- `scripts/policy-gate/run-checks.mjs` validates branch ticket association, ticket list membership, track ownership boundaries, and traceability coverage.
 - `scripts/policy-gate/run-project-gate.mjs` runs the quality gate (`check`, `test`, coverage, SBOM).
 - `scripts/policy-gate/check-forbidden.mjs` is the narrow forbidden-tech scan.
 - `scripts/policy-gate/check-source-headers.mjs` is the narrow source-header scan.
@@ -410,20 +412,22 @@ Recommended reading order for new contributors:
 3. `docs/game-description.md` (gameplay behavior source of truth)
 4. `docs/audit.md` (acceptance/pass criteria source of truth)
 5. `docs/implementation/implementation-plan.md` (ECS execution plan and milestones)
-6. `docs/implementation/ticket-tracker.md` (live line-by-line ticket status board with dependencies, blockers, and branch ownership)
-7. `docs/implementation/agentic-workflow-guide.md` (team process, PR checklist, and PR Message and Gate Workflow)
-8. `docs/implementation/pr-template.md` (docs entrypoint for PR contract and canonical template source)
-9. `docs/implementation/track-a.md` + `docs/implementation/track-b.md` + `docs/implementation/track-c.md` + `docs/implementation/track-d.md` (detailed track ticket definitions and verification gates)
-10. `docs/implementation/audit-traceability-matrix.md` (single-source requirement/audit/ticket/test coverage mapping and status)
-11. `docs/implementation/assets-pipeline.md` (visual/audio asset creation, optimization, and validation workflow)
-12. `docs/deployment/github-pages.md` (GitHub Pages publishing options and static-hosting constraints)
+6. `docs/implementation/ticket-tracker.md` (live line-by-line ticket status board with dependencies and reverse block mapping)
+7. `docs/tickets.md` (canonical ticket ID index used by automated policy checks)
+8. `docs/implementation/agentic-workflow-guide.md` (team process, PR checklist, and PR Message and Gate Workflow)
+9. `docs/implementation/pr-template.md` (docs entrypoint for PR contract and canonical template source)
+10. `docs/implementation/track-a.md` + `docs/implementation/track-b.md` + `docs/implementation/track-c.md` + `docs/implementation/track-d.md` (detailed track ticket definitions and verification gates)
+11. `docs/implementation/audit-traceability-matrix.md` (single-source requirement/audit/ticket/test coverage mapping and status)
+12. `docs/implementation/assets-pipeline.md` (visual/audio asset creation, optimization, and validation workflow)
+13. `docs/deployment/github-pages.md` (GitHub Pages publishing options and static-hosting constraints)
 
 ### 📌 Source Of Truth Policy
 
 - Implementation constraints, architecture boundaries, and audit verification categories: `AGENTS.md`
 - Requirement intent and feature scope: `docs/requirements.md` + `docs/game-description.md`
 - Final pass/fail acceptance criteria: `docs/audit.md`
-- Ticket execution progress and branch ownership board: `docs/implementation/ticket-tracker.md`
+- Ticket execution progress and dependency/block mapping board: `docs/implementation/ticket-tracker.md`
+- Canonical ticket ID index for branch enforcement: `docs/tickets.md`
 - PR message and gate workflow: `docs/implementation/agentic-workflow-guide.md#12-pr-message-and-gate-workflow`
 - Cross-document requirement/audit/ticket/test traceability and coverage status: `docs/implementation/audit-traceability-matrix.md`
 - Visual/audio authoring and asset quality gates: `docs/implementation/assets-pipeline.md`
@@ -509,8 +513,8 @@ tests/
 5. Feature branches should isolate specific ECS systems or component additions.
 6. Core systems MUST remain pure functions handling data components; systems MUST access adapters via World resources and MUST NOT import adapters directly (including `render-dom-system.js`).
 7. Run baseline checks locally: `npm run check`, `npm run test`, and any scope-specific tests (`npm run test:unit`, `npm run test:integration`, `npm run test:e2e`, `npm run test:audit`, `npm run validate:schema`).
-8. Run the all-in-one PR gate before opening the PR: `npm run policy` (optionally add `-- --pr-body-file docs/pr-messages/<ticket>-pr.md` to validate a saved PR body).
-9. Use `npm run policy:repo` and narrow reruns (`policy:quality`, `policy:checks`, `policy:forbid`, `policy:header`, `policy:forbidrepo`, `policy:headerrepo`, `policy:trace`, `policy:approve`) only as needed for troubleshooting.
+8. Run the all-in-one PR gate before opening the PR: `npm run ci:policy`.
+9. Use `npm run policy:repo` and narrow reruns (`ci:quality`, `policy:checks`, `policy:forbid`, `policy:header`, `policy:forbidrepo`, `policy:headerrepo`, `policy:trace`, `policy:approve`) only as needed for troubleshooting.
 10. CI MUST pass all merge gates (schema validation, testing, lockfile integrity, policy gate) before merge. When coverage/SBOM scripts are configured, those gates MUST also pass.
 11. The policy gate workflow enforces PR review, audit alignment, security boundaries, and dependency pairing.
 12. Request review at integration milestones.

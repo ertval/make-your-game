@@ -31,7 +31,7 @@ Recommended rule for all four devs:
 - Do not let two people or agents edit the same subsystem at the same time unless the work is intentionally paired.
 - Keep branches short-lived.
 - Rebase or sync early and often.
-- Use `ticket-tracker.md` as the visible work board with status symbols, dependencies, blockers, and branch ownership.
+- Use `ticket-tracker.md` as the visible work board with status symbols, Depends on links, and Blocks mapping.
 
 ## 3. How to Use Agents Well
 
@@ -112,7 +112,7 @@ A PR is not ready until the following are true.
 - The diff does not introduce forbidden APIs or unsafe DOM patterns.
 - The change does not break the repo’s ECS boundaries.
 - Documentation is updated if behavior, constraints, or testing expectations changed.
-- The script-driven gates pass locally: `npm run policy` and `npm run policy:repo`.
+- The script-driven gates pass locally: `npm run ci:policy` and `npm run policy:repo`.
 
 ### Required evidence for gameplay-critical changes
 
@@ -263,15 +263,16 @@ Follow the agreed ticket order and keep branches short-lived and single-purpose.
 Before opening a PR, confirm the description and checklist cover all required items:
 
 - [ ] I read AGENTS.md and the agentic workflow guide.
-- [ ] I ran `npm run policy:quality` locally.
-- [ ] I ran `npm run policy` locally.
-- [ ] I ran the applicable local checks.
+- [ ] I ran `npm run ci:quality` locally.
+- [ ] I ran `npm run ci:policy` locally.
+- [ ] I verified my branch commits reference at least one ticket ID from `docs/tickets.md`.
+- [ ] I confirmed changed files stay within the declared ticket track ownership scope.
+- [ ] I ran the applicable local checks for this change.
 - [ ] I listed the audit IDs affected by this change.
 - [ ] I checked security sinks and trust boundaries.
 - [ ] I checked architecture boundaries.
 - [ ] I checked dependency and lockfile impact.
 - [ ] I requested human review.
-- [ ] I ensured branch commits map to the ticket ownership scope.
 
 Layer boundary confirmations (repository-specific):
 
@@ -283,7 +284,7 @@ Layer boundary confirmations (repository-specific):
 
 Local test command reference (run what applies to your change and list what you ran in the PR `## Tests` section):
 
-- Baseline for every change: `npm run check`, `npm run test`, `npm run policy:quality`
+- Baseline for every change: `npm run check`, `npm run test`, `npm run ci:quality`, `npm run ci:policy`
 - Unit-only slices: `npm run test:unit`
 - Cross-system or adapter changes: `npm run test:integration`
 - Browser/runtime behavior changes (pause, input, HUD, rendering, gameplay): `npm run test:e2e`
@@ -294,28 +295,20 @@ Local test command reference (run what applies to your change and list what you 
 
 Run the local checks before opening a PR:
 
-1. Save the final PR message to a local file (example: `docs/pr-messages/<ticket>-pr.md`).
-2. Run the single PR gate:
+1. Run the single PR gate:
 
 ```bash
-npm run policy
+npm run ci:policy
 ```
 
 3. If that fails, rerun the narrower command that matches the failure:
 
 ```bash
-npm run policy:quality
+npm run ci:quality
 npm run policy:checks
 npm run policy:forbid
 npm run policy:header
 npm run policy:approve
-```
-
-Optional strict PR-body validation from a saved file:
-
-```bash
-npm run policy -- --pr-body-file docs/pr-messages/<ticket>-pr.md
-npm run policy:checks -- --pr-body-file docs/pr-messages/<ticket>-pr.md
 ```
 
 4. Run the repo gate:
@@ -343,6 +336,7 @@ npm run check:forbidden
 Use this structure in PR descriptions:
 
 ```md
+
 ## What changed
 - 
 
@@ -371,10 +365,10 @@ After a ticket is merged, update the matching ticket entry in `ticket-tracker.md
 
 ### Gate hierarchy
 
-- `npm run policy` runs the default all-in-one gate. It covers PR-context quality/checks/scans/approval and repo-wide scans/trace checks in one command.
+- `npm run ci:policy` (alias of `npm run policy`) runs the default all-in-one gate. It covers quality/checks/scans/approval and repo-wide scans/trace checks in one command.
 - `npm run policy:repo` runs the repo-wide gate. It covers repo forbidden-tech scans, repo source headers, and traceability and dependency pairing checks.
-- `npm run policy:quality` is the narrow quality-only rerun.
-- `npm run policy:checks` is the narrow rerun for ticket association, single-track ownership, and PR-body checklist/layer-boundary checks (when PR text is supplied).
+- `npm run ci:quality` (alias of `npm run policy:quality`) is the narrow quality-only rerun.
+- `npm run policy:checks` is the narrow rerun for branch-ticket association, ticket list membership, and single-track ownership checks.
 - `npm run policy:forbid` and `npm run policy:forbidrepo` isolate forbidden-tech failures.
 - `npm run policy:header` and `npm run policy:headerrepo` isolate source-header failures.
 - `npm run policy:trace` isolates repo traceability and dependency pairing failures.

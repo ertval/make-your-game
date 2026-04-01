@@ -1,27 +1,67 @@
 # PR Template Contract
 
-This document makes the PR template part of the docs set.
+This document includes the full PR template content used in `.github/pull_request_template.md`.
 
-Canonical template source:
+## Template Content
 
-- `.github/pull_request_template.md`
+```md
+# PR Gate Checklist
 
-Use this rule to avoid drift:
+Local test command reference (run what applies to your change and list what you ran in the `## Tests` section below):
+
+- Baseline for every change: `npm run check`, `npm run test`, `npm run ci:quality`, `npm run ci:policy`
+- Unit-only slices: `npm run test:unit`
+- Cross-system or adapter changes: `npm run test:integration`
+- Browser/runtime behavior changes (pause, input, HUD, rendering, gameplay): `npm run test:e2e`
+- Audit-map updates: `npm run test:audit`
+- Manifest/schema updates: `npm run validate:schema`
+- Repo-wide rerun when needed: `npm run policy:repo`
+
+## Required checks
+
+- [ ] I read AGENTS.md and the agentic workflow guide.
+- [ ] I ran `npm run ci:quality` locally.
+- [ ] I ran `npm run ci:policy` locally.
+- [ ] I verified my branch commits reference at least one ticket ID from `docs/tickets.md`.
+- [ ] I confirmed changed files stay within the declared ticket ownership scope.
+- [ ] I ran the applicable local checks for this change.
+- [ ] I listed the audit IDs affected by this change.
+- [ ] I checked security sinks and trust boundaries.
+- [ ] I checked architecture boundaries.
+- [ ] I checked dependency and lockfile impact.
+- [ ] I requested human review.
+
+## Layer boundary confirmation
+
+- [ ] `src/ecs/systems/` has no DOM references except `render-dom-system.js`
+- [ ] Simulation systems access adapters only through World resources (no direct adapter imports)
+- [ ] `src/adapters/` owns DOM and browser I/O side effects
+- [ ] Untrusted UI content uses safe sinks (`textContent` / explicit attributes), not HTML injection
+- [ ] No framework imports or canvas APIs were introduced in this change
+
+## What changed
+- 
+
+## Why
+- 
+
+## Tests
+- 
+
+## Audit questions affected
+- 
+
+## Security notes
+- 
+
+## Architecture / dependency notes
+- 
+
+## Risks
+-
+```
+
+## Sync Rule
 
 1. Update `.github/pull_request_template.md` first.
-2. Update this document in the same change if checklist labels, command guidance, or required PR sections changed.
-
-## Operational Summary
-
-- Default local gate command: `npm run policy`
-- Optional strict PR-body validation from file: `npm run policy -- --pr-body-file docs/pr-messages/<ticket>-pr.md`
-- Repo-wide gate: `npm run policy:repo`
-
-Required PR sections and checklist labels are enforced by the policy gate scripts in `scripts/policy-gate/` when PR body text is provided.
-
-Branch-level enforcement that does not depend on PR body files:
-
-- Ticket ID inferred from branch name and branch commit messages
-- Ticket must exist in `docs/implementation/ticket-tracker.md`
-- Branch must map to a single track (`A`, `B`, `C`, or `D`)
-- Changed files must stay inside the inferred track ownership paths
+2. Update this file in the same PR.
