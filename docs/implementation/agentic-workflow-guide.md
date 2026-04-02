@@ -31,7 +31,7 @@ Recommended rule for all four devs:
 - Do not let two people or agents edit the same subsystem at the same time unless the work is intentionally paired.
 - Keep branches short-lived.
 - Rebase or sync early and often.
-- Use `ticket-tracker.md` as the visible work board with status, owner, and review state.
+- Use `ticket-tracker.md` as the visible work board with status, dependencies, PR links, and review state.
 
 ## 3. How to Use Agents Well
 
@@ -112,7 +112,7 @@ A PR is not ready until the following are true.
 - The diff does not introduce forbidden APIs or unsafe DOM patterns.
 - The change does not break the repo’s ECS boundaries.
 - Documentation is updated if behavior, constraints, or testing expectations changed.
-- The script-driven policy gate passes locally: `npm run pr:gate -- --pr-body-file <path>`.
+- The script-driven gates pass locally: `npm run policy -- --pr-body-file docs/pr-messages/<ticket>-pr.md` and `npm run policy:repo`.
 
 ### Required evidence for gameplay-critical changes
 
@@ -242,7 +242,85 @@ For a 4-dev team, this cadence works well:
 
 If a task stalls, stop adding scope. Either finish the slice or split it.
 
-## 12. Quick PR Template
+## 12. PR Message and Gate Workflow
+
+This is the canonical workflow for PR messages and gate execution. Keep PR descriptions, local gate runs, and message archival aligned with this section.
+
+### Branch sequencing
+
+Follow the agreed ticket order and keep branches short-lived and single-purpose.
+
+- Follow the phase-first execution order (`P0 -> P1 -> P2 -> P3`) from `ticket-tracker.md` and claim only tickets whose dependencies are complete.
+- Typical first-ticket starts are `A-01`, `B-01`, `C-01`, and `D-01`.
+- Use one branch per ticket slice.
+- Use the same branch only for the one logical change it was created for.
+- Example branch sequence (Track A): `ekaramet/A-01`, `ekaramet/A-02`, `ekaramet/A-03`.
+
+### PR message checklist
+
+Before opening a PR, confirm the description and checklist cover all required items:
+
+- [ ] I read AGENTS.md and the agentic workflow guide.
+- [ ] I ran `npm run policy -- --pr-body-file docs/pr-messages/<ticket>-pr.md` locally.
+- [ ] I ran `npm run policy:repo` locally.
+- [ ] I ran the applicable local checks.
+- [ ] I listed the audit IDs affected by this change.
+- [ ] I checked security sinks and trust boundaries.
+- [ ] I checked architecture boundaries.
+- [ ] I checked dependency and lockfile impact.
+- [ ] I requested human review.
+- [ ] I stored this PR body under `docs/pr-messages/`.
+
+Layer boundary confirmations (repository-specific):
+
+- [ ] `src/ecs/systems/` has no DOM references except `render-dom-system.js`.
+- [ ] Simulation systems access adapters only through World resources (no direct adapter imports).
+- [ ] `src/adapters/` owns DOM and browser I/O side effects.
+- [ ] Untrusted UI content uses safe sinks (`textContent` / explicit attributes), not HTML injection.
+- [ ] No framework imports or canvas APIs were introduced in this change.
+
+### Manual gate workflow (required)
+
+Run the local checks before opening a PR:
+
+1. Save the final PR message to a local file (example: `docs/pr-messages/<ticket>-pr.md`).
+2. Run the single PR gate:
+
+```bash
+npm run policy -- --pr-body-file docs/pr-messages/<ticket>-pr.md
+```
+
+3. If that fails, rerun the narrower command that matches the failure:
+
+```bash
+npm run policy:quality
+npm run policy:checks
+npm run policy:forbid
+npm run policy:header
+npm run policy:approve
+```
+
+4. Run the repo gate:
+
+```bash
+npm run policy:repo
+```
+
+5. If the repo gate fails, rerun the narrower command that matches the failure:
+
+```bash
+npm run policy:forbidrepo
+npm run policy:headerrepo
+npm run policy:trace
+```
+
+6. If you changed HTML/JS tech stack boundaries, run explicit static scan:
+
+```bash
+npm run check:forbidden
+```
+
+### PR message template
 
 Use this structure in PR descriptions:
 
@@ -268,6 +346,21 @@ Use this structure in PR descriptions:
 ## Risks
 - 
 ```
+
+### Recording rule
+
+After a ticket is merged, store the final PR body in `docs/pr-messages/` with the ticket ID in the filename and add any final verification notes to the matching ticket entry in `ticket-tracker.md`.
+
+### Gate hierarchy
+
+- `npm run policy` runs the default all-in-one gate. It covers PR-context quality/checks/scans/approval and repo-wide scans/trace checks in one command.
+- `npm run policy:repo` runs the repo-wide gate. It covers repo forbidden-tech scans, repo source headers, and traceability and dependency pairing checks.
+- `npm run policy:quality` is the narrow quality-only rerun.
+- `npm run policy:checks` is the narrow rerun for PR body, checklist, layer-boundary, and PR traceability failures.
+- `npm run policy:forbid` and `npm run policy:forbidrepo` isolate forbidden-tech failures.
+- `npm run policy:header` and `npm run policy:headerrepo` isolate source-header failures.
+- `npm run policy:trace` isolates repo traceability and dependency pairing failures.
+- `npm run policy:approve` isolates approval failures.
 
 ## 13. Practical Standard
 

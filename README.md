@@ -306,6 +306,70 @@ Open `http://localhost:5173` in your browser. Vite serves the app with hot-reloa
 ## 📜 Scripts & Commands
 
 > These commands describe the planned toolchain. They become usable after the project adds the runtime files referenced in the directory layout above.
+>
+> The fastest way to understand any command is to follow the implementation path: `package.json` defines the npm alias, and the underlying behavior lives in `scripts/policy-gate/*.mjs`.
+
+### Command Hierarchy
+
+The command graph is easiest to read from the top down:
+
+```text
+policy command family
+├── PR all-in-one gate (single command before opening a PR)
+│   └── npm run policy -- --pr-body-file docs/pr-messages/<ticket>-pr.md
+├── Repo-only gate
+│   └── npm run policy:repo
+└── Narrow reruns (one-word subcommands)
+    ├── npm run policy:quality
+    ├── npm run policy:checks -- --pr-body-file docs/pr-messages/<ticket>-pr.md
+    ├── npm run policy:forbid
+    ├── npm run policy:header
+    ├── npm run policy:approve
+    ├── npm run policy:forbidrepo
+    ├── npm run policy:headerrepo
+    └── npm run policy:trace
+```
+
+Use the broadest command first, then drop to the narrower command below if you need to isolate a failure.
+
+### What Each Command Does
+
+| Command | Purpose |
+|---|---|
+| `npm run policy` | Runs the full pre-PR gate: project quality, PR checklist and traceability checks, changed-file forbidden-tech scan, changed-file header scan, and approval check. |
+| `npm run policy:repo` | Runs the repo-wide gate: repository forbidden-tech scan, repository header scan, and repo integrity/traceability checks. |
+| `npm run policy:quality` | Runs the project quality gate: Biome, tests, coverage, and SBOM. |
+| `npm run policy:checks` | Validates the PR body sections, required checklist items, layer-boundary confirmations, and PR traceability rules. |
+| `npm run policy:forbid` | Scans only the changed files for forbidden tech or patterns. |
+| `npm run policy:header` | Checks only the changed files for required source headers. |
+| `npm run policy:approve` | Verifies the PR approval / human-review requirement. |
+| `npm run policy:forbidrepo` | Scans the entire repository for forbidden tech or patterns. |
+| `npm run policy:headerrepo` | Checks the entire repository for required source headers. |
+| `npm run policy:trace` | Verifies requirement-to-audit traceability and dependency pairing across the repository. |
+
+| If this fails | Re-run this narrower command | What it checks |
+|---|---|---|
+| `npm run policy` | `npm run policy:quality` | Biome, tests, coverage, and SBOM via the project quality gate |
+| `npm run policy` | `npm run policy:checks -- --pr-body-file docs/pr-messages/<ticket>-pr.md` | PR body sections, required checklist items, layer-boundary confirmations, and PR traceability checks |
+| `npm run policy` | `npm run policy:forbid` | Forbidden tech in changed files only |
+| `npm run policy` | `npm run policy:header` | Source headers in changed files only |
+| `npm run policy` | `npm run policy:approve` | Human approval/review requirement |
+| `npm run policy` | `npm run policy:repo` | Repo-wide scans and traceability/dependency pairing |
+| `npm run policy:repo` | `npm run policy:forbidrepo` | Forbidden tech across the repository |
+| `npm run policy:repo` | `npm run policy:headerrepo` | Source headers across the repository |
+| `npm run policy:repo` | `npm run policy:trace` | Requirement/audit matrix coverage and dependency pairing |
+
+### Where To Read The Implementation
+
+- `package.json` shows the npm alias graph and the names of the narrow troubleshooting commands.
+- `scripts/policy-gate/run-all.mjs` orchestrates the PR/repo umbrella gates and prints the step-level failure hints.
+- `scripts/policy-gate/run-checks.mjs` validates PR sections, checklist items, layer-boundary confirmations, and traceability coverage.
+- `scripts/policy-gate/run-project-gate.mjs` runs the quality gate (`check`, `test`, coverage, SBOM).
+- `scripts/policy-gate/check-forbidden.mjs` is the narrow forbidden-tech scan.
+- `scripts/policy-gate/check-source-headers.mjs` is the narrow source-header scan.
+- `scripts/policy-gate/lib/policy-utils.mjs` holds the shared checklist labels and traceability rules.
+
+### Quick Script Map
 
 | Command | Description |
 |---|---|
@@ -320,8 +384,6 @@ Open `http://localhost:5173` in your browser. Vite serves the app with hot-reloa
 | `npm run check` | Run Biome lint + format check |
 | `npm run validate:schema` | Run JSON Schema 2020-12 validation for maps |
 | `npm run sbom` | Generate SPDX SBOM for dependency auditing |
-| `npm run policy:local -- --pr-body-file <path>` | Run script-driven policy gate locally before opening a PR |
-| `npm run pr:gate -- --pr-body-file <path>` | Run the full final PR gate (policy + project checks) |
 
 ---
 
@@ -348,18 +410,20 @@ Recommended reading order for new contributors:
 3. `docs/game-description.md` (gameplay behavior source of truth)
 4. `docs/audit.md` (acceptance/pass criteria source of truth)
 5. `docs/implementation/implementation-plan.md` (ECS execution plan and milestones)
-6. `docs/implementation/ticket-tracker.md` (live ticket status board and owner/progress updates)
-7. `docs/implementation/track-a.md` + `docs/implementation/track-b.md` + `docs/implementation/track-c.md` + `docs/implementation/track-d.md` (detailed track ticket definitions and verification gates)
-8. `docs/implementation/audit-traceability-matrix.md` (single-source requirement/audit/ticket/test coverage mapping and status)
-9. `docs/implementation/assets-pipeline.md` (visual/audio asset creation, optimization, and validation workflow)
-10. `docs/deployment/github-pages.md` (GitHub Pages publishing options and static-hosting constraints)
+6. `docs/implementation/ticket-tracker.md` (live ticket status board with PR and evidence progress updates)
+7. `docs/implementation/agentic-workflow-guide.md` (team process, PR checklist, and PR Message and Gate Workflow)
+8. `docs/implementation/track-a.md` + `docs/implementation/track-b.md` + `docs/implementation/track-c.md` + `docs/implementation/track-d.md` (detailed track ticket definitions and verification gates)
+9. `docs/implementation/audit-traceability-matrix.md` (single-source requirement/audit/ticket/test coverage mapping and status)
+10. `docs/implementation/assets-pipeline.md` (visual/audio asset creation, optimization, and validation workflow)
+11. `docs/deployment/github-pages.md` (GitHub Pages publishing options and static-hosting constraints)
 
 ### 📌 Source Of Truth Policy
 
 - Implementation constraints, architecture boundaries, and audit verification categories: `AGENTS.md`
 - Requirement intent and feature scope: `docs/requirements.md` + `docs/game-description.md`
 - Final pass/fail acceptance criteria: `docs/audit.md`
-- Ticket execution progress and owner/status board: `docs/implementation/ticket-tracker.md`
+- Ticket execution progress, PR links, and evidence status board: `docs/implementation/ticket-tracker.md`
+- PR message and gate workflow: `docs/implementation/agentic-workflow-guide.md#12-pr-message-and-gate-workflow`
 - Cross-document requirement/audit/ticket/test traceability and coverage status: `docs/implementation/audit-traceability-matrix.md`
 - Visual/audio authoring and asset quality gates: `docs/implementation/assets-pipeline.md`
 - If there is ambiguity, decisions MUST be resolved against those references.

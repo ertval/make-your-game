@@ -4,6 +4,7 @@ import path from 'node:path';
 import process from 'node:process';
 
 export const REQUIRED_SECTIONS = [
+  'Layer boundary confirmation',
   'What changed',
   'Why',
   'Tests',
@@ -15,13 +16,23 @@ export const REQUIRED_SECTIONS = [
 
 export const REQUIRED_CHECKBOXES = [
   'I read AGENTS.md and the agentic workflow guide',
+  'I ran `npm run policy:quality` locally',
+  'I ran `npm run policy -- --pr-body-file docs/pr-messages/<ticket>-pr.md`',
   'I ran the applicable local checks',
   'I listed the audit IDs affected by this change',
   'I checked security sinks and trust boundaries',
   'I checked architecture boundaries',
   'I checked dependency and lockfile impact',
-  'I ran `npm run pr:gate -- --pr-body-file <path-to-pr-message>`',
   'I requested human review',
+  'I stored this PR body under `docs/pr-messages/`',
+];
+
+export const REQUIRED_LAYER_CHECKBOXES = [
+  '`src/ecs/systems/` has no DOM references except `render-dom-system.js`',
+  'Simulation systems access adapters only through World resources (no direct adapter imports)',
+  '`src/adapters/` owns DOM and browser I/O side effects',
+  'Untrusted UI content uses safe sinks (`textContent` / explicit attributes), not HTML injection',
+  'No framework imports or canvas APIs were introduced in this change',
 ];
 
 const IGNORED_DIRS = new Set([
@@ -144,8 +155,11 @@ export function collectChangedFiles(baseSha, headSha) {
 
   if (baseSha && headSha) {
     output = runCommand('git', ['diff', '--name-only', baseSha, headSha]);
-  } else if (commandSucceeded('git', ['rev-parse', '--verify', 'HEAD~1'])) {
-    output = runCommand('git', ['diff', '--name-only', 'HEAD~1', 'HEAD']);
+  } else if (commandSucceeded('git', ['rev-parse', '--verify', 'HEAD'])) {
+    output = runCommand('git', ['diff', '--name-only', 'HEAD']);
+    if (!output.trim() && commandSucceeded('git', ['rev-parse', '--verify', 'HEAD~1'])) {
+      output = runCommand('git', ['diff', '--name-only', 'HEAD~1', 'HEAD']);
+    }
   } else {
     output = runCommand('git', ['ls-files']);
   }

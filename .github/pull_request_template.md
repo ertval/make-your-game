@@ -1,15 +1,27 @@
 # PR Gate Checklist
 
+Gate hierarchy: use `npm run policy -- --pr-body-file docs/pr-messages/<ticket>-pr.md` for the all-in-one gate, `npm run policy:repo` for the repo-wide gate, and one-word reruns such as `policy:quality`, `policy:checks`, `policy:forbid`, `policy:header`, `policy:approve`, `policy:forbidrepo`, `policy:headerrepo`, and `policy:trace` when needed.
+
 ## Required checks
 
 - [ ] I read AGENTS.md and the agentic workflow guide
+- [ ] I ran `npm run policy:quality` locally
+- [ ] I ran `npm run policy -- --pr-body-file docs/pr-messages/<ticket>-pr.md`
 - [ ] I ran the applicable local checks
 - [ ] I listed the audit IDs affected by this change
 - [ ] I checked security sinks and trust boundaries
 - [ ] I checked architecture boundaries
 - [ ] I checked dependency and lockfile impact
-- [ ] I ran `npm run pr:gate -- --pr-body-file <path-to-pr-message>`
 - [ ] I requested human review
+- [ ] I stored this PR body under `docs/pr-messages/`
+
+## Layer boundary confirmation
+
+- [ ] `src/ecs/systems/` has no DOM references except `render-dom-system.js`
+- [ ] Simulation systems access adapters only through World resources (no direct adapter imports)
+- [ ] `src/adapters/` owns DOM and browser I/O side effects
+- [ ] Untrusted UI content uses safe sinks (`textContent` / explicit attributes), not HTML injection
+- [ ] No framework imports or canvas APIs were introduced in this change
 
 ## What changed
 - 

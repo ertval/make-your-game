@@ -21,9 +21,9 @@ jobs:
     runs-on: ubuntu-latest
     env:
       EVENT_PATH: ${{ github.event_path }}
-      EVENT_NAME: ${{ github.event_name }}
       CI_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       GITEA_TOKEN: ${{ secrets.GITEA_TOKEN }}
+      POLICY_HEADER_MODE: warn
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -45,7 +45,7 @@ jobs:
             npm install
           fi
 
-      - name: Run policy gate scripts
+      - name: Run all policy checks
         run: |
           set -euo pipefail
-          npm run policy:ci
+          npm run policy -- --require-approval=true
