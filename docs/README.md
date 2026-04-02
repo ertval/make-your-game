@@ -68,17 +68,17 @@ Gate command reference:
 - **Update Tracker**: Once merged, go back to [`implementation/ticket-tracker.md`](implementation/ticket-tracker.md) and update your task status symbol to `[x]` (Done).
 - **Archive the PR Message (Optional)**: Save the final PR message and verification summary under [`pr-messages/`](pr-messages/) if you want a durable local copy.
 
-## Gitea Actions Setup and Verification
+## Actions Setup and Verification
 
-This repository uses [`../.gitea/workflows/policy-gate.yml`](../.gitea/workflows/policy-gate.yml) as the main PR gate for Gitea.
+This repository uses [`../.github/workflows/policy-gate.yml`](../.github/workflows/policy-gate.yml) as the main PR gate.
 
 ### Set Up
 
-1. Enable Actions for the Gitea instance and repository, and make sure a runner is registered for Linux jobs.
+1. Enable Actions for the repository and make sure a runner is registered for Linux jobs.
 2. Keep the workflow file on the default branch so PR events can trigger it.
 3. Open PRs with the required sections from [`../.github/pull_request_template.md`](../.github/pull_request_template.md) in the body. If your Gitea instance does not auto-apply that template, paste it manually.
 4. Add a repo secret named `GITEA_TOKEN` if you want the approval API check to run. If the secret is missing, the workflow will skip that step and you should enforce approvals with branch protection instead.
-5. The npm quality gate runs when `package.json` is present and currently enforces `npm run policy:quality` (`check`, `test`, plus coverage/SBOM when configured).
+5. The npm quality gate runs when `package.json` is present and currently enforces `npm run policy:quality` (`check`, `test`, coverage, schema validation, and SBOM when configured). Use `npm run ci` for the broader local wrapper.
 
 ### Test It
 

@@ -16,6 +16,10 @@ if (scripts['test:coverage']) {
   commands.push('coverage');
 }
 
+if (scripts['validate:schema']) {
+  commands.push('validate:schema');
+}
+
 if (scripts.sbom) {
   commands.push('sbom');
 }
