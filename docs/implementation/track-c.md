@@ -18,7 +18,7 @@
 **Phase**: P1 Playable MVP
 **Depends On**: `B-04` (collision intents), `D-01` (event-queue resource)
 **Impacts**: HUD-critical score metric (`AUDIT-F-15`)
-**Blocks**: C-03, C-04
+**Blocks**: A-08, B-09
 
 **Deliverables**:
 - `src/ecs/systems/scoring-system.js` — canonical scoring values, combo logic
@@ -37,7 +37,7 @@
 **Phase**: P1 Playable MVP
 **Depends On**: `D-01` (clock/constants resources), `B-04` (collision intents for death)
 **Impacts**: HUD-critical timer and lives metrics (`AUDIT-F-14`, `AUDIT-F-16`)
-**Blocks**: C-03, C-04
+**Blocks**: A-05, A-08, B-09, C-04, C-05
 
 **Deliverables**:
 - `src/ecs/systems/timer-system.js` — level countdown, time-up → GAME_OVER
@@ -54,7 +54,7 @@
 **Phase**: P1 Playable MVP
 **Depends On**: `D-01` (constants/clock), `D-03` (map resource — ghost spawn points)
 **Impacts**: Ghost stagger timing and death-return respawn
-**Blocks**: B-08
+**Blocks**: A-08, B-08
 
 **Deliverables**:
 - `src/ecs/systems/spawn-system.js` — staggered ghost-house release, death-return respawn timing
@@ -71,7 +71,7 @@
 **Phase**: P1 Playable MVP
 **Depends On**: `D-01` (clock/game-status), `D-03` (map resource), `C-02` (timer/lives), `A-03` (game loop)
 **Impacts**: Pause menu behavior and level/game state transitions (`AUDIT-F-07..F-10`)
-**Blocks**: C-05
+**Blocks**: A-05, A-06, A-08, C-05
 
 **Deliverables**:
 - `src/ecs/systems/pause-system.js` — freeze simulation while rAF continues
@@ -92,9 +92,9 @@
 #### C-05: HUD Adapter & Screen Overlays
 **Priority**: ��� Critical
 **Phase**: P1 Playable MVP
-**Depends On**: `D-05` (CSS layout), `C-02` (scoring/timer/lives data), `C-04` (pause/progression states)
+**Depends On**: `D-05` (CSS layout), `C-02` (timer/lives data), `C-04` (pause/progression states)
 **Impacts**: Visible gameplay metrics (`AUDIT-F-14..F-16`), pause/start/restart UX (`AUDIT-F-07..F-09`)
-**Blocks**: D-11
+**Blocks**: A-05, A-06, A-08, D-11
 
 **Deliverables**:
 - `src/adapters/dom/hud-adapter.js` — textContent updates for lives, score, timer, bomb count, fire radius, level number
@@ -121,7 +121,7 @@
 **Phase**: P2 Feature Complete
 **Depends On**: `A-01` (scaffolding), `D-01` (constants resource)
 **Impacts**: Runtime audio boundary, fallback resilience, async decode baseline (`AUDIT-B-05`)
-**Blocks**: C-07
+**Blocks**: C-07, C-08, C-09
 
 **Deliverables**:
 - `src/adapters/io/audio-adapter.js` — AudioContext, decodeAudioData, playSfx/playMusic, volume control, visibility handling
@@ -144,7 +144,7 @@
 **Phase**: P2 Feature Complete
 **Depends On**: `C-06` (audio adapter), `B-09` (event hooks)
 **Impacts**: Event-driven audio feedback loop across gameplay states and menus
-**Blocks**: C-08
+**Blocks**: A-08
 
 **Deliverables**:
 - Audio cue mapping table (event type → manifest audio ID)
@@ -203,7 +203,7 @@
 **Phase**: P3 Polish and Validation
 **Depends On**: `C-06`, `C-08`
 **Impacts**: Async performance measurement and startup responsiveness (`AUDIT-B-05`)
-**Blocks**: None
+**Blocks**: A-09
 
 **Deliverables**:
 - Preloading strategy implementation in audio adapter

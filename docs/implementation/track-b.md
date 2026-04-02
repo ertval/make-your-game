@@ -18,7 +18,7 @@
 **Phase**: P0 Foundation
 **Depends On**: `A-02` (world engine)
 **Impacts**: Canonical gameplay data model, unblocks all simulation systems and render contracts
-**Blocks**: B-02, B-03, B-04, B-05, B-06, B-07, B-08, B-09 || D-04, C-01
+**Blocks**: A-08, B-02, B-03, B-04 || D-04
 
 **Deliverables**:
 - `src/ecs/components/spatial.js` — position (SoA Float64Array), velocity, collider
@@ -57,7 +57,7 @@
 **Phase**: P1 Playable MVP
 **Depends On**: `B-01`, `A-03` (game loop), `D-01` (resources/constants)
 **Impacts**: Keyboard control path and hold-to-move (`AUDIT-F-11`, `AUDIT-F-12`)
-**Blocks**: B-03
+**Blocks**: A-08, B-03
 
 **Deliverables**:
 - `src/adapters/io/input-adapter.js` — keydown/keyup capture, blur clearing, no OS key-repeat dependency
@@ -78,7 +78,7 @@
 **Phase**: P1 Playable MVP
 **Depends On**: `B-01`, `B-02`, `D-03` (map resource from Track D)
 **Impacts**: Core controllable gameplay movement (`AUDIT-F-11`, `AUDIT-F-12`, `AUDIT-F-13`)
-**Blocks**: B-04, B-06, B-08 || D-07
+**Blocks**: A-05, A-08, B-04, B-06, B-08 || D-07
 
 **Deliverables**:
 - `src/ecs/systems/player-move-system.js` — grid-constrained player motion
@@ -97,7 +97,7 @@
 **Phase**: P1 Playable MVP
 **Depends On**: `B-01`, `B-03`, `D-03` (map resource)
 **Impacts**: Player/ghost/pellet interaction correctness and life/score intents
-**Blocks**: B-05, B-06, B-07, B-08 || C-01, C-02
+**Blocks**: A-06, A-08, B-05, B-06, B-07, B-08 || C-01, C-02
 
 **Deliverables**:
 - `src/ecs/systems/collision-system.js` — cell-occupancy map, collision hierarchy, ghost house barrier
@@ -124,7 +124,7 @@
 **Phase**: P2 Feature Complete
 **Depends On**: `B-04`, `D-01` (event-queue resource)
 **Impacts**: Deterministic base event emission from collision/movement systems for scoring, audio, and visual consumers
-**Blocks**: B-06, B-09 || C-07
+**Blocks**: A-08, B-09
 
 **Deliverables**:
 - Updated `collision-system.js` and `player-move-system.js` to emit events via `event-queue` resource
@@ -144,7 +144,7 @@
 **Phase**: P2 Feature Complete
 **Depends On**: `B-03` (movement/grid), `B-04` (collision), `D-01` (constants/rng), `D-03` (map resource)
 **Impacts**: Bomberman mechanics, chain reactions, combo rules (`AUDIT-F-13`, `AUDIT-B-03`)
-**Blocks**: B-07, B-09
+**Blocks**: A-08, B-07, B-09
 
 **Deliverables**:
 - `src/ecs/systems/bomb-tick-system.js` — fuse countdown, detonation trigger
@@ -166,7 +166,7 @@
 **Phase**: P2 Feature Complete
 **Depends On**: `B-04` (collision intents), `B-06` (explosions spawn power-ups), `D-01` (canonical duration constants)
 **Impacts**: Power progression, stun windows, speed-state timing (`AUDIT-F-13`)
-**Blocks**: B-08
+**Blocks**: A-08, B-08
 
 **Deliverables**:
 - `src/ecs/systems/power-up-system.js` — power pellet, bomb+, fire+, speed boost effects
@@ -186,7 +186,7 @@
 **Phase**: P2 Feature Complete
 **Depends On**: `B-03` (movement/grid), `B-04` (collision), `B-07` (stun/speed effect states), `D-01` (constants/rng), `D-03` (map resource), `C-03` (spawn timing)
 **Impacts**: Difficulty curve and personality-driven enemy behavior (`AUDIT-F-13`)
-**Blocks**: B-09
+**Blocks**: A-08, B-09
 
 **Deliverables**:
 - `src/ecs/systems/ghost-ai-system.js` — Blinky/Pinky/Inky/Clyde targeting, state machine, pathfinding
@@ -213,7 +213,7 @@
 **Phase**: P2 Feature Complete
 **Depends On**: `C-01` (scoring), `C-02` (timer/lives), `B-05` (event baseline), `B-06` (bombs/explosions), `B-08` (ghost AI), `D-01` (event-queue)
 **Impacts**: Final deterministic integration surface for audio/visual cues
-**Blocks**: C-07
+**Blocks**: A-08, C-07
 
 **Deliverables**:
 - Finalized event payload definitions and emission points across all gameplay systems

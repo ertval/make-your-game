@@ -19,7 +19,7 @@
 **Phase**: P0 Foundation
 **Depends On**: `A-02` (world engine — resource API)
 **Impacts**: Determinism contract, clock/pause correctness, cross-system event ordering
-**Blocks**: D-02, D-03 || A-03, B-02, C-01, C-02, C-03
+**Blocks**: D-02, D-03 || A-03, A-04, B-02, B-05, B-06, B-07, B-08, B-09, C-01, C-02, C-03, C-04, C-06
 
 **Deliverables**:
 - `src/ecs/resources/constants.js` — all canonical gameplay constants
@@ -62,7 +62,7 @@
 **Phase**: P0 Foundation
 **Depends On**: `D-01`, `D-02`
 **Impacts**: Level loading, restart determinism, progression correctness
-**Blocks**: D-04, D-06 || B-03, B-04, B-08, C-03
+**Blocks**: D-06 || A-04, A-07, B-03, B-04, B-06, B-08, C-03, C-04
 
 **Deliverables**:
 - `src/ecs/resources/map-resource.js` — parses map JSON, stores fixed grid representation, spawn points
@@ -78,7 +78,7 @@
 **Phase**: P0 Foundation
 **Depends On**: `A-02` (world engine), `B-01` (components)
 **Impacts**: ECS/DOM boundary safety and deterministic render intent contracts
-**Blocks**: D-05, D-07
+**Blocks**: D-06, D-07
 
 **Deliverables**:
 - `src/ecs/components/visual.js` additions (if not covered by B-01): render-intent structure, classBits definitions
@@ -121,7 +121,7 @@
 **Phase**: P1 Playable MVP
 **Depends On**: `D-04`, `D-05`, `D-03`
 **Impacts**: Safe DOM board rendering and no-canvas compliance (`AUDIT-F-04`)
-**Blocks**: D-07, D-08, D-09
+**Blocks**: D-08, D-09, D-10
 
 **Deliverables**:
 - `src/adapters/dom/renderer-adapter.js` — createElement/createElementNS, zero innerHTML
@@ -155,7 +155,7 @@
 **Phase**: P1 Playable MVP
 **Depends On**: `D-06`, `D-07`
 **Impacts**: Frame-time stability and compositor-only writes (`AUDIT-F-19`, `AUDIT-F-20`, `AUDIT-F-21`)
-**Blocks**: D-09
+**Blocks**: D-09, D-10 || A-05
 
 **Deliverables**:
 - `src/ecs/systems/render-dom-system.js` — one-pass DOM commit, transform/opacity/class writes only

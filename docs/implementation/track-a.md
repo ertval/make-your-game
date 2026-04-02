@@ -19,7 +19,7 @@
 **Phase**: P0 Foundation
 **Depends On**: None
 **Impacts**: Repo bootstrapping, local dev velocity, policy gates (`AUDIT-F-04`, `AUDIT-F-05`, `AUDIT-B-02`)
-**Blocks**: A-02, A-03
+**Blocks**: A-02, A-03, A-07, C-06, D-05
 
 **Deliverables**:
 - `package.json` with all scripts (`dev`, `build`, `preview`, `lint`, `format`, `check`, `test`, `test:watch`, `test:unit`, `test:integration`, `test:e2e`, `test:audit`, `coverage`, `ci`, `validate:schema`, `sbom`)
@@ -48,7 +48,7 @@
 **Phase**: P0 Foundation
 **Depends On**: `A-01`
 **Impacts**: Deterministic runtime backbone, unblocks all simulation systems (`AUDIT-B-03`)
-**Blocks**: A-03 || B-01, D-01
+**Blocks**: A-03, A-04, B-01, D-01, D-04
 
 **Deliverables**:
 - `src/ecs/world/world.js` — lifecycle, system scheduling, frame context, resource API
@@ -73,7 +73,7 @@
 **Phase**: P0 Foundation
 **Depends On**: `A-02`, `D-01` (resources from Track D)
 **Impacts**: Runtime frame pipeline, pause semantics, FPS instrumentation (`AUDIT-F-02`, `AUDIT-F-10`, `AUDIT-F-17`, `AUDIT-F-18`)
-**Blocks**: A-04, A-05, A-06 || B-02
+**Blocks**: A-04, A-05, A-06, B-02, C-04
 
 **Deliverables**:
 - `src/main.ecs.js` — app entry, boots World, binds rAF
@@ -101,7 +101,7 @@
 **Phase**: P1 Playable MVP
 **Depends On**: `A-02`, `A-03`, `D-01`, `D-03`
 **Impacts**: Early regression safety net for runtime foundation
-**Blocks**: A-05
+**Blocks**: None
 
 **Deliverables**:
 - `tests/unit/world/entity-store.test.js`
@@ -132,7 +132,7 @@
 **Phase**: P1 Playable MVP
 **Depends On**: `A-03`, `B-03`, `C-02`, `C-04`, `C-05`, `D-08`
 **Impacts**: Cross-system correctness, adapter boundary guarantees, deterministic replay confidence
-**Blocks**: A-06
+**Blocks**: A-09
 
 **Deliverables**:
 - `tests/integration/gameplay/*.test.js` — multi-system interaction scenarios
@@ -207,7 +207,7 @@
 **Phase**: P2 Hardening
 **Depends On**: `A-01`, `D-03`
 **Impacts**: Merge safety, schema integrity, dependency and asset governance (`AUDIT-B-02`)
-**Blocks**: A-09
+**Blocks**: A-09, C-10, D-11
 
 **Deliverables**:
 - CI workflow additions for schema validation
