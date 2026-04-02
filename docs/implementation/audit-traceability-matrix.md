@@ -14,6 +14,7 @@ This document is the single source of truth for requirement-to-audit-to-ticket-t
 2. The implementation plan defines ticket details and verification gates, then references this file for consolidated coverage mapping.
 3. Ticket execution progress (owner/status/Depends on/Blocks mappings) is tracked in `docs/implementation/ticket-tracker.md`.
 4. Test ownership remains in `tests/e2e/audit/` and must stay synchronized with this file.
+5. Automated policy checks should read requirement coverage from this matrix, not from `docs/requirements.md` IDs.
 
 ## Status Legend
 

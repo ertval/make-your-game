@@ -160,28 +160,34 @@ function collectUniqueMatches(text, pattern) {
   return [...new Set(text.match(pattern) || [])].sort();
 }
 
-function collectExpectedRequirementIds(requirementsText, matrixText) {
-  const explicitIds = collectUniqueMatches(requirementsText, /REQ-\d{2}/g);
-  if (explicitIds.length > 0) {
-    return explicitIds;
-  }
-
-  const explicitRange = requirementsText.match(/REQ-(\d{2})\s*(?:through|to|-)\s*REQ-(\d{2})/i);
-  if (explicitRange) {
-    return buildIdRange('REQ', Number(explicitRange[1]), Number(explicitRange[2]));
-  }
-
-  const legacyRange = matrixText.match(/REQ-(\d{2})\s+through\s+REQ-(\d{2})/i);
-  if (legacyRange) {
-    console.warn(
-      'docs/requirements.md has no explicit REQ IDs. Falling back to legacy range from traceability matrix summary.',
+function collectExpectedRequirementIds(matrixText) {
+  const { requirementIds } = collectMatrixTraceabilityIds(matrixText);
+  if (requirementIds.length === 0) {
+    throw new Error(
+      'Unable to derive requirement IDs from docs/implementation/audit-traceability-matrix.md. Add explicit REQ-xx rows there.',
     );
-    return buildIdRange('REQ', Number(legacyRange[1]), Number(legacyRange[2]));
   }
 
-  throw new Error(
-    'Unable to derive requirement IDs from docs/requirements.md. Add explicit REQ IDs or a REQ-xx through REQ-yy range.',
-  );
+  const numericIds = requirementIds.map((id) => Number(id.split('-')[1]));
+  const min = Math.min(...numericIds);
+  const max = Math.max(...numericIds);
+  const contiguousIds = buildIdRange('REQ', min, max);
+
+  if (requirementIds.length !== contiguousIds.length) {
+    throw new Error(
+      'Requirement IDs in docs/implementation/audit-traceability-matrix.md must be contiguous REQ-xx rows without gaps.',
+    );
+  }
+
+  for (let index = 0; index < requirementIds.length; index += 1) {
+    if (requirementIds[index] !== contiguousIds[index]) {
+      throw new Error(
+        'Requirement IDs in docs/implementation/audit-traceability-matrix.md must be ordered and gap-free.',
+      );
+    }
+  }
+
+  return requirementIds;
 }
 
 function collectExpectedAuditIds(auditText) {
@@ -250,11 +256,10 @@ function collectMatrixTraceabilityIds(matrixText) {
 }
 
 function verifyTraceabilityCoverage() {
-  const requirementsText = readText('docs/requirements.md');
   const auditText = readText('docs/audit.md');
   const matrixText = readText('docs/implementation/audit-traceability-matrix.md');
 
-  const expectedRequirementIds = collectExpectedRequirementIds(requirementsText, matrixText);
+  const expectedRequirementIds = collectExpectedRequirementIds(matrixText);
   const expectedAuditIds = collectExpectedAuditIds(auditText);
   const matrixIds = collectMatrixTraceabilityIds(matrixText);
 

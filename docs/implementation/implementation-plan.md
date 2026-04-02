@@ -43,7 +43,7 @@ For this game, ECS helps keep simulation deterministic, isolate DOM side effects
 
 1. `docs/requirements.md` + `docs/game-description.md` define project requirements and intended gameplay behavior.
 2. `docs/audit.md` defines pass/fail acceptance criteria.
-3. `audit-traceability-matrix.md` is the canonical requirement-to-audit-to-ticket-to-test coverage map and status tracker.
+3. `audit-traceability-matrix.md` is the canonical requirement-to-audit-to-ticket-to-test coverage map and status tracker used by automated policy checks.
 4. `ticket-tracker.md` tracks live execution status for Section 3 tickets.
 5. `assets-pipeline.md` defines visual/audio authoring and optimization standards.
 6. When implementation details are ambiguous, resolve against those references first.
