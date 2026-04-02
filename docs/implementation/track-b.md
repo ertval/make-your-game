@@ -18,6 +18,7 @@
 **Phase**: P0 Foundation
 **Depends On**: `A-02` (world engine)
 **Impacts**: Canonical gameplay data model, unblocks all simulation systems and render contracts
+**Blocks**: B-02, B-03, B-04, B-05, B-06, B-07, B-08, B-09 || D-04, C-01
 
 **Deliverables**:
 - `src/ecs/components/spatial.js` — position (SoA Float64Array), velocity, collider
@@ -25,11 +26,6 @@
 - `src/ecs/components/props.js` — bomb, fire, power-up, pellet
 - `src/ecs/components/stats.js` — score, timer, health
 - `src/ecs/components/visual.js` — renderable, visual-state (classBits bitmask)
-
-**Blocks**:
-- B-02, B-03, B-04, B-05, B-06, B-07, B-08, B-09 (same track)
-- D-04 (Track D — render data contracts need component definitions)
-- C-01 (Track C — scoring needs component shapes)
 
 - [ ] Implement `src/ecs/components/spatial.js`:
   - `position` (row, col, prevRow, prevCol, targetRow, targetCol) — SoA Float64Array.
@@ -61,13 +57,11 @@
 **Phase**: P1 Playable MVP
 **Depends On**: `B-01`, `A-03` (game loop), `D-01` (resources/constants)
 **Impacts**: Keyboard control path and hold-to-move (`AUDIT-F-11`, `AUDIT-F-12`)
+**Blocks**: B-03
 
 **Deliverables**:
 - `src/adapters/io/input-adapter.js` — keydown/keyup capture, blur clearing, no OS key-repeat dependency
 - `src/ecs/systems/input-system.js` — reads adapter, writes input-state component per fixed step
-
-**Blocks**:
-- B-03 (same track — movement reads input)
 
 - [ ] Implement `adapters/io/input-adapter.js`: Captures `keydown`/`keyup` securely mapping into an intent buffer. No OS key repeat reliance.
 - [ ] Ensure held-key state clears on `blur`/`visibilitychange` to prevent stuck movement after focus loss.
@@ -84,15 +78,10 @@
 **Phase**: P1 Playable MVP
 **Depends On**: `B-01`, `B-02`, `D-03` (map resource from Track D)
 **Impacts**: Core controllable gameplay movement (`AUDIT-F-11`, `AUDIT-F-12`, `AUDIT-F-13`)
+**Blocks**: B-04, B-06, B-08 || D-07
 
 **Deliverables**:
 - `src/ecs/systems/player-move-system.js` — grid-constrained player motion
-
-**Blocks**:
-- B-04 (same track — collision needs movement)
-- B-06 (same track — bomb placement/tick needs movement context)
-- B-08 (same track — ghost AI needs movement for pathfinding context)
-- D-07 (Track D — render collect needs position data)
 
 - [ ] Implement `player-move-system.js`: Queries the grid from `map-resource` based on Position vs Velocity intentions. Ensures smooth sub-cell locking and prevents walking through walls.
 - [ ] Works using ECS state-machine variables. Updates TargetRow/Col.
@@ -108,16 +97,10 @@
 **Phase**: P1 Playable MVP
 **Depends On**: `B-01`, `B-03`, `D-03` (map resource)
 **Impacts**: Player/ghost/pellet interaction correctness and life/score intents
+**Blocks**: B-05, B-06, B-07, B-08 || C-01, C-02
 
 **Deliverables**:
 - `src/ecs/systems/collision-system.js` — cell-occupancy map, collision hierarchy, ghost house barrier
-
-**Blocks**:
-- B-05 (same track — event integration)
-- B-06 (same track — bombs/explosions consume collision constraints)
-- B-07 (same track — power-up collection consumes collision intents)
-- B-08 (same track — ghost AI state transitions consume collision outcomes)
-- C-01, C-02 (Track C — scoring/timer/lives consume collision intents)
 
 - [ ] Implement `collision-system.js` using a **cell-occupancy map** for O(1) spatial lookups:
   - **Mandatory Hierarchy**: `Invincibility > Fire > Ghost Contact`.
@@ -141,15 +124,11 @@
 **Phase**: P2 Feature Complete
 **Depends On**: `B-04`, `D-01` (event-queue resource)
 **Impacts**: Deterministic base event emission from collision/movement systems for scoring, audio, and visual consumers
+**Blocks**: B-06, B-09 || C-07
 
 **Deliverables**:
 - Updated `collision-system.js` and `player-move-system.js` to emit events via `event-queue` resource
 - Event emission for: `PelletCollected`, `PowerPelletCollected`, `PowerUpCollected`, `PlayerGhostContact`
-
-**Blocks**:
-- B-06 (same track — bomb/explosion events align to shared ordering contract)
-- B-09 (same track — final event hook consolidation builds on this baseline)
-- C-07 (Track C — cue mapping consumes stable payloads)
 
 - [ ] Wire collision system to emit deterministic events via `event-queue` resource for each collision resolution.
 - [ ] Wire movement system to emit position-change events when needed by consumers.
@@ -165,14 +144,11 @@
 **Phase**: P2 Feature Complete
 **Depends On**: `B-03` (movement/grid), `B-04` (collision), `D-01` (constants/rng), `D-03` (map resource)
 **Impacts**: Bomberman mechanics, chain reactions, combo rules (`AUDIT-F-13`, `AUDIT-B-03`)
+**Blocks**: B-07, B-09
 
 **Deliverables**:
 - `src/ecs/systems/bomb-tick-system.js` — fuse countdown, detonation trigger
 - `src/ecs/systems/explosion-system.js` — cross-pattern geometry, chain reactions, wall destruction, power-up drops
-
-**Blocks**:
-- B-07 (same track — power-ups spawn from explosions)
-- B-09 (same track — final event hooks require bomb/explosion events)
 
 - [ ] Implement `bomb-tick-system.js`: Decrements fuse, validates explosion radius against `map-resource`.
 - [ ] Implement `explosion-system.js`: Translates detonated bombs into Fire entities mapping over map resources (destructible wall clears). Chain reactions use an **iterative detonation queue** (NOT recursive) with `MAX_CHAIN_DEPTH = 10`.
@@ -190,12 +166,10 @@
 **Phase**: P2 Feature Complete
 **Depends On**: `B-04` (collision intents), `B-06` (explosions spawn power-ups), `D-01` (canonical duration constants)
 **Impacts**: Power progression, stun windows, speed-state timing (`AUDIT-F-13`)
+**Blocks**: B-08
 
 **Deliverables**:
 - `src/ecs/systems/power-up-system.js` — power pellet, bomb+, fire+, speed boost effects
-
-**Blocks**:
-- B-08 (same track — ghost AI consumes stunned/dead state timing)
 
 - [ ] Implement `power-up-system.js` processing collection intents from collision system:
   1. **Power Pellet (`⚡`)**: Stuns all ghosts for `5000ms`. Non-stacking (resets timer).
@@ -212,12 +186,10 @@
 **Phase**: P2 Feature Complete
 **Depends On**: `B-03` (movement/grid), `B-04` (collision), `B-07` (stun/speed effect states), `D-01` (constants/rng), `D-03` (map resource), `C-03` (spawn timing)
 **Impacts**: Difficulty curve and personality-driven enemy behavior (`AUDIT-F-13`)
+**Blocks**: B-09
 
 **Deliverables**:
 - `src/ecs/systems/ghost-ai-system.js` — Blinky/Pinky/Inky/Clyde targeting, state machine, pathfinding
-
-**Blocks**:
-- B-09 (same track — final event hooks need ghost state transitions)
 
 - [ ] Implement `ghost-ai-system.js` with exact pathfinding math per `game-description.md` §5.1:
   - **Blinky**: Targets player current tile.
@@ -241,13 +213,11 @@
 **Phase**: P2 Feature Complete
 **Depends On**: `C-01` (scoring), `C-02` (timer/lives), `B-05` (event baseline), `B-06` (bombs/explosions), `B-08` (ghost AI), `D-01` (event-queue)
 **Impacts**: Final deterministic integration surface for audio/visual cues
+**Blocks**: C-07
 
 **Deliverables**:
 - Finalized event payload definitions and emission points across all gameplay systems
 - Event types: `BombPlaced`, `BombDetonated`, `PelletCollected`, `PowerPelletCollected`, `PowerUpCollected`, `LifeLost`, `GhostDefeated`, `GhostStunned`, `LevelCleared`, `GameOver`, `Victory`
-
-**Blocks**:
-- C-07 (Track C — cue mapping consumes finalized event contracts)
 
 - [ ] Define deterministic event payloads: `BombPlaced`, `BombDetonated`, `PelletCollected`, `PowerPelletCollected`, `PowerUpCollected`, `LifeLost`, `GhostDefeated`, `GhostStunned`, `LevelCleared`, `GameOver`, `Victory`.
 - [ ] Include `frame` and monotonic `order` fields for deterministic ordering.

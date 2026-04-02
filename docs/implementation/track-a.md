@@ -19,6 +19,7 @@
 **Phase**: P0 Foundation
 **Depends On**: None
 **Impacts**: Repo bootstrapping, local dev velocity, policy gates (`AUDIT-F-04`, `AUDIT-F-05`, `AUDIT-B-02`)
+**Blocks**: A-02, A-03
 
 **Deliverables**:
 - `package.json` with all scripts (`dev`, `build`, `preview`, `lint`, `format`, `check`, `test`, `test:watch`, `test:unit`, `test:integration`, `test:e2e`, `test:audit`, `coverage`, `ci`, `validate:schema`, `sbom`)
@@ -27,9 +28,6 @@
 - Basic CSS reset and variable stubs
 - CI workflow configuration with merge gates (lint, tests, coverage)
 - Static CI scan failing on `<canvas>` usage and banned frameworks
-
-**Blocks**:
-- A-02, A-03 (same track)
 
 - [ ] Initialize `package.json` with ES modules, configure Vite and Biome.
 - [ ] Setup Vitest for pure system/component testing.
@@ -50,16 +48,12 @@
 **Phase**: P0 Foundation
 **Depends On**: `A-01`
 **Impacts**: Deterministic runtime backbone, unblocks all simulation systems (`AUDIT-B-03`)
+**Blocks**: A-03 || B-01, D-01
 
 **Deliverables**:
 - `src/ecs/world/world.js` — lifecycle, system scheduling, frame context, resource API
 - `src/ecs/world/entity-store.js` — ID generation, recycling, stale-handle protection
 - `src/ecs/world/query.js` — bitmask component matching
-
-**Blocks**:
-- A-03 (same track)
-- B-01 (Track B — components need world)
-- D-01 (Track D — resources need world)
 
 - [ ] Implement `src/ecs/world/entity-store.js` using ID arrays via a recycling pool to avoid GC chunks.
 - [ ] Implement `src/ecs/world/query.js`: Provides fast entity lookups matching component masks (bitmask-based).
@@ -79,6 +73,7 @@
 **Phase**: P0 Foundation
 **Depends On**: `A-02`, `D-01` (resources from Track D)
 **Impacts**: Runtime frame pipeline, pause semantics, FPS instrumentation (`AUDIT-F-02`, `AUDIT-F-10`, `AUDIT-F-17`, `AUDIT-F-18`)
+**Blocks**: A-04, A-05, A-06 || B-02
 
 **Deliverables**:
 - `src/main.ecs.js` — app entry, boots World, binds rAF
@@ -86,10 +81,6 @@
 - `src/game/game-flow.js` — FSM driver (MENU → PLAYING ↔ PAUSED → GAMEOVER/VICTORY)
 - `src/game/level-loader.js` — level transition orchestration (stub, data from D-03)
 - Global `unhandledrejection` handler with error overlay
-
-**Blocks**:
-- A-04, A-05, A-06 (same track — tests)
-- B-02 (Track B — input system needs game loop)
 
 - [ ] Implement `main.ecs.js`: Boots World, binds `window.requestAnimationFrame`.
 - [ ] Connect `rAF` pipeline into World's internal accumulator update.
@@ -110,6 +101,7 @@
 **Phase**: P1 Playable MVP
 **Depends On**: `A-02`, `A-03`, `D-01`, `D-03`
 **Impacts**: Early regression safety net for runtime foundation
+**Blocks**: A-05
 
 **Deliverables**:
 - `tests/unit/world/entity-store.test.js`
@@ -121,9 +113,6 @@
 - `tests/unit/resources/game-status.test.js`
 - `tests/unit/resources/constants.test.js`
 - `tests/unit/resources/map-resource.test.js`
-
-**Blocks**:
-- A-05 (same track)
 
 - [ ] Write unit tests for `entity-store.js`: ID generation, recycling, stale-handle rejection, capacity limits.
 - [ ] Write unit tests for `query.js`: bitmask matching, multi-component queries, empty result sets.
@@ -143,14 +132,12 @@
 **Phase**: P1 Playable MVP
 **Depends On**: `A-03`, `B-03`, `C-02`, `C-04`, `C-05`, `D-08`
 **Impacts**: Cross-system correctness, adapter boundary guarantees, deterministic replay confidence
+**Blocks**: A-06
 
 **Deliverables**:
 - `tests/integration/gameplay/*.test.js` — multi-system interaction scenarios
 - `tests/integration/adapters/*.test.js` — adapter boundary tests (jsdom)
 - Replay determinism test using `src/debug/replay.js`
-
-**Blocks**:
-- A-06 (same track)
 
 - [ ] Write integration tests for `tests/integration/gameplay/`: multi-system interaction scenarios (bomb→explosion→collision→scoring pipeline).
 - [ ] Write integration tests for gameplay event emission: event order, payload schema, deterministic ordering across seeded runs.
@@ -173,14 +160,12 @@
 **Phase**: P1 Playable MVP
 **Depends On**: `A-03`, `B-04`, `C-04`, `C-05`
 **Impacts**: Acceptance automation coverage (`AUDIT-F-01..F-18`, `AUDIT-B-01..B-05`)
+**Blocks**: A-09
 
 **Deliverables**:
 - `tests/e2e/audit/audit-question-map.js`
 - `tests/e2e/audit/audit.e2e.test.js`
 - Evidence artifact templates for manual audit items
-
-**Blocks**:
-- A-09 (same track)
 
 - [ ] Implement `tests/e2e/audit/audit-question-map.js` mapping each audit question to a test ID.
 - [ ] **Fully Automatable tests** (Playwright real browser):
@@ -222,14 +207,12 @@
 **Phase**: P2 Hardening
 **Depends On**: `A-01`, `D-03`
 **Impacts**: Merge safety, schema integrity, dependency and asset governance (`AUDIT-B-02`)
+**Blocks**: A-09
 
 **Deliverables**:
 - CI workflow additions for schema validation
 - File existence checks for manifest paths
 - Naming/size-budget checks for generated assets
-
-**Blocks**:
-- A-09 (same track)
 
 - [ ] Wire schema checks for `assets/manifests/*.json` against `docs/schemas/*.schema.json` into CI.
 - [ ] Add file existence checks for manifest paths and fail CI on missing assets.
@@ -243,12 +226,10 @@
 **Phase**: P2 Hardening
 **Depends On**: `B-01` through `B-09`, `C-01` through `C-05`, `C-07`
 **Impacts**: Full simulation regression protection and deterministic behavior guarantees
+**Blocks**: A-09
 
 **Deliverables**:
 - `tests/unit/systems/*.test.js` — one test file per gameplay system
-
-**Blocks**:
-- A-09 (same track)
 
 - [ ] Write unit tests for `input-system.js`: snapshot consumption, direction mapping, bomb request forwarding.
 - [ ] Write unit tests for `player-move-system.js`: grid boundary blocking, interpolation steps, no diagonal drift.
@@ -272,14 +253,12 @@
 **Phase**: P3 Final Acceptance
 **Depends On**: `A-05`, `A-06`, `A-07`, `A-08`, `C-09`, `D-11`
 **Impacts**: Final audit sign-off (`AUDIT-F-19..F-21`, `AUDIT-B-06`), release readiness
+**Blocks**: None
 
 **Deliverables**:
 - Evidence bundle (frame stats, paint/layer traces, environment notes)
 - Updated `audit-traceability-matrix.md` with all evidence links
 - Final QA pass report (3-level playthrough)
-
-**Blocks**:
-- None (final ticket)
 
 - [ ] Capture before/after size report for generated visual and audio assets.
 - [ ] Collect runtime evidence notes for paint/layer behavior and audio startup timing.

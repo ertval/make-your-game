@@ -18,13 +18,10 @@
 **Phase**: P1 Playable MVP
 **Depends On**: `B-04` (collision intents), `D-01` (event-queue resource)
 **Impacts**: HUD-critical score metric (`AUDIT-F-15`)
+**Blocks**: C-03, C-04
 
 **Deliverables**:
 - `src/ecs/systems/scoring-system.js` — canonical scoring values, combo logic
-
-**Blocks**:
-- C-03 (same track — spawn/scoring integration follows canonical point model)
-- C-04 (same track — level progression consumes score outcomes)
 
 - [ ] Implement `scoring-system.js` with exact canonical values:
   - Pellet: +10, Power Pellet: +50, Ghost kill (normal): +200, Ghost kill (stunned): +400.
@@ -40,14 +37,11 @@
 **Phase**: P1 Playable MVP
 **Depends On**: `D-01` (clock/constants resources), `B-04` (collision intents for death)
 **Impacts**: HUD-critical timer and lives metrics (`AUDIT-F-14`, `AUDIT-F-16`)
+**Blocks**: C-03, C-04
 
 **Deliverables**:
 - `src/ecs/systems/timer-system.js` — level countdown, time-up → GAME_OVER
 - `src/ecs/systems/life-system.js` — 3 starting lives, decrement, respawn, invincibility, zero → GAME_OVER
-
-**Blocks**:
-- C-03 (same track)
-- C-04 (same track — pause/progression freezes timer/lives)
 
 - [ ] Implement `timer-system.js`: countdown per level (120s/180s/240s). Timer hits zero → GAME_OVER.
 - [ ] Implement `life-system.js`: 3 starting lives, decrement on death, respawn with 2000ms invincibility. Zero lives → GAME_OVER.
@@ -60,12 +54,10 @@
 **Phase**: P1 Playable MVP
 **Depends On**: `D-01` (constants/clock), `D-03` (map resource — ghost spawn points)
 **Impacts**: Ghost stagger timing and death-return respawn
+**Blocks**: B-08
 
 **Deliverables**:
 - `src/ecs/systems/spawn-system.js` — staggered ghost-house release, death-return respawn timing
-
-**Blocks**:
-- B-08 (Track B — ghost AI needs spawned ghosts)
 
 - [ ] Implement `spawn-system.js`: Apply absolute staggered ghost-house release timings per `game-description.md` §5.4 (0s, 5s, 10s, 15s).
 - [ ] Enforce per-level active ghost caps from map data (`2/3/4`) with deterministic FIFO release order when a slot opens.
@@ -79,13 +71,11 @@
 **Phase**: P1 Playable MVP
 **Depends On**: `D-01` (clock/game-status), `D-03` (map resource), `C-02` (timer/lives), `A-03` (game loop)
 **Impacts**: Pause menu behavior and level/game state transitions (`AUDIT-F-07..F-10`)
+**Blocks**: C-05
 
 **Deliverables**:
 - `src/ecs/systems/pause-system.js` — freeze simulation while rAF continues
 - `src/ecs/systems/level-progress-system.js` — pellet tracking, level transitions, victory/game-over
-
-**Blocks**:
-- C-05 (same track — overlay state and focus flow consume pause/progression state)
 
 - [ ] Implement `pause-system.js`: Freezes simulation timer while `rAF` continues. Fuse timers, invincibility, and stun timers all freeze.
 - [ ] Implement `level-progress-system.js`:
@@ -104,14 +94,12 @@
 **Phase**: P1 Playable MVP
 **Depends On**: `D-05` (CSS layout), `C-02` (scoring/timer/lives data), `C-04` (pause/progression states)
 **Impacts**: Visible gameplay metrics (`AUDIT-F-14..F-16`), pause/start/restart UX (`AUDIT-F-07..F-09`)
+**Blocks**: D-11
 
 **Deliverables**:
 - `src/adapters/dom/hud-adapter.js` — textContent updates for lives, score, timer, bomb count, fire radius, level number
 - `src/adapters/dom/screens-adapter.js` — start screen, pause menu, level complete, game over, victory overlays
 - `src/adapters/io/storage-adapter.js` — high score localStorage with untrusted data validation
-
-**Blocks**:
-- D-11 (Track D — final visual UI assets and manifest wiring align to screen contracts)
 
 - [ ] Implement `hud-adapter.js`:
   - Binds text nodes natively with `.textContent` to update: lives (heart icons), score (5-digit), timer (M:SS), bomb count, fire radius, level number.
@@ -133,12 +121,10 @@
 **Phase**: P2 Feature Complete
 **Depends On**: `A-01` (scaffolding), `D-01` (constants resource)
 **Impacts**: Runtime audio boundary, fallback resilience, async decode baseline (`AUDIT-B-05`)
+**Blocks**: C-07
 
 **Deliverables**:
 - `src/adapters/io/audio-adapter.js` — AudioContext, decodeAudioData, playSfx/playMusic, volume control, visibility handling
-
-**Blocks**:
-- C-07 (same track — cue mapping needs adapter)
 
 - [ ] Implement `adapters/io/audio-adapter.js`:
   - `AudioContext` initialization on first user interaction (browser autoplay policy).
@@ -158,14 +144,12 @@
 **Phase**: P2 Feature Complete
 **Depends On**: `C-06` (audio adapter), `B-09` (event hooks)
 **Impacts**: Event-driven audio feedback loop across gameplay states and menus
+**Blocks**: C-08
 
 **Deliverables**:
 - Audio cue mapping table (event type → manifest audio ID)
 - Cue consumption system in audio adapter
 - Music state management across game states
-
-**Blocks**:
-- C-08 (same track — audio production fills the mapped cue IDs)
 
 - [ ] Define audio cue mapping table from gameplay event types to manifest audio IDs:
   - `BombPlaced` → `sfx-bomb-place`
@@ -191,15 +175,12 @@
 **Phase**: P3 Polish and Validation
 **Depends On**: `C-06` (audio adapter)
 **Impacts**: Gameplay feel, action clarity, overall production quality (`AUDIT-B-06`)
+**Blocks**: C-09, C-10
 
 **Deliverables**:
 - `assets/generated/sfx/*.mp3` — all gameplay and UI SFX
 - `assets/generated/music/*.mp3` — at least one loop-safe level music track
 - `assets/source/audio/` — source project files
-
-**Blocks**:
-- C-09 (same track — preloading needs assets)
-- C-10 (same track — manifest needs asset metadata)
 
 - [ ] Create/export gameplay SFX set:
   - Bomb place, fuse ticking (loopable), explode, chain reaction, wall destroy.
@@ -222,14 +203,12 @@
 **Phase**: P3 Polish and Validation
 **Depends On**: `C-06`, `C-08`
 **Impacts**: Async performance measurement and startup responsiveness (`AUDIT-B-05`)
+**Blocks**: None
 
 **Deliverables**:
 - Preloading strategy implementation in audio adapter
 - Loading state display for slow decode
 - Performance timing evidence artifact
-
-**Blocks**:
-- None
 
 - [ ] Implement preloading strategy during level load:
   - Decode all gameplay-critical SFX asynchronously using `decodeAudioData()`.
@@ -246,13 +225,11 @@
 **Phase**: P3 Polish and Validation
 **Depends On**: `C-08`, `A-07` (CI schema gates)
 **Impacts**: CI asset governance and contract consistency
+**Blocks**: None
 
 **Deliverables**:
 - `docs/schemas/audio-manifest.schema.json` (JSON Schema 2020-12)
 - `assets/manifests/audio-manifest.json` — all audio asset entries
-
-**Blocks**:
-- None
 
 - [ ] Finalize `docs/schemas/audio-manifest.schema.json` (JSON Schema 2020-12):
   - Required fields: `id`, `path`, `category` (sfx|music|ambience|ui), `format`, `durationMs`, `critical`, `loop`.
