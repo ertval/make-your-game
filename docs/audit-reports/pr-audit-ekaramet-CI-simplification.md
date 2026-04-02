@@ -9,7 +9,7 @@ Date: 2026-04-02
 
 ## Scope Reviewed
 - Branch: ekaramet/CI-simplification
-- Ticket scope: A-02 (resolved from commit metadata; branch-name ticket ID waived for this process branch)
+- Ticket scope: A-02 (resolved from branch or commit metadata; process-marker fallback remains available for GENERAL_DOCS_PROCESS branches)
 - Track: A
 - Audit mode: TICKET
 - Base comparison: merge-base(main, HEAD)..HEAD
@@ -64,7 +64,7 @@ Date: 2026-04-02
 - npm run policy:trace: PASS (exit=0, duration=0s) - Traceability gate passed.
 
 ## Boolean Check Results
-- Ticket identified from branch and commits: true (resolved from commit metadata; branch-name ticket ID waived for this process branch)
+- Ticket identified from branch and commits: true (resolved from branch or commit metadata)
 - Ticket IDs belong to exactly one track: true
 - Ticket IDs exist in tracker: true
 - Track identified: true

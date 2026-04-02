@@ -21,7 +21,7 @@
 
 ## What changed
 - Simplified the policy gate so `npm run policy` is the single top-level command.
-- Kept PR-specific checks branch-driven when ticket metadata exists, and fell back to repo-wide checks when it does not.
+- Kept PR-specific checks driven by ticket metadata from branch names or commit messages, and fell back to repo-wide checks when neither ticket metadata nor a process marker is present.
 - Removed the old `ci:` command aliases from the npm surface.
 - Normalized the ticket tracker so `Blocks` entries use ticket numbers only.
 - Updated the PR template, workflow docs, and archived PR notes to match the new policy flow.
@@ -33,7 +33,7 @@
 
 ## Why
 - Makes the policy workflow easier to understand and removes the split between old CI aliases and policy commands.
-- Avoids requiring a PR body file for policy enforcement while still keeping ticket-aware checks when metadata is available.
+- Avoids requiring a PR body file for policy enforcement while still keeping ticket-aware checks when branch or commit metadata is available, and allows a `process` marker for GENERAL_DOCS_PROCESS branches.
 - Keeps the repository documentation aligned with the actual gate behavior.
 - Keeps ticket tracking centralized in one file instead of split across two docs.
 - Brings the formatter/linter and test tooling up to current releases.
@@ -48,7 +48,7 @@
 - `npm run sbom`
 
 ## Audit questions affected
-- None directly; this change is policy and documentation only.
+- None directly; this change is `process` - policy and documentation only.
 
 ## Security notes
 - No new DOM sinks, unsafe HTML injection, or framework/canvas APIs were introduced.
@@ -60,7 +60,7 @@
 - `npm run policy` now handles both PR-scoped and repo-scoped validation paths.
 
 ## Risks
-- Branches without ticket metadata intentionally fall back to repo-wide checks, so ticket-aware validation only happens when the branch name and commit metadata clearly identify a ticket.
+- Branches without ticket metadata intentionally fall back to repo-wide checks unless a GENERAL_DOCS_PROCESS `process` marker is present, so ticket-aware validation only happens when the branch name or commit metadata clearly identify a ticket.
 - The policy command now depends on generated metadata being cleaned up between runs.
 
 ---

@@ -41,12 +41,11 @@ You are a strict PR audit verifier, QA, Security, and Code Quality Review Agent 
 2. Detect branch commit messages from merge-base(main, HEAD)..HEAD.
 3. Extract ticket IDs with pattern [ABCD]-NN from branch name and commit messages.
 4. Validate:
-   - At least one ticket ID appears in branch name.
-   - At least one ticket ID appears in commit messages.
+   - At least one ticket ID appears in branch name or commit messages.
    - All detected ticket IDs belong to exactly one track.
    - All detected ticket IDs exist in docs/implementation/ticket-tracker.md.
 5. If all validations pass, set AUDIT_MODE to TICKET and continue with ticket-specific checks.
-6. If one or more validations fail, do not fail immediately. Set AUDIT_MODE to GENERAL_DOCS_PROCESS and continue with fallback checks below.
+6. If one or more validations fail, do not fail immediately. If the branch, commit messages, or PR body include the word `process`, set AUDIT_MODE to GENERAL_DOCS_PROCESS and continue with fallback checks below.
 7. In GENERAL_DOCS_PROCESS mode, treat the PR as a docs/process update and run a full repository stability audit:
    - Require full repo-wide automated checks and tests to run.
    - Require changed files to be limited to docs/process/governance areas (for example docs/**, .github/**, .gitea/**, scripts/policy-gate/**, README.md, AGENTS.md, changed-files.txt).
@@ -125,7 +124,7 @@ Run these commands and capture exit code, duration, and key failure lines:
 22. `npm run policy:trace`
 
 Notes:
-- `npm run policy` is the umbrella PR gate. It already runs `policy:quality`, and then `policy:checks`/`policy:forbid`/`policy:header`/`policy:approve` when ticket metadata is resolvable, or falls back to `npm run policy:repo` when it is not.
+- `npm run policy` is the umbrella PR gate. It already runs `policy:quality`, and then `policy:checks`/`policy:forbid`/`policy:header`/`policy:approve` when branch or commit ticket metadata is resolvable, or falls back to `npm run policy:repo` when it is not.
 - `npm run policy:repo` is the umbrella repo gate. It already runs `policy:forbidrepo`, `policy:headerrepo`, and `policy:trace` unless repo integrity checks are disabled.
 - Run the umbrella commands first.
 - Run the narrower `policy:*` commands only when you need to isolate a failure, or when you need explicit standalone evidence for a specific gate.

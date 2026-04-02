@@ -17,7 +17,7 @@ export const REQUIRED_SECTIONS = [
 export const REQUIRED_CHECKBOXES = [
   'I read AGENTS.md and the agentic workflow guide',
   'I ran `npm run policy` locally',
-  'I verified my branch commits reference at least one ticket ID from docs/implementation/ticket-tracker.md',
+  'I verified my branch name or commits reference at least one ticket ID from docs/implementation/ticket-tracker.md, or I marked the PR body with process for a GENERAL_DOCS_PROCESS branch',
   'I confirmed changed files stay within the declared ticket track ownership scope',
   'I ran the applicable local checks',
   'I listed the audit IDs affected by this change',
@@ -262,6 +262,35 @@ export function inferTracksFromTicketIds(ticketIds) {
     }
   }
   return [...tracks].sort();
+}
+
+export function inferProcessModeFromSources(...sources) {
+  return sources.some((source) => /\bprocess\b/i.test(String(source || '')));
+}
+
+export function describePolicyResolution({
+  auditMode,
+  branchTicketIds = [],
+  commitTicketIds = [],
+  processMarkerDetected = false,
+  selectedPath = '',
+  ticketIds = [],
+  trackCode = 'GENERAL',
+} = {}) {
+  const normalizedTicketIds = sortTicketIds(ticketIds);
+  const normalizedBranchTicketIds = sortTicketIds(branchTicketIds);
+  const normalizedCommitTicketIds = sortTicketIds(commitTicketIds);
+
+  return [
+    'Policy checks resolved',
+    `mode=${auditMode || (normalizedTicketIds.length > 0 ? 'TICKET' : 'GENERAL_DOCS_PROCESS')}`,
+    `path=${selectedPath || (normalizedTicketIds.length > 0 ? 'ticketed checks' : 'fallback checks')}`,
+    `track=${normalizedTicketIds.length > 0 ? trackCode : 'GENERAL'}`,
+    `tickets=${normalizedTicketIds.length > 0 ? normalizedTicketIds.join(', ') : '(none)'}`,
+    `branchTickets=${normalizedBranchTicketIds.length > 0 ? normalizedBranchTicketIds.join(', ') : '(none)'}`,
+    `commitTickets=${normalizedCommitTicketIds.length > 0 ? normalizedCommitTicketIds.join(', ') : '(none)'}`,
+    `processMarker=${processMarkerDetected ? 'true' : 'false'}`,
+  ].join('; ');
 }
 
 export function readTicketIdsFromTracker(trackerPath = 'docs/implementation/ticket-tracker.md') {

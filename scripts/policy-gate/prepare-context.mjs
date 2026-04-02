@@ -6,6 +6,7 @@ import {
   getCurrentBranchName,
   getEventPath,
   getMergeBase,
+  inferProcessModeFromSources,
   inferTicketIdsFromSources,
   inferTracksFromTicketIds,
   parseArgs,
@@ -42,6 +43,7 @@ function buildManualMetadata() {
   return {
     number: Number(args['pr-number'] || process.env.PR_NUMBER || 0),
     author: args.author || process.env.PR_AUTHOR || '',
+    body: args.body || process.env.PR_BODY || '',
     baseSha: args['base-sha'] || process.env.BASE_SHA || '',
     headSha: args['head-sha'] || process.env.HEAD_SHA || '',
     reviewsUrl: args['reviews-url'] || process.env.REVIEWS_URL || '',
@@ -70,14 +72,17 @@ const ticketIds = inferTicketIdsFromSources(
   branchName,
   commitMessages,
 );
+const processMode = inferProcessModeFromSources(branchName, commitMessages, metadata.body || '');
 const trackCodes = inferTracksFromTicketIds(ticketIds);
 
 metadata.baseRef = baseRef;
 metadata.headRef = headRef;
 metadata.mergeBase = mergeBase;
 metadata.branchName = branchName;
+metadata.body = metadata.body || '';
 metadata.commitMessages = commitMessages;
 metadata.ticketIds = ticketIds;
+metadata.processMode = processMode;
 metadata.trackCodes = trackCodes;
 metadata.trackCode = trackCodes.length === 1 ? trackCodes[0] : '';
 

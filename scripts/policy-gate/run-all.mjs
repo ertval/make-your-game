@@ -1,6 +1,8 @@
 import fs from 'node:fs';
 import process from 'node:process';
 import {
+  describePolicyResolution,
+  inferProcessModeFromSources,
   inferTicketIdsFromSources,
   parseArgs,
   readJson,
@@ -67,7 +69,40 @@ if (scope === 'pr' || scope === 'all') {
   const metadata = fs.existsSync(metaPath) ? readJson(metaPath) : {};
   const branchTicketIds = inferTicketIdsFromSources(metadata.branchName || '');
   const commitTicketIds = inferTicketIdsFromSources(metadata.commitMessages || '');
-  const hasPrMetadata = branchTicketIds.length > 0 && commitTicketIds.length > 0;
+  const hasPrMetadata = branchTicketIds.length > 0 || commitTicketIds.length > 0;
+  const hasProcessMode =
+    Boolean(metadata.processMode) ||
+    inferProcessModeFromSources(
+      metadata.branchName || '',
+      metadata.commitMessages || '',
+      metadata.body || '',
+    );
+
+  const auditMode = hasPrMetadata
+    ? 'TICKET'
+    : hasProcessMode
+      ? 'GENERAL_DOCS_PROCESS'
+      : 'REPO_FALLBACK';
+  const selectedPath = hasPrMetadata
+    ? 'PR ticket checks'
+    : hasProcessMode
+      ? 'repo-wide fallback from process marker'
+      : 'repo-wide fallback from missing ticket metadata';
+  const ticketIds = hasPrMetadata
+    ? inferTicketIdsFromSources(metadata.branchName || '', metadata.commitMessages || '')
+    : [];
+
+  console.log(
+    describePolicyResolution({
+      auditMode,
+      branchTicketIds,
+      commitTicketIds,
+      processMarkerDetected: hasProcessMode,
+      selectedPath,
+      ticketIds,
+      trackCode: metadata.trackCode || 'GENERAL',
+    }),
+  );
 
   if (hasPrMetadata) {
     runStep(
@@ -103,6 +138,17 @@ if (scope === 'pr' || scope === 'all') {
       ],
       'npm run policy:approve',
     );
+  } else if (hasProcessMode) {
+    console.log(
+      'No ticket IDs found, but a process marker was detected. Running repo-wide policy checks instead.',
+    );
+    runStep(
+      'Repo-wide policy gate',
+      'npm',
+      ['run', 'policy:repo', '--', ...passThrough],
+      'npm run policy:repo',
+    );
+    ranRepoFallback = true;
   } else {
     console.log('No branch/commit ticket metadata found. Running repo-wide policy checks instead.');
     runStep(

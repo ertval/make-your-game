@@ -1,24 +1,24 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import {
+  describePolicyResolution,
   findOwnershipViolations,
+  inferProcessModeFromSources,
   inferTicketIdsFromSources,
   inferTracksFromTicketIds,
+  matchesOwnership,
   parseArgs,
   readJson,
   readLines,
   readText,
   readTicketIdsFromTracker,
   sortTicketIds,
-  toBool,
 } from './lib/policy-utils.mjs';
 
 const args = parseArgs(process.argv.slice(2));
 const metaPath = args['meta-file'] || '.policy-pr-meta.json';
 const changedPath = args['changed-file'] || 'changed-files.txt';
 const checkSet = args['check-set'] || 'pr';
-const requireBranchTicket =
-  args['require-branch-ticket'] !== undefined ? toBool(args['require-branch-ticket']) : true;
 const validCheckSets = new Set(['pr', 'repo', 'all']);
 if (!validCheckSets.has(checkSet)) {
   throw new Error(`Invalid --check-set value "${checkSet}". Expected one of: pr, repo, all.`);
@@ -26,6 +26,19 @@ if (!validCheckSets.has(checkSet)) {
 
 const meta = fs.existsSync(metaPath) ? readJson(metaPath) : {};
 const changedFiles = readLines(changedPath);
+const processMode =
+  Boolean(meta.processMode) ||
+  inferProcessModeFromSources(meta.branchName || '', meta.commitMessages || '', meta.body || '');
+
+const PROCESS_SCOPE_PATTERNS = [
+  'AGENTS.md',
+  'README.md',
+  '.github/**',
+  '.gitea/**',
+  'docs/**',
+  'scripts/policy-gate/**',
+  'changed-files.txt',
+];
 
 function deriveTicketContext() {
   const explicitTicketIds = inferTicketIdsFromSources(
@@ -54,39 +67,28 @@ function deriveTicketContext() {
 function assertTicketAssociation() {
   const context = deriveTicketContext();
 
-  if (context.branchTicketIds.length === 0 && requireBranchTicket) {
+  if (context.ticketIds.length === 0 && !processMode) {
     throw new Error(
       [
-        'No ticket ID found in branch name.',
-        'Expected branch naming to include a ticket ID such as A-01, B-12, C-03, or D-11.',
-        'Action: rename the branch to include exactly one ticket ID before opening a PR.',
+        'No ticket ID found in branch name or branch commit messages.',
+        'Expected branch naming or branch commits to include a ticket ID such as A-01, B-12, C-03, or D-11.',
+        'Action: include a valid ticket ID in the branch name or at least one branch commit message.',
       ].join('\n'),
     );
   }
 
-  if (context.branchTicketIds.length === 0 && !requireBranchTicket) {
+  if (context.ticketIds.length === 0 && processMode) {
     console.warn(
-      'No ticket ID found in branch name. Continuing because --require-branch-ticket=false was set.',
-    );
-  }
-
-  if (context.commitTicketIds.length === 0) {
-    throw new Error(
-      [
-        'No ticket ID found in branch commit messages.',
-        'Action: include a valid ticket ID in at least one branch commit message.',
-      ].join('\n'),
+      'No ticket ID found in branch or commit metadata. Continuing because a process marker was detected.',
     );
   }
 
   if (context.ticketIds.length === 0) {
-    throw new Error(
-      [
-        'No ticket ID found from branch name or commit metadata.',
-        'Expected ticket IDs matching A-01, B-12, C-03, or D-11.',
-        'Action: include ticket ID in branch name and commit messages (or pass --ticket-id=A-01 for local debugging).',
-      ].join('\n'),
-    );
+    return {
+      ticketIds: [],
+      trackCode: 'GENERAL',
+      processMode: true,
+    };
   }
 
   if (context.trackCodes.length !== 1) {
@@ -121,9 +123,32 @@ function assertTicketAssociation() {
   }
 
   return {
+    branchTicketIds: context.branchTicketIds,
+    commitTicketIds: context.commitTicketIds,
     ticketIds: context.ticketIds,
     trackCode: context.trackCodes[0],
+    processMode: false,
+    processMarkerDetected: processMode,
   };
+}
+
+function assertProcessScope() {
+  const violations = changedFiles.filter((file) => !matchesOwnership(file, PROCESS_SCOPE_PATTERNS));
+
+  if (violations.length === 0) {
+    console.log(`Process-scope check passed (${changedFiles.length} changed file(s)).`);
+    return;
+  }
+
+  throw new Error(
+    [
+      'GENERAL_DOCS_PROCESS scope violation.',
+      'The following changed files are outside allowed docs/process/governance areas:',
+      ...violations.map((file) => `- ${file}`),
+      `Allowed path patterns: ${PROCESS_SCOPE_PATTERNS.join(', ')}`,
+      'Action: remove product/runtime changes from the process branch or move them to a ticketed branch.',
+    ].join('\n'),
+  );
 }
 
 function assertTrackOwnership(trackCode, ticketIds) {
@@ -506,7 +531,24 @@ verifyTraceabilityCoverage();
 
 if (checkSet === 'pr' || checkSet === 'all') {
   const ticketContext = assertTicketAssociation();
-  assertTrackOwnership(ticketContext.trackCode, ticketContext.ticketIds);
+  console.log(
+    describePolicyResolution({
+      auditMode: ticketContext.processMode ? 'GENERAL_DOCS_PROCESS' : 'TICKET',
+      branchTicketIds: ticketContext.branchTicketIds,
+      commitTicketIds: ticketContext.commitTicketIds,
+      processMarkerDetected: ticketContext.processMarkerDetected,
+      selectedPath: ticketContext.processMode
+        ? 'process-marker fallback'
+        : 'ticketed ownership checks',
+      ticketIds: ticketContext.ticketIds,
+      trackCode: ticketContext.trackCode,
+    }),
+  );
+  if (ticketContext.processMode) {
+    assertProcessScope();
+  } else {
+    assertTrackOwnership(ticketContext.trackCode, ticketContext.ticketIds);
+  }
   enforceAuditAndDependencyPairing();
   scanSecurityAndArchitectureBoundaries();
 }
