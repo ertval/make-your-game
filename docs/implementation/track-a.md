@@ -3,14 +3,15 @@
 ��� Source plan: `docs/implementation/implementation-plan.md` (Section 3)
 
 > **Scope**: Project scaffolding, ECS internals (World, Entity Store, Queries), game flow orchestration (`game/` folder), game loop, CI/schema wiring, **ALL testing** (unit, integration, e2e, audit), QA, polish, and evidence aggregation. **Does NOT own** resources (`constants`, `clock`, `rng`, `event-queue`, `game-status`) or map loading — those are owned by Track D.
-> **Execution model**: Phase-first delivery for fastest playable MVP, then feature-complete hardening.
+> **Execution model**: Prototype-first delivery for fastest visual feedback, then playable MVP, feature depth, and hardening.
 
-## Phase Order (MVP First)
+## Phase Order (Prototype-First)
 
 - **P0 Foundation**: `A-01` to `A-03`
-- **P1 Playable MVP**: `A-04` to `A-06`
-- **P2 Hardening**: `A-07` to `A-08`
-- **P3 Final Acceptance**: `A-09`
+- **P1 Visual Prototype**: No new Track A tickets (support only)
+- **P2 Playable MVP**: No new Track A tickets (integration support only)
+- **P3 Feature Complete + Hardening**: `A-04` to `A-08`
+- **P4 Final Acceptance**: `A-09`
 
 ---
 
@@ -98,7 +99,7 @@
 
 #### A-04: Unit Tests — ECS Core & Resources
 **Priority**: ��� Critical
-**Phase**: P1 Playable MVP
+**Phase**: P3 Feature Complete + Hardening
 **Depends On**: `A-02`, `A-03`, `D-01`, `D-03`
 **Impacts**: Early regression safety net for runtime foundation
 **Blocks**: None
@@ -129,7 +130,7 @@
 
 #### A-05: Integration Tests — Multi-System & Adapter Boundaries
 **Priority**: ��� Medium
-**Phase**: P1 Playable MVP
+**Phase**: P3 Feature Complete + Hardening
 **Depends On**: `A-03`, `B-03`, `C-02`, `C-04`, `C-05`, `D-08`
 **Impacts**: Cross-system correctness, adapter boundary guarantees, deterministic replay confidence
 **Blocks**: A-09
@@ -157,7 +158,7 @@
 
 #### A-06: E2E Audit Tests (Playwright)
 **Priority**: ��� Critical
-**Phase**: P1 Playable MVP
+**Phase**: P3 Feature Complete + Hardening
 **Depends On**: `A-03`, `B-04`, `C-04`, `C-05`
 **Impacts**: Acceptance automation coverage (`AUDIT-F-01..F-18`, `AUDIT-B-01..B-05`)
 **Blocks**: A-09
@@ -204,7 +205,7 @@
 
 #### A-07: CI, Schema Validation & Asset Gates
 **Priority**: ��� Medium
-**Phase**: P2 Hardening
+**Phase**: P3 Feature Complete + Hardening
 **Depends On**: `A-01`, `D-03`
 **Impacts**: Merge safety, schema integrity, dependency and asset governance (`AUDIT-B-02`)
 **Blocks**: A-09, C-10, D-11
@@ -223,7 +224,7 @@
 
 #### A-08: Unit Tests — All Gameplay Systems
 **Priority**: ��� Critical
-**Phase**: P2 Hardening
+**Phase**: P3 Feature Complete + Hardening
 **Depends On**: `B-01` through `B-09`, `C-01` through `C-05`, `C-07`
 **Impacts**: Full simulation regression protection and deterministic behavior guarantees
 **Blocks**: A-09
@@ -250,7 +251,7 @@
 
 #### A-09: Evidence Aggregation & Final QA Polish
 **Priority**: ��� Medium
-**Phase**: P3 Final Acceptance
+**Phase**: P4 Final Acceptance
 **Depends On**: `A-05`, `A-06`, `A-07`, `A-08`, `C-09`, `D-11`
 **Impacts**: Final audit sign-off (`AUDIT-F-19..F-21`, `AUDIT-B-06`), release readiness
 **Blocks**: None

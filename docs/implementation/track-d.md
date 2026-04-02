@@ -5,12 +5,13 @@
 > **Scope**: ECS resources (time, constants, RNG, events, game-status), map loading, renderer adapters, sprite pools, CSS layout, render systems (collect + DOM batch), gameplay sprite production, and UI visual/manifest governance. Dev 4 owns deterministic world-state infrastructure and the full DOM render/visual pipeline.
 > **Execution model**: Build resource/map/render foundations first, then lock memory-stable rendering, then finish visual polish and manifest governance.
 
-## Phase Order (MVP First)
+## Phase Order (Prototype-First)
 
 - **P0 Foundation**: `D-01` to `D-04`
-- **P1 Playable MVP**: `D-05` to `D-08`
-- **P2 Feature Complete**: `D-09`
-- **P3 Polish and Validation**: `D-10`, `D-11`
+- **P1 Visual Prototype**: `D-05` to `D-08`
+- **P2 Playable MVP**: No new Track D tickets
+- **P3 Feature Complete + Hardening**: `D-09`
+- **P4 Polish and Validation**: `D-10`, `D-11`
 
 ---
 
@@ -93,7 +94,7 @@
 
 #### D-05: CSS Layout & Grid Structure
 **Priority**: ��� Critical
-**Phase**: P1 Playable MVP
+**Phase**: P1 Visual Prototype
 **Depends On**: `A-01` (scaffolding)
 **Impacts**: Core board layout, accessibility baseline, layer policy groundwork (`AUDIT-F-20`, `AUDIT-F-21`)
 **Blocks**: D-06 || C-05
@@ -118,7 +119,7 @@
 
 #### D-06: Renderer Adapter & Board Generation
 **Priority**: ��� Critical
-**Phase**: P1 Playable MVP
+**Phase**: P1 Visual Prototype
 **Depends On**: `D-04`, `D-05`, `D-03`
 **Impacts**: Safe DOM board rendering and no-canvas compliance (`AUDIT-F-04`)
 **Blocks**: D-08, D-09, D-10
@@ -136,7 +137,7 @@
 
 #### D-07: Render Collect System
 **Priority**: ��� Critical
-**Phase**: P1 Playable MVP
+**Phase**: P1 Visual Prototype
 **Depends On**: `D-04`, `B-03` (movement — position data to interpolate)
 **Impacts**: Smooth interpolation and deterministic intent ordering for frame commits
 **Blocks**: D-08
@@ -152,7 +153,7 @@
 
 #### D-08: Render DOM System (The Batcher)
 **Priority**: ��� Critical
-**Phase**: P1 Playable MVP
+**Phase**: P1 Visual Prototype
 **Depends On**: `D-06`, `D-07`
 **Impacts**: Frame-time stability and compositor-only writes (`AUDIT-F-19`, `AUDIT-F-20`, `AUDIT-F-21`)
 **Blocks**: D-09, D-10 || A-05
@@ -173,7 +174,7 @@
 
 #### D-09: Sprite Pool Adapter
 **Priority**: ��� Critical
-**Phase**: P2 Feature Complete
+**Phase**: P3 Feature Complete + Hardening
 **Depends On**: `D-06`, `D-08`
 **Impacts**: Allocation stability and memory reuse (`AUDIT-B-03`)
 **Blocks**: None
@@ -193,7 +194,7 @@
 
 #### D-10: Visual Asset Production — Gameplay Sprites
 **Priority**: ��� Critical
-**Phase**: P3 Polish and Validation
+**Phase**: P4 Polish and Validation
 **Depends On**: `D-06`, `D-08`
 **Impacts**: In-game readability and SVG compliance (`AUDIT-B-04`)
 **Blocks**: D-11
@@ -218,7 +219,7 @@
 
 #### D-11: Visual Assets (UI & Screens) + Visual Manifest & Validation
 **Priority**: ��� Medium
-**Phase**: P3 Polish and Validation
+**Phase**: P4 Polish and Validation
 **Depends On**: `C-05`, `D-10`, `A-07` (CI schema gates)
 **Impacts**: Start/pause/game-over/victory visual polish; asset contract enforcement; CI validation
 **Blocks**: A-09

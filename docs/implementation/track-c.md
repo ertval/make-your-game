@@ -5,17 +5,18 @@
 > **Scope**: Scoring/timer/lives systems, spawn timing, pause/progression gameplay flow systems, HUD and screen overlay adapters, storage adapter, audio adapter, audio cue mapping, SFX/music production, and audio manifest governance. Dev 3 owns the player-facing runtime feedback loop across gameplay state, UI feedback, and sound.
 > **Execution model**: Deliver scoring/lives/timer + gameplay flow UI for MVP, then layer audio integration and polish.
 
-## Phase Order (MVP First)
+## Phase Order (Prototype-First)
 
-- **P1 Playable MVP**: `C-01` to `C-05`
-- **P2 Feature Complete**: `C-06`, `C-07`
-- **P3 Polish and Validation**: `C-08` to `C-10`
+- **P1 Visual Prototype**: No new Track C tickets
+- **P2 Playable MVP**: `C-01` to `C-05`
+- **P3 Feature Complete + Hardening**: `C-06`, `C-07`
+- **P4 Polish and Validation**: `C-08` to `C-10`
 
 ---
 
 #### C-01: Scoring System
 **Priority**: ��� Critical
-**Phase**: P1 Playable MVP
+**Phase**: P2 Playable MVP
 **Depends On**: `B-04` (collision intents), `D-01` (event-queue resource)
 **Impacts**: HUD-critical score metric (`AUDIT-F-15`)
 **Blocks**: A-08, B-09
@@ -34,7 +35,7 @@
 
 #### C-02: Timer & Life Systems
 **Priority**: ��� Critical
-**Phase**: P1 Playable MVP
+**Phase**: P2 Playable MVP
 **Depends On**: `D-01` (clock/constants resources), `B-04` (collision intents for death)
 **Impacts**: HUD-critical timer and lives metrics (`AUDIT-F-14`, `AUDIT-F-16`)
 **Blocks**: A-05, A-08, B-09, C-04, C-05
@@ -51,7 +52,7 @@
 
 #### C-03: Spawn System
 **Priority**: ��� Critical
-**Phase**: P1 Playable MVP
+**Phase**: P2 Playable MVP
 **Depends On**: `D-01` (constants/clock), `D-03` (map resource — ghost spawn points)
 **Impacts**: Ghost stagger timing and death-return respawn
 **Blocks**: A-08, B-08
@@ -68,7 +69,7 @@
 
 #### C-04: Pause & Level Progression Systems
 **Priority**: ��� Critical
-**Phase**: P1 Playable MVP
+**Phase**: P2 Playable MVP
 **Depends On**: `D-01` (clock/game-status), `D-03` (map resource), `C-02` (timer/lives), `A-03` (game loop)
 **Impacts**: Pause menu behavior and level/game state transitions (`AUDIT-F-07..F-10`)
 **Blocks**: A-05, A-06, A-08, C-05
@@ -91,7 +92,7 @@
 
 #### C-05: HUD Adapter & Screen Overlays
 **Priority**: ��� Critical
-**Phase**: P1 Playable MVP
+**Phase**: P2 Playable MVP
 **Depends On**: `D-05` (CSS layout), `C-02` (timer/lives data), `C-04` (pause/progression states)
 **Impacts**: Visible gameplay metrics (`AUDIT-F-14..F-16`), pause/start/restart UX (`AUDIT-F-07..F-09`)
 **Blocks**: A-05, A-06, A-08, D-11
@@ -118,7 +119,7 @@
 
 #### C-06: Audio Adapter Implementation
 **Priority**: ��� Critical
-**Phase**: P2 Feature Complete
+**Phase**: P3 Feature Complete + Hardening
 **Depends On**: `A-01` (scaffolding), `D-01` (constants resource)
 **Impacts**: Runtime audio boundary, fallback resilience, async decode baseline (`AUDIT-B-05`)
 **Blocks**: C-07, C-08, C-09
@@ -141,7 +142,7 @@
 
 #### C-07: Audio Cue Mapping & Runtime Integration
 **Priority**: ��� Critical
-**Phase**: P2 Feature Complete
+**Phase**: P3 Feature Complete + Hardening
 **Depends On**: `C-06` (audio adapter), `B-09` (event hooks)
 **Impacts**: Event-driven audio feedback loop across gameplay states and menus
 **Blocks**: A-08
@@ -172,7 +173,7 @@
 
 #### C-08: Sound Effects & Music Production
 **Priority**: ��� Critical
-**Phase**: P3 Polish and Validation
+**Phase**: P4 Polish and Validation
 **Depends On**: `C-06` (audio adapter)
 **Impacts**: Gameplay feel, action clarity, overall production quality (`AUDIT-B-06`)
 **Blocks**: C-09, C-10
@@ -200,7 +201,7 @@
 
 #### C-09: Audio Preloading & Performance
 **Priority**: ��� Medium
-**Phase**: P3 Polish and Validation
+**Phase**: P4 Polish and Validation
 **Depends On**: `C-06`, `C-08`
 **Impacts**: Async performance measurement and startup responsiveness (`AUDIT-B-05`)
 **Blocks**: A-09
@@ -222,7 +223,7 @@
 
 #### C-10: Audio Manifest Schema & Validation
 **Priority**: ��� Critical
-**Phase**: P3 Polish and Validation
+**Phase**: P4 Polish and Validation
 **Depends On**: `C-08`, `A-07` (CI schema gates)
 **Impacts**: CI asset governance and contract consistency
 **Blocks**: None

@@ -31,7 +31,7 @@ Welcome to the Ms. Ghostman project! If you are picking up a ticket for the firs
 - **Find your Track**: The workload is divided into 4 tracks (A, B, C, D) defined in [`implementation/implementation-plan.md`](implementation/implementation-plan.md#section-3-workflow-tracks-balanced-workload) and detailed in [`implementation/track-a.md`](implementation/track-a.md), [`implementation/track-b.md`](implementation/track-b.md), [`implementation/track-c.md`](implementation/track-c.md), and [`implementation/track-d.md`](implementation/track-d.md).
 - **Set Status and Notes**: Open [`implementation/ticket-tracker.md`](implementation/ticket-tracker.md), find an unstarted ticket in your track, and update its status symbol to `[-]` (In Progress). Keep dependency and blocker text current on the same line.
 - **Understand the Scope**: Read the ticket description carefully. Identify the bounded scope and exactly what needs to change.
-- **Follow the Phase-First Order**: Execute tickets by global phase (`P0 → P1 → P2 → P3`) using [`implementation/ticket-tracker.md`](implementation/ticket-tracker.md). Claim only tickets whose dependencies are complete. In most cases, first-ticket starting points are `A-01`, `B-01`, `C-01`, and `D-01`.
+- **Follow the Prototype-First Phase Order**: Execute tickets by global phase (`P0 → P1 → P2 → P3 → P4`) using [`implementation/ticket-tracker.md`](implementation/ticket-tracker.md). Claim only tickets whose dependencies are complete. Typical first-ticket starting points are `A-01`, `B-01`, and `D-01`, then Track C joins in `P2` after collision contracts land.
 
 ### 2. Read the Critical Constraints
 Before writing any code, you **MUST** consult the canonical specs:

@@ -252,8 +252,8 @@ The docs entrypoint for the PR contract lives in `docs/implementation/pr-templat
 
 Follow the agreed ticket order and keep branches short-lived and single-purpose.
 
-- Follow the phase-first execution order (`P0 -> P1 -> P2 -> P3`) from `ticket-tracker.md` and claim only tickets whose dependencies are complete.
-- Typical first-ticket starts are `A-01`, `B-01`, `C-01`, and `D-01`.
+- Follow the phase-first execution order (`P0 -> P1 -> P2 -> P3 -> P4`) from `ticket-tracker.md` and claim only tickets whose dependencies are complete.
+- Typical first-ticket starts are `A-01`, `B-01`, and `D-01`; Track C usually starts in `P2` after `B-04` unlocks scoring/timer/life dependencies.
 - Use one branch per ticket slice.
 - Use the same branch only for the one logical change it was created for.
 - Example branch sequence (Track A): `ekaramet/A-01`, `ekaramet/A-02`, `ekaramet/A-03`.

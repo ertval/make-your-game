@@ -5,11 +5,12 @@
 > **Scope**: All ECS component data definitions, input adapter/system, movement & grid collision, entity collision, bomb/explosion simulation, power-up effects, ghost AI behavior, and deterministic gameplay event emission from simulation systems. Pure ECS simulation — no DOM, no audio playback, no visual asset work. **Does NOT own** scoring/timer/lives, pause/progression UX, HUD/screens adapters, or visual rendering infrastructure.
 > **Execution model**: Deliver the core physics pipeline first, then add combat depth, AI behavior, and final event-contract consolidation.
 
-## Phase Order (MVP First)
+## Phase Order (Prototype-First)
 
 - **P0 Foundation**: `B-01`
-- **P1 Playable MVP**: `B-02` to `B-04`
-- **P2 Feature Complete**: `B-05` to `B-09`
+- **P1 Visual Prototype**: `B-02` to `B-03`
+- **P2 Playable MVP**: `B-04`
+- **P3 Feature Complete + Hardening**: `B-05` to `B-09`
 
 ---
 
@@ -54,7 +55,7 @@
 
 #### B-02: Input Adapter & Input System
 **Priority**: ��� Critical
-**Phase**: P1 Playable MVP
+**Phase**: P1 Visual Prototype
 **Depends On**: `B-01`, `A-03` (game loop), `D-01` (resources/constants)
 **Impacts**: Keyboard control path and hold-to-move (`AUDIT-F-11`, `AUDIT-F-12`)
 **Blocks**: A-08, B-03
@@ -75,7 +76,7 @@
 
 #### B-03: Movement & Grid Collision System
 **Priority**: ��� Critical
-**Phase**: P1 Playable MVP
+**Phase**: P1 Visual Prototype
 **Depends On**: `B-01`, `B-02`, `D-03` (map resource from Track D)
 **Impacts**: Core controllable gameplay movement (`AUDIT-F-11`, `AUDIT-F-12`, `AUDIT-F-13`)
 **Blocks**: A-05, A-08, B-04, B-06, B-08 || D-07
@@ -94,7 +95,7 @@
 
 #### B-04: Entity Collision System
 **Priority**: ��� Critical
-**Phase**: P1 Playable MVP
+**Phase**: P2 Playable MVP
 **Depends On**: `B-01`, `B-03`, `D-03` (map resource)
 **Impacts**: Player/ghost/pellet interaction correctness and life/score intents
 **Blocks**: A-06, A-08, B-05, B-06, B-07, B-08 || C-01, C-02
@@ -121,7 +122,7 @@
 
 #### B-05: Core Gameplay Event Surface
 **Priority**: ��� Medium
-**Phase**: P2 Feature Complete
+**Phase**: P3 Feature Complete + Hardening
 **Depends On**: `B-04`, `D-01` (event-queue resource)
 **Impacts**: Deterministic base event emission from collision/movement systems for scoring, audio, and visual consumers
 **Blocks**: A-08, B-09
@@ -141,7 +142,7 @@
 
 #### B-06: Bomb & Explosion Systems
 **Priority**: ��� Critical
-**Phase**: P2 Feature Complete
+**Phase**: P3 Feature Complete + Hardening
 **Depends On**: `B-03` (movement/grid), `B-04` (collision), `D-01` (constants/rng), `D-03` (map resource)
 **Impacts**: Bomberman mechanics, chain reactions, combo rules (`AUDIT-F-13`, `AUDIT-B-03`)
 **Blocks**: A-08, B-07, B-09
@@ -163,7 +164,7 @@
 
 #### B-07: Power-Up System
 **Priority**: ��� Critical
-**Phase**: P2 Feature Complete
+**Phase**: P3 Feature Complete + Hardening
 **Depends On**: `B-04` (collision intents), `B-06` (explosions spawn power-ups), `D-01` (canonical duration constants)
 **Impacts**: Power progression, stun windows, speed-state timing (`AUDIT-F-13`)
 **Blocks**: A-08, B-08
@@ -183,7 +184,7 @@
 
 #### B-08: Ghost AI System
 **Priority**: ��� Critical
-**Phase**: P2 Feature Complete
+**Phase**: P3 Feature Complete + Hardening
 **Depends On**: `B-03` (movement/grid), `B-04` (collision), `B-07` (stun/speed effect states), `D-01` (constants/rng), `D-03` (map resource), `C-03` (spawn timing)
 **Impacts**: Difficulty curve and personality-driven enemy behavior (`AUDIT-F-13`)
 **Blocks**: A-08, B-09
@@ -210,7 +211,7 @@
 
 #### B-09: Cross-System Gameplay Event Hooks
 **Priority**: ��� Medium
-**Phase**: P2 Feature Complete
+**Phase**: P3 Feature Complete + Hardening
 **Depends On**: `C-01` (scoring), `C-02` (timer/lives), `B-05` (event baseline), `B-06` (bombs/explosions), `B-08` (ghost AI), `D-01` (event-queue)
 **Impacts**: Final deterministic integration surface for audio/visual cues
 **Blocks**: A-08, C-07

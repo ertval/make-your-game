@@ -30,6 +30,7 @@
 - Upgraded the toolchain to Biome 2.4.10 and refreshed the other outdated dev dependencies (`@playwright/test`, `vite`, `vitest`, and `@vitest/coverage-v8`).
 - Fixed policy-gate behavior for ticket lookup, header scanning, and generated-file handling so the local and repo policy paths run correctly.
 - Fixed the proper req ID references from the audit traceability matrix in the policy checks instead of the original requirements.md.
+- Tickets reordered in the tracker to match recommended claim order for the prototype-first execution policy, with the Q1 visual prototype tickets at the top and the broad hardening tickets deferred until after the playable MVP loop is visible and interactive.
 
 ## Why
 - Makes the policy workflow easier to understand and removes the split between old CI aliases and policy commands.
@@ -38,6 +39,7 @@
 - Keeps ticket tracking centralized in one file instead of split across two docs.
 - Brings the formatter/linter and test tooling up to current releases.
 - Preserves the policy contract by making the checks behave correctly under Biome 2 and on Windows paths.
+- Reorders the ticket tracker to match the recommended claim order for the prototype-first execution policy, which is a key part of our development strategy.
 
 ## Tests
 - `npm run policy -- --require-approval=true`
