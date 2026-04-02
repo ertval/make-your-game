@@ -27,8 +27,8 @@ Coverage mapping remains canonical in `audit-traceability-matrix.md`.
 ## 📈 Summary Snapshot
 
 - Total tickets: `39`
-- Done: `0`
-- In Progress: `2`
+- Done: `2`
+- In Progress: `0`
 - Not Started: `37`
 
 ## 🧩 Ticket ID Index (Merged)
@@ -44,8 +44,8 @@ Canonical ticket ID ranges used by policy checks:
 
 ## ⚙️ Track A (Dev 1)
 
-- [-] **A-01** P0 - Project Scaffolding & Tooling (Depends on: None) | Blocks: A-02; A-07; C-06; D-05
-- [-] **A-02** P0 - ECS Architecture Core (World, Entity, Query) (Depends on: A-01) | Blocks: A-03; A-04; B-01; D-01; D-04
+- [x] **A-01** P0 - Project Scaffolding & Tooling (Depends on: None) | Blocks: A-02; A-07; C-06; D-05
+- [x] **A-02** P0 - ECS Architecture Core (World, Entity, Query) (Depends on: A-01) | Blocks: A-03; A-04; B-01; D-01; D-04
 - [ ] **A-03** P0 - Game Loop & Main Initialization (Depends on: A-02, D-01) | Blocks: A-04; A-05; A-06; B-02; C-04
 - [ ] **A-04** P1 - Unit Tests - ECS Core & Resources (Depends on: A-02, A-03, D-01, D-03) | Blocks: None
 - [ ] **A-05** P1 - Integration Tests - Multi-System & Adapter Boundaries (Depends on: A-03, B-03, C-02, C-04, C-05, D-08) | Blocks: A-09
