@@ -10,12 +10,15 @@ import {
   readText,
   readTicketIdsFromTracker,
   sortTicketIds,
+  toBool,
 } from './lib/policy-utils.mjs';
 
 const args = parseArgs(process.argv.slice(2));
 const metaPath = args['meta-file'] || '.policy-pr-meta.json';
 const changedPath = args['changed-file'] || 'changed-files.txt';
 const checkSet = args['check-set'] || 'pr';
+const requireBranchTicket =
+  args['require-branch-ticket'] !== undefined ? toBool(args['require-branch-ticket']) : true;
 const validCheckSets = new Set(['pr', 'repo', 'all']);
 if (!validCheckSets.has(checkSet)) {
   throw new Error(`Invalid --check-set value "${checkSet}". Expected one of: pr, repo, all.`);
@@ -51,13 +54,19 @@ function deriveTicketContext() {
 function assertTicketAssociation() {
   const context = deriveTicketContext();
 
-  if (context.branchTicketIds.length === 0) {
+  if (context.branchTicketIds.length === 0 && requireBranchTicket) {
     throw new Error(
       [
         'No ticket ID found in branch name.',
         'Expected branch naming to include a ticket ID such as A-01, B-12, C-03, or D-11.',
         'Action: rename the branch to include exactly one ticket ID before opening a PR.',
       ].join('\n'),
+    );
+  }
+
+  if (context.branchTicketIds.length === 0 && !requireBranchTicket) {
+    console.warn(
+      'No ticket ID found in branch name. Continuing because --require-branch-ticket=false was set.',
     );
   }
 
@@ -101,7 +110,7 @@ function assertTicketAssociation() {
     if (unknownTicketIds.length > 0) {
       throw new Error(
         [
-          `Detected ticket IDs are not present in ${resolvedPath}: ${unknownTicketIds.join(', ')}.`,
+          `Detected ticket IDs are not present in ${trackerPath}: ${unknownTicketIds.join(', ')}.`,
           `Detected ticket IDs: ${context.ticketIds.join(', ')}.`,
           `Action: use a ticket ID from ${trackerPath} or update the ticket list first.`,
         ].join('\n'),

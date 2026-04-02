@@ -28,7 +28,7 @@
     "policy": "node scripts/policy-gate/run-all.mjs --mode=local --scope=all",
     "policy:repo": "node scripts/policy-gate/run-all.mjs --mode=local --scope=repo",
     "policy:quality": "node scripts/policy-gate/run-project-gate.mjs",
-    "policy:checks": "node scripts/policy-gate/run-checks.mjs --check-set=pr",
+    "policy:checks": "node scripts/policy-gate/run-checks.mjs --check-set=pr --require-branch-ticket=true",
     "policy:trace": "node scripts/policy-gate/run-checks.mjs --check-set=repo",
     "policy:forbid": "node scripts/policy-gate/check-forbidden.mjs --scope=changed",
     "policy:forbidrepo": "node scripts/policy-gate/check-forbidden.mjs --scope=repo",
