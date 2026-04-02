@@ -31,6 +31,17 @@ Coverage mapping remains canonical in `audit-traceability-matrix.md`.
 - In Progress: `2`
 - Not Started: `37`
 
+## 🧩 Ticket ID Index (Merged)
+
+`docs/implementation/tickets.md` is merged into this tracker.
+
+Canonical ticket ID ranges used by policy checks:
+
+- Track A: `A-01` through `A-09`
+- Track B: `B-01` through `B-09`
+- Track C: `C-01` through `C-10`
+- Track D: `D-01` through `D-11`
+
 ## ⚙️ Track A (Dev 1)
 
 - [-] **A-01** P0 - Project Scaffolding & Tooling (Depends on: None) | Blocks: A-02; A-07; C-06; D-05

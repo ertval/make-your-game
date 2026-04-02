@@ -55,3 +55,25 @@
 ## Risks
 - Branches without ticket metadata intentionally fall back to repo-wide checks, so ticket-aware validation only happens when the branch name and commit metadata clearly identify a ticket.
 - The policy command now depends on generated metadata being cleaned up between runs.
+
+---
+
+## Focused PR Message
+
+### What changed
+- Merged `docs/implementation/tickets.md` into `docs/implementation/ticket-tracker.md` and updated all policy and documentation references to use the tracker as the single ticket source.
+- Upgraded the toolchain to Biome 2.4.10 and refreshed the other outdated dev dependencies (`@playwright/test`, `vite`, `vitest`, and `@vitest/coverage-v8`).
+- Fixed policy-gate behavior for ticket lookup, header scanning, and generated-file handling so the local and repo policy paths run correctly.
+
+### Why
+- Keeps ticket tracking centralized in one file instead of split across two docs.
+- Brings the formatter/linter and test tooling up to current releases.
+- Preserves the policy contract by making the checks behave correctly under Biome 2 and on Windows paths.
+
+### Validation
+- `npm run policy -- --require-approval=true`
+- `npm run check`
+- `npm run test`
+
+### Notes
+- The original PR draft above is kept for context and archival completeness.

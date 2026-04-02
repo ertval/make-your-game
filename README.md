@@ -411,7 +411,7 @@ Recommended reading order for new contributors:
 4. `docs/audit.md` (acceptance/pass criteria source of truth)
 5. `docs/implementation/implementation-plan.md` (ECS execution plan and milestones)
 6. `docs/implementation/ticket-tracker.md` (live line-by-line ticket status board with dependencies and reverse block mapping)
-7. `docs/tickets.md` (canonical ticket ID index used by automated policy checks)
+7. `docs/implementation/ticket-tracker.md` (canonical ticket ID index and live status board used by automated policy checks)
 8. `docs/implementation/agentic-workflow-guide.md` (team process, PR checklist, and PR Message and Gate Workflow)
 9. `docs/implementation/pr-template.md` (docs entrypoint for PR contract and canonical template source)
 10. `docs/implementation/track-a.md` + `docs/implementation/track-b.md` + `docs/implementation/track-c.md` + `docs/implementation/track-d.md` (detailed track ticket definitions and verification gates)
@@ -425,7 +425,7 @@ Recommended reading order for new contributors:
 - Requirement intent and feature scope: `docs/requirements.md` + `docs/game-description.md`
 - Final pass/fail acceptance criteria: `docs/audit.md`
 - Ticket execution progress and dependency/block mapping board: `docs/implementation/ticket-tracker.md`
-- Canonical ticket ID index for branch enforcement: `docs/tickets.md`
+- Canonical ticket ID index for branch enforcement: `docs/implementation/ticket-tracker.md`
 - PR message and gate workflow: `docs/implementation/agentic-workflow-guide.md#12-pr-message-and-gate-workflow`
 - Cross-document requirement/audit/ticket/test traceability and coverage status: `docs/implementation/audit-traceability-matrix.md`
 - Visual/audio authoring and asset quality gates: `docs/implementation/assets-pipeline.md`

@@ -90,18 +90,10 @@ function assertTicketAssociation() {
     );
   }
 
-  const trackerPath = String(args['ticket-tracker-file'] || 'docs/tickets.md');
-  const fallbackTrackerPath = 'docs/implementation/ticket-tracker.md';
-  const knownTicketIds = readTicketIdsFromTracker(trackerPath);
-  const fallbackTicketIds = readTicketIdsFromTracker(fallbackTrackerPath);
-  const resolvedTicketIds = knownTicketIds.length > 0 ? knownTicketIds : fallbackTicketIds;
-  const resolvedPath = knownTicketIds.length > 0 ? trackerPath : fallbackTrackerPath;
-
-  if (knownTicketIds.length === 0 && fallbackTicketIds.length > 0) {
-    console.warn(
-      `No ticket IDs found in ${trackerPath}. Falling back to ${fallbackTrackerPath} for validation.`,
-    );
-  }
+  const trackerPath = String(
+    args['ticket-tracker-file'] || 'docs/implementation/ticket-tracker.md',
+  );
+  const resolvedTicketIds = readTicketIdsFromTracker(trackerPath);
 
   if (resolvedTicketIds.length > 0) {
     const knownSet = new Set(resolvedTicketIds);
@@ -111,14 +103,12 @@ function assertTicketAssociation() {
         [
           `Detected ticket IDs are not present in ${resolvedPath}: ${unknownTicketIds.join(', ')}.`,
           `Detected ticket IDs: ${context.ticketIds.join(', ')}.`,
-          `Action: use a ticket ID from ${resolvedPath} or update the ticket list first.`,
+          `Action: use a ticket ID from ${trackerPath} or update the ticket list first.`,
         ].join('\n'),
       );
     }
   } else {
-    console.warn(
-      `Ticket list has no discoverable ticket IDs in ${trackerPath} or ${fallbackTrackerPath}.`,
-    );
+    console.warn(`Ticket list has no discoverable ticket IDs in ${trackerPath}.`);
   }
 
   return {

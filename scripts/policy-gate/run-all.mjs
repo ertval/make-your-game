@@ -21,12 +21,15 @@ const requireApproval =
   args['require-approval'] !== undefined ? toBool(args['require-approval']) : mode === 'ci';
 const runIntegrityChecks =
   args['run-integrity-checks'] !== undefined ? toBool(args['run-integrity-checks']) : true;
-const headerMode = String(args['header-mode'] || process.env.POLICY_HEADER_MODE || 'warn')
-  .trim()
-  .toLowerCase();
-if (!['warn', 'error', 'fail'].includes(headerMode)) {
+const rawHeaderMode = args['header-mode'] ?? process.env.POLICY_HEADER_MODE;
+const headerMode =
+  rawHeaderMode === undefined || rawHeaderMode === null
+    ? ''
+    : String(rawHeaderMode).trim().toLowerCase();
+if (headerMode && !['warn', 'error', 'fail'].includes(headerMode)) {
   throw new Error(`Invalid header mode "${headerMode}". Expected one of: warn, error, fail.`);
 }
+const headerModeArgs = headerMode ? [`--mode=${headerMode}`] : [];
 
 const passThrough = [];
 for (const [key, value] of Object.entries(args)) {
@@ -84,7 +87,7 @@ if (scope === 'pr' || scope === 'all') {
     runStep(
       'Changed-file source-header scan',
       'npm',
-      ['run', 'policy:header', '--', `--mode=${headerMode}`, ...passThrough],
+      ['run', 'policy:header', '--', ...headerModeArgs, ...passThrough],
       'npm run policy:header',
     );
 
@@ -123,7 +126,7 @@ if ((scope === 'repo' || scope === 'all') && !(scope === 'all' && ranRepoFallbac
   runStep(
     'Repo-wide source-header scan',
     'npm',
-    ['run', 'policy:headerrepo', '--', `--mode=${headerMode}`, ...passThrough],
+    ['run', 'policy:headerrepo', '--', ...headerModeArgs, ...passThrough],
     'npm run policy:headerrepo',
   );
 

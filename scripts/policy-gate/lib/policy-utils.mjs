@@ -17,7 +17,7 @@ export const REQUIRED_SECTIONS = [
 export const REQUIRED_CHECKBOXES = [
   'I read AGENTS.md and the agentic workflow guide',
   'I ran `npm run policy` locally',
-  'I verified my branch commits reference at least one ticket ID from docs/tickets.md',
+  'I verified my branch commits reference at least one ticket ID from docs/implementation/ticket-tracker.md',
   'I confirmed changed files stay within the declared ticket track ownership scope',
   'I ran the applicable local checks',
   'I listed the audit IDs affected by this change',
@@ -264,7 +264,7 @@ export function inferTracksFromTicketIds(ticketIds) {
   return [...tracks].sort();
 }
 
-export function readTicketIdsFromTracker(trackerPath = 'docs/tickets.md') {
+export function readTicketIdsFromTracker(trackerPath = 'docs/implementation/ticket-tracker.md') {
   if (!fs.existsSync(trackerPath)) {
     return [];
   }
@@ -485,7 +485,7 @@ export function walkFiles(rootDir, predicate) {
   function walk(current) {
     for (const entry of fs.readdirSync(current, { withFileTypes: true })) {
       const absolute = path.join(current, entry.name);
-      const relative = path.relative(rootDir, absolute).replaceAll('\\\\', '/');
+      const relative = path.relative(rootDir, absolute).replaceAll('\\', '/');
 
       if (entry.isDirectory()) {
         if (!IGNORED_DIRS.has(entry.name)) {
