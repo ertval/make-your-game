@@ -1,3 +1,10 @@
+/*
+ * ECS world runtime orchestration.
+ *
+ * The world owns system phase ordering, resource registration, entity/query
+ * storage, and deferred structural mutations applied after each fixed step.
+ */
+
 import { EntityStore } from './entity-store.js';
 import { QueryIndex } from './query.js';
 
@@ -133,7 +140,7 @@ export class World {
           system.update(context);
         } catch (error) {
           console.error(
-            `System \"${system.name || 'anonymous'}\" failed in phase \"${phase}\".`,
+            `System "${system.name || 'anonymous'}" failed in phase "${phase}".`,
             error,
           );
         }

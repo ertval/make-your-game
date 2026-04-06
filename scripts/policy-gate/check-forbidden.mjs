@@ -9,15 +9,15 @@ const changedPath = args['changed-file'] || 'changed-files.txt';
 const sourcePattern = /\.(js|mjs|cjs|ts|tsx|jsx|html)$/;
 const forbiddenPatterns = [
   { name: 'canvas element', pattern: /<\s*canvas\b/i },
-  { name: 'canvas createElement', pattern: /createElement\s*\(\s*['\"]canvas['\"]\s*\)/i },
+  { name: 'canvas createElement', pattern: /createElement\s*\(\s*['"]canvas['"]\s*\)/i },
   {
     name: 'framework import',
-    pattern: /from\s+['\"](?:react|vue|angular|svelte|phaser|pixi\.js|three|jquery)['\"]/,
+    pattern: /from\s+['"](?:react|vue|angular|svelte|phaser|pixi\.js|three|jquery)['"]/,
   },
   {
     name: 'framework require',
     pattern:
-      /require\s*\(\s*['\"](?:react|vue|angular|svelte|phaser|pixi\.js|three|jquery)['\"]\s*\)/,
+      /require\s*\(\s*['"](?:react|vue|angular|svelte|phaser|pixi\.js|three|jquery)['"]\s*\)/,
   },
 ];
 

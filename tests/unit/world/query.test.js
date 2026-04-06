@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { QueryIndex, hasAllComponents } from '../../../src/ecs/world/query.js';
+import { hasAllComponents, QueryIndex } from '../../../src/ecs/world/query.js';
 
 describe('QueryIndex', () => {
   it('matches required bitmasks deterministically', () => {

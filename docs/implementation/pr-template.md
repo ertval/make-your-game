@@ -1,3 +1,10 @@
+# PR Template Contract
+
+This document includes the full PR template content used in `.github/pull_request_template.md`.
+
+## Template Content
+
+```md
 # PR Gate Checklist
 
 Local test command reference (run what applies to your change and list what you ran in the `## Tests` section below):
@@ -50,4 +57,10 @@ Local test command reference (run what applies to your change and list what you 
 - 
 
 ## Risks
-- 
+-
+```
+
+## Sync Rule
+
+1. Update `.github/pull_request_template.md` first.
+2. Update this file in the same PR.

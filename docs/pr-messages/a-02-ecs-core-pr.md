@@ -2,17 +2,17 @@
 
 ## Required checks
 
-- [x] I read AGENTS.md and the agentic workflow guide
-- [x] I ran `npm run policy:quality` locally
-- [x] I ran `npm run policy -- --pr-body-file docs/pr-messages/a-02-ecs-core-pr.md` locally
-- [x] I ran `npm run policy:repo` locally
-- [x] I ran the applicable local checks
-- [x] I listed the audit IDs affected by this change
-- [x] I checked security sinks and trust boundaries
-- [x] I checked architecture boundaries
-- [x] I checked dependency and lockfile impact
-- [x] I requested human review
-- [x] I stored this PR body under `docs/pr-messages/`
+- [x] I read AGENTS.md and the agentic workflow guide.
+- [x] I ran `npm run policy:quality` locally.
+- [x] I ran `npm run policy` locally.
+- [x] I ran `npm run policy:repo` locally.
+- [x] I ran the applicable local checks.
+- [x] I listed the audit IDs affected by this change.
+- [x] I checked security sinks and trust boundaries.
+- [x] I checked architecture boundaries.
+- [x] I checked dependency and lockfile impact.
+- [x] I requested human review.
+- [x] I stored this PR body under `docs/pr-messages/`.
 
 ## Layer boundary confirmation
 
@@ -32,16 +32,16 @@
 - Reduces policy-gate command ambiguity so PR checks are easier to run and troubleshoot.
 
 ## Tests
-- `npm run policy -- --pr-body-file docs/pr-messages/a-02-ecs-core-pr.md` (passed)
+- `npm run policy` (passed)
 - `npm run policy:repo` (passed)
 - `npm run policy:quality` (passed)
-- `npm run policy:checks -- --pr-body-file docs/pr-messages/a-02-ecs-core-pr.md` (passed)
-- `npm run policy:forbid -- --pr-body-file docs/pr-messages/a-02-ecs-core-pr.md` (passed)
-- `npm run policy:header -- --pr-body-file docs/pr-messages/a-02-ecs-core-pr.md` (passed)
-- `npm run policy:approve -- --pr-body-file docs/pr-messages/a-02-ecs-core-pr.md` (passed; approval API check skipped in local mode)
-- `npm run policy:forbidrepo -- --pr-body-file docs/pr-messages/a-02-ecs-core-pr.md` (passed)
-- `npm run policy:headerrepo -- --pr-body-file docs/pr-messages/a-02-ecs-core-pr.md` (passed)
-- `npm run policy:trace -- --pr-body-file docs/pr-messages/a-02-ecs-core-pr.md` (passed)
+- `npm run policy:checks` (passed)
+- `npm run policy:forbid` (passed)
+- `npm run policy:header` (passed)
+- `npm run policy:approve` (passed; approval API check skipped in local mode)
+- `npm run policy:forbidrepo` (passed)
+- `npm run policy:headerrepo` (passed)
+- `npm run policy:trace` (passed)
 - `npm run test:unit` (passed)
 - `npm run check:forbidden` (passed)
 
@@ -70,6 +70,6 @@
 - Renamed the policy command surface to keep subcommands one-word and removed multi-segment names in favor of `policy:headerrepo`.
 - Updated GitHub/Gitea policy workflows to run the single all-in-one policy command.
 - Removed the duplicate all-in-one alias so `npm run policy` is now the single canonical all-in-one gate command.
-- Updated GitHub/Gitea policy workflows to run `npm run policy -- --pr-body-file docs/pr-messages/a-02-ecs-core-pr.md`.
+- Updated GitHub/Gitea policy workflows to run `npm run policy`.
 - Verified `npm run policy` and `npm run policy:repo` both pass after formatting drift cleanup.
 - Verified all one-word narrow reruns pass: `policy:quality`, `policy:checks`, `policy:forbid`, `policy:header`, `policy:approve`, `policy:forbidrepo`, `policy:headerrepo`, and `policy:trace`.

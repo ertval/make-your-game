@@ -13,11 +13,13 @@
 | 3 | [`game-description.md`](game-description.md) | **How** it plays — full gameplay rules, map layout, ghosts, bombs, scoring, timers, screens | Before gameplay/system logic work |
 | 4 | [`audit.md`](audit.md) | **Pass/fail criteria** — every question that must pass for project acceptance | Before testing and PR review |
 | 5 | [`implementation/implementation-plan.md`](implementation/implementation-plan.md) | **How** we build it — ECS architecture, directory structure, 4-track workplan, testing strategy, performance budget | Before starting any implementation task |
-| 6 | [`implementation/ticket-tracker.md`](implementation/ticket-tracker.md) | **Execution board** — live ticket-by-ticket status, PR links, and evidence links for Section 3 implementation tickets | Update continuously during implementation |
-| 7 | [`implementation/agentic-workflow-guide.md`](implementation/agentic-workflow-guide.md) | **Team workflow** — how to use agents, PR process, PR message and gate workflow, review checklist, branch rules | Before starting collaborative work |
-| 8 | [`implementation/audit-traceability-matrix.md`](implementation/audit-traceability-matrix.md) | **Coverage source of truth** — maps requirements and audit questions to implementation tickets, e2e/manual anchors, and execution status | During planning, test implementation, and PR review |
-| 9 | [`implementation/assets-pipeline.md`](implementation/assets-pipeline.md) | **Asset authoring** — visual and audio creation standards, naming rules, CI validation | When creating or modifying assets |
-| 10 | [`deployment/github-pages.md`](deployment/github-pages.md) | **Deployment guide** — GitHub Pages publishing options and static-hosting constraints | When publishing a static site or documentation site |
+| 6 | [`implementation/ticket-tracker.md`](implementation/ticket-tracker.md) | **Execution board** — live line-by-line ticket status with Depends on and Blocks mapping for Section 3 implementation tickets | Update continuously during implementation |
+| 7 | [`implementation/ticket-tracker.md`](implementation/ticket-tracker.md) | **Ticket ID index** — merged canonical ticket list consumed by automated branch policy checks | Before branch naming and PR gate runs |
+| 8 | [`implementation/agentic-workflow-guide.md`](implementation/agentic-workflow-guide.md) | **Team workflow** — how to use agents, PR process, PR message and gate workflow, review checklist, branch rules, and the `process` marker fallback for docs/process branches | Before starting collaborative work |
+| 9 | [`implementation/pr-template.md`](implementation/pr-template.md) | **PR contract** — documentation entrypoint for required checklist labels, layer-boundary confirmations, command flow, and canonical template source | Before opening any pull request |
+| 10 | [`implementation/audit-traceability-matrix.md`](implementation/audit-traceability-matrix.md) | **Coverage source of truth** — maps requirements and audit questions to implementation tickets, e2e/manual anchors, and execution status | During planning, test implementation, and PR review |
+| 11 | [`implementation/assets-pipeline.md`](implementation/assets-pipeline.md) | **Asset authoring** — visual and audio creation standards, naming rules, CI validation | When creating or modifying assets |
+| 12 | [`deployment/github-pages.md`](deployment/github-pages.md) | **Deployment guide** — GitHub Pages publishing options and static-hosting constraints | When publishing a static site or documentation site |
 
 ---
 
@@ -27,9 +29,9 @@ Welcome to the Ms. Ghostman project! If you are picking up a ticket for the firs
 
 ### 1. Claim a Ticket
 - **Find your Track**: The workload is divided into 4 tracks (A, B, C, D) defined in [`implementation/implementation-plan.md`](implementation/implementation-plan.md#section-3-workflow-tracks-balanced-workload) and detailed in [`implementation/track-a.md`](implementation/track-a.md), [`implementation/track-b.md`](implementation/track-b.md), [`implementation/track-c.md`](implementation/track-c.md), and [`implementation/track-d.md`](implementation/track-d.md).
-- **Set Status and Notes**: Open [`implementation/ticket-tracker.md`](implementation/ticket-tracker.md), find an unstarted ticket in your track, and update its status to **In Progress**. Record assignment or handoff context in `Evidence / Notes` when useful.
+- **Set Status and Notes**: Open [`implementation/ticket-tracker.md`](implementation/ticket-tracker.md), find an unstarted ticket in your track, and update its status symbol to `[-]` (In Progress). Keep dependency and blocker text current on the same line.
 - **Understand the Scope**: Read the ticket description carefully. Identify the bounded scope and exactly what needs to change.
-- **Follow the Phase-First Order**: Execute tickets by global phase (`P0 → P1 → P2 → P3`) using [`implementation/ticket-tracker.md`](implementation/ticket-tracker.md). Claim only tickets whose dependencies are complete. In most cases, first-ticket starting points are `A-01`, `B-01`, `C-01`, and `D-01`.
+- **Follow the Prototype-First Phase Order**: Execute tickets by global phase (`P0 → P1 → P2 → P3 → P4`) using [`implementation/ticket-tracker.md`](implementation/ticket-tracker.md). Claim only tickets whose dependencies are complete. Typical first-ticket starting points are `A-01`, `B-01`, and `D-01`, then Track C joins in `P2` after collision contracts land.
 
 ### 2. Read the Critical Constraints
 Before writing any code, you **MUST** consult the canonical specs:
@@ -48,35 +50,35 @@ As detailed in the [`implementation/agentic-workflow-guide.md`](implementation/a
 - **Implementation Plan First**: Use [`implementation/implementation-plan.md`](implementation/implementation-plan.md) as the execution map and keep changes aligned with the active track's ticket definition and verification gates.
 - **Audit and Regression Check**: Audit the agent result carefully against [`../AGENTS.md`](../AGENTS.md), [`implementation/implementation-plan.md`](implementation/implementation-plan.md), [`implementation/agentic-workflow-guide.md`](implementation/agentic-workflow-guide.md), and [`audit.md`](audit.md) before you continue.
 
-Gate hierarchy reference:
+Gate command reference:
 
-- `npm run policy -- --pr-body-file docs/pr-messages/<ticket>-pr.md` for the default all-in-one gate.
+- `npm run policy` for the default all-in-one gate.
 - `npm run policy:repo` for the repo-wide gate.
 - `npm run policy:quality`, `npm run policy:checks`, `npm run policy:forbid`, `npm run policy:header`, `npm run policy:forbidrepo`, `npm run policy:headerrepo`, `npm run policy:trace`, and `npm run policy:approve` when you need a narrower rerun.
 
 ### 4. Open the Pull Request
-- **Use the Template**: When opening a PR, the [`../.github/pull_request_template.md`](../.github/pull_request_template.md) will automatically apply. Fill out the entire checklist and follow the PR message structure in [PR Message and Gate Workflow](implementation/agentic-workflow-guide.md#12-pr-message-and-gate-workflow). Store the PR body in [`pr-messages/`](pr-messages/).
+- **Use the Template**: Read [`implementation/pr-template.md`](implementation/pr-template.md), then open the PR with [`.github/pull_request_template.md`](../.github/pull_request_template.md). This template is the enforced PR contract for required checklist labels, layer boundaries, and section format. Fill out the entire checklist and follow the PR message structure in [PR Message and Gate Workflow](implementation/agentic-workflow-guide.md#12-pr-message-and-gate-workflow).
 - **Attach Evidence**: If your PR touches gameplay-critical paths (e.g., performance, rendering, or pausing), attach the required performance evidence (frame stats, traces) as defined in [`../AGENTS.md`](../AGENTS.md).
 - **Reference Audits**: Explicitly list which `AUDIT-*` IDs from [`implementation/audit-traceability-matrix.md`](implementation/audit-traceability-matrix.md) this PR satisfies and how each affected question was verified.
 - **Review and Merge**: Ensure another dev verifies that the ECS boundaries are intact and security rules are met. Review the diff as a human before merging, and do not merge until the applicable local checks and audit coverage pass.
 
 ### 5. Review and Merge
-- **Pre-PR Gates**: Ensure Biome linting, unit tests, and Playwright tests all pass locally.
+- **Pre-PR Gates**: Run `npm run policy` first, then run `npm run policy:repo` or narrower reruns only when needed. Ensure scope-appropriate tests (`test:unit`, `test:integration`, `test:e2e`, `test:audit`) are covered.
 - **Review**: Ensure another dev verifies that the ECS boundaries are intact and security rules are met.
-- **Update Tracker**: Once merged, go back to [`implementation/ticket-tracker.md`](implementation/ticket-tracker.md) and update your task status to **Done** with a link to the merged PR.
-- **Archive the PR Message**: Save the final PR message and verification summary under [`pr-messages/`](pr-messages/) so each ticket has a durable record.
+- **Update Tracker**: Once merged, go back to [`implementation/ticket-tracker.md`](implementation/ticket-tracker.md) and update your task status symbol to `[x]` (Done).
+- **Archive the PR Message (Optional)**: Save the final PR message and verification summary under [`pr-messages/`](pr-messages/) if you want a durable local copy.
 
-## Gitea Actions Setup and Verification
+## Actions Setup and Verification
 
-This repository uses [`../.gitea/workflows/policy-gate.yml`](../.gitea/workflows/policy-gate.yml) as the main PR gate for Gitea.
+This repository uses [`../.github/workflows/policy-gate.yml`](../.github/workflows/policy-gate.yml) as the main PR gate.
 
 ### Set Up
 
-1. Enable Actions for the Gitea instance and repository, and make sure a runner is registered for Linux jobs.
+1. Enable Actions for the repository and make sure a runner is registered for Linux jobs.
 2. Keep the workflow file on the default branch so PR events can trigger it.
 3. Open PRs with the required sections from [`../.github/pull_request_template.md`](../.github/pull_request_template.md) in the body. If your Gitea instance does not auto-apply that template, paste it manually.
 4. Add a repo secret named `GITEA_TOKEN` if you want the approval API check to run. If the secret is missing, the workflow will skip that step and you should enforce approvals with branch protection instead.
-5. The npm quality gate runs when `package.json` is present and currently enforces `npm run policy:quality` (`check`, `test`, plus coverage/SBOM when configured).
+5. The npm quality gate runs when `package.json` is present and currently enforces `npm run policy:quality` (`check`, `test`, coverage, schema validation, and SBOM when configured). Use `npm run ci` for the broader local wrapper.
 
 ### Test It
 
@@ -97,7 +99,7 @@ AGENTS.md                         ← normative for all implementation constrain
   └── game-description.md         ← normative for gameplay rules and feature intent
   └── audit.md                    ← normative for pass/fail acceptance
         └── implementation/implementation-plan.md  ← execution guide (canonical for track/task ownership)
-              └── implementation/ticket-tracker.md  ← live ticket execution status, PR links, and evidence board
+              └── implementation/ticket-tracker.md  ← live line-by-line ticket execution status and dependency/block mapping board
               └── implementation/audit-traceability-matrix.md  ← canonical requirement/audit/ticket/test coverage mapping
               └── implementation/agentic-workflow-guide.md  ← process guide (references plan for ownership)
               └── implementation/assets-pipeline.md  ← visual/audio asset authoring and validation workflow

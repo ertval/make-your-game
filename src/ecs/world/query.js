@@ -1,3 +1,10 @@
+/*
+ * Query helpers for bitmask-based ECS component matching.
+ *
+ * The query index stores per-entity masks and resolves deterministic
+ * membership checks used by systems at fixed-step boundaries.
+ */
+
 export function hasAllComponents(entityMask, requiredMask) {
   return (entityMask & requiredMask) === requiredMask;
 }

@@ -1,9 +1,19 @@
+import fs from 'node:fs';
 import process from 'node:process';
-import { parseArgs, runCommand, toBool } from './lib/policy-utils.mjs';
+import {
+  describePolicyResolution,
+  inferProcessModeFromSources,
+  inferTicketIdsFromSources,
+  parseArgs,
+  readJson,
+  runCommand,
+  toBool,
+} from './lib/policy-utils.mjs';
 
 const args = parseArgs(process.argv.slice(2));
 const mode = args.mode || 'local';
 const scope = args.scope || 'pr';
+const metaPath = args['meta-file'] || '.policy-pr-meta.json';
 const validScopes = new Set(['pr', 'repo', 'all']);
 if (!validScopes.has(scope)) {
   throw new Error(`Invalid --scope value "${scope}". Expected one of: pr, repo, all.`);
@@ -11,18 +21,17 @@ if (!validScopes.has(scope)) {
 
 const requireApproval =
   args['require-approval'] !== undefined ? toBool(args['require-approval']) : mode === 'ci';
-const allowMissingPrBody =
-  args['allow-missing-pr-body'] !== undefined
-    ? toBool(args['allow-missing-pr-body'])
-    : mode !== 'ci';
 const runIntegrityChecks =
   args['run-integrity-checks'] !== undefined ? toBool(args['run-integrity-checks']) : true;
-const headerMode = String(args['header-mode'] || process.env.POLICY_HEADER_MODE || 'warn')
-  .trim()
-  .toLowerCase();
-if (!['warn', 'error', 'fail'].includes(headerMode)) {
+const rawHeaderMode = args['header-mode'] ?? process.env.POLICY_HEADER_MODE;
+const headerMode =
+  rawHeaderMode === undefined || rawHeaderMode === null
+    ? ''
+    : String(rawHeaderMode).trim().toLowerCase();
+if (headerMode && !['warn', 'error', 'fail'].includes(headerMode)) {
   throw new Error(`Invalid header mode "${headerMode}". Expected one of: warn, error, fail.`);
 }
+const headerModeArgs = headerMode ? [`--mode=${headerMode}`] : [];
 
 const passThrough = [];
 for (const [key, value] of Object.entries(args)) {
@@ -30,7 +39,6 @@ for (const [key, value] of Object.entries(args)) {
     key === 'mode' ||
     key === 'scope' ||
     key === 'require-approval' ||
-    key === 'allow-missing-pr-body' ||
     key === 'run-integrity-checks' ||
     key === 'header-mode'
   ) {
@@ -49,6 +57,8 @@ function runStep(label, command, commandArgs, retryHint) {
   }
 }
 
+let ranRepoFallback = false;
+
 if (scope === 'pr' || scope === 'all') {
   runStep('Project quality gate', 'npm', ['run', 'policy:quality'], 'npm run policy:quality');
 
@@ -56,48 +66,102 @@ if (scope === 'pr' || scope === 'all') {
     stdio: 'inherit',
   });
 
-  runStep(
-    'PR checklist and traceability checks',
-    'npm',
-    [
-      'run',
-      'policy:checks',
-      '--',
-      ...passThrough,
-      `--allow-missing-pr-body=${allowMissingPrBody ? 'true' : 'false'}`,
-    ],
-    'npm run policy:checks -- --pr-body-file docs/pr-messages/<ticket>-pr.md --allow-missing-pr-body=false',
+  const metadata = fs.existsSync(metaPath) ? readJson(metaPath) : {};
+  const branchTicketIds = inferTicketIdsFromSources(metadata.branchName || '');
+  const commitTicketIds = inferTicketIdsFromSources(metadata.commitMessages || '');
+  const hasPrMetadata = branchTicketIds.length > 0 || commitTicketIds.length > 0;
+  const hasProcessMode =
+    Boolean(metadata.processMode) ||
+    inferProcessModeFromSources(
+      metadata.branchName || '',
+      metadata.commitMessages || '',
+      metadata.body || '',
+    );
+
+  const auditMode = hasPrMetadata
+    ? 'TICKET'
+    : hasProcessMode
+      ? 'GENERAL_DOCS_PROCESS'
+      : 'REPO_FALLBACK';
+  const selectedPath = hasPrMetadata
+    ? 'PR ticket checks'
+    : hasProcessMode
+      ? 'repo-wide fallback from process marker'
+      : 'repo-wide fallback from missing ticket metadata';
+  const ticketIds = hasPrMetadata
+    ? inferTicketIdsFromSources(metadata.branchName || '', metadata.commitMessages || '')
+    : [];
+
+  console.log(
+    describePolicyResolution({
+      auditMode,
+      branchTicketIds,
+      commitTicketIds,
+      processMarkerDetected: hasProcessMode,
+      selectedPath,
+      ticketIds,
+      trackCode: metadata.trackCode || 'GENERAL',
+    }),
   );
 
-  runStep(
-    'Changed-file forbidden-tech scan',
-    'npm',
-    ['run', 'policy:forbid', '--', ...passThrough],
-    'npm run policy:forbid',
-  );
+  if (hasPrMetadata) {
+    runStep(
+      'PR checklist and traceability checks',
+      'npm',
+      ['run', 'policy:checks', '--', ...passThrough],
+      'npm run policy:checks',
+    );
 
-  runStep(
-    'Changed-file source-header scan',
-    'npm',
-    ['run', 'policy:header', '--', `--mode=${headerMode}`, ...passThrough],
-    'npm run policy:header',
-  );
+    runStep(
+      'Changed-file forbidden-tech scan',
+      'npm',
+      ['run', 'policy:forbid', '--', ...passThrough],
+      'npm run policy:forbid',
+    );
 
-  runStep(
-    'Approval gate',
-    'npm',
-    [
-      'run',
-      'policy:approve',
-      '--',
-      ...passThrough,
-      `--require-approval=${requireApproval ? 'true' : 'false'}`,
-    ],
-    'npm run policy:approve',
-  );
+    runStep(
+      'Changed-file source-header scan',
+      'npm',
+      ['run', 'policy:header', '--', ...headerModeArgs, ...passThrough],
+      'npm run policy:header',
+    );
+
+    runStep(
+      'Approval gate',
+      'npm',
+      [
+        'run',
+        'policy:approve',
+        '--',
+        ...passThrough,
+        `--require-approval=${requireApproval ? 'true' : 'false'}`,
+      ],
+      'npm run policy:approve',
+    );
+  } else if (hasProcessMode) {
+    console.log(
+      'No ticket IDs found, but a process marker was detected. Running repo-wide policy checks instead.',
+    );
+    runStep(
+      'Repo-wide policy gate',
+      'npm',
+      ['run', 'policy:repo', '--', ...passThrough],
+      'npm run policy:repo',
+    );
+    ranRepoFallback = true;
+  } else {
+    console.log('No branch/commit ticket metadata found. Running repo-wide policy checks instead.');
+    runStep(
+      'Repo-wide policy gate',
+      'npm',
+      ['run', 'policy:repo', '--', ...passThrough],
+      'npm run policy:repo',
+    );
+    ranRepoFallback = true;
+  }
 }
 
-if (scope === 'repo' || scope === 'all') {
+if ((scope === 'repo' || scope === 'all') && !(scope === 'all' && ranRepoFallback)) {
   runStep(
     'Repo-wide forbidden-tech scan',
     'npm',
@@ -108,7 +172,7 @@ if (scope === 'repo' || scope === 'all') {
   runStep(
     'Repo-wide source-header scan',
     'npm',
-    ['run', 'policy:headerrepo', '--', `--mode=${headerMode}`, ...passThrough],
+    ['run', 'policy:headerrepo', '--', ...headerModeArgs, ...passThrough],
     'npm run policy:headerrepo',
   );
 

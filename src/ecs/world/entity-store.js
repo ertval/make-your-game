@@ -1,3 +1,12 @@
+/*
+ * ECS entity storage with generation-based stale-handle protection.
+ *
+ * Public API:
+ * - create(): allocates a new entity handle.
+ * - destroy(handle): invalidates and recycles an entity id.
+ * - isAlive(handle): validates handles against generation and active state.
+ */
+
 export class EntityStore {
   constructor({ maxEntities = 10_000 } = {}) {
     this.maxEntities = maxEntities;

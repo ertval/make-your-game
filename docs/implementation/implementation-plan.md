@@ -11,7 +11,7 @@
 
 1. [Architecture Overview](#section-1-architecture-overview)
 2. [Directory Structure](#section-2-directory-structure)
-3. [Workflow Tracks (Phase-First MVP Order)](#section-3-workflow-tracks-balanced-workload)
+3. [Workflow Tracks (Prototype-First MVP Order)](#section-3-workflow-tracks-balanced-workload)
     - [Track A — World, Game Flow, Scaffolding, Testing & QA (Dev 1)](track-a.md)
     - [Track B — Components, Input, Movement, Bombs & Gameplay Physics (Dev 2)](track-b.md)
     - [Track C — Scoring, Game Flow UI, Audio & Runtime Feedback (Dev 3)](track-c.md)
@@ -43,7 +43,7 @@ For this game, ECS helps keep simulation deterministic, isolate DOM side effects
 
 1. `docs/requirements.md` + `docs/game-description.md` define project requirements and intended gameplay behavior.
 2. `docs/audit.md` defines pass/fail acceptance criteria.
-3. `audit-traceability-matrix.md` is the canonical requirement-to-audit-to-ticket-to-test coverage map and status tracker.
+3. `audit-traceability-matrix.md` is the canonical requirement-to-audit-to-ticket-to-test coverage map and status tracker used by automated policy checks.
 4. `ticket-tracker.md` tracks live execution status for Section 3 tickets.
 5. `assets-pipeline.md` defines visual/audio authoring and optimization standards.
 6. When implementation details are ambiguous, resolve against those references first.
@@ -303,9 +303,9 @@ make-your-game/
 ---
 
 <a id="section-3-workflow-tracks-balanced-workload"></a>
-## 🧭 3. Workflow Tracks (Phase-First MVP Order)
+## 🧭 3. Workflow Tracks (Prototype-First MVP Order)
 
-The work is divided into **4 ownership tracks** (A, B, C, D), with execution **phase-first across all tracks**.
+The work is divided into **4 ownership tracks** (A, B, C, D), with execution **prototype-first while still dependency-safe across all tracks**.
 
 ### 📌 Ticket Progress Tracking
 
@@ -316,9 +316,10 @@ Live ticket progress for this section is tracked in `docs/implementation/ticket-
 | Phase | Goal | Primary Ticket Bands | Exit Criteria |
 |---|---|---|---|
 | P0 Foundation | Boot deterministic runtime and data contracts | A-01..A-03, B-01, D-01..D-04 | App boots, fixed-step world ticks, resources/map contracts available, render intent contracts defined |
-| P1 Playable MVP | Deliver fully playable core loop | A-04..A-06, B-02..B-04, C-01..C-05, D-05..D-08 | Player can start, move, pause/continue/restart, score/lives/timer update, HUD/overlays |
-| P2 Feature Complete | Add genre depth and integration hooks | A-07..A-08, B-05..B-09, C-06..C-07, D-09 | Bombs, ghost AI, power-ups, event contracts, audio integration, sprite pools |
-| P3 Polish & Validation | Final production quality and asset governance | A-09, C-08..C-10, D-10..D-11 | Asset schemas/manifests, UI/audio polish, audit-ready evidence |
+| P1 Visual Prototype (Fast Feedback) | Get first playable-on-screen loop as early as possible | B-02..B-03, D-05..D-08 (after P0 deps) | Board renders, player movement is visible, frame pipeline runs through render collect and DOM commit |
+| P2 Playable MVP | Deliver core gameplay loop and user-facing flow | B-04, C-01..C-05 | Start/pause/continue/restart works, score/lives/timer/HUD update, collision outcomes are visible and testable |
+| P3 Feature Complete + Hardening | Add genre depth and lock quality gates | A-04..A-08, B-05..B-09, C-06..C-07, D-09 | Bomb depth, ghost AI, power-ups, event contracts, audio runtime integration, CI and automated test hardening |
+| P4 Polish & Validation | Final production quality and asset governance | A-09, C-08..C-10, D-10..D-11 | Asset schemas/manifests, UI/audio polish, audit-ready evidence |
 
 ### Workload Summary (Balanced Ownership)
 
@@ -341,10 +342,11 @@ Live ticket progress for this section is tracked in `docs/implementation/ticket-
 
 #### Scheduling Rule
 
-1. Execute tickets by global phase (`P0 → P1 → P2 → P3`) across all tracks.
+1. Execute tickets by global phase (`P0 → P1 → P2 → P3 → P4`) across all tracks.
 2. Inside a phase, claim only tickets whose declared dependencies are complete.
 3. Ownership stays by track; phase sequencing controls implementation order.
-4. If a higher-phase ticket is pulled early, record the reason in `ticket-tracker.md`.
+4. Prototype-first override: prioritize P1 visual feedback tickets before broad test hardening.
+5. If a higher-phase ticket is pulled early, record the reason in `ticket-tracker.md`.
 
 ---
 
@@ -368,8 +370,8 @@ Ticket execution status has been centralized in `ticket-tracker.md`.
 
 1. Requirement-to-audit coverage mapping is maintained only in the matrix.
 2. Audit-to-ticket and audit-to-test/evidence mapping is maintained only in the matrix.
-3. Track ticket documents in `docs/implementation/track-*-v3.md` remain the implementation source of truth and must keep verification-gate checklist items up to date.
-4. Ticket status changes (owner, state, PR/evidence links) must be updated in `docs/implementation/ticket-tracker.md`.
+3. Track ticket documents in `docs/implementation/track-*.md` remain the implementation source of truth and must keep verification-gate checklist items up to date.
+4. Ticket status changes and Depends on/Blocks mappings must be updated in `docs/implementation/ticket-tracker.md`.
 5. Any ticket, audit, or test-anchor change in this plan must be mirrored in `audit-traceability-matrix.md` in the same PR.
 
 ---
@@ -379,50 +381,55 @@ Ticket execution status has been centralized in `ticket-tracker.md`.
 
 ```mermaid
 gantt
-    title Ms. Ghostman - Phase-First Integration Timeline
+    title Ms. Ghostman - Prototype-First Integration Timeline
     dateFormat  X
     axisFormat %s
 
     section P0 Foundation
-    Runtime + ECS Core: p0a, 0, 6
-    Component + Render Contracts: p0b, 1, 5
-    Static Board + CSS Baseline: p0c, 3, 4
+    Runtime + ECS Core: p0a, 0, 5
+    Component + Resource + Map Contracts: p0b, 1, 4
 
-    section P1 Playable MVP
-    Input + Movement + Collision: p1a, 6, 5
-    Scoring + Lives + Timer + Pause: p1b, 8, 5
-    HUD + Screens + Render Commit: p1c, 8, 5
-    Core Integration + E2E: p1d, 10, 4
+    section P1 Visual Prototype
+    Input + Movement + Static Board Render: p1a, 5, 3
+    Render Collect + DOM Commit Loop: p1b, 6, 2
 
-    section P2 Feature Complete
-    Bombs + Ghost AI + Power-ups: p2a, 13, 5
-    Event Hooks + Audio Critical: p2b, 14, 4
-    Pools + Gameplay Sprites: p2c, 14, 4
+    section P2 Playable MVP
+    Collision + Score + Timer/Lives: p2a, 8, 3
+    Pause/Progression + HUD/Screens: p2b, 9, 3
 
-    section P3 Polish & Validation
-    Audio/UI/Manifest Polish: p3a, 18, 4
-    Final Evidence + Audit Hardening: p3b, 20, 4
-    
+    section P3 Feature Complete + Hardening
+    Bombs + Ghost AI + Power-ups: p3a, 11, 4
+    Event Hooks + Audio Critical + Test Hardening: p3b, 12, 4
+
+    section P4 Polish & Validation
+    Audio/UI/Manifest Polish: p4a, 16, 4
+    Final Evidence + Audit Readiness: p4b, 18, 4
+
     section Integration
-    M1 Engine + Static Grid: milestone, m1, 6, 0
-    M2 Playable MVP: milestone, m2, 12, 0
-    M3 Feature Complete: milestone, m3, 18, 0
-    M4 Full Game + Polish: milestone, m4, 24, 0
+    M1 Engine Foundation: milestone, m1, 5, 0
+    M2 Visual Prototype: milestone, m2, 8, 0
+    M3 Playable MVP: milestone, m3, 11, 0
+    M4 Feature Complete + Hardening: milestone, m4, 16, 0
+    M5 Full Game + Polish: milestone, m5, 22, 0
 ```
 
-### Milestone 1: Engine + Static View (Day 3)
+### Milestone 1: Engine Foundation (Day 2-3)
 **Requires**: A-01, A-02, A-03, B-01, D-01, D-02, D-03, D-04  
 **Result**: Core ECS world schedules deterministic ticks with resources, map contracts, and render intent contracts ready.
 
-### Milestone 2: Playable MVP (Day 4-5)
-**Requires**: M1 + A-04, A-05, A-06, B-02, B-03, B-04, C-01, C-02, C-03, C-04, C-05, D-05, D-06, D-07, D-08  
-**Result**: First fully playable MVP (start, move, score, lose life, pause/continue/restart, HUD/overlays).
+### Milestone 2: Visual Prototype (Day 3)
+**Requires**: M1 + B-02, B-03, D-05, D-06, D-07, D-08  
+**Result**: First on-screen playable prototype with visible board and controllable movement.
 
-### Milestone 3: Feature Complete (Day 6)
-**Requires**: M2 + A-07, A-08, B-05, B-06, B-07, B-08, B-09, C-06, C-07, D-09  
-**Result**: Feature-complete gameplay with bombs, ghost AI, power-ups, deterministic event contracts, and audio integration.
+### Milestone 3: Playable MVP (Day 4)
+**Requires**: M2 + B-04, C-01, C-02, C-03, C-04, C-05  
+**Result**: Core gameplay loop playable (start, move, score, lose life, pause/continue/restart, HUD/overlays).
 
-### Milestone 4: Full Game + Polish (Day 7)
+### Milestone 4: Feature Complete + Hardening (Day 5-6)
+**Requires**: M3 + A-04, A-05, A-06, A-07, A-08, B-05, B-06, B-07, B-08, B-09, C-06, C-07, D-09  
+**Result**: Feature-complete gameplay with bombs, ghost AI, power-ups, deterministic event contracts, audio integration, and robust automated checks.
+
+### Milestone 5: Full Game + Polish (Day 7)
 **Requires**: All tracks complete + A-09, C-08, C-09, C-10, D-10, D-11  
 **Result**: Playable from Start Menu through all 3 levels to Victory/Game Over. All tests passing, audit evidence collected.
 

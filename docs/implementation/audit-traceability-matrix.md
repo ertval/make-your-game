@@ -12,8 +12,9 @@ This document is the single source of truth for requirement-to-audit-to-ticket-t
 
 1. Requirement and audit coverage mapping lives only in this file.
 2. The implementation plan defines ticket details and verification gates, then references this file for consolidated coverage mapping.
-3. Ticket execution progress (owner/status/PR/evidence links) is tracked in `docs/implementation/ticket-tracker.md`.
+3. Ticket execution progress (owner/status/Depends on/Blocks mappings) is tracked in `docs/implementation/ticket-tracker.md`.
 4. Test ownership remains in `tests/e2e/audit/` and must stay synchronized with this file.
+5. Automated policy checks should read requirement coverage from this matrix, not from `docs/requirements.md` IDs.
 
 ## Status Legend
 
@@ -36,7 +37,7 @@ This document is the single source of truth for requirement-to-audit-to-ticket-t
 
 ## Requirement Coverage Matrix (Canonical)
 
-| Requirement ID | Requirement Summary | Owning Tickets (`docs/implementation/track-*-v3.md`) | Covered By Audit IDs | Test/Evidence Anchor | Status |
+| Requirement ID | Requirement Summary | Owning Tickets (`docs/implementation/track-*.md`) | Covered By Audit IDs | Test/Evidence Anchor | Status |
 |---|---|---|---|---|---|
 | REQ-01 | Run at least 60 FPS and avoid frame drops | A-03, A-06, D-08, A-09 | AUDIT-F-17, AUDIT-F-18, AUDIT-B-01 | `tests/e2e/audit/audit.e2e.test.js` + performance evidence artifacts | Mapped, Planned, Pending |
 | REQ-02 | Use `requestAnimationFrame` correctly | A-03, A-06 | AUDIT-F-02, AUDIT-F-10 | `tests/e2e/audit/audit.e2e.test.js` | Mapped, Planned, Pending |
@@ -57,7 +58,7 @@ This document is the single source of truth for requirement-to-audit-to-ticket-t
 
 ### Functional Questions
 
-| ID | Audit Question | Requirement IDs | Execution Type | Owning Tickets (`docs/implementation/track-*-v3.md`) | Test/Evidence Anchor | Status |
+| ID | Audit Question | Requirement IDs | Execution Type | Owning Tickets (`docs/implementation/track-*.md`) | Test/Evidence Anchor | Status |
 |---|---|---|---|---|---|---|
 | AUDIT-F-01 | Does the game run without crashing? | REQ-01, REQ-14 | Fully Automatable | A-06, B-06 | `tests/e2e/audit/audit-question-map.js` + `tests/e2e/audit/audit.e2e.test.js` | Mapped, Planned, Pending |
 | AUDIT-F-02 | Does animation run using `requestAnimationFrame`? | REQ-02 | Fully Automatable | A-03, A-06 | Same as above | Mapped, Planned, Pending |
@@ -83,7 +84,7 @@ This document is the single source of truth for requirement-to-audit-to-ticket-t
 
 ### Bonus Questions
 
-| ID | Audit Question | Requirement IDs | Execution Type | Owning Tickets (`docs/implementation/track-*-v3.md`) | Test/Evidence Anchor | Status |
+| ID | Audit Question | Requirement IDs | Execution Type | Owning Tickets (`docs/implementation/track-*.md`) | Test/Evidence Anchor | Status |
 |---|---|---|---|---|---|---|
 | AUDIT-B-01 | Does project run quickly and effectively? | REQ-01 | Fully Automatable | A-06, D-08, A-09 | `tests/e2e/audit/audit.e2e.test.js` + performance checks | Mapped, Planned, Pending |
 | AUDIT-B-02 | Does code obey good practices? | REQ-12 | Fully Automatable | A-01, A-09 | CI policy gate + lint/test/security check outputs | Mapped, Planned, Pending |
@@ -103,7 +104,7 @@ This document is the single source of truth for requirement-to-audit-to-ticket-t
 ## Maintenance Rules
 
 1. If `docs/audit.md` changes, update this matrix and `tests/e2e/audit/audit-question-map.js` in the same PR.
-2. If ticket definitions in `docs/implementation/track-*-v3.md` change, update this matrix in the same PR.
+2. If ticket definitions in `docs/implementation/track-*.md` change, update this matrix in the same PR.
 3. Keep coverage tables out of `docs/implementation/implementation-plan.md`; that file should reference this matrix.
 4. If ticket ownership or execution status changes, update `docs/implementation/ticket-tracker.md` in the same PR.
 5. Do not mark any row `Executable` without a passing test run artifact or linked evidence artifact.
