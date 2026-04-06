@@ -5,12 +5,13 @@
 > **Scope**: ECS resources (time, constants, RNG, events, game-status), map loading, renderer adapters, sprite pools, CSS layout, render systems (collect + DOM batch), gameplay sprite production, and UI visual/manifest governance. Dev 4 owns deterministic world-state infrastructure and the full DOM render/visual pipeline.
 > **Execution model**: Build resource/map/render foundations first, then lock memory-stable rendering, then finish visual polish and manifest governance.
 
-## Phase Order (MVP First)
+## Phase Order (Prototype-First)
 
 - **P0 Foundation**: `D-01` to `D-04`
-- **P1 Playable MVP**: `D-05` to `D-08`
-- **P2 Feature Complete**: `D-09`
-- **P3 Polish and Validation**: `D-10`, `D-11`
+- **P1 Visual Prototype**: `D-05` to `D-08`
+- **P2 Playable MVP**: No new Track D tickets
+- **P3 Feature Complete + Hardening**: `D-09`
+- **P4 Polish and Validation**: `D-10`, `D-11`
 
 ---
 
@@ -19,6 +20,7 @@
 **Phase**: P0 Foundation
 **Depends On**: `A-02` (world engine — resource API)
 **Impacts**: Determinism contract, clock/pause correctness, cross-system event ordering
+**Blocks**: D-02, D-03 || A-03, A-04, B-02, B-05, B-06, B-07, B-08, B-09, C-01, C-02, C-03, C-04, C-06
 
 **Deliverables**:
 - `src/ecs/resources/constants.js` — all canonical gameplay constants
@@ -26,12 +28,6 @@
 - `src/ecs/resources/rng.js` — seeded RNG for deterministic runs
 - `src/ecs/resources/event-queue.js` — deterministic insertion-order event queue
 - `src/ecs/resources/game-status.js` — FSM enum states
-
-**Blocks**:
-- D-02, D-03 (same track)
-- A-03 (Track A — game loop needs clock/constants)
-- B-02 (Track B — input needs constants)
-- C-01, C-02, C-03 (Track C — scoring/timer/lives/spawn need resources)
 
 - [ ] Add `src/ecs/resources/constants.js`: Define all canonical gameplay constants: `SIMULATION_HZ=60`, `MAX_STEPS_PER_FRAME=5`, `PLAYER_START_LIVES=3`, `BOMB_FUSE_MS=3000`, `FIRE_DURATION_MS=500`, `DEFAULT_FIRE_RADIUS=2`, `INVINCIBILITY_MS=2000`, `STUN_MS=5000`, `SPEED_BOOST_MULTIPLIER=1.5`, `SPEED_BOOST_MS=10000`, `MAX_CHAIN_DEPTH=10`.
 - [ ] Implement `src/ecs/resources/clock.js`: Tracks elapsed simulation time, delta, and logic pause-state vs unpaused system state.
@@ -47,13 +43,11 @@
 **Phase**: P0 Foundation
 **Depends On**: `D-01` (constants for timer/ghost config)
 **Impacts**: Level data contract, JSON Schema 2020-12 validation in CI
+**Blocks**: D-03
 
 **Deliverables**:
 - `assets/maps/level-1.json`, `assets/maps/level-2.json`, `assets/maps/level-3.json`
 - `docs/schemas/map.schema.json` (JSON Schema 2020-12)
-
-**Blocks**:
-- D-03 (same track — map resource parses these)
 
 - [ ] Create 3 JSON map blueprints (Levels 1, 2, and 3) by strictly parsing the exact ASCII map layouts provided in `game-description.md` §8.1.
   - Apply the exact Level 1, Level 2, and Level 3 grid structures and entity spawn placements without manually balancing or altering the design.
@@ -69,16 +63,10 @@
 **Phase**: P0 Foundation
 **Depends On**: `D-01`, `D-02`
 **Impacts**: Level loading, restart determinism, progression correctness
+**Blocks**: D-06 || A-04, A-07, B-03, B-04, B-06, B-08, C-03, C-04
 
 **Deliverables**:
 - `src/ecs/resources/map-resource.js` — parses map JSON, stores fixed grid representation, spawn points
-
-**Blocks**:
-- D-04, D-06 (same track)
-- B-03 (Track B — movement reads map grid)
-- B-04 (Track B — collision reads map)
-- B-08 (Track B — ghost AI reads map)
-- C-03 (Track C — spawn system reads ghost spawns)
 
 - [ ] Implement `map-resource.js`: Parses map on load, stores a fixed representation of the static grid cells.
 - [ ] Load map resources asynchronously and reject invalid data before world injection.
@@ -91,14 +79,11 @@
 **Phase**: P0 Foundation
 **Depends On**: `A-02` (world engine), `B-01` (components)
 **Impacts**: ECS/DOM boundary safety and deterministic render intent contracts
+**Blocks**: D-06, D-07
 
 **Deliverables**:
 - `src/ecs/components/visual.js` additions (if not covered by B-01): render-intent structure, classBits definitions
 - Render-intent buffer pre-allocation contract documentation
-
-**Blocks**:
-- D-05 (same track)
-- D-07 (same track)
 
 - [ ] Define `renderable.js` (sprite class references mapped to visual kinds) and `visual-state.js` (pure render flags only; no DOM handles in ECS components).
 - [ ] Define `render-intent.js` as a frame-local batch structure consumed by `render-dom-system.js`.
@@ -109,18 +94,15 @@
 
 #### D-05: CSS Layout & Grid Structure
 **Priority**: ��� Critical
-**Phase**: P1 Playable MVP
+**Phase**: P1 Visual Prototype
 **Depends On**: `A-01` (scaffolding)
 **Impacts**: Core board layout, accessibility baseline, layer policy groundwork (`AUDIT-F-20`, `AUDIT-F-21`)
+**Blocks**: D-06 || C-05
 
 **Deliverables**:
 - `styles/variables.css` — color palette, spacing tokens, z-index scale, animation timing
 - `styles/grid.css` — strict grid-template layouts and positioning
 - `styles/animations.css` — walking pulse, bomb fuse, explosion fade, ghost stun flash, invincibility blink, speed trail
-
-**Blocks**:
-- D-06 (same track)
-- C-05 (Track C — HUD/screen adapters consume layout tokens and grid structure)
 
 - [ ] Build `styles/variables.css`: color palette, spacing tokens, z-index scale, animation timing.
 - [ ] Build `styles/grid.css` using strict grid-template layouts and absolute positioning over grid cells.
@@ -137,15 +119,13 @@
 
 #### D-06: Renderer Adapter & Board Generation
 **Priority**: ��� Critical
-**Phase**: P1 Playable MVP
+**Phase**: P1 Visual Prototype
 **Depends On**: `D-04`, `D-05`, `D-03`
 **Impacts**: Safe DOM board rendering and no-canvas compliance (`AUDIT-F-04`)
+**Blocks**: D-08, D-09, D-10
 
 **Deliverables**:
 - `src/adapters/dom/renderer-adapter.js` — createElement/createElementNS, zero innerHTML
-
-**Blocks**:
-- D-07, D-08, D-09 (same track)
 
 - [ ] Implement `renderer-adapter.js`: Strict `document.createElement` / `createElementNS` logic for generating the static board. Zero `innerHTML`.
 - [ ] Generate static grid cells from `map-resource` data: walls get appropriate CSS classes, empty cells are passable.
@@ -157,15 +137,13 @@
 
 #### D-07: Render Collect System
 **Priority**: ��� Critical
-**Phase**: P1 Playable MVP
+**Phase**: P1 Visual Prototype
 **Depends On**: `D-04`, `B-03` (movement — position data to interpolate)
 **Impacts**: Smooth interpolation and deterministic intent ordering for frame commits
+**Blocks**: D-08
 
 **Deliverables**:
 - `src/ecs/systems/render-collect-system.js` — interpolation, render-intent buffer
-
-**Blocks**:
-- D-08 (same track)
 
 - [ ] Implement `render-collect-system.js`: Called after simulation but before DOM write. Matches all entities with Position + Renderable. Computes intended transforms using interpolation factor (`alpha`). Outputs a preallocated render-intent buffer.
 - [ ] Use stable intent ordering for deterministic commits.
@@ -175,15 +153,13 @@
 
 #### D-08: Render DOM System (The Batcher)
 **Priority**: ��� Critical
-**Phase**: P1 Playable MVP
+**Phase**: P1 Visual Prototype
 **Depends On**: `D-06`, `D-07`
 **Impacts**: Frame-time stability and compositor-only writes (`AUDIT-F-19`, `AUDIT-F-20`, `AUDIT-F-21`)
+**Blocks**: D-09, D-10 || A-05
 
 **Deliverables**:
 - `src/ecs/systems/render-dom-system.js` — one-pass DOM commit, transform/opacity/class writes only
-
-**Blocks**:
-- D-09 (same track — sprite pool integrates with batcher)
 
 - [ ] Implement `render-dom-system.js`: The ONLY system where DOM mutates.
 - [ ] Applies batched writes:
@@ -198,15 +174,13 @@
 
 #### D-09: Sprite Pool Adapter
 **Priority**: ��� Critical
-**Phase**: P2 Feature Complete
+**Phase**: P3 Feature Complete + Hardening
 **Depends On**: `D-06`, `D-08`
 **Impacts**: Allocation stability and memory reuse (`AUDIT-B-03`)
+**Blocks**: None
 
 **Deliverables**:
 - `src/adapters/dom/sprite-pool-adapter.js` — pre-allocated pools, offscreen-transform hiding, pool acquire/release API
-
-**Blocks**:
-- None
 
 - [ ] Implement `sprite-pool-adapter.js`:
   - Pre-allocates pools sized from `constants.js` (e.g., `POOL_FIRE = maxBombs * fireRadius * 4`, `POOL_BOMBS = MAX_BOMBS`, `POOL_PELLETS = maxPellets`).
@@ -220,16 +194,14 @@
 
 #### D-10: Visual Asset Production — Gameplay Sprites
 **Priority**: ��� Critical
-**Phase**: P3 Polish and Validation
+**Phase**: P4 Polish and Validation
 **Depends On**: `D-06`, `D-08`
 **Impacts**: In-game readability and SVG compliance (`AUDIT-B-04`)
+**Blocks**: D-11
 
 **Deliverables**:
 - `assets/generated/sprites/*.svg` — all gameplay sprites (player, ghosts, bombs, fire, pellets, walls, power-ups)
 - `assets/source/visual/` — source design files
-
-**Blocks**:
-- D-11 (same track — manifest needs sprite metadata)
 
 - [ ] Create/export core gameplay sprites (SVG preferred, < 50 path elements each):
   - Ms. Ghostman: idle, walking frames (4 directions), death animation, invincibility blink, speed boost tint/trail.
@@ -247,9 +219,10 @@
 
 #### D-11: Visual Assets (UI & Screens) + Visual Manifest & Validation
 **Priority**: ��� Medium
-**Phase**: P3 Polish and Validation
+**Phase**: P4 Polish and Validation
 **Depends On**: `C-05`, `D-10`, `A-07` (CI schema gates)
 **Impacts**: Start/pause/game-over/victory visual polish; asset contract enforcement; CI validation
+**Blocks**: A-09
 
 **Deliverables**:
 - `assets/generated/ui/*.svg` — UI screen assets
@@ -257,9 +230,6 @@
 - `assets/manifests/visual-manifest.json` — all visual asset entries
 - CSS layouts for all screen overlays
 - HUD layout CSS
-
-**Blocks**:
-- A-09 (Track A — final QA evidence requires validated visual manifests and fallback behavior)
 
 - [ ] Design and build CSS layouts for all screen overlays:
   - Start Screen: title treatment, button styles, high score table.

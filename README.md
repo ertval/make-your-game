@@ -153,66 +153,79 @@ graph TB
 
 ## 📁 Directory Structure
 
-> **Note**: The tree below reflects the target implementation layout described by the project docs. This repository snapshot is still documentation-first, so the runtime/build files shown here are not all checked in yet.
+> **Note**: The tree below reflects the current repository layout plus the planned files that are still part of the docs-first roadmap. Entries marked as planned are not checked in yet.
 
 ```text
 make-your-game/
-├── index.html                      # Single-page entry point
-├── package.json                    # ES module config, scripts, exports
-├── biome.json                      # Biome linter/formatter config
-├── vite.config.js                  # Vite dev server config
-│
-├── docs/                           # 📚 Documentation
-│   ├── requirements.md             # Original project requirements
+├── .github/                        # 🔧 GitHub Actions and repository workflow files
+│   └── workflows/
+│       └── policy-gate.yml         # PR merge gate workflow
+├── assets/                         # 🎨 Static and generated asset roots
+│   ├── generated/                  # Build-time generated sprite/UI/audio outputs
+│   │   ├── music/
+│   │   ├── sfx/
+│   │   ├── sprites/
+│   │   └── ui/
+│   ├── manifests/                  # 📄 Runtime asset manifest contracts
+│   │   ├── audio-manifest.json
+│   │   └── visual-manifest.json
+│   └── source/                     # ✏️ Hand-authored source art and audio
+│       ├── audio/
+│       └── visual/
+├── biome.json                      # 🧹 Biome linter/formatter config
+├── docs/                           # 📚 Documentation and implementation plans
+│   ├── README.md                   # Documentation map and workflow guide
 │   ├── audit.md                    # Audit checklist for grading
-│   ├── schemas/                    # JSON Schema 2020-12 contracts
-│   │   ├── visual-manifest.schema.json
-│   │   └── audio-manifest.schema.json
+│   ├── deployment/                 # 🚀 Deployment guidance
+│   │   └── github-pages.md         # GitHub Pages deployment guide
 │   ├── game-description.md         # Full game rules & mechanics
-│   └── implementation/             # Canonical implementation planning and tracking docs
-│       ├── agentic-workflow-guide.md # Team workflow and PR process
-│       ├── assets-pipeline.md       # Visual/audio authoring and validation workflow
-│       ├── audit-traceability-matrix.md # Canonical requirement/audit/ticket/test coverage mapping and status
-│       ├── implementation-plan.md  # ECS implementation milestones and integration timeline
-│       ├── ticket-tracker.md       # Live ticket progress tracker for Section 3 implementation tickets
-│       ├── track-a.md              # Track A ticket definitions and verification gates
-│       ├── track-b.md              # Track B ticket definitions and verification gates
-│       ├── track-c.md              # Track C ticket definitions and verification gates
-│       └── track-d.md              # Track D ticket definitions and verification gates
-│
+│   ├── implementation/             # 🧭 Canonical implementation planning and tracking docs
+│   │   ├── agentic-workflow-guide.md # Team workflow and PR process
+│   │   ├── assets-pipeline.md      # Visual/audio authoring and validation workflow
+│   │   ├── audit-traceability-matrix.md # Canonical requirement/audit/ticket/test coverage mapping and status
+│   │   ├── implementation-plan.md   # ECS implementation milestones and integration timeline
+│   │   ├── pr-template.md           # PR contract and checklist template
+│   │   ├── ticket-tracker.md        # Live ticket progress tracker
+│   │   ├── track-a.md               # Track A ticket definitions and verification gates
+│   │   ├── track-b.md               # Track B ticket definitions and verification gates
+│   │   ├── track-c.md               # Track C ticket definitions and verification gates
+│   │   └── track-d.md               # Track D ticket definitions and verification gates
+│   ├── requirements.md             # Original project requirements
+│   └── schemas/                    # 📐 JSON Schema 2020-12 contracts
+│       ├── audio-manifest.schema.json
+│       └── visual-manifest.schema.json
+├── index.html                      # 🏠 Single-page entry point
+├── package-lock.json               # 🔒 Locked npm dependency graph
+├── package.json                    # 📦 ES module config, scripts, exports
+├── sbom.json                       # 🧾 Generated dependency inventory for policy checks
+├── src/                            # 🧠 Runtime source code
+│   ├── adapters/                   # 🔌 Imperative boundaries for DOM and IO
+│   ├── adapters/dom/               # Planned DOM adapter subfolder
+│   ├── adapters/io/                # Planned IO adapter subfolder
+│   ├── debug/                      # 🐞 Debug utilities and replay helpers
+│   ├── ecs/                        # ⚙️ ECS core
+│   │   ├── components/             # Planned pure state data definitions
+│   │   ├── resources/              # Shared data (Clock, RNG, Maps)
+│   │   ├── systems/                # Planned domain logic systems
+│   │   └── world/                  # World, entity store, queries
+│   ├── game/                       # 🎮 Game bootstrap and flow orchestration
+│   ├── main.ecs.js                 # App entry — bootstraps the ECS World
+│   └── shared/                     # 🛠️ Cross-cutting utilities
+├── styles/                         # 💅 Global CSS
+│   ├── base.css                    # Design tokens, reset, and layout base
+│   ├── grid.css                    # Planned grid layout stylesheet not checked in yet
+│   └── animations.css              # Planned animation stylesheet not checked in yet
 ├── tests/                          # 🧪 Automated test suites
 │   ├── README.md                   # Coverage policy and completion rules
-│   ├── e2e/
+│   ├── e2e/                        # Browser-level validation suites
 │   │   └── audit/
 │   │       ├── audit-question-map.js
 │   │       └── audit.e2e.test.js
-│   ├── integration/
-│   └── unit/
-│
-├── src/                            # 🧠 Source code
-│   ├── main.ecs.js                 # App entry — bootstraps the ECS World
-│   │
-│   ├── ecs/                        # ⚙️ ECS Core
-│   │   ├── world/                  # World, Entity Store, Queries
-│   │   ├── components/             # Pure state (Position, Ghost, Bomb, etc.)
-│   │   ├── systems/                # Domain logic (Movement, AI, Render Batching)
-│   │   └── resources/              # Shared data (Clock, RNG, Maps)
-│   │
-│   ├── adapters/                   # 🔌 Imperative Boundaries
-│   │   ├── dom/                    # Safe DOM layout & textContent updaters
-│   │   └── io/                     # Input handlers & Audio wrappers
-│   │
-│   └── shared/                     # 🛠️ Cross-cutting utilities
-│
-├── assets/                         # 🎨 Static assets
-│   └── manifests/                  # Runtime asset contract files
-│       ├── visual-manifest.json
-│       └── audio-manifest.json
-│
-└── styles/                         # 💅 CSS
-    ├── variables.css               # Design tokens (colors, sizes, fonts)
-    ├── grid.css                    # CSS Grid layout for game board
-    └── animations.css              # Keyframe animations
+│   ├── integration/                # Cross-system integration tests
+│   └── unit/                       # Pure unit tests
+├── vite.config.js                  # ⚡ Vite dev server config
+├── vitest.config.js                # ✅ Vitest config
+└── playwright.config.js            # 🎭 Playwright browser test config
 ```
 
 ---
@@ -275,7 +288,7 @@ For a free GitHub account, the repository must be public to publish a Pages site
 
 ## 🏁 Getting Started
 
-> **Current state**: this repository snapshot does not yet include the runtime/build toolchain files referenced below. The commands describe the intended local workflow once the app shell is added.
+The repository includes the current runtime/build toolchain, so the commands below are ready to use after installing dependencies.
 
 ### Prerequisites
 
@@ -305,7 +318,7 @@ Open `http://localhost:5173` in your browser. Vite serves the app with hot-reloa
 
 ## 📜 Scripts & Commands
 
-> These commands describe the planned toolchain. They become usable after the project adds the runtime files referenced in the directory layout above.
+> These commands are the current workflow entry points.
 >
 > The fastest way to understand any command is to follow the implementation path: `package.json` defines the npm alias, and the underlying behavior lives in `scripts/policy-gate/*.mjs`.
 
@@ -316,12 +329,12 @@ The command graph is easiest to read from the top down:
 ```text
 policy command family
 ├── PR all-in-one gate (single command before opening a PR)
-│   └── npm run policy -- --pr-body-file docs/pr-messages/<ticket>-pr.md
+│   └── npm run policy
 ├── Repo-only gate
 │   └── npm run policy:repo
 └── Narrow reruns (one-word subcommands)
     ├── npm run policy:quality
-    ├── npm run policy:checks -- --pr-body-file docs/pr-messages/<ticket>-pr.md
+    ├── npm run policy:checks
     ├── npm run policy:forbid
     ├── npm run policy:header
     ├── npm run policy:approve
@@ -336,10 +349,10 @@ Use the broadest command first, then drop to the narrower command below if you n
 
 | Command | Purpose |
 |---|---|
-| `npm run policy` | Runs the full pre-PR gate: project quality, PR checklist and traceability checks, changed-file forbidden-tech scan, changed-file header scan, and approval check. |
+| `npm run policy` | Runs the full pre-PR gate: project quality, ticket/track ownership checks from branch name or commits, changed-file forbidden-tech scan, changed-file header scan, approval check, and repo traceability scans. If branch/commit ticket metadata is missing but a `process` marker is present, the gate treats the branch as GENERAL_DOCS_PROCESS; otherwise it falls back to repo-wide checks. |
 | `npm run policy:repo` | Runs the repo-wide gate: repository forbidden-tech scan, repository header scan, and repo integrity/traceability checks. |
-| `npm run policy:quality` | Runs the project quality gate: Biome, tests, coverage, and SBOM. |
-| `npm run policy:checks` | Validates the PR body sections, required checklist items, layer-boundary confirmations, and PR traceability rules. |
+| `npm run policy:quality` | Runs the project quality gate: Biome, tests, coverage, schema validation, and SBOM. |
+| `npm run policy:checks` | Validates ticket association from branch name or commits, or a `process` marker for GENERAL_DOCS_PROCESS branches, plus single-track ownership boundaries. |
 | `npm run policy:forbid` | Scans only the changed files for forbidden tech or patterns. |
 | `npm run policy:header` | Checks only the changed files for required source headers. |
 | `npm run policy:approve` | Verifies the PR approval / human-review requirement. |
@@ -349,8 +362,8 @@ Use the broadest command first, then drop to the narrower command below if you n
 
 | If this fails | Re-run this narrower command | What it checks |
 |---|---|---|
-| `npm run policy` | `npm run policy:quality` | Biome, tests, coverage, and SBOM via the project quality gate |
-| `npm run policy` | `npm run policy:checks -- --pr-body-file docs/pr-messages/<ticket>-pr.md` | PR body sections, required checklist items, layer-boundary confirmations, and PR traceability checks |
+| `npm run policy` | `npm run policy:quality` | Biome, tests, coverage, schema validation, and SBOM via the project quality gate |
+| `npm run policy` | `npm run policy:checks` | Ticket association from branch or commits, `process` marker fallback for GENERAL_DOCS_PROCESS branches, ticket list membership, and single-track ownership boundaries |
 | `npm run policy` | `npm run policy:forbid` | Forbidden tech in changed files only |
 | `npm run policy` | `npm run policy:header` | Source headers in changed files only |
 | `npm run policy` | `npm run policy:approve` | Human approval/review requirement |
@@ -363,7 +376,7 @@ Use the broadest command first, then drop to the narrower command below if you n
 
 - `package.json` shows the npm alias graph and the names of the narrow troubleshooting commands.
 - `scripts/policy-gate/run-all.mjs` orchestrates the PR/repo umbrella gates and prints the step-level failure hints.
-- `scripts/policy-gate/run-checks.mjs` validates PR sections, checklist items, layer-boundary confirmations, and traceability coverage.
+- `scripts/policy-gate/run-checks.mjs` validates branch-or-commit ticket association, ticket list membership, track ownership boundaries, traceability coverage, and the GENERAL_DOCS_PROCESS process-marker fallback.
 - `scripts/policy-gate/run-project-gate.mjs` runs the quality gate (`check`, `test`, coverage, SBOM).
 - `scripts/policy-gate/check-forbidden.mjs` is the narrow forbidden-tech scan.
 - `scripts/policy-gate/check-source-headers.mjs` is the narrow source-header scan.
@@ -376,8 +389,13 @@ Use the broadest command first, then drop to the narrower command below if you n
 | `npm run dev` | Start Vite dev server with HMR |
 | `npm run build` | Production build to `dist/` |
 | `npm run preview` | Serve production build locally |
+| `npm run ci` | Run the local quality gate: check, tests, coverage, schema validation, and SBOM |
 | `npm run test` | Run all unit tests (Vitest) |
 | `npm run test:watch` | Run tests in watch mode |
+| `npm run test:unit` | Run unit tests only |
+| `npm run test:integration` | Run integration tests only; passes when no integration files exist yet |
+| `npm run test:e2e` | Run Playwright browser tests |
+| `npm run test:audit` | Run the audit inventory suite |
 | `npm run test:coverage` | Generate test coverage report |
 | `npm run lint` | Run Biome linter |
 | `npm run format` | Run Biome formatter |
@@ -399,7 +417,7 @@ The project is split into **4 parallel workflow tracks** to enable multiple deve
 | **Track D** | Dev 4 | Rendering, DOM Batching, and Visual Production and Integration | `render-collect-system.js`, `render-dom-system.js`, Adapters |
 
 > **Note**: For the full integration milestone breakdown, check `docs/implementation/implementation-plan.md`.
-> **Execution tracking**: Update `docs/implementation/ticket-tracker.md` as tickets move from Not Started -> In Progress -> Blocked/Done.
+> **Execution tracking**: Update `docs/implementation/ticket-tracker.md` as tickets move from `[ ]` -> `[-]` -> `[x]`.
 
 ## 🧭 Documentation Flow
 
@@ -410,19 +428,22 @@ Recommended reading order for new contributors:
 3. `docs/game-description.md` (gameplay behavior source of truth)
 4. `docs/audit.md` (acceptance/pass criteria source of truth)
 5. `docs/implementation/implementation-plan.md` (ECS execution plan and milestones)
-6. `docs/implementation/ticket-tracker.md` (live ticket status board with PR and evidence progress updates)
-7. `docs/implementation/agentic-workflow-guide.md` (team process, PR checklist, and PR Message and Gate Workflow)
-8. `docs/implementation/track-a.md` + `docs/implementation/track-b.md` + `docs/implementation/track-c.md` + `docs/implementation/track-d.md` (detailed track ticket definitions and verification gates)
-9. `docs/implementation/audit-traceability-matrix.md` (single-source requirement/audit/ticket/test coverage mapping and status)
-10. `docs/implementation/assets-pipeline.md` (visual/audio asset creation, optimization, and validation workflow)
-11. `docs/deployment/github-pages.md` (GitHub Pages publishing options and static-hosting constraints)
+6. `docs/implementation/ticket-tracker.md` (live line-by-line ticket status board with dependencies and reverse block mapping)
+7. `docs/implementation/ticket-tracker.md` (canonical ticket ID index and live status board used by automated policy checks)
+8. `docs/implementation/agentic-workflow-guide.md` (team process, PR checklist, and PR Message and Gate Workflow)
+9. `docs/implementation/pr-template.md` (docs entrypoint for PR contract and canonical template source)
+10. `docs/implementation/track-a.md` + `docs/implementation/track-b.md` + `docs/implementation/track-c.md` + `docs/implementation/track-d.md` (detailed track ticket definitions and verification gates)
+11. `docs/implementation/audit-traceability-matrix.md` (single-source requirement/audit/ticket/test coverage mapping and status)
+12. `docs/implementation/assets-pipeline.md` (visual/audio asset creation, optimization, and validation workflow)
+13. `docs/deployment/github-pages.md` (GitHub Pages publishing options and static-hosting constraints)
 
 ### 📌 Source Of Truth Policy
 
 - Implementation constraints, architecture boundaries, and audit verification categories: `AGENTS.md`
 - Requirement intent and feature scope: `docs/requirements.md` + `docs/game-description.md`
 - Final pass/fail acceptance criteria: `docs/audit.md`
-- Ticket execution progress, PR links, and evidence status board: `docs/implementation/ticket-tracker.md`
+- Ticket execution progress and dependency/block mapping board: `docs/implementation/ticket-tracker.md`
+- Canonical ticket ID index for branch enforcement: `docs/implementation/ticket-tracker.md`
 - PR message and gate workflow: `docs/implementation/agentic-workflow-guide.md#12-pr-message-and-gate-workflow`
 - Cross-document requirement/audit/ticket/test traceability and coverage status: `docs/implementation/audit-traceability-matrix.md`
 - Visual/audio authoring and asset quality gates: `docs/implementation/assets-pipeline.md`
@@ -503,13 +524,16 @@ tests/
 
 1. Read `AGENTS.md` for ECS coding standards and constraints.
 2. Read [docs/implementation/agentic-workflow-guide.md](docs/implementation/agentic-workflow-guide.md) for the 4-dev agent workflow, PR gates, and security checklist.
-3. Review `docs/implementation/implementation-plan.md` and the corresponding `docs/implementation/track-*.md` file for your specific track assignment.
-4. Feature branches should isolate specific ECS systems or component additions.
-5. Core systems MUST remain pure functions handling data components; systems MUST access adapters via World resources and MUST NOT import adapters directly (including `render-dom-system.js`).
-6. Run `npm run check && npm run test` before committing.
-7. CI MUST pass all merge gates (schema validation, testing, lockfile integrity, policy gate) before merge. When coverage/SBOM scripts are configured, those gates MUST also pass.
-8. The policy gate workflow enforces PR review, audit alignment, security boundaries, and dependency pairing.
-9. Request review at integration milestones.
+3. Use [docs/implementation/pr-template.md](docs/implementation/pr-template.md) as the docs entrypoint for the enforced PR checklist and section contract.
+4. Review `docs/implementation/implementation-plan.md` and the corresponding `docs/implementation/track-*.md` file for your specific track assignment.
+5. Feature branches should isolate specific ECS systems or component additions.
+6. Core systems MUST remain pure functions handling data components; systems MUST access adapters via World resources and MUST NOT import adapters directly (including `render-dom-system.js`).
+7. Run baseline checks locally: `npm run ci` for the standard local wrapper, plus any scope-specific tests (`npm run test:unit`, `npm run test:integration`, `npm run test:e2e`, `npm run test:audit`).
+8. Run the all-in-one PR gate before opening the PR: `npm run policy`.
+9. Use `npm run policy:repo` and narrow reruns (`policy:quality`, `policy:checks`, `policy:forbid`, `policy:header`, `policy:forbidrepo`, `policy:headerrepo`, `policy:trace`, `policy:approve`) only as needed for troubleshooting. If a branch is intentionally docs/process-only, mark the PR body with `process` so the gate can classify it without a ticket ID.
+10. CI MUST pass all merge gates (schema validation, testing, lockfile integrity, policy gate) before merge. When coverage/SBOM scripts are configured, those gates MUST also pass.
+11. The policy gate workflow enforces PR review, audit alignment, security boundaries, and dependency pairing.
+12. Request review at integration milestones.
 
 ---
 

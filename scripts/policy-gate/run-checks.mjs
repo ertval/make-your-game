@@ -1,21 +1,23 @@
 import fs from 'node:fs';
 import path from 'node:path';
-import process from 'node:process';
 import {
-  REQUIRED_CHECKBOXES,
-  REQUIRED_LAYER_CHECKBOXES,
-  REQUIRED_SECTIONS,
-  escapeRegex,
+  describePolicyResolution,
+  findOwnershipViolations,
+  inferProcessModeFromSources,
+  inferTicketIdsFromSources,
+  inferTracksFromTicketIds,
+  matchesOwnership,
   parseArgs,
   readJson,
   readLines,
   readText,
+  readTicketIdsFromTracker,
+  sortTicketIds,
 } from './lib/policy-utils.mjs';
 
 const args = parseArgs(process.argv.slice(2));
 const metaPath = args['meta-file'] || '.policy-pr-meta.json';
 const changedPath = args['changed-file'] || 'changed-files.txt';
-const allowMissingPrBody = args['allow-missing-pr-body'] === 'true';
 const checkSet = args['check-set'] || 'pr';
 const validCheckSets = new Set(['pr', 'repo', 'all']);
 if (!validCheckSets.has(checkSet)) {
@@ -23,61 +25,159 @@ if (!validCheckSets.has(checkSet)) {
 }
 
 const meta = fs.existsSync(metaPath) ? readJson(metaPath) : {};
-if (args['pr-body-file']) {
-  const prBodyPath = String(args['pr-body-file']);
-  if (!fs.existsSync(prBodyPath)) {
-    throw new Error(`PR body file not found: ${prBodyPath}`);
-  }
-  meta.body = readText(prBodyPath);
-}
-if (args['pr-body']) {
-  meta.body = String(args['pr-body']);
-}
 const changedFiles = readLines(changedPath);
+const processMode =
+  Boolean(meta.processMode) ||
+  inferProcessModeFromSources(meta.branchName || '', meta.commitMessages || '', meta.body || '');
 
-function assertPrBody() {
-  const body = String(meta.body ?? '').trim();
-  if (!body) {
-    if (allowMissingPrBody) {
-      console.warn(
-        'Skipping PR body validation because body is missing and allow-missing-pr-body is true.',
+const PROCESS_SCOPE_PATTERNS = [
+  'AGENTS.md',
+  'README.md',
+  '.github/**',
+  '.gitea/**',
+  'docs/**',
+  'scripts/policy-gate/**',
+  'changed-files.txt',
+];
+
+function deriveTicketContext() {
+  const explicitTicketIds = inferTicketIdsFromSources(
+    args['ticket-id'] || '',
+    args['ticket-ids'] || '',
+  );
+  const branchTicketIds = inferTicketIdsFromSources(meta.branchName || '');
+  const commitTicketIds = inferTicketIdsFromSources(meta.commitMessages || '');
+  const metaTicketIds = Array.isArray(meta.ticketIds) ? meta.ticketIds : [];
+  const ticketIds = sortTicketIds([
+    ...explicitTicketIds,
+    ...metaTicketIds,
+    ...branchTicketIds,
+    ...commitTicketIds,
+  ]);
+  const trackCodes = inferTracksFromTicketIds(ticketIds);
+
+  return {
+    branchTicketIds,
+    commitTicketIds,
+    ticketIds,
+    trackCodes,
+  };
+}
+
+function assertTicketAssociation() {
+  const context = deriveTicketContext();
+
+  if (context.ticketIds.length === 0 && !processMode) {
+    throw new Error(
+      [
+        'No ticket ID found in branch name or branch commit messages.',
+        'Expected branch naming or branch commits to include a ticket ID such as A-01, B-12, C-03, or D-11.',
+        'Action: include a valid ticket ID in the branch name or at least one branch commit message.',
+      ].join('\n'),
+    );
+  }
+
+  if (context.ticketIds.length === 0 && processMode) {
+    console.warn(
+      'No ticket ID found in branch or commit metadata. Continuing because a process marker was detected.',
+    );
+  }
+
+  if (context.ticketIds.length === 0) {
+    return {
+      ticketIds: [],
+      trackCode: 'GENERAL',
+      processMode: true,
+    };
+  }
+
+  if (context.trackCodes.length !== 1) {
+    throw new Error(
+      [
+        `Ticket IDs resolve to ${context.trackCodes.length} tracks: ${context.trackCodes.join(', ') || '(none)'}.`,
+        `Detected ticket IDs: ${context.ticketIds.join(', ')}.`,
+        'Action: keep one ticket track per branch or split the branch into separate track-specific PRs.',
+      ].join('\n'),
+    );
+  }
+
+  const trackerPath = String(
+    args['ticket-tracker-file'] || 'docs/implementation/ticket-tracker.md',
+  );
+  const resolvedTicketIds = readTicketIdsFromTracker(trackerPath);
+
+  if (resolvedTicketIds.length > 0) {
+    const knownSet = new Set(resolvedTicketIds);
+    const unknownTicketIds = context.ticketIds.filter((ticketId) => !knownSet.has(ticketId));
+    if (unknownTicketIds.length > 0) {
+      throw new Error(
+        [
+          `Detected ticket IDs are not present in ${trackerPath}: ${unknownTicketIds.join(', ')}.`,
+          `Detected ticket IDs: ${context.ticketIds.join(', ')}.`,
+          `Action: use a ticket ID from ${trackerPath} or update the ticket list first.`,
+        ].join('\n'),
       );
-      return;
     }
+  } else {
+    console.warn(`Ticket list has no discoverable ticket IDs in ${trackerPath}.`);
+  }
 
-    throw new Error(
-      'Missing PR body text. Pass --pr-body-file or set PR_BODY for local validation.',
+  return {
+    branchTicketIds: context.branchTicketIds,
+    commitTicketIds: context.commitTicketIds,
+    ticketIds: context.ticketIds,
+    trackCode: context.trackCodes[0],
+    processMode: false,
+    processMarkerDetected: processMode,
+  };
+}
+
+function assertProcessScope() {
+  const violations = changedFiles.filter((file) => !matchesOwnership(file, PROCESS_SCOPE_PATTERNS));
+
+  if (violations.length === 0) {
+    console.log(`Process-scope check passed (${changedFiles.length} changed file(s)).`);
+    return;
+  }
+
+  throw new Error(
+    [
+      'GENERAL_DOCS_PROCESS scope violation.',
+      'The following changed files are outside allowed docs/process/governance areas:',
+      ...violations.map((file) => `- ${file}`),
+      `Allowed path patterns: ${PROCESS_SCOPE_PATTERNS.join(', ')}`,
+      'Action: remove product/runtime changes from the process branch or move them to a ticketed branch.',
+    ].join('\n'),
+  );
+}
+
+function assertTrackOwnership(trackCode, ticketIds) {
+  if (changedFiles.length === 0) {
+    console.warn(
+      'No changed files found in changed-files context. Skipping ownership path validation.',
     );
+    return;
   }
 
-  const missingSections = REQUIRED_SECTIONS.filter((section) => {
-    const pattern = new RegExp(`^##\\s+${escapeRegex(section)}`, 'im');
-    return !pattern.test(body);
-  });
-
-  if (missingSections.length) {
-    throw new Error(`Missing required PR sections: ${missingSections.join(', ')}`);
-  }
-
-  const missingChecks = REQUIRED_CHECKBOXES.filter((label) => {
-    const pattern = new RegExp(`^\\s*- \\[[xX]\\]\\s+${escapeRegex(label)}\\s*$`, 'im');
-    return !pattern.test(body);
-  });
-
-  if (missingChecks.length) {
-    throw new Error(`Missing required PR checklist items: ${missingChecks.join(', ')}`);
-  }
-
-  const missingLayerChecks = REQUIRED_LAYER_CHECKBOXES.filter((label) => {
-    const pattern = new RegExp(`^\\s*- \\[[xX]\\]\\s+${escapeRegex(label)}\\s*$`, 'im');
-    return !pattern.test(body);
-  });
-
-  if (missingLayerChecks.length) {
-    throw new Error(
-      `Missing required layer-boundary checklist items: ${missingLayerChecks.join(', ')}`,
+  const result = findOwnershipViolations(trackCode, changedFiles);
+  if (result.violations.length === 0) {
+    console.log(
+      `Ownership check passed for track ${trackCode} from tickets ${ticketIds.join(', ')} (${changedFiles.length} changed file(s)).`,
     );
+    return;
   }
+
+  const allowedSummary = result.allowedPatterns.join(', ');
+  throw new Error(
+    [
+      `Ownership violation for ${result.trackName || `Track ${trackCode}`}.`,
+      `Tickets: ${ticketIds.join(', ')}.`,
+      'The following changed files are outside allowed ownership:',
+      ...result.violations.map((file) => `- ${file}`),
+      `Allowed path patterns for this track: ${allowedSummary}`,
+      'Action: move out-of-scope file changes to the correct track branch, or use a ticket that matches the modified ownership area.',
+    ].join('\n'),
+  );
 }
 
 function buildIdRange(prefix, start, end) {
@@ -94,28 +194,34 @@ function collectUniqueMatches(text, pattern) {
   return [...new Set(text.match(pattern) || [])].sort();
 }
 
-function collectExpectedRequirementIds(requirementsText, matrixText) {
-  const explicitIds = collectUniqueMatches(requirementsText, /REQ-\d{2}/g);
-  if (explicitIds.length > 0) {
-    return explicitIds;
-  }
-
-  const explicitRange = requirementsText.match(/REQ-(\d{2})\s*(?:through|to|-)\s*REQ-(\d{2})/i);
-  if (explicitRange) {
-    return buildIdRange('REQ', Number(explicitRange[1]), Number(explicitRange[2]));
-  }
-
-  const legacyRange = matrixText.match(/REQ-(\d{2})\s+through\s+REQ-(\d{2})/i);
-  if (legacyRange) {
-    console.warn(
-      'docs/requirements.md has no explicit REQ IDs. Falling back to legacy range from traceability matrix summary.',
+function collectExpectedRequirementIds(matrixText) {
+  const { requirementIds } = collectMatrixTraceabilityIds(matrixText);
+  if (requirementIds.length === 0) {
+    throw new Error(
+      'Unable to derive requirement IDs from docs/implementation/audit-traceability-matrix.md. Add explicit REQ-xx rows there.',
     );
-    return buildIdRange('REQ', Number(legacyRange[1]), Number(legacyRange[2]));
   }
 
-  throw new Error(
-    'Unable to derive requirement IDs from docs/requirements.md. Add explicit REQ IDs or a REQ-xx through REQ-yy range.',
-  );
+  const numericIds = requirementIds.map((id) => Number(id.split('-')[1]));
+  const min = Math.min(...numericIds);
+  const max = Math.max(...numericIds);
+  const contiguousIds = buildIdRange('REQ', min, max);
+
+  if (requirementIds.length !== contiguousIds.length) {
+    throw new Error(
+      'Requirement IDs in docs/implementation/audit-traceability-matrix.md must be contiguous REQ-xx rows without gaps.',
+    );
+  }
+
+  for (let index = 0; index < requirementIds.length; index += 1) {
+    if (requirementIds[index] !== contiguousIds[index]) {
+      throw new Error(
+        'Requirement IDs in docs/implementation/audit-traceability-matrix.md must be ordered and gap-free.',
+      );
+    }
+  }
+
+  return requirementIds;
 }
 
 function collectExpectedAuditIds(auditText) {
@@ -184,11 +290,10 @@ function collectMatrixTraceabilityIds(matrixText) {
 }
 
 function verifyTraceabilityCoverage() {
-  const requirementsText = readText('docs/requirements.md');
   const auditText = readText('docs/audit.md');
   const matrixText = readText('docs/implementation/audit-traceability-matrix.md');
 
-  const expectedRequirementIds = collectExpectedRequirementIds(requirementsText, matrixText);
+  const expectedRequirementIds = collectExpectedRequirementIds(matrixText);
   const expectedAuditIds = collectExpectedAuditIds(auditText);
   const matrixIds = collectMatrixTraceabilityIds(matrixText);
 
@@ -425,7 +530,25 @@ function scanSecurityAndArchitectureBoundaries() {
 verifyTraceabilityCoverage();
 
 if (checkSet === 'pr' || checkSet === 'all') {
-  assertPrBody();
+  const ticketContext = assertTicketAssociation();
+  console.log(
+    describePolicyResolution({
+      auditMode: ticketContext.processMode ? 'GENERAL_DOCS_PROCESS' : 'TICKET',
+      branchTicketIds: ticketContext.branchTicketIds,
+      commitTicketIds: ticketContext.commitTicketIds,
+      processMarkerDetected: ticketContext.processMarkerDetected,
+      selectedPath: ticketContext.processMode
+        ? 'process-marker fallback'
+        : 'ticketed ownership checks',
+      ticketIds: ticketContext.ticketIds,
+      trackCode: ticketContext.trackCode,
+    }),
+  );
+  if (ticketContext.processMode) {
+    assertProcessScope();
+  } else {
+    assertTrackOwnership(ticketContext.trackCode, ticketContext.ticketIds);
+  }
   enforceAuditAndDependencyPairing();
   scanSecurityAndArchitectureBoundaries();
 }

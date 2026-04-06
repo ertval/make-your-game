@@ -1,10 +1,17 @@
 import fs from 'node:fs';
 import process from 'node:process';
 import {
+  collectBranchCommitMessages,
   collectChangedFiles,
+  getCurrentBranchName,
   getEventPath,
+  getMergeBase,
+  inferProcessModeFromSources,
+  inferTicketIdsFromSources,
+  inferTracksFromTicketIds,
   parseArgs,
   readText,
+  resolveBaseRef,
   writeJson,
   writeLines,
 } from './lib/policy-utils.mjs';
@@ -33,13 +40,10 @@ function parsePullRequestPayload(filePath) {
 }
 
 function buildManualMetadata() {
-  const bodyFromFile = args['pr-body-file'] ? readText(args['pr-body-file']) : '';
-  const body = args['pr-body'] || process.env.PR_BODY || bodyFromFile || '';
-
   return {
     number: Number(args['pr-number'] || process.env.PR_NUMBER || 0),
-    body,
     author: args.author || process.env.PR_AUTHOR || '',
+    body: args.body || process.env.PR_BODY || '',
     baseSha: args['base-sha'] || process.env.BASE_SHA || '',
     headSha: args['head-sha'] || process.env.HEAD_SHA || '',
     reviewsUrl: args['reviews-url'] || process.env.REVIEWS_URL || '',
@@ -55,10 +59,41 @@ if (eventPath && fs.existsSync(eventPath)) {
   console.log('No event payload available. Using manual metadata mode.');
 }
 
-const changedFiles = collectChangedFiles(metadata.baseSha, metadata.headSha);
+const preferredBaseRef =
+  args['base-ref'] || process.env.BASE_REF || process.env.GITHUB_BASE_REF || '';
+const baseRef = resolveBaseRef(preferredBaseRef);
+const headRef = metadata.headSha || args['head-ref'] || 'HEAD';
+const mergeBase = getMergeBase(baseRef, headRef);
+const branchName = args['branch-name'] || process.env.BRANCH_NAME || getCurrentBranchName();
+const commitMessages = collectBranchCommitMessages({ baseRef, mergeBase, headRef });
+const ticketIds = inferTicketIdsFromSources(
+  args['ticket-id'] || '',
+  args['ticket-ids'] || '',
+  branchName,
+  commitMessages,
+);
+const processMode = inferProcessModeFromSources(branchName, commitMessages, metadata.body || '');
+const trackCodes = inferTracksFromTicketIds(ticketIds);
+
+metadata.baseRef = baseRef;
+metadata.headRef = headRef;
+metadata.mergeBase = mergeBase;
+metadata.branchName = branchName;
+metadata.body = metadata.body || '';
+metadata.commitMessages = commitMessages;
+metadata.ticketIds = ticketIds;
+metadata.processMode = processMode;
+metadata.trackCodes = trackCodes;
+metadata.trackCode = trackCodes.length === 1 ? trackCodes[0] : '';
+
+const changedFiles = collectChangedFiles(metadata.baseSha, metadata.headSha, {
+  baseRef,
+  headRef,
+});
 
 writeJson(metaPath, metadata);
 writeLines(changedPath, changedFiles);
 
 console.log(`Wrote ${metaPath}`);
+console.log(`Detected ticket IDs: ${ticketIds.join(', ') || '(none)'}`);
 console.log(`Wrote ${changedPath} with ${changedFiles.length} file(s).`);

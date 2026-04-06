@@ -39,6 +39,60 @@ describe('World', () => {
     expect(world.query(0b0001)).toEqual([0]);
   });
 
+  it('defers entity destruction to the fixed-step sync point', () => {
+    const world = new World();
+    const entity = world.createEntity(0b0001);
+
+    world.registerSystem({
+      phase: 'logic',
+      name: 'defer-destroy',
+      update: () => {
+        world.deferDestroyEntity(entity);
+        expect(world.getEntityCount()).toBe(1);
+      },
+    });
+
+    world.runFixedStep();
+
+    expect(world.getEntityCount()).toBe(0);
+    expect(world.query(0b0001)).toEqual([]);
+  });
+
+  it('defers mask updates to the fixed-step sync point', () => {
+    const world = new World();
+    const entity = world.createEntity(0b0001);
+
+    world.registerSystem({
+      phase: 'logic',
+      name: 'defer-mask',
+      update: () => {
+        world.deferSetEntityMask(entity, 0b0010);
+        expect(world.query(0b0010)).toEqual([]);
+      },
+    });
+
+    world.runFixedStep();
+
+    expect(world.query(0b0010)).toEqual([entity.id]);
+    expect(world.query(0b0001)).toEqual([]);
+  });
+
+  it('stores resources and increments frame after each fixed step', () => {
+    const world = new World();
+    const clock = { nowMs: 0 };
+
+    world.setResource('clock', clock);
+
+    expect(world.hasResource('clock')).toBe(true);
+    expect(world.getResource('clock')).toBe(clock);
+    expect(world.frame).toBe(0);
+
+    world.runFixedStep();
+    world.runFixedStep();
+
+    expect(world.frame).toBe(2);
+  });
+
   it('rejects stale handles when mutating entity masks', () => {
     const world = new World();
     const first = world.createEntity();
