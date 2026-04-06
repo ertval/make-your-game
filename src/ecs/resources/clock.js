@@ -97,6 +97,12 @@ export function tickClock(
   // Consume the time for the steps we're about to execute.
   clock.accumulator -= steps * fixedDtMs;
 
+  // After clamping steps, the leftover accumulator can exceed one step.
+  // Cap it to a single step so alpha stays in [0, 1) for interpolation.
+  if (clock.accumulator >= fixedDtMs) {
+    clock.accumulator = fixedDtMs - 0.0001;
+  }
+
   // Compute interpolation factor for render collect.
   // Alpha represents how far we are into the next fixed step.
   clock.alpha = clock.accumulator / fixedDtMs;

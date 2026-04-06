@@ -206,6 +206,15 @@ describe('clock', () => {
     expect(steps).toBe(MAX_STEPS_PER_FRAME);
   });
 
+  it('keeps alpha in [0, 1) after a lag spike that triggers step clamping', () => {
+    const clock = createClock(0);
+    // Simulate a 500ms gap — steps will be clamped to MAX_STEPS_PER_FRAME,
+    // leaving leftover accumulator time that must not push alpha above 1.
+    tickClock(clock, 500);
+    expect(clock.alpha).toBeGreaterThanOrEqual(0);
+    expect(clock.alpha).toBeLessThan(1);
+  });
+
   it('resets baseline to prevent burst after unpause', () => {
     const clock = createClock(0);
     // Simulate some frames.
