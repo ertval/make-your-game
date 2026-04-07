@@ -7,9 +7,6 @@
  */
 
 import { describe, expect, it } from 'vitest';
-
-import { FIXED_DT_MS, MAX_STEPS_PER_FRAME } from '../../../src/ecs/resources/constants.js';
-
 import {
   advanceSimTime,
   createClock,
@@ -17,6 +14,7 @@ import {
   setPauseState,
   tickClock,
 } from '../../../src/ecs/resources/clock.js';
+import { FIXED_DT_MS, MAX_STEPS_PER_FRAME } from '../../../src/ecs/resources/constants.js';
 
 describe('clock', () => {
   it('creates a clock with zeroed initial state', () => {
