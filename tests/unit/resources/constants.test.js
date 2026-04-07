@@ -84,8 +84,8 @@ describe('constants', () => {
     expect(GHOST_TYPE.PINKY).toBe(1);
     expect(GHOST_TYPE.INKY).toBe(2);
     expect(GHOST_TYPE.CLYDE).toBe(3);
-    expect(GHOST_STATE.CHASING).toBe(0);
-    expect(GHOST_STATE.FLEEING).toBe(1);
+    expect(GHOST_STATE.NORMAL).toBe(0);
+    expect(GHOST_STATE.STUNNED).toBe(1);
     expect(GHOST_STATE.DEAD).toBe(2);
     expect(GHOST_STUNNED_SPEED).toBe(2.0);
   });

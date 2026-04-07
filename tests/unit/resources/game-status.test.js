@@ -8,15 +8,15 @@
 import { describe, expect, it } from 'vitest';
 
 import {
-  GAME_STATE,
-  VALID_TRANSITIONS,
   canTransition,
   createGameStatus,
+  GAME_STATE,
   isMenu,
   isPaused,
   isPlaying,
   isTerminal,
   transitionTo,
+  VALID_TRANSITIONS,
 } from '../../../src/ecs/resources/game-status.js';
 
 describe('game-status', () => {
