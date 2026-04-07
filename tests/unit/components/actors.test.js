@@ -7,9 +7,9 @@
  */
 
 import { describe, expect, it } from 'vitest';
+
 import {
-  ACTOR_GHOST_STATE,
-  ACTOR_GHOST_TYPE,
+  UNASSIGNED_GHOST_TYPE,
   createGhostStore,
   createInputStateStore,
   createPlayerStore,
@@ -19,19 +19,22 @@ import {
 } from '../../../src/ecs/components/actors.js';
 import {
   DEFAULT_FIRE_RADIUS,
+  GHOST_STATE,
+  GHOST_TYPE,
   PLAYER_START_LIVES,
   PLAYER_START_MAX_BOMBS,
 } from '../../../src/ecs/resources/constants.js';
 
 describe('actor component stores', () => {
-  it('defines ticket-aligned ghost type and state values', () => {
-    expect(ACTOR_GHOST_TYPE.BLINKY).toBe(0);
-    expect(ACTOR_GHOST_TYPE.PINKY).toBe(1);
-    expect(ACTOR_GHOST_TYPE.INKY).toBe(2);
-    expect(ACTOR_GHOST_TYPE.CLYDE).toBe(3);
-    expect(ACTOR_GHOST_STATE.NORMAL).toBe(0);
-    expect(ACTOR_GHOST_STATE.STUNNED).toBe(1);
-    expect(ACTOR_GHOST_STATE.DEAD).toBe(2);
+  it('uses the canonical ghost enums from the constants resource', () => {
+    expect(GHOST_TYPE.BLINKY).toBe(0);
+    expect(GHOST_TYPE.PINKY).toBe(1);
+    expect(GHOST_TYPE.INKY).toBe(2);
+    expect(GHOST_TYPE.CLYDE).toBe(3);
+    expect(GHOST_STATE.NORMAL).toBe(0);
+    expect(GHOST_STATE.STUNNED).toBe(1);
+    expect(GHOST_STATE.DEAD).toBe(2);
+    expect(UNASSIGNED_GHOST_TYPE).toBe(-1);
   });
 
   it('creates a player store with canonical default gameplay values', () => {
@@ -90,7 +93,7 @@ describe('actor component stores', () => {
     const maxEntities = 4;
     const store = createGhostStore(maxEntities);
 
-    expect(store.type).toBeInstanceOf(Uint8Array);
+    expect(store.type).toBeInstanceOf(Int16Array);
     expect(store.state).toBeInstanceOf(Uint8Array);
     expect(store.timerMs).toBeInstanceOf(Float64Array);
     expect(store.speed).toBeInstanceOf(Float64Array);
@@ -101,8 +104,8 @@ describe('actor component stores', () => {
     expect(store.speed).toHaveLength(maxEntities);
 
     for (let entityId = 0; entityId < maxEntities; entityId += 1) {
-      expect(store.type[entityId]).toBe(0);
-      expect(store.state[entityId]).toBe(ACTOR_GHOST_STATE.NORMAL);
+      expect(store.type[entityId]).toBe(UNASSIGNED_GHOST_TYPE);
+      expect(store.state[entityId]).toBe(GHOST_STATE.NORMAL);
       expect(store.timerMs[entityId]).toBe(0);
       expect(store.speed[entityId]).toBe(0);
     }
@@ -113,16 +116,16 @@ describe('actor component stores', () => {
     const entityId = 3;
     const untouchedEntityId = 1;
 
-    store.type[entityId] = 2;
-    store.state[entityId] = ACTOR_GHOST_STATE.DEAD;
+    store.type[entityId] = GHOST_TYPE.INKY;
+    store.state[entityId] = GHOST_STATE.DEAD;
     store.timerMs[entityId] = 5000;
     store.speed[entityId] = 4.5;
     store.speed[untouchedEntityId] = 2.0;
 
     resetGhost(store, entityId);
 
-    expect(store.type[entityId]).toBe(0);
-    expect(store.state[entityId]).toBe(ACTOR_GHOST_STATE.NORMAL);
+    expect(store.type[entityId]).toBe(UNASSIGNED_GHOST_TYPE);
+    expect(store.state[entityId]).toBe(GHOST_STATE.NORMAL);
     expect(store.timerMs[entityId]).toBe(0);
     expect(store.speed[entityId]).toBe(0);
 

@@ -7,6 +7,7 @@
 
 import { describe, expect, it } from 'vitest';
 import {
+  PROP_POWER_UP_TYPE,
   createBombStore,
   createFireStore,
   createPelletStore,

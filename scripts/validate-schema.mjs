@@ -1,8 +1,8 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import process from 'node:process';
-import Ajv2020 from 'ajv/dist/2020.js';
 import addFormats from 'ajv-formats';
+import Ajv2020 from 'ajv/dist/2020.js';
 
 const root = process.cwd();
 
