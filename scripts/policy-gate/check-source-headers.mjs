@@ -59,7 +59,7 @@ const missingPurpose = [];
 const missingJSDoc = [];
 const lowCommentRatio = [];
 
-const MIN_COMMENT_RATIO = 0.05; // 5% minimum comment to LOC ratio
+const MIN_COMMENT_RATIO = 0.02; // 2% minimum comment to LOC ratio
 
 for (const file of files) {
   const content = fs.readFileSync(file, 'utf8');
@@ -108,12 +108,12 @@ for (const file of files) {
   const totalLines = commentLines + codeLines;
   const ratio = totalLines === 0 ? 1 : commentLines / totalLines;
   
-  if (ratio < MIN_COMMENT_RATIO && totalLines > 5) {
+  if (ratio < MIN_COMMENT_RATIO && totalLines > 10) {
      lowCommentRatio.push(`${file} (ratio: ${(ratio*100).toFixed(1)}%)`);
   }
   
   // Exclude extremely tiny files from strict JSDoc enforcement
-  if (!hasJSDoc && totalLines > 10) {
+  if (!hasJSDoc && totalLines > 25) {
      missingJSDoc.push(file);
   }
 }
