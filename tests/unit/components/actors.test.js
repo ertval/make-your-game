@@ -8,13 +8,9 @@
 
 import { describe, expect, it } from 'vitest';
 
+import { DEFAULT_FIRE_RADIUS, PLAYER_START_LIVES, PLAYER_START_MAX_BOMBS } from '../../../src/ecs/resources/constants.js';
 import {
-  DEFAULT_FIRE_RADIUS,
-  GHOST_STATE,
-  PLAYER_START_LIVES,
-  PLAYER_START_MAX_BOMBS,
-} from '../../../src/ecs/resources/constants.js';
-import {
+  ACTOR_GHOST_TYPE,
   ACTOR_GHOST_STATE,
   createGhostStore,
   createInputStateStore,
@@ -25,10 +21,14 @@ import {
 } from '../../../src/ecs/components/actors.js';
 
 describe('actor component stores', () => {
-  it('maps gameplay ghost-state names onto the canonical resource enum', () => {
-    expect(ACTOR_GHOST_STATE.NORMAL).toBe(GHOST_STATE.CHASING);
-    expect(ACTOR_GHOST_STATE.STUNNED).toBe(GHOST_STATE.FLEEING);
-    expect(ACTOR_GHOST_STATE.DEAD).toBe(GHOST_STATE.DEAD);
+  it('defines ticket-aligned ghost type and state values', () => {
+    expect(ACTOR_GHOST_TYPE.BLINKY).toBe(0);
+    expect(ACTOR_GHOST_TYPE.PINKY).toBe(1);
+    expect(ACTOR_GHOST_TYPE.INKY).toBe(2);
+    expect(ACTOR_GHOST_TYPE.CLYDE).toBe(3);
+    expect(ACTOR_GHOST_STATE.NORMAL).toBe(0);
+    expect(ACTOR_GHOST_STATE.STUNNED).toBe(1);
+    expect(ACTOR_GHOST_STATE.DEAD).toBe(2);
   });
 
   it('creates a player store with canonical default gameplay values', () => {

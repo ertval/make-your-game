@@ -7,9 +7,9 @@
 
 import { describe, expect, it } from 'vitest';
 
-import { VISUAL_FLAGS } from '../../../src/ecs/resources/constants.js';
 import {
   RENDERABLE_KIND,
+  VISUAL_FLAGS,
   createRenderableStore,
   createVisualStateStore,
   resetRenderable,
@@ -17,6 +17,16 @@ import {
 } from '../../../src/ecs/components/visual.js';
 
 describe('visual component stores', () => {
+  it('re-exports the canonical visual flags used by classBits', () => {
+    expect(VISUAL_FLAGS).toEqual({
+      STUNNED: 1,
+      INVINCIBLE: 2,
+      HIDDEN: 4,
+      DEAD: 8,
+      SPEED_BOOST: 16,
+    });
+  });
+
   it('defines distinct non-zero renderable kinds for gameplay entities', () => {
     const kinds = Object.values(RENDERABLE_KIND);
 

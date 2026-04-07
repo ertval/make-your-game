@@ -7,6 +7,7 @@
  * or grid-aligned.
  *
  * Public API:
+ * - PROP_POWER_UP_TYPE: ticket-aligned power-up type enum values.
  * - createBombStore(maxEntities): allocate typed arrays for bomb state.
  * - resetBomb(store, entityId): clear one bomb slot back to defaults.
  * - createFireStore(maxEntities): allocate typed arrays for fire state.
@@ -26,7 +27,18 @@
  *   arrays are sufficient and avoid per-entity object allocation.
  */
 
-import { BOMB_FUSE_MS, DEFAULT_FIRE_RADIUS, FIRE_DURATION_MS, POWER_UP_TYPE } from '../resources/constants.js';
+import { BOMB_FUSE_MS, DEFAULT_FIRE_RADIUS, FIRE_DURATION_MS } from '../resources/constants.js';
+
+/**
+ * Ticket-aligned power-up type values.
+ * NONE is an internal default/reset sentinel for empty slots.
+ */
+export const PROP_POWER_UP_TYPE = Object.freeze({
+  NONE: 0,
+  BOMB_PLUS: 1,
+  FIRE_PLUS: 2,
+  SPEED_BOOST: 3,
+});
 
 /**
  * Allocate the typed-array store for bomb gameplay state.
@@ -98,7 +110,7 @@ export function resetFire(store, entityId) {
 export function createPowerUpStore(maxEntities) {
   return {
     // Power-up type is an enum index, so a byte per entity is enough.
-    type: new Uint8Array(maxEntities).fill(POWER_UP_TYPE.NONE),
+    type: new Uint8Array(maxEntities).fill(PROP_POWER_UP_TYPE.NONE),
   };
 }
 
@@ -109,7 +121,7 @@ export function createPowerUpStore(maxEntities) {
  * @param {number} entityId - Entity slot index to reset.
  */
 export function resetPowerUp(store, entityId) {
-  store.type[entityId] = POWER_UP_TYPE.NONE;
+  store.type[entityId] = PROP_POWER_UP_TYPE.NONE;
 }
 
 /**

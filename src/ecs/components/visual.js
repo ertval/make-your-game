@@ -74,7 +74,9 @@ export function resetRenderable(store, entityId) {
  */
 export function createVisualStateStore(maxEntities) {
   return {
-    // Zero means "no visual flags active" until gameplay systems set bits.
+    // classBits is a bitmask field. Later systems combine VISUAL_FLAGS such as
+    // STUNNED | INVINCIBLE with bitwise OR so one byte can describe multiple
+    // simultaneous visual modifiers without storing several booleans.
     classBits: new Uint8Array(maxEntities),
   };
 }

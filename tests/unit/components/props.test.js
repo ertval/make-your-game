@@ -11,9 +11,9 @@ import {
   BOMB_FUSE_MS,
   DEFAULT_FIRE_RADIUS,
   FIRE_DURATION_MS,
-  POWER_UP_TYPE,
 } from '../../../src/ecs/resources/constants.js';
 import {
+  PROP_POWER_UP_TYPE,
   createBombStore,
   createFireStore,
   createPelletStore,
@@ -90,12 +90,12 @@ describe('prop component stores', () => {
     const store = createPowerUpStore(2);
 
     expect(store.type).toBeInstanceOf(Uint8Array);
-    expect(store.type[0]).toBe(POWER_UP_TYPE.NONE);
+    expect(store.type[0]).toBe(PROP_POWER_UP_TYPE.NONE);
 
-    store.type[0] = POWER_UP_TYPE.SPEED;
+    store.type[0] = PROP_POWER_UP_TYPE.SPEED_BOOST;
     resetPowerUp(store, 0);
 
-    expect(store.type[0]).toBe(POWER_UP_TYPE.NONE);
+    expect(store.type[0]).toBe(PROP_POWER_UP_TYPE.NONE);
   });
 
   it('creates and resets a pellet store with regular-pellet defaults', () => {

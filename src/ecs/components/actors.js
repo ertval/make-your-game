@@ -7,6 +7,7 @@
  * crossing the DOM or adapter boundary.
  *
  * Public API:
+ * - ACTOR_GHOST_TYPE: canonical ghost-type values that match the ticket wording.
  * - ACTOR_GHOST_STATE: ghost-state aliases that match the gameplay wording.
  * - createPlayerStore(maxEntities): allocate typed arrays for player state.
  * - resetPlayer(store, entityId): restore one player slot to canonical defaults.
@@ -19,27 +20,31 @@
  * - Small integer fields use Uint8Array to avoid object allocation in hot paths.
  * - Timer fields use Float64Array because future systems will decrement them with
  *   fixed-step fractional math in milliseconds.
- * - The resource-level ghost state names already exist as CHASING/FLEEING/DEAD.
- *   This file exports gameplay-facing aliases so Track B can speak in the same
- *   Normal/Stunned/Dead language as the ticket and game description.
+ * - Ghost types and states are defined locally so this file stays aligned with
+ *   the ticket wording even if other modules still use older naming.
  */
 
-import {
-  DEFAULT_FIRE_RADIUS,
-  GHOST_STATE,
-  PLAYER_START_LIVES,
-  PLAYER_START_MAX_BOMBS,
-} from '../resources/constants.js';
+import { DEFAULT_FIRE_RADIUS, PLAYER_START_LIVES, PLAYER_START_MAX_BOMBS } from '../resources/constants.js';
 
 /**
- * Gameplay-facing ghost state aliases.
- * These map directly onto the resource-level enum so the codebase keeps one
- * numeric truth while still using the terminology from the design docs.
+ * Ticket-aligned ghost type values.
+ * These names match the Track B deliverable directly.
+ */
+export const ACTOR_GHOST_TYPE = Object.freeze({
+  BLINKY: 0,
+  PINKY: 1,
+  INKY: 2,
+  CLYDE: 3,
+});
+
+/**
+ * Ticket-aligned ghost state values.
+ * These names match the Track B deliverable directly.
  */
 export const ACTOR_GHOST_STATE = Object.freeze({
-  NORMAL: GHOST_STATE.CHASING,
-  STUNNED: GHOST_STATE.FLEEING,
-  DEAD: GHOST_STATE.DEAD,
+  NORMAL: 0,
+  STUNNED: 1,
+  DEAD: 2,
 });
 
 /**
