@@ -25,7 +25,7 @@ if (!['warn', 'error', 'fail'].includes(mode)) {
 }
 
 const changedPath = args['changed-file'] || 'changed-files.txt';
-const includePrefixes = String(args['include-prefixes'] || 'src/')
+const includePrefixes = String(args['include-prefixes'] || '')
   .split(',')
   .map((value) => value.trim().replaceAll('\\', '/'))
   .filter(Boolean);
@@ -60,6 +60,8 @@ const missingJSDoc = [];
 const lowCommentRatio = [];
 
 const MIN_COMMENT_RATIO = 0.02; // 2% minimum comment to LOC ratio
+const MIN_LINES_FOR_JSDOC_ENFORCEMENT = 25;
+const MIN_LINES_FOR_COMMENTS = 10;
 
 for (const file of files) {
   const content = fs.readFileSync(file, 'utf8');
@@ -108,12 +110,12 @@ for (const file of files) {
   const totalLines = commentLines + codeLines;
   const ratio = totalLines === 0 ? 1 : commentLines / totalLines;
   
-  if (ratio < MIN_COMMENT_RATIO && totalLines > 10) {
+  if (ratio < MIN_COMMENT_RATIO && totalLines > MIN_LINES_FOR_COMMENTS) {
      lowCommentRatio.push(`${file} (ratio: ${(ratio*100).toFixed(1)}%)`);
   }
   
   // Exclude extremely tiny files from strict JSDoc enforcement
-  if (!hasJSDoc && totalLines > 25) {
+  if (!hasJSDoc && totalLines > MIN_LINES_FOR_JSDOC_ENFORCEMENT) {
      missingJSDoc.push(file);
   }
 }
