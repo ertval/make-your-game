@@ -30,9 +30,9 @@ Coverage mapping remains canonical in `audit-traceability-matrix.md`.
 ## 📈 Summary Snapshot
 
 - Total tickets: `39`
-- Done: `2`
+- Done: `3`
 - In Progress: `0`
-- Not Started: `37`
+- Not Started: `36`
 
 ## 🛣️ Prototype-First Claim Queue (Global)
 
@@ -72,7 +72,7 @@ Canonical ticket ID ranges used by policy checks:
 - [ ] **D-02** P0 - Map Schema & JSON Blueprints (Depends on: D-01) | Blocks: D-03
 - [ ] **D-03** P0 - Map Loading Resource (Depends on: D-01, D-02) | Blocks: D-06; A-04; A-07; B-03; B-04; B-06; B-08; C-03; C-04
 - [ ] **D-04** P0 - Render Data Contracts (Depends on: A-02, B-01) | Blocks: D-06; D-07
-- [ ] **A-03** P0 - Game Loop & Main Initialization (Depends on: A-02, D-01) | Blocks: A-04; A-05; A-06; B-02; C-04
+- [x] **A-03** P0 - Game Loop & Main Initialization (Depends on: A-02, D-01) | Blocks: A-04; A-05; A-06; B-02; C-04
 
 ### Q1 / P1 Visual Prototype
 

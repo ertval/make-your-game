@@ -8,12 +8,12 @@
 import { describe, expect, it } from 'vitest';
 
 import {
-  RENDERABLE_KIND,
-  VISUAL_FLAGS,
   createRenderableStore,
   createVisualStateStore,
+  RENDERABLE_KIND,
   resetRenderable,
   resetVisualState,
+  VISUAL_FLAGS,
 } from '../../../src/ecs/components/visual.js';
 
 describe('visual component stores', () => {

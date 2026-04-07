@@ -3,6 +3,7 @@ import process from 'node:process';
 import {
   collectBranchCommitMessages,
   collectChangedFiles,
+  collectLocalWorkingTreeFiles,
   getCurrentBranchName,
   getEventPath,
   getMergeBase,
@@ -86,10 +87,13 @@ metadata.processMode = processMode;
 metadata.trackCodes = trackCodes;
 metadata.trackCode = trackCodes.length === 1 ? trackCodes[0] : '';
 
-const changedFiles = collectChangedFiles(metadata.baseSha, metadata.headSha, {
-  baseRef,
-  headRef,
-});
+const hasEventPayload = Boolean(eventPath && fs.existsSync(eventPath));
+const changedFiles = hasEventPayload
+  ? collectChangedFiles(metadata.baseSha, metadata.headSha, {
+      baseRef,
+      headRef,
+    })
+  : collectLocalWorkingTreeFiles();
 
 writeJson(metaPath, metadata);
 writeLines(changedPath, changedFiles);

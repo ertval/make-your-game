@@ -6,23 +6,22 @@
  */
 
 import { describe, expect, it } from 'vitest';
-
 import {
-  BOMB_FUSE_MS,
-  DEFAULT_FIRE_RADIUS,
-  FIRE_DURATION_MS,
-} from '../../../src/ecs/resources/constants.js';
-import {
-  PROP_POWER_UP_TYPE,
   createBombStore,
   createFireStore,
   createPelletStore,
   createPowerUpStore,
+  PROP_POWER_UP_TYPE,
   resetBomb,
   resetFire,
   resetPellet,
   resetPowerUp,
 } from '../../../src/ecs/components/props.js';
+import {
+  BOMB_FUSE_MS,
+  DEFAULT_FIRE_RADIUS,
+  FIRE_DURATION_MS,
+} from '../../../src/ecs/resources/constants.js';
 
 describe('prop component stores', () => {
   it('creates a bomb store with canonical defaults', () => {

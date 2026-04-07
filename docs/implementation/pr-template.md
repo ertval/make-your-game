@@ -15,13 +15,14 @@ Local test command reference (run what applies to your change and list what you 
 - Browser/runtime behavior changes (pause, input, HUD, rendering, gameplay): `npm run test:e2e`
 - Audit-map updates: `npm run test:audit`
 - Manifest/schema updates: `npm run validate:schema`
+- Local checks rerun with prepared metadata: `npm run policy:checks:local`
 - Repo-wide rerun when needed: `npm run policy:repo`
 
 ## Required checks
 
 - [ ] I read AGENTS.md and the agentic workflow guide.
 - [ ] I ran `npm run policy` locally.
-- [ ] I verified my branch name or commits reference at least one ticket ID from `docs/implementation/ticket-tracker.md`, or I marked the PR body with `process` for a GENERAL_DOCS_PROCESS branch.
+- [ ] I verified my branch name follows `<owner-or-scope>/<TRACK>-<NN>` (for example `ekaramet/A-03`), or I marked the PR body with `process` for a GENERAL_DOCS_PROCESS branch.
 - [ ] I confirmed changed files stay within the declared ticket ownership scope.
 - [ ] I ran the applicable local checks for this change.
 - [ ] I listed the audit IDs affected by this change.

@@ -7,11 +7,9 @@
  */
 
 import { describe, expect, it } from 'vitest';
-
-import { DEFAULT_FIRE_RADIUS, PLAYER_START_LIVES, PLAYER_START_MAX_BOMBS } from '../../../src/ecs/resources/constants.js';
 import {
-  ACTOR_GHOST_TYPE,
   ACTOR_GHOST_STATE,
+  ACTOR_GHOST_TYPE,
   createGhostStore,
   createInputStateStore,
   createPlayerStore,
@@ -19,6 +17,11 @@ import {
   resetInputState,
   resetPlayer,
 } from '../../../src/ecs/components/actors.js';
+import {
+  DEFAULT_FIRE_RADIUS,
+  PLAYER_START_LIVES,
+  PLAYER_START_MAX_BOMBS,
+} from '../../../src/ecs/resources/constants.js';
 
 describe('actor component stores', () => {
   it('defines ticket-aligned ghost type and state values', () => {

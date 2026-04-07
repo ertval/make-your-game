@@ -24,7 +24,11 @@
  *   the ticket wording even if other modules still use older naming.
  */
 
-import { DEFAULT_FIRE_RADIUS, PLAYER_START_LIVES, PLAYER_START_MAX_BOMBS } from '../resources/constants.js';
+import {
+  DEFAULT_FIRE_RADIUS,
+  PLAYER_START_LIVES,
+  PLAYER_START_MAX_BOMBS,
+} from '../resources/constants.js';
 
 /**
  * Ticket-aligned ghost type values.

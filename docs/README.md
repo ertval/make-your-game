@@ -54,7 +54,7 @@ Gate command reference:
 
 - `npm run policy` for the default all-in-one gate.
 - `npm run policy:repo` for the repo-wide gate.
-- `npm run policy:quality`, `npm run policy:checks`, `npm run policy:forbid`, `npm run policy:header`, `npm run policy:forbidrepo`, `npm run policy:headerrepo`, `npm run policy:trace`, and `npm run policy:approve` when you need a narrower rerun.
+- `npm run policy:quality`, `npm run policy:checks:local`, `npm run policy:checks`, `npm run policy:forbid`, `npm run policy:header`, `npm run policy:forbidrepo`, `npm run policy:headerrepo`, `npm run policy:trace`, and `npm run policy:approve` when you need a narrower rerun.
 
 ### 4. Open the Pull Request
 - **Use the Template**: Read [`implementation/pr-template.md`](implementation/pr-template.md), then open the PR with [`.github/pull_request_template.md`](../.github/pull_request_template.md). This template is the enforced PR contract for required checklist labels, layer boundaries, and section format. Fill out the entire checklist and follow the PR message structure in [PR Message and Gate Workflow](implementation/agentic-workflow-guide.md#12-pr-message-and-gate-workflow).

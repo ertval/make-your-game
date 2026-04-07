@@ -332,8 +332,9 @@ policy command family
 │   └── npm run policy
 ├── Repo-only gate
 │   └── npm run policy:repo
-└── Narrow reruns (one-word subcommands)
+└── Narrow reruns
     ├── npm run policy:quality
+    ├── npm run policy:checks:local
     ├── npm run policy:checks
     ├── npm run policy:forbid
     ├── npm run policy:header
@@ -352,6 +353,7 @@ Use the broadest command first, then drop to the narrower command below if you n
 | `npm run policy` | Runs the full pre-PR gate: project quality, ticket/track ownership checks from branch name or commits, changed-file forbidden-tech scan, changed-file header scan, approval check, and repo traceability scans. If branch/commit ticket metadata is missing but a `process` marker is present, the gate treats the branch as GENERAL_DOCS_PROCESS; otherwise it falls back to repo-wide checks. |
 | `npm run policy:repo` | Runs the repo-wide gate: repository forbidden-tech scan, repository header scan, and repo integrity/traceability checks. |
 | `npm run policy:quality` | Runs the project quality gate: Biome, tests, coverage, schema validation, and SBOM. |
+| `npm run policy:checks:local` | Local helper for policy checks debugging. Runs `policy:prep` before `policy:checks` so metadata context is ready. |
 | `npm run policy:checks` | Validates ticket association from branch name or commits, or a `process` marker for GENERAL_DOCS_PROCESS branches, plus single-track ownership boundaries. |
 | `npm run policy:forbid` | Scans only the changed files for forbidden tech or patterns. |
 | `npm run policy:header` | Checks only the changed files for required source headers. |
@@ -363,7 +365,7 @@ Use the broadest command first, then drop to the narrower command below if you n
 | If this fails | Re-run this narrower command | What it checks |
 |---|---|---|
 | `npm run policy` | `npm run policy:quality` | Biome, tests, coverage, schema validation, and SBOM via the project quality gate |
-| `npm run policy` | `npm run policy:checks` | Ticket association from branch or commits, `process` marker fallback for GENERAL_DOCS_PROCESS branches, ticket list membership, and single-track ownership boundaries |
+| `npm run policy` | `npm run policy:checks:local` | Local rerun for ticket association and ownership checks with metadata preparation (`policy:prep` + `policy:checks`) |
 | `npm run policy` | `npm run policy:forbid` | Forbidden tech in changed files only |
 | `npm run policy` | `npm run policy:header` | Source headers in changed files only |
 | `npm run policy` | `npm run policy:approve` | Human approval/review requirement |
@@ -530,7 +532,7 @@ tests/
 6. Core systems MUST remain pure functions handling data components; systems MUST access adapters via World resources and MUST NOT import adapters directly (including `render-dom-system.js`).
 7. Run baseline checks locally: `npm run ci` for the standard local wrapper, plus any scope-specific tests (`npm run test:unit`, `npm run test:integration`, `npm run test:e2e`, `npm run test:audit`).
 8. Run the all-in-one PR gate before opening the PR: `npm run policy`.
-9. Use `npm run policy:repo` and narrow reruns (`policy:quality`, `policy:checks`, `policy:forbid`, `policy:header`, `policy:forbidrepo`, `policy:headerrepo`, `policy:trace`, `policy:approve`) only as needed for troubleshooting. If a branch is intentionally docs/process-only, mark the PR body with `process` so the gate can classify it without a ticket ID.
+9. Use `npm run policy:repo` and narrow reruns (`policy:quality`, `policy:checks:local`, `policy:checks`, `policy:forbid`, `policy:header`, `policy:forbidrepo`, `policy:headerrepo`, `policy:trace`, `policy:approve`) only as needed for troubleshooting. If a branch is intentionally docs/process-only, mark the PR body with `process` so the gate can classify it without a ticket ID.
 10. CI MUST pass all merge gates (schema validation, testing, lockfile integrity, policy gate) before merge. When coverage/SBOM scripts are configured, those gates MUST also pass.
 11. The policy gate workflow enforces PR review, audit alignment, security boundaries, and dependency pairing.
 12. Request review at integration milestones.

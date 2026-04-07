@@ -256,6 +256,7 @@ Follow the agreed ticket order and keep branches short-lived and single-purpose.
 - Typical first-ticket starts are `A-01`, `B-01`, and `D-01`; Track C usually starts in `P2` after `B-04` unlocks scoring/timer/life dependencies.
 - Use one branch per ticket slice.
 - Use the same branch only for the one logical change it was created for.
+- Branches must follow: `<owner-or-scope>/<TRACK>-<NN>`.
 - Example branch sequence (Track A): `ekaramet/A-01`, `ekaramet/A-02`, `ekaramet/A-03`.
 - If you intentionally work without a ticket ID on a docs/process branch, include `process` in the PR body so policy can classify it as GENERAL_DOCS_PROCESS.
 
@@ -265,7 +266,7 @@ Before opening a PR, confirm the description and checklist cover all required it
 
 - [ ] I read AGENTS.md and the agentic workflow guide.
 - [ ] I ran `npm run policy` locally.
-- [ ] I verified my branch name or commits reference at least one ticket ID from `docs/implementation/ticket-tracker.md`, or I marked the PR body with `process` for a GENERAL_DOCS_PROCESS branch.
+- [ ] I verified my branch name follows `<owner-or-scope>/<TRACK>-<NN>` (for example `ekaramet/A-03`), or I marked the PR body with `process` for a GENERAL_DOCS_PROCESS branch.
 - [ ] I confirmed changed files stay within the declared ticket track ownership scope.
 - [ ] I ran the applicable local checks for this change.
 - [ ] I listed the audit IDs affected by this change.
@@ -305,7 +306,7 @@ npm run policy
 
 ```bash
 npm run policy:quality
-npm run policy:checks
+npm run policy:checks:local
 npm run policy:forbid
 npm run policy:header
 npm run policy:approve
@@ -368,7 +369,8 @@ After a ticket is merged, update the matching ticket entry in `ticket-tracker.md
 - `npm run policy` runs the default all-in-one gate. It covers quality/checks/scans/approval when PR metadata is present, and falls back to repo-wide checks when it is not.
 - `npm run policy:repo` runs the repo-wide gate. It covers repo forbidden-tech scans, repo source headers, and traceability and dependency pairing checks.
 - `npm run policy:quality` is the narrow quality-only rerun.
-- `npm run policy:checks` is the narrow rerun for branch/commit ticket association, ticket list membership, single-track ownership checks, and the GENERAL_DOCS_PROCESS process-marker fallback.
+- `npm run policy:checks:local` is the preferred local rerun for checks because it runs `policy:prep` before `policy:checks`.
+- `npm run policy:checks` is the direct rerun for branch-ticket format validation, ticket list membership, single-track ownership checks, and the GENERAL_DOCS_PROCESS process-marker fallback.
 - `npm run policy:forbid` and `npm run policy:forbidrepo` isolate forbidden-tech failures.
 - `npm run policy:header` and `npm run policy:headerrepo` isolate source-header failures.
 - `npm run policy:trace` isolates repo traceability and dependency pairing failures.

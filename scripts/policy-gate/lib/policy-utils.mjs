@@ -17,7 +17,7 @@ export const REQUIRED_SECTIONS = [
 export const REQUIRED_CHECKBOXES = [
   'I read AGENTS.md and the agentic workflow guide',
   'I ran `npm run policy` locally',
-  'I verified my branch name or commits reference at least one ticket ID from docs/implementation/ticket-tracker.md, or I marked the PR body with process for a GENERAL_DOCS_PROCESS branch',
+  'I verified my branch name follows <owner-or-scope>/<TRACK>-<NN> (for example ekaramet/A-03), or I marked the PR body with process for a GENERAL_DOCS_PROCESS branch',
   'I confirmed changed files stay within the declared ticket track ownership scope',
   'I ran the applicable local checks',
   'I listed the audit IDs affected by this change',
@@ -45,6 +45,7 @@ const IGNORED_DIRS = new Set([
 ]);
 
 export const TICKET_ID_PATTERN = /\b([ABCD]-\d{2})\b/gi;
+export const EXPLICIT_TICKET_BRANCH_PATTERN = /^[A-Za-z0-9._-]+\/([ABCD]-\d{2})$/;
 
 export const SHARED_OWNERSHIP_PATTERNS = [
   'AGENTS.md',
@@ -71,6 +72,7 @@ export const TRACK_OWNERSHIP_RULES = {
       'src/game/**',
       'src/debug/**',
       'src/ecs/world/**',
+      'src/ecs/components/actors.js',
       'tests/**',
     ],
   },
@@ -86,6 +88,18 @@ export const TRACK_OWNERSHIP_RULES = {
       'src/ecs/systems/explosion-system.js',
       'src/ecs/systems/power-up-system.js',
       'src/ecs/systems/ghost-ai-system.js',
+    ],
+    testPatterns: [
+      'tests/unit/components/**',
+      'tests/unit/systems/input-system.test.js',
+      'tests/unit/systems/player-move-system.test.js',
+      'tests/unit/systems/collision-system.test.js',
+      'tests/unit/systems/bomb-tick-system.test.js',
+      'tests/unit/systems/explosion-system.test.js',
+      'tests/unit/systems/power-up-system.test.js',
+      'tests/unit/systems/ghost-ai-system.test.js',
+      'tests/integration/adapters/input-adapter.test.js',
+      'tests/integration/gameplay/b-*.test.js',
     ],
   },
   C: {
@@ -107,12 +121,24 @@ export const TRACK_OWNERSHIP_RULES = {
       'assets/manifests/audio-manifest.json',
       'docs/schemas/audio-manifest.schema.json',
     ],
+    testPatterns: [
+      'tests/unit/systems/scoring-system.test.js',
+      'tests/unit/systems/timer-system.test.js',
+      'tests/unit/systems/life-system.test.js',
+      'tests/unit/systems/spawn-system.test.js',
+      'tests/unit/systems/pause-system.test.js',
+      'tests/unit/systems/level-progress-system.test.js',
+      'tests/integration/adapters/hud-adapter.test.js',
+      'tests/integration/adapters/screens-adapter.test.js',
+      'tests/integration/adapters/storage-adapter.test.js',
+      'tests/integration/adapters/audio-adapter.test.js',
+      'tests/integration/gameplay/c-*.test.js',
+    ],
   },
   D: {
     name: 'Track D (Resources/Rendering/Visual)',
     patterns: [
       'src/ecs/resources/**',
-      'src/ecs/components/visual.js',
       'src/ecs/systems/render-collect-system.js',
       'src/ecs/systems/render-dom-system.js',
       'src/adapters/dom/renderer-adapter.js',
@@ -125,6 +151,14 @@ export const TRACK_OWNERSHIP_RULES = {
       'assets/manifests/visual-manifest.json',
       'docs/schemas/map.schema.json',
       'docs/schemas/visual-manifest.schema.json',
+    ],
+    testPatterns: [
+      'tests/unit/resources/**',
+      'tests/unit/systems/render-collect-system.test.js',
+      'tests/unit/systems/render-dom-system.test.js',
+      'tests/integration/adapters/renderer-adapter.test.js',
+      'tests/integration/adapters/sprite-pool-adapter.test.js',
+      'tests/integration/gameplay/d-*.test.js',
     ],
   },
 };
@@ -247,6 +281,13 @@ export function inferTicketIdsFromSources(...sources) {
   return sortTicketIds(all);
 }
 
+export function extractTicketIdFromBranchName(branchName) {
+  const match = String(branchName || '')
+    .trim()
+    .match(EXPLICIT_TICKET_BRANCH_PATTERN);
+  return match ? String(match[1]).toUpperCase() : '';
+}
+
 export function inferTracksFromTicketIds(ticketIds) {
   const tracks = new Set();
   for (const ticketId of ticketIds || []) {
@@ -341,7 +382,11 @@ export function findOwnershipViolations(trackCode, files) {
     };
   }
 
-  const allowedPatterns = [...SHARED_OWNERSHIP_PATTERNS, ...rule.patterns];
+  const allowedPatterns = [
+    ...SHARED_OWNERSHIP_PATTERNS,
+    ...(rule.patterns || []),
+    ...(rule.testPatterns || []),
+  ];
   const violations = (files || [])
     .map((file) => normalizePolicyPath(file))
     .filter(Boolean)
@@ -506,6 +551,23 @@ export function collectChangedFiles(baseSha, headSha, options = {}) {
         .filter(Boolean),
     ),
   ].sort();
+}
+
+export function collectLocalWorkingTreeFiles() {
+  if (!commandSucceeded('git', ['rev-parse', '--is-inside-work-tree'])) {
+    return [];
+  }
+
+  const trackedChanges = runCommand('git', ['diff', '--name-only', 'HEAD'])
+    .split(/\r?\n/)
+    .map((line) => line.trim())
+    .filter(Boolean);
+  const untrackedChanges = runCommand('git', ['ls-files', '--others', '--exclude-standard'])
+    .split(/\r?\n/)
+    .map((line) => line.trim())
+    .filter(Boolean);
+
+  return [...new Set([...trackedChanges, ...untrackedChanges])].sort();
 }
 
 export function walkFiles(rootDir, predicate) {

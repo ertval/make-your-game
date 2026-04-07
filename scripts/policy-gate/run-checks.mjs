@@ -2,6 +2,8 @@ import fs from 'node:fs';
 import path from 'node:path';
 import {
   describePolicyResolution,
+  EXPLICIT_TICKET_BRANCH_PATTERN,
+  extractTicketIdFromBranchName,
   findOwnershipViolations,
   inferProcessModeFromSources,
   inferTicketIdsFromSources,
@@ -41,20 +43,43 @@ const PROCESS_SCOPE_PATTERNS = [
 ];
 
 function deriveTicketContext() {
+  const branchName = meta.branchName || '';
+  const requireBranchTicket = String(args['require-branch-ticket'] || 'false') === 'true';
   const explicitTicketIds = inferTicketIdsFromSources(
     args['ticket-id'] || '',
     args['ticket-ids'] || '',
   );
-  const branchTicketIds = inferTicketIdsFromSources(meta.branchName || '');
+  const explicitBranchTicketId = extractTicketIdFromBranchName(branchName);
+  const branchTicketIds = explicitBranchTicketId
+    ? [explicitBranchTicketId]
+    : inferTicketIdsFromSources(branchName);
   const commitTicketIds = inferTicketIdsFromSources(meta.commitMessages || '');
   const metaTicketIds = Array.isArray(meta.ticketIds) ? meta.ticketIds : [];
-  const ticketIds = sortTicketIds([
-    ...explicitTicketIds,
-    ...metaTicketIds,
-    ...branchTicketIds,
-    ...commitTicketIds,
-  ]);
+  const ticketIds =
+    requireBranchTicket && !processMode && explicitBranchTicketId
+      ? sortTicketIds([...explicitTicketIds, explicitBranchTicketId])
+      : sortTicketIds([
+          ...explicitTicketIds,
+          ...metaTicketIds,
+          ...branchTicketIds,
+          ...commitTicketIds,
+        ]);
   const trackCodes = inferTracksFromTicketIds(ticketIds);
+
+  if (
+    requireBranchTicket &&
+    !processMode &&
+    branchName &&
+    !EXPLICIT_TICKET_BRANCH_PATTERN.test(branchName)
+  ) {
+    throw new Error(
+      [
+        `Branch "${branchName}" does not follow the required ticket format.`,
+        'Expected: <owner-or-scope>/<TRACK>-<NN>, for example ekaramet/A-03.',
+        'Allowed track prefixes: A, B, C, D.',
+      ].join('\n'),
+    );
+  }
 
   return {
     branchTicketIds,
