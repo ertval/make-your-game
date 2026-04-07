@@ -6,6 +6,29 @@ import addFormats from 'ajv-formats';
 
 const root = process.cwd();
 
+/**
+ * Collect all map JSON files from assets/maps/ and pair them with the map schema.
+ * Falls back to a single file if the directory does not exist yet.
+ */
+function collectMapPairs() {
+  const mapsDir = path.join(root, 'assets', 'maps');
+  const schemaPath = 'docs/schemas/map.schema.json';
+  const pairs = [];
+
+  if (fs.existsSync(mapsDir)) {
+    for (const entry of fs.readdirSync(mapsDir)) {
+      if (entry.endsWith('.json')) {
+        pairs.push({
+          data: path.join('assets', 'maps', entry),
+          schema: schemaPath,
+        });
+      }
+    }
+  }
+
+  return pairs;
+}
+
 const pairs = [
   {
     data: 'assets/manifests/audio-manifest.json',
@@ -15,12 +38,14 @@ const pairs = [
     data: 'assets/manifests/visual-manifest.json',
     schema: 'docs/schemas/visual-manifest.schema.json',
   },
+  ...collectMapPairs(),
 ];
 
 const ajv = new Ajv2020({ allErrors: true, strict: false });
 addFormats(ajv);
 
 let hasFailure = false;
+const compiledSchemas = new Map();
 
 for (const pair of pairs) {
   const dataPath = path.join(root, pair.data);
@@ -31,9 +56,17 @@ for (const pair of pairs) {
     continue;
   }
 
+  // Compile each schema only once to avoid duplicate $id conflicts.
+  let validate;
+  if (compiledSchemas.has(pair.schema)) {
+    validate = compiledSchemas.get(pair.schema);
+  } else {
+    const schema = JSON.parse(fs.readFileSync(schemaPath, 'utf8'));
+    validate = ajv.compile(schema);
+    compiledSchemas.set(pair.schema, validate);
+  }
+
   const data = JSON.parse(fs.readFileSync(dataPath, 'utf8'));
-  const schema = JSON.parse(fs.readFileSync(schemaPath, 'utf8'));
-  const validate = ajv.compile(schema);
   const valid = validate(data);
 
   if (!valid) {
