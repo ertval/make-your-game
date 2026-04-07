@@ -517,10 +517,22 @@ export function collectBranchCommitMessages(options = {}) {
   }
 
   if (mergeBase) {
-    return runCommand('git', ['log', '--format=%s%n%b', `${mergeBase}..${headRef}`]).trim();
+    return runCommand('git', [
+      'log',
+      '--first-parent',
+      '--format=%s%n%b',
+      `${mergeBase}..${headRef}`,
+    ]).trim();
   }
 
-  return runCommand('git', ['log', '--format=%s%n%b', '-n', '30', headRef]).trim();
+  return runCommand('git', [
+    'log',
+    '--first-parent',
+    '--format=%s%n%b',
+    '-n',
+    '30',
+    headRef,
+  ]).trim();
 }
 
 export function collectChangedFiles(baseSha, headSha, options = {}) {

@@ -55,9 +55,6 @@
 - AUDIT-F-02
 - AUDIT-F-08
 - AUDIT-F-10
-- AUDIT-F-17
-- AUDIT-F-18
-- AUDIT-B-01
 
 ## Security notes
 - No unsafe HTML sinks added; error overlay uses textContent.
