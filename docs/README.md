@@ -56,17 +56,20 @@ Gate command reference:
 - `npm run policy:repo` for the repo-wide gate.
 - `npm run policy:quality`, `npm run policy:checks:local`, `npm run policy:checks`, `npm run policy:forbid`, `npm run policy:header`, `npm run policy:forbidrepo`, `npm run policy:headerrepo`, `npm run policy:trace`, and `npm run policy:approve` when you need a narrower rerun.
 
-### 4. Open the Pull Request
+### 4. Run Pre-PR Gates
+- **Commit changes**: Commit your changes using the branch's ticket ID in the commit message before running local checks (as the policy scripts analyze commit metadata).
+- **Pre-PR Gates**: Run `npm run policy` first, then run `npm run policy:repo` or narrower reruns only when needed. Ensure scope-appropriate tests (`test:unit`, `test:integration`, `test:e2e`, `test:audit`) are covered.
+
+### 5. Open the Pull Request
 - **Use the Template**: Read [`implementation/pr-template.md`](implementation/pr-template.md), then open the PR with [`.github/pull_request_template.md`](../.github/pull_request_template.md). This template is the enforced PR contract for required checklist labels, layer boundaries, and section format. Fill out the entire checklist and follow the PR message structure in [PR Message and Gate Workflow](implementation/agentic-workflow-guide.md#12-pr-message-and-gate-workflow).
 - **Attach Evidence**: If your PR touches gameplay-critical paths (e.g., performance, rendering, or pausing), attach the required performance evidence (frame stats, traces) as defined in [`../AGENTS.md`](../AGENTS.md).
 - **Reference Audits**: Explicitly list which `AUDIT-*` IDs from [`implementation/audit-traceability-matrix.md`](implementation/audit-traceability-matrix.md) this PR satisfies and how each affected question was verified.
 - **Review and Merge**: Ensure another dev verifies that the ECS boundaries are intact and security rules are met. Review the diff as a human before merging, and do not merge until the applicable local checks and audit coverage pass.
 
-### 5. Review and Merge
-- **Pre-PR Gates**: Run `npm run policy` first, then run `npm run policy:repo` or narrower reruns only when needed. Ensure scope-appropriate tests (`test:unit`, `test:integration`, `test:e2e`, `test:audit`) are covered.
+### 6. Review and Merge
 - **Review**: Ensure another dev verifies that the ECS boundaries are intact and security rules are met.
 - **Update Tracker**: Once merged, go back to [`implementation/ticket-tracker.md`](implementation/ticket-tracker.md) and update your task status symbol to `[x]` (Done).
-- **Archive the PR Message (Optional)**: Save the final PR message and verification summary under [`pr-messages/`](pr-messages/) if you want a durable local copy.
+- **Archive the PR Message (Required)**: Save the final PR message and verification summary under [`pr-messages/`](pr-messages/) and the audit report under [`audit-reports/`](audit-reports/).
 
 ## Actions Setup and Verification
 

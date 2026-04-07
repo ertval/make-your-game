@@ -291,12 +291,20 @@ Local test command reference (run what applies to your change and list what you 
 - Browser/runtime behavior changes (pause, input, HUD, rendering, gameplay): `npm run test:e2e`
 - Audit-map updates: `npm run test:audit`
 - Manifest/schema updates: `npm run validate:schema`
+- Local checks rerun with prepared metadata: `npm run policy:checks:local`
+- Repo-wide rerun when needed: `npm run policy:repo`
 
 ### Manual gate workflow (required)
 
-Run the local checks before opening a PR:
+Run the local checks before opening a PR. Commit your changes properly using the branch's ticket ID in the commit message before running the local checks (as the policy scripts analyze commit metadata).
 
-1. Run the single PR gate:
+1. Commit your changes:
+
+```bash
+git commit -a -m "feat(<TICKET-ID>): <description>"
+```
+
+2. Run the single PR gate:
 
 ```bash
 npm run policy
@@ -362,7 +370,7 @@ Use this structure in PR descriptions:
 
 ### Recording rule
 
-After a ticket is merged, update the matching ticket entry in `ticket-tracker.md` to `[x]`. Storing the final PR body in `docs/pr-messages/` is optional.
+After a ticket is merged, update the matching ticket entry in `ticket-tracker.md` to `[x]`. Storing the final PR body in `docs/pr-messages/` is **required**. You must also ensure that the final PR audit report produced by `.github/prompts/pr-audit-verification.prompt.md` is saved in `docs/audit-reports/`.
 
 ### Gate hierarchy
 

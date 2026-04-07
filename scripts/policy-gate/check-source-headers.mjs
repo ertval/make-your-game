@@ -1,7 +1,16 @@
+/*
+ * Script: check-source-headers.mjs
+ * Purpose: Ensures all critical source files (.js, .mjs, .cjs) begin with a block comment header
+ * defining their purpose and constraints.
+ * Implementation Notes: Allows scanning only changed files (PR scope) or the whole repository.
+ * Can operate in multiple modes: 'warn' (default), 'error', or 'fail'.
+ */
+
 import fs from 'node:fs';
 import process from 'node:process';
 import { parseArgs, readLines, walkFiles } from './lib/policy-utils.mjs';
 
+// Parse CLI arguments and validate execution mode
 const args = parseArgs(process.argv.slice(2));
 const scope = args.scope || 'changed';
 if (!['changed', 'repo'].includes(scope)) {

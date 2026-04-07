@@ -1,3 +1,10 @@
+/*
+ * Script: prepare-context.mjs
+ * Purpose: Gathers all execution metadata (branch name, commit logs, changed files) before
+ * the checks execute. Normalizes CI remote payload information with local git working tree details.
+ * Implementation Notes: Outputs context to JSON for downstream scripts.
+ */
+
 import fs from 'node:fs';
 import process from 'node:process';
 import {

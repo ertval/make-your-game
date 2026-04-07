@@ -1,3 +1,10 @@
+/*
+ * Script: require-approval.mjs
+ * Purpose: Checks if the Pull Request has the required independent approvals.
+ * Implementation Notes: Contacts the remote git hosting API (GitHub/Gitea) via the CI token.
+ * Passes immediately if running locally or lacking a valid token (falling back to branch protection).
+ */
+
 import process from 'node:process';
 import { parseArgs, readJson, toBool } from './lib/policy-utils.mjs';
 
@@ -15,6 +22,7 @@ const reviewsUrl = meta.reviewsUrl || '';
 const author = meta.author || '';
 const token = process.env.CI_TOKEN || process.env.GITHUB_TOKEN || process.env.GITEA_TOKEN || '';
 
+// Do not enforce approval if the review URL is absent (e.g. non-PR workflows)
 if (!reviewsUrl) {
   console.log('No review endpoint found. Skipping approval API check.');
   process.exit(0);

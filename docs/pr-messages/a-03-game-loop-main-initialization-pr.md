@@ -31,11 +31,17 @@
 - Added integration coverage for pause invariants in tests/integration/gameplay/a03-game-loop.test.js.
 - Added browser-level pause/rAF behavior check in tests/e2e/game-loop.pause.spec.js.
 - Added policy helper command policy:checks:local and strict branch format enforcement updates.
+- Resolved inconsistencies across all documentation by mandating `pre-gate commits` with ticket IDs before local tests.
+- Re-labeled PR message and audit report archiving from 'optional' to 'mandatory' across the documentation to ensure durable audit trails.
+- Appended missing descriptive header blocks to every file within `scripts/policy-gate/`, enforcing `AGENTS.md` code-quality compliance.
+- Generated `scripts/policy-gate/README.md` to explicitly document the gate process boundaries and script operations.
 
 ## Why
 - Ticket A-03 requires deterministic game-loop bootstrap, pause safety, lifecycle resync, and instrumentation hooks needed by audit checks.
 - Local policy checks needed a prep helper to prevent metadata false starts.
 - Branch naming needed a strict unambiguous format for policy and human triage.
+- Workflow updates were necessary to ensure that local `npm run policy` properly triggers with accurate branch/commit contexts.
+- Extraneous `.mjs` files failed the `AGENTS.md` comment criteria for required block comments defining file purpose.
 
 ## Tests
 - npm ci

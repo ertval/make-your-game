@@ -1,3 +1,10 @@
+/*
+ * Script: run-checks.mjs
+ * Purpose: Core verification logic. Enforces branch ticket formatting, ownership scopes, process scopes,
+ * audit dependencies, and security boundaries.
+ * Implementation Notes: Employs strict string checks and regex heuristics for DOM and Framework boundaries.
+ */
+
 import fs from 'node:fs';
 import path from 'node:path';
 import {

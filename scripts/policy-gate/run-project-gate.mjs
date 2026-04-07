@@ -1,3 +1,10 @@
+/*
+ * Script: run-project-gate.mjs
+ * Purpose: Evaluates package.json available scripts to automatically run essential
+ * project quality gates: check, test, coverage, schema-validation, and sbom checks.
+ * Implementation Notes: Runs the npm steps sequentially rather than locally parsing the codebase.
+ */
+
 import fs from 'node:fs';
 import { runCommand } from './lib/policy-utils.mjs';
 

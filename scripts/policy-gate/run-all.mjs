@@ -1,3 +1,11 @@
+/*
+ * Script: run-all.mjs
+ * Purpose: The main orchestrator for the policy checks. Runs quality gates, prepares context,
+ * and executes other specialized gates sequentially based on the scope ('pr' or 'repo').
+ * Implementation Notes: Provides unified fallbacks (e.g. if a process marker is discovered
+ * instead of ticket IDs, it switches to repo-wide scanning).
+ */
+
 import fs from 'node:fs';
 import process from 'node:process';
 import {
