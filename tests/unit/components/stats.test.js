@@ -7,7 +7,6 @@
 
 import { describe, expect, it } from 'vitest';
 
-import { PLAYER_START_LIVES } from '../../../src/ecs/resources/constants.js';
 import {
   createHealthStore,
   createScoreStore,
@@ -16,6 +15,7 @@ import {
   resetScore,
   resetTimer,
 } from '../../../src/ecs/components/stats.js';
+import { PLAYER_START_LIVES } from '../../../src/ecs/resources/constants.js';
 
 describe('stats component stores', () => {
   it('creates and resets a score store with zeroed defaults', () => {

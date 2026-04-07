@@ -7,8 +7,7 @@
  * crossing the DOM or adapter boundary.
  *
  * Public API:
- * - ACTOR_GHOST_TYPE: canonical ghost-type values that match the ticket wording.
- * - ACTOR_GHOST_STATE: ghost-state aliases that match the gameplay wording.
+ * - UNASSIGNED_GHOST_TYPE: sentinel value for ghost slots that are not yet configured.
  * - createPlayerStore(maxEntities): allocate typed arrays for player state.
  * - resetPlayer(store, entityId): restore one player slot to canonical defaults.
  * - createGhostStore(maxEntities): allocate typed arrays for ghost state.
@@ -20,32 +19,25 @@
  * - Small integer fields use Uint8Array to avoid object allocation in hot paths.
  * - Timer fields use Float64Array because future systems will decrement them with
  *   fixed-step fractional math in milliseconds.
- * - Ghost types and states are defined locally so this file stays aligned with
- *   the ticket wording even if other modules still use older naming.
+ * - Ghost types/states are imported from the canonical constants resource so
+ *   this file does not create a second source of truth for gameplay enums.
+ * - Ghost type uses an Int16Array because a fresh slot must be able to hold an
+ *   explicit "unassigned" sentinel rather than silently defaulting to Blinky.
  */
 
-import { DEFAULT_FIRE_RADIUS, PLAYER_START_LIVES, PLAYER_START_MAX_BOMBS } from '../resources/constants.js';
-
-/**
- * Ticket-aligned ghost type values.
- * These names match the Track B deliverable directly.
- */
-export const ACTOR_GHOST_TYPE = Object.freeze({
-  BLINKY: 0,
-  PINKY: 1,
-  INKY: 2,
-  CLYDE: 3,
-});
+import {
+  DEFAULT_FIRE_RADIUS,
+  GHOST_STATE,
+  GHOST_TYPE,
+  PLAYER_START_LIVES,
+  PLAYER_START_MAX_BOMBS,
+} from '../resources/constants.js';
 
 /**
- * Ticket-aligned ghost state values.
- * These names match the Track B deliverable directly.
+ * Sentinel used for ghost slots that have not been configured with a real type yet.
+ * This prevents a fresh slot from being misread as Blinky before initialization.
  */
-export const ACTOR_GHOST_STATE = Object.freeze({
-  NORMAL: 0,
-  STUNNED: 1,
-  DEAD: 2,
-});
+export const UNASSIGNED_GHOST_TYPE = -1;
 
 /**
  * Allocate the typed-array store for player gameplay state.
@@ -90,9 +82,10 @@ export function resetPlayer(store, entityId) {
  */
 export function createGhostStore(maxEntities) {
   return {
-    // Type and state are enum indices, so compact integer arrays are sufficient.
-    type: new Uint8Array(maxEntities),
-    state: new Uint8Array(maxEntities).fill(ACTOR_GHOST_STATE.NORMAL),
+    // Type starts at an explicit sentinel so an uninitialized ghost never masquerades as Blinky.
+    type: new Int16Array(maxEntities).fill(UNASSIGNED_GHOST_TYPE),
+    // State values come from the canonical gameplay enum in constants.js.
+    state: new Uint8Array(maxEntities).fill(GHOST_STATE.NORMAL),
     // Timers and speed are numeric simulation values that will change per level.
     timerMs: new Float64Array(maxEntities),
     speed: new Float64Array(maxEntities),
@@ -106,8 +99,8 @@ export function createGhostStore(maxEntities) {
  * @param {number} entityId - Entity slot index to reset.
  */
 export function resetGhost(store, entityId) {
-  store.type[entityId] = 0;
-  store.state[entityId] = ACTOR_GHOST_STATE.NORMAL;
+  store.type[entityId] = UNASSIGNED_GHOST_TYPE;
+  store.state[entityId] = GHOST_STATE.NORMAL;
   store.timerMs[entityId] = 0;
   store.speed[entityId] = 0;
 }
