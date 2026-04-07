@@ -1,12 +1,33 @@
-# A-03 — Game Loop & Main Initialization PR Message
+# PR Gate Checklist
+
+## Required checks
+
+- [x] I read AGENTS.md and the agentic workflow guide.
+- [x] I ran `npm run policy` locally.
+- [x] I verified my branch name follows `<owner-or-scope>/<TRACK>-<NN>` (for example `ekaramet/A-03`), or I marked the PR body with `process` for a GENERAL_DOCS_PROCESS branch.
+- [x] I confirmed changed files stay within the declared ticket ownership scope.
+- [x] I ran the applicable local checks for this change.
+- [x] I listed the audit IDs affected by this change.
+- [x] I checked security sinks and trust boundaries.
+- [x] I checked architecture boundaries.
+- [x] I checked dependency and lockfile impact.
+- [x] I requested human review.
+
+## Layer boundary confirmation
+
+- [x] src/ecs/systems/ has no DOM references except render-dom-system.js
+- [x] Simulation systems access adapters only through World resources (no direct adapter imports)
+- [x] src/adapters/ owns DOM and browser I/O side effects
+- [x] Untrusted UI content uses safe sinks (textContent / explicit attributes), not HTML injection
+- [x] No framework imports or canvas APIs were introduced in this change
 
 ## What changed
 - Implemented rAF-driven ECS runtime bootstrap in src/main.ecs.js.
 - Added game assembly and fixed-step frame driver in src/game/bootstrap.js.
 - Added FSM game flow driver in src/game/game-flow.js.
-- Added level-load orchestration stub/integration point in src/game/level-loader.js.
+- Added level-load orchestration stub and integration point in src/game/level-loader.js.
 - Added global unhandledrejection handler and visible critical error overlay behavior.
-- Added Playwright frame probe/runtime hooks for semi-automated frame metrics.
+- Added Playwright frame probe and runtime hooks for semi-automated frame metrics.
 - Added integration coverage for pause invariants in tests/integration/gameplay/a03-game-loop.test.js.
 - Added browser-level pause/rAF behavior check in tests/e2e/game-loop.pause.spec.js.
 - Added policy helper command policy:checks:local and strict branch format enforcement updates.
@@ -44,7 +65,7 @@
 - ECS simulation remains isolated from DOM APIs.
 
 ## Architecture / dependency notes
-- Runtime orchestration is kept in src/main.ecs.js + src/game/* and does not add DOM side effects to ECS systems.
+- Runtime orchestration is kept in src/main.ecs.js and src/game/* and does not add DOM side effects to ECS systems.
 - Branch naming policy now requires <owner-or-scope>/<TRACK>-<NN>.
 - policy:checks:local now guarantees metadata prep before checks.
 
