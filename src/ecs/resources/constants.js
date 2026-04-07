@@ -83,8 +83,8 @@ export const GHOST_TYPE = {
 
 /** Ghost state IDs. */
 export const GHOST_STATE = {
-  CHASING: 0,
-  FLEEING: 1,
+  NORMAL: 0,
+  STUNNED: 1,
   DEAD: 2,
 };
 
