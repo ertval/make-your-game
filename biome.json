@@ -23,11 +23,11 @@
   "files": {
     "includes": [
       "**",
-      "!**/dist",
-      "!**/coverage",
-      "!**/playwright-report",
-      "!**/test-results",
-      "!**/sbom.json",
+      "!dist",
+      "!coverage",
+      "!playwright-report",
+      "!test-results",
+      "!sbom.json",
       "!.policy-pr-meta.json",
       "!changed-files.txt"
     ]
