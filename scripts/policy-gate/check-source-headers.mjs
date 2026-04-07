@@ -55,27 +55,107 @@ const files =
     : walkFiles(process.cwd(), (file) => shouldScan(file));
 
 const missingHeaders = [];
+const missingPurpose = [];
+const missingJSDoc = [];
+const lowCommentRatio = [];
+
+const MIN_COMMENT_RATIO = 0.05; // 5% minimum comment to LOC ratio
+
 for (const file of files) {
   const content = fs.readFileSync(file, 'utf8');
-  if (!startsWithBlockComment(content)) {
+  
+  if (!content.trimStart().startsWith('/*')) {
     missingHeaders.push(file);
+  } else {
+    const endIdx = content.indexOf('*/');
+    if (endIdx !== -1) {
+      const headerBlock = content.substring(0, endIdx).toLowerCase();
+      // Ensure the comment block explains the file's purpose, public API, or notes/constraints.
+      if (!headerBlock.includes('purpose') && !headerBlock.includes('api') && !headerBlock.includes('note') && !headerBlock.includes('constraint')) {
+        missingPurpose.push(file);
+      }
+    }
+  }
+
+  const lines = content.split('\n');
+  let commentLines = 0;
+  let codeLines = 0;
+  let inBlockComment = false;
+  let hasJSDoc = false;
+
+  for (let line of lines) {
+    const t = line.trim();
+    if (inBlockComment) {
+      commentLines++;
+      if (t.includes('*/')) inBlockComment = false;
+    } else {
+      if (t.startsWith('//')) {
+        commentLines++;
+      } else if (t.startsWith('/*')) {
+        commentLines++;
+        if (t.startsWith('/**')) {
+          hasJSDoc = true;
+        }
+        if (!t.includes('*/')) {
+          inBlockComment = true;
+        }
+      } else if (t.length > 0) {
+        codeLines++;
+      }
+    }
+  }
+
+  const totalLines = commentLines + codeLines;
+  const ratio = totalLines === 0 ? 1 : commentLines / totalLines;
+  
+  if (ratio < MIN_COMMENT_RATIO && totalLines > 5) {
+     lowCommentRatio.push(`${file} (ratio: ${(ratio*100).toFixed(1)}%)`);
+  }
+  
+  // Exclude extremely tiny files from strict JSDoc enforcement
+  if (!hasJSDoc && totalLines > 10) {
+     missingJSDoc.push(file);
   }
 }
 
-if (missingHeaders.length === 0) {
-  console.log(`Source header check passed for ${files.length} file(s).`);
+let hasViolations = false;
+const details = [];
+
+if (missingHeaders.length > 0) {
+  hasViolations = true;
+  details.push('Source files missing top-of-file block comments:');
+  missingHeaders.forEach((f) => details.push(`- ${f}`));
+}
+
+if (missingPurpose.length > 0) {
+  hasViolations = true;
+  details.push('Source files missing "purpose", "API", "notes", or "constraints" in header comment:');
+  missingPurpose.forEach((f) => details.push(`- ${f}`));
+}
+
+if (lowCommentRatio.length > 0) {
+  hasViolations = true;
+  details.push(`Source files below minimum comment ratio (${MIN_COMMENT_RATIO * 100}%):`);
+  lowCommentRatio.forEach((f) => details.push(`- ${f}`));
+}
+
+if (missingJSDoc.length > 0) {
+  hasViolations = true;
+  details.push('Source files entirely missing JSDoc (/** ... */) usage:');
+  missingJSDoc.forEach((f) => details.push(`- ${f}`));
+}
+
+if (!hasViolations) {
+  console.log(`Code quality and comment check passed for ${files.length} file(s).`);
   process.exit(0);
 }
 
-const details = [
-  'Source files missing top-of-file block comments:',
-  ...missingHeaders.map((file) => `- ${file}`),
-].join('\n');
+const errorOutput = details.join('\n');
 
 if (mode === 'error' || mode === 'fail') {
-  console.error(details);
+  console.error(errorOutput);
   process.exit(1);
 }
 
-console.warn(details);
-console.log('Source header check completed in warn mode; continuing.');
+console.warn(errorOutput);
+console.log('Code quality and comment check completed in warn mode; continuing.');
