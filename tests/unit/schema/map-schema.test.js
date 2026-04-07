@@ -4,6 +4,10 @@
  * Verifies that the JSON Schema 2020-12 map schema correctly accepts valid
  * level maps and rejects invalid ones. Tests cover structure, cell type
  * constraints, dimension consistency, and spawn point validity.
+ *
+ * Structural map consistency (dimensions vs grid size, spawn bounds,
+ * ghost-house ordering) is validated by the programmatic map-consistency
+ * validator in `validateMapConsistency()`.
  */
 
 import fs from 'node:fs';
@@ -74,6 +78,75 @@ function createMinimalValidMap() {
 }
 
 // ---------------------------------------------------------------------------
+// Structural consistency validator (programmatic, beyond JSON Schema)
+// ---------------------------------------------------------------------------
+
+/**
+ * Validate cross-field structural consistency that JSON Schema cannot express.
+ *
+ * @param {object} map - A map data object.
+ * @returns {{ ok: boolean, errors: string[] }}
+ */
+function validateMapConsistency(map) {
+  const errors = [];
+
+  // Grid row count must match dimensions.rows.
+  if (map.dimensions && map.grid) {
+    if (map.grid.length !== map.dimensions.rows) {
+      errors.push(`grid has ${map.grid.length} rows but dimensions.rows is ${map.dimensions.rows}`);
+    }
+
+    // Each grid row must match dimensions.columns.
+    for (let r = 0; r < map.grid.length; r += 1) {
+      if (map.grid[r].length !== map.dimensions.columns) {
+        errors.push(
+          `grid row ${r} has ${map.grid[r].length} columns but dimensions.columns is ${map.dimensions.columns}`,
+        );
+      }
+    }
+  }
+
+  // Player spawn must be inside grid bounds.
+  if (map.spawn?.player && map.dimensions && map.grid) {
+    const { row, col } = map.spawn.player;
+    const maxRow = map.grid.length;
+    const maxCol = maxRow > 0 ? map.grid[0].length : 0;
+    if (row < 0 || row >= maxRow) {
+      errors.push(`player spawn row ${row} is outside grid rows [0, ${maxRow - 1}]`);
+    }
+    if (col < 0 || col >= maxCol) {
+      errors.push(`player spawn col ${col} is outside grid cols [0, ${maxCol - 1}]`);
+    }
+  }
+
+  // Ghost spawn point must be inside grid bounds.
+  if (map.spawn?.ghostSpawnPoint && map.dimensions && map.grid) {
+    const { row, col } = map.spawn.ghostSpawnPoint;
+    const maxRow = map.grid.length;
+    const maxCol = maxRow > 0 ? map.grid[0].length : 0;
+    if (row < 0 || row >= maxRow) {
+      errors.push(`ghost spawn row ${row} is outside grid rows [0, ${maxRow - 1}]`);
+    }
+    if (col < 0 || col >= maxCol) {
+      errors.push(`ghost spawn col ${col} is outside grid cols [0, ${maxCol - 1}]`);
+    }
+  }
+
+  // Ghost house bounds must be well-formed.
+  if (map.spawn?.ghostHouse) {
+    const { topRow, bottomRow, leftCol, rightCol } = map.spawn.ghostHouse;
+    if (topRow > bottomRow) {
+      errors.push(`ghost house topRow ${topRow} > bottomRow ${bottomRow}`);
+    }
+    if (leftCol > rightCol) {
+      errors.push(`ghost house leftCol ${leftCol} > rightCol ${rightCol}`);
+    }
+  }
+
+  return { ok: errors.length === 0, errors };
+}
+
+// ---------------------------------------------------------------------------
 // Valid map tests
 // ---------------------------------------------------------------------------
 
@@ -100,6 +173,15 @@ describe('map schema — valid level maps', () => {
     const { valid, errors } = validateMap(data);
     expect(valid).toBe(true);
     expect(errors).toHaveLength(0);
+  });
+
+  it('accepts maps containing power-up cell types (7, 8, 9)', () => {
+    const map = createMinimalValidMap();
+    map.grid[1][1] = 7;
+    map.grid[1][2] = 8;
+    map.grid[1][3] = 9;
+    const { valid } = validateMap(map);
+    expect(valid).toBe(true);
   });
 
   it('accepts a minimal valid map with all cell types', () => {
@@ -259,9 +341,9 @@ describe('map schema — invalid metadata fixtures', () => {
 // ---------------------------------------------------------------------------
 
 describe('map schema — invalid grid cell types', () => {
-  it('rejects grid cell with invalid type ID (7)', () => {
+  it('rejects grid cell with invalid type ID (10)', () => {
     const map = createMinimalValidMap();
-    map.grid[1][1] = 7;
+    map.grid[1][1] = 10;
     const { valid } = validateMap(map);
     expect(valid).toBe(false);
   });
@@ -333,27 +415,6 @@ describe('map schema — invalid spawn fixtures', () => {
     map.spawn.player.row = -1;
     const { valid } = validateMap(map);
     expect(valid).toBe(false);
-  });
-
-  it('rejects ghostHouse with topRow > bottomRow (programmatic check)', () => {
-    const map = createMinimalValidMap();
-    map.spawn.ghostHouse.topRow = 3;
-    map.spawn.ghostHouse.bottomRow = 2;
-    // Schema allows individual non-negative integers; cross-field validation
-    // is the responsibility of the map-loading resource (D-03).
-    const { valid } = validateMap(map);
-    expect(valid).toBe(true);
-    // But the programmatic invariant must still be caught at load time.
-    expect(map.spawn.ghostHouse.topRow).toBeGreaterThan(map.spawn.ghostHouse.bottomRow);
-  });
-
-  it('rejects ghostHouse with leftCol > rightCol (programmatic check)', () => {
-    const map = createMinimalValidMap();
-    map.spawn.ghostHouse.leftCol = 3;
-    map.spawn.ghostHouse.rightCol = 2;
-    const { valid } = validateMap(map);
-    expect(valid).toBe(true);
-    expect(map.spawn.ghostHouse.leftCol).toBeGreaterThan(map.spawn.ghostHouse.rightCol);
   });
 
   it('rejects spawn with unknown properties', () => {
@@ -443,5 +504,73 @@ describe('map schema — additionalProperties rejection', () => {
     map.spawn.ghostSpawnPoint.delay = 5000;
     const { valid } = validateMap(map);
     expect(valid).toBe(false);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Structural consistency tests (programmatic — beyond JSON Schema)
+// ---------------------------------------------------------------------------
+
+describe('map consistency — programmatic structural validation', () => {
+  it('passes consistency for all 3 shipped level maps', () => {
+    for (const level of [1, 2, 3]) {
+      const dataPath = path.join(root, `assets/maps/level-${level}.json`);
+      const data = JSON.parse(fs.readFileSync(dataPath, 'utf8'));
+      const result = validateMapConsistency(data);
+      expect(result.ok).toBe(
+        true,
+        `level-${level}.json consistency errors: ${result.errors.join('; ')}`,
+      );
+    }
+  });
+
+  it('fails when grid row count does not match dimensions.rows', () => {
+    const map = createMinimalValidMap();
+    map.grid.pop();
+    const result = validateMapConsistency(map);
+    expect(result.ok).toBe(false);
+    expect(result.errors.some((e) => e.includes('rows'))).toBe(true);
+  });
+
+  it('fails when grid column count does not match dimensions.columns', () => {
+    const map = createMinimalValidMap();
+    map.grid[0].pop();
+    const result = validateMapConsistency(map);
+    expect(result.ok).toBe(false);
+    expect(result.errors.some((e) => e.includes('columns'))).toBe(true);
+  });
+
+  it('fails when player spawn is outside grid bounds', () => {
+    const map = createMinimalValidMap();
+    map.spawn.player.row = 99;
+    const result = validateMapConsistency(map);
+    expect(result.ok).toBe(false);
+    expect(result.errors.some((e) => e.includes('player spawn'))).toBe(true);
+  });
+
+  it('fails when ghost spawn point is outside grid bounds', () => {
+    const map = createMinimalValidMap();
+    map.spawn.ghostSpawnPoint.col = 99;
+    const result = validateMapConsistency(map);
+    expect(result.ok).toBe(false);
+    expect(result.errors.some((e) => e.includes('ghost spawn'))).toBe(true);
+  });
+
+  it('fails when ghost house topRow > bottomRow', () => {
+    const map = createMinimalValidMap();
+    map.spawn.ghostHouse.topRow = 8;
+    map.spawn.ghostHouse.bottomRow = 2;
+    const result = validateMapConsistency(map);
+    expect(result.ok).toBe(false);
+    expect(result.errors.some((e) => e.includes('topRow'))).toBe(true);
+  });
+
+  it('fails when ghost house leftCol > rightCol', () => {
+    const map = createMinimalValidMap();
+    map.spawn.ghostHouse.leftCol = 8;
+    map.spawn.ghostHouse.rightCol = 2;
+    const result = validateMapConsistency(map);
+    expect(result.ok).toBe(false);
+    expect(result.errors.some((e) => e.includes('leftCol'))).toBe(true);
   });
 });
