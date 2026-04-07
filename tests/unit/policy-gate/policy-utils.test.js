@@ -1,3 +1,10 @@
+/**
+ * Test: policy-utils.test.js
+ * Purpose: Validates ticket/process detection and ownership resolution helpers used by policy gates.
+ * Public API: N/A (test module).
+ * Implementation Notes: Focuses on deterministic string/path parsing to keep policy decisions predictable.
+ */
+
 import { describe, expect, it } from 'vitest';
 
 import {

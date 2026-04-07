@@ -1,3 +1,10 @@
+/*
+ * Module: policy-utils.mjs
+ * Purpose: Provides shared utilities and policy metadata for policy-gate scripts.
+ * Public API: Exports ticket parsing helpers, ownership rules, filesystem helpers, and process-mode resolution used by all gate scripts.
+ * Implementation Notes: Utilities are synchronous and deterministic to keep local and CI policy outcomes consistent.
+ */
+
 import { spawnSync } from 'node:child_process';
 import fs from 'node:fs';
 import path from 'node:path';

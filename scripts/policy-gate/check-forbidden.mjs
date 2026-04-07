@@ -13,8 +13,9 @@ const args = parseArgs(process.argv.slice(2));
 const scope = args.scope || 'repo';
 const changedPath = args['changed-file'] || 'changed-files.txt';
 
-// Match all script and component file extensions
+// We filter by extension to restrict scanning down to logic and markup, avoiding binary or asset files.
 const sourcePattern = /\.(js|mjs|cjs|ts|tsx|jsx|html)$/;
+// We define regexes to ban direct use of frameworks or raw Canvas APIs, enforcing Vanilla DOM/ECS constraints.
 const forbiddenPatterns = [
   { name: 'canvas element', pattern: /<\s*canvas\b/i },
   { name: 'canvas createElement', pattern: /createElement\s*\(\s*['"]canvas['"]\s*\)/i },
@@ -29,16 +30,18 @@ const forbiddenPatterns = [
   },
 ];
 
-// Determine the list of files to check either from context or whole repo based on scope argument
+// We branch based on scope to support both targeted PR diff scanning (faster) and exhaustive repo audits.
 const files =
   scope === 'changed'
+    // We conditionally filter out deleted files by checking `existsSync` so we don't try to read paths that no longer exist.
     ? readLines(changedPath).filter((file) => sourcePattern.test(file) && fs.existsSync(file))
     : walkFiles(process.cwd(), (file) => sourcePattern.test(file));
 
 const violations = [];
 
-// Check each file independently against the forbidden rule definitions
+// We examine each file completely so we can accumulate all violations rather than failing on the first hit.
 for (const file of files) {
+  // We specify utf8 to ensure string interpretation for regex matching against raw byte buffers.
   const content = fs.readFileSync(file, 'utf8');
   for (const rule of forbiddenPatterns) {
     if (rule.pattern.test(content)) {
@@ -47,6 +50,7 @@ for (const file of files) {
   }
 }
 
+// A non-zero length means the CI check should break here to prevent non-compliant tech from entering the trunk.
 if (violations.length > 0) {
   console.error('Forbidden technology usage detected:');
   for (const violation of violations) {

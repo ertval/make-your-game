@@ -1,8 +1,13 @@
 /*
  * ECS world runtime orchestration.
+ * Purpose: Coordinates fixed-step ECS execution phases, resources, and deferred structural mutations.
  *
  * The world owns system phase ordering, resource registration, entity/query
  * storage, and deferred structural mutations applied after each fixed step.
+ *
+ * Public API:
+ * - World
+ * - DEFAULT_PHASE_ORDER
  */
 
 import { EntityStore } from './entity-store.js';

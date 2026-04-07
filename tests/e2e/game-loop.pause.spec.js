@@ -1,3 +1,10 @@
+/**
+ * Test: game-loop.pause.spec.js
+ * Purpose: Verifies pause invariants for the browser runtime by asserting rAF continues while simulation time is frozen.
+ * Public API: N/A (test module).
+ * Implementation Notes: Uses runtime hooks exposed on window to validate pause/resume behavior through Playwright.
+ */
+
 import { expect, test } from '@playwright/test';
 
 test('keeps rAF active while paused and freezes simulation progression', async ({ page }) => {

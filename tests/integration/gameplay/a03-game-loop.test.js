@@ -1,3 +1,10 @@
+/**
+ * Test: a03-game-loop.test.js
+ * Purpose: Covers fixed-step game-loop behavior, including pause freeze and resume clock resynchronization.
+ * Public API: N/A (test module).
+ * Implementation Notes: Uses deterministic stubs for window/document/timing to assert simulation invariants.
+ */
+
 import { describe, expect, it, vi } from 'vitest';
 
 import { FIXED_DT_MS } from '../../../src/ecs/resources/constants.js';

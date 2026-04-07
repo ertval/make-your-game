@@ -1,5 +1,6 @@
 /**
  * Unit tests for the B-01 prop component stores.
+ * Purpose: Protects the storage contract for bombs, fire, power-ups, and pellets.
  *
  * These checks protect the storage contract for bombs, fire, power-ups, and
  * pellets so later gameplay systems can rely on deterministic defaults.
