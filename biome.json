@@ -21,15 +21,15 @@
     }
   },
   "files": {
-    "include": [
+    "includes": [
       "**",
-      "!dist",
-      "!coverage",
-      "!playwright-report",
-      "!test-results",
-      "!sbom.json",
-      "!.policy-pr-meta.json",
-      "!changed-files.txt"
+      "!!**/dist",
+      "!!**/coverage",
+      "!!**/playwright-report",
+      "!!**/test-results",
+      "!!**/sbom.json",
+      "!!**/.policy-pr-meta.json",
+      "!!**/changed-files.txt"
     ]
   }
 }

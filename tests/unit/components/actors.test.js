@@ -9,13 +9,13 @@
 import { describe, expect, it } from 'vitest';
 
 import {
-  UNASSIGNED_GHOST_TYPE,
   createGhostStore,
   createInputStateStore,
   createPlayerStore,
   resetGhost,
   resetInputState,
   resetPlayer,
+  UNASSIGNED_GHOST_TYPE,
 } from '../../../src/ecs/components/actors.js';
 import {
   DEFAULT_FIRE_RADIUS,

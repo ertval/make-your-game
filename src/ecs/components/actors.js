@@ -28,7 +28,6 @@
 import {
   DEFAULT_FIRE_RADIUS,
   GHOST_STATE,
-  GHOST_TYPE,
   PLAYER_START_LIVES,
   PLAYER_START_MAX_BOMBS,
 } from '../resources/constants.js';
