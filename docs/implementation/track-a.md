@@ -9,8 +9,8 @@
 
 - **P0 Foundation**: `A-01` to `A-03`
 - **P1 Visual Prototype**: No new Track A tickets (support only)
-- **P2 Playable MVP**: No new Track A tickets (integration support only)
-- **P3 Feature Complete + Hardening**: `A-04` to `A-08`
+- **P2 Playable MVP**: `A-07`
+- **P3 Feature Complete + Hardening**: `A-04` to `A-06`, `A-08`
 - **P4 Final Acceptance**: `A-09`
 
 ---
@@ -105,9 +105,6 @@
 **Blocks**: None
 
 **Deliverables**:
-- `tests/unit/world/entity-store.test.js`
-- `tests/unit/world/query.test.js`
-- `tests/unit/world/world.test.js`
 - `tests/unit/resources/clock.test.js`
 - `tests/unit/resources/rng.test.js`
 - `tests/unit/resources/event-queue.test.js`
@@ -115,9 +112,6 @@
 - `tests/unit/resources/constants.test.js`
 - `tests/unit/resources/map-resource.test.js`
 
-- [ ] Write unit tests for `entity-store.js`: ID generation, recycling, stale-handle rejection, capacity limits.
-- [ ] Write unit tests for `query.js`: bitmask matching, multi-component queries, empty result sets.
-- [ ] Write unit tests for `world.js`: system registration, execution ordering, deferred mutation sync, frame context delivery.
 - [ ] Write unit tests for `clock.js`: time progression, pause freeze, resume baseline reset, accumulator clamp.
 - [ ] Write unit tests for `rng.js`: deterministic sequences from same seed, different seeds produce different sequences.
 - [ ] Write unit tests for `event-queue.js`: insertion ordering, flush behavior, deterministic iteration.
@@ -131,13 +125,14 @@
 #### A-05: Integration Tests — Multi-System & Adapter Boundaries
 **Priority**: ��� Medium
 **Phase**: P3 Feature Complete + Hardening
-**Depends On**: `A-03`, `B-03`, `C-02`, `C-04`, `C-05`, `D-08`
+**Depends On**: `A-03`, `B-03`, `B-04`, `B-06`, `B-09`, `C-01`, `C-02`, `C-04`, `C-05`, `D-08`
 **Impacts**: Cross-system correctness, adapter boundary guarantees, deterministic replay confidence
 **Blocks**: A-09
 
 **Deliverables**:
 - `tests/integration/gameplay/*.test.js` — multi-system interaction scenarios
 - `tests/integration/adapters/*.test.js` — adapter boundary tests (jsdom)
+- `src/debug/replay.js` — replay utility
 - Replay determinism test using `src/debug/replay.js`
 
 - [ ] Write integration tests for `tests/integration/gameplay/`: multi-system interaction scenarios (bomb→explosion→collision→scoring pipeline).
@@ -151,6 +146,7 @@
   - `screens-adapter.js`: overlay toggling, keyboard focus transfer.
   - `audio-adapter.js`: async decode path, cue mapping, fallback behavior for missing clips.
   - `storage-adapter.js`: untrusted data validation on read.
+- [ ] Implement replay utility in `src/debug/replay.js` to support determinism checks and tests.
 - [ ] Write replay determinism test: same seed + input trace → identical `hashWorldState` at frame N.
 - [ ] Verification gate: all integration tests green.
 
@@ -159,7 +155,7 @@
 #### A-06: E2E Audit Tests (Playwright)
 **Priority**: ��� Critical
 **Phase**: P3 Feature Complete + Hardening
-**Depends On**: `A-03`, `B-04`, `C-04`, `C-05`
+**Depends On**: `A-03`, `B-04`, `B-06`, `B-07`, `B-08`, `B-09`, `C-01`, `C-02`, `C-03`, `C-04`, `C-05`
 **Impacts**: Acceptance automation coverage (`AUDIT-F-01..F-18`, `AUDIT-B-01..B-05`)
 **Blocks**: A-09
 
@@ -205,7 +201,7 @@
 
 #### A-07: CI, Schema Validation & Asset Gates
 **Priority**: ��� Medium
-**Phase**: P3 Feature Complete + Hardening
+**Phase**: P2 Playable MVP
 **Depends On**: `A-01`, `D-03`
 **Impacts**: Merge safety, schema integrity, dependency and asset governance (`AUDIT-B-02`)
 **Blocks**: A-09, C-10, D-11
@@ -215,10 +211,11 @@
 - File existence checks for manifest paths
 - Naming/size-budget checks for generated assets
 
-- [ ] Wire schema checks for `assets/manifests/*.json` against `docs/schemas/*.schema.json` into CI.
+- [ ] Wire schema checks for map JSONs and `assets/manifests/*.json` against `docs/schemas/*.schema.json` into CI.
 - [ ] Add file existence checks for manifest paths and fail CI on missing assets.
 - [ ] Enforce naming and size-budget checks for generated assets.
-- [ ] Verification gate: CI fails on schema mismatch, missing file, naming-rule violation, or budget overrun.
+- [ ] Implement and validate strict CSP/Trusted Types enforcement in the production build pipeline.
+- [ ] Verification gate: CI fails on schema mismatch, missing file, naming-rule violation, or budget overrun, and production CSP is validated.
 
 ---
 

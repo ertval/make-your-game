@@ -8,8 +8,8 @@
 ## Phase Order (Prototype-First)
 
 - **P1 Visual Prototype**: No new Track C tickets
-- **P2 Playable MVP**: `C-01` to `C-05`
-- **P3 Feature Complete + Hardening**: `C-06`, `C-07`
+- **P2 Playable MVP**: `C-01` to `C-06`
+- **P3 Feature Complete + Hardening**: `C-07`
 - **P4 Polish and Validation**: `C-08` to `C-10`
 
 ---
@@ -17,7 +17,7 @@
 #### C-01: Scoring System
 **Priority**: ��� Critical
 **Phase**: P2 Playable MVP
-**Depends On**: `B-04` (collision intents), `D-01` (event-queue resource)
+**Depends On**: `B-04` (collision intents), `C-02` (timer/lives), `D-01` (event-queue resource)
 **Impacts**: HUD-critical score metric (`AUDIT-F-15`)
 **Blocks**: A-08, B-09
 
@@ -26,7 +26,7 @@
 
 - [ ] Implement `scoring-system.js` with exact canonical values:
   - Pellet: +10, Power Pellet: +50, Ghost kill (normal): +200, Ghost kill (stunned): +400.
-  - Chain multiplier: `200 * 2^(n-1)` per ghost. Power-up pickup: +100.
+  - Chain multiplier: `200 * 2^(n-1)` per ghost. Power-up pickup: +100. Retain full authority over all pointing and combo logic here in C-01.
   - Level clear: +1000 + (remainingSeconds × 10).
 - [ ] Consume collision intents and explosion events to award points.
 - [ ] Verification gate: unit tests match every value in `game-description.md` §6.
@@ -119,7 +119,7 @@
 
 #### C-06: Audio Adapter Implementation
 **Priority**: ��� Critical
-**Phase**: P3 Feature Complete + Hardening
+**Phase**: P2 Playable MVP
 **Depends On**: `A-01` (scaffolding), `D-01` (constants resource)
 **Impacts**: Runtime audio boundary, fallback resilience, async decode baseline (`AUDIT-B-05`)
 **Blocks**: C-07, C-08, C-09
