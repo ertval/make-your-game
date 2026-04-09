@@ -225,6 +225,11 @@ export function createGameRuntime({
 
   function onBlur() {
     clearHeldInputState(bootstrap);
+    bootstrap.resyncTime(getNow());
+  }
+
+  function onFocus() {
+    bootstrap.resyncTime(getNow());
   }
 
   function start() {
@@ -235,6 +240,7 @@ export function createGameRuntime({
     isRunning = true;
     if (targetWindow && typeof targetWindow.addEventListener === 'function') {
       targetWindow.addEventListener('blur', onBlur);
+      targetWindow.addEventListener('focus', onFocus);
     }
     if (targetDocument && typeof targetDocument.addEventListener === 'function') {
       targetDocument.addEventListener('visibilitychange', onVisibilityChange);
@@ -251,6 +257,7 @@ export function createGameRuntime({
     }
     if (targetWindow && typeof targetWindow.removeEventListener === 'function') {
       targetWindow.removeEventListener('blur', onBlur);
+      targetWindow.removeEventListener('focus', onFocus);
     }
     if (targetDocument && typeof targetDocument.removeEventListener === 'function') {
       targetDocument.removeEventListener('visibilitychange', onVisibilityChange);

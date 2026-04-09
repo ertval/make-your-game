@@ -7,7 +7,8 @@
 
 import { describe, expect, it, vi } from 'vitest';
 
-import { FIXED_DT_MS } from '../../../src/ecs/resources/constants.js';
+import { FIXED_DT_MS, MAX_STEPS_PER_FRAME } from '../../../src/ecs/resources/constants.js';
+import { GAME_STATE } from '../../../src/ecs/resources/game-status.js';
 import { createBootstrap } from '../../../src/game/bootstrap.js';
 import { createGameRuntime } from '../../../src/main.ecs.js';
 
@@ -31,7 +32,53 @@ function createDocumentStub() {
   };
 }
 
+function createWindowStub() {
+  const listeners = new Map();
+
+  return {
+    addEventListener: vi.fn((eventName, handler) => {
+      listeners.set(eventName, handler);
+    }),
+    dispatch: (eventName, payload = {}) => {
+      const handler = listeners.get(eventName);
+      if (handler) {
+        handler(payload);
+      }
+    },
+    removeEventListener: vi.fn((eventName) => {
+      listeners.delete(eventName);
+    }),
+  };
+}
+
 describe('A-03 game loop and runtime', () => {
+  it('loads the next level when continuing from LEVEL_COMPLETE', () => {
+    const loadedMaps = [];
+    const bootstrap = createBootstrap({
+      loadMapForLevel: (levelIndex, options) => {
+        const map = {
+          levelIndex,
+          options,
+        };
+        loadedMaps.push(map);
+        return map;
+      },
+      now: 0,
+    });
+
+    expect(bootstrap.gameFlow.startGame({ levelIndex: 0 })).toBe(true);
+    expect(bootstrap.levelLoader.getCurrentLevelIndex()).toBe(0);
+    expect(bootstrap.gameFlow.setState(GAME_STATE.LEVEL_COMPLETE)).toBe(true);
+
+    expect(bootstrap.gameFlow.startGame()).toBe(true);
+    expect(bootstrap.levelLoader.getCurrentLevelIndex()).toBe(1);
+    expect(loadedMaps).toHaveLength(2);
+    expect(loadedMaps[1].levelIndex).toBe(1);
+    expect(loadedMaps[1].options.reason).toBe('level-complete');
+    expect(loadedMaps[1].options.advance).toBe(true);
+    expect(bootstrap.gameStatus.currentState).toBe(GAME_STATE.PLAYING);
+  });
+
   it('freezes simulation while paused and resumes without burst catch-up', () => {
     const bootstrap = createBootstrap({ now: 0 });
 
@@ -60,6 +107,15 @@ describe('A-03 game loop and runtime', () => {
     expect(bootstrap.world.frame).toBe(frameBeforePause + 2);
   });
 
+  it('clamps catch-up work per frame to prevent spiral-of-death bursts', () => {
+    const bootstrap = createBootstrap({ now: 0 });
+
+    bootstrap.gameFlow.startGame();
+
+    const largeGapStep = bootstrap.stepFrame(1_000);
+    expect(largeGapStep.steps).toBe(MAX_STEPS_PER_FRAME);
+  });
+
   it('keeps requestAnimationFrame scheduling active while simulation is paused', () => {
     const bootstrap = createBootstrap({ now: 0 });
     const scheduledFrames = [];
@@ -69,10 +125,7 @@ describe('A-03 game loop and runtime', () => {
     });
     const cancelFrame = vi.fn();
     const documentStub = createDocumentStub();
-    const windowStub = {
-      addEventListener: vi.fn(),
-      removeEventListener: vi.fn(),
-    };
+    const windowStub = createWindowStub();
 
     bootstrap.gameFlow.startGame();
     bootstrap.gameFlow.pauseGame();
@@ -99,5 +152,86 @@ describe('A-03 game loop and runtime', () => {
 
     runtime.stop();
     expect(cancelFrame).toHaveBeenCalledTimes(1);
+  });
+
+  it('resynchronizes baseline timing on blur, focus, and visibility restore', () => {
+    const bootstrap = createBootstrap({ now: 0 });
+    const documentStub = createDocumentStub();
+    const windowStub = createWindowStub();
+    let nowMs = 0;
+
+    bootstrap.gameFlow.startGame();
+    bootstrap.world.setResource('inputAdapter', {
+      heldKeys: new Set(['ArrowLeft']),
+    });
+
+    const runtime = createGameRuntime({
+      bootstrap,
+      documentRef: documentStub,
+      nowProvider: () => nowMs,
+      requestFrame: vi.fn(() => 1),
+      windowRef: windowStub,
+    });
+
+    runtime.start();
+
+    nowMs = 120;
+    windowStub.dispatch('blur');
+    expect(bootstrap.world.getResource('inputAdapter').heldKeys.size).toBe(0);
+    expect(bootstrap.clock.lastFrameTime).toBe(120);
+
+    nowMs = 240;
+    windowStub.dispatch('focus');
+    expect(bootstrap.clock.lastFrameTime).toBe(240);
+
+    bootstrap.world.getResource('inputAdapter').heldKeys.add('ArrowRight');
+    documentStub.hidden = true;
+    documentStub.dispatch('visibilitychange');
+    expect(bootstrap.world.getResource('inputAdapter').heldKeys.size).toBe(0);
+
+    nowMs = 360;
+    documentStub.hidden = false;
+    documentStub.dispatch('visibilitychange');
+    expect(bootstrap.clock.lastFrameTime).toBe(360);
+
+    runtime.stop();
+  });
+
+  it('prevents large catch-up bursts after blur by resetting the timing baseline', () => {
+    const bootstrap = createBootstrap({ now: 0 });
+    const documentStub = createDocumentStub();
+    const windowStub = createWindowStub();
+    const scheduledFrames = [];
+    let nowMs = 0;
+
+    const runtime = createGameRuntime({
+      bootstrap,
+      documentRef: documentStub,
+      nowProvider: () => nowMs,
+      requestFrame: vi.fn((callback) => {
+        scheduledFrames.push(callback);
+        return scheduledFrames.length;
+      }),
+      windowRef: windowStub,
+    });
+
+    bootstrap.gameFlow.startGame();
+    runtime.start();
+
+    const initialFrame = scheduledFrames.shift();
+    initialFrame(20);
+
+    const frameBeforeGap = bootstrap.world.frame;
+
+    nowMs = 10_000;
+    windowStub.dispatch('blur');
+
+    const postBlurFrame = scheduledFrames.shift();
+    postBlurFrame(10_000 + FIXED_DT_MS * 2);
+
+    expect(bootstrap.world.frame - frameBeforeGap).toBe(2);
+    expect(bootstrap.world.frame - frameBeforeGap).toBeLessThan(MAX_STEPS_PER_FRAME);
+
+    runtime.stop();
   });
 });

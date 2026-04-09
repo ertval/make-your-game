@@ -10,6 +10,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import process from 'node:process';
 
+// Checklist sections must stay in sync with docs/implementation/pr-template.md contract enforcement.
 export const REQUIRED_SECTIONS = [
   'Layer boundary confirmation',
   'What changed',
@@ -42,6 +43,7 @@ export const REQUIRED_LAYER_CHECKBOXES = [
   'No framework imports or canvas APIs were introduced in this change',
 ];
 
+// Policy scans ignore generated and dependency folders to keep repository checks deterministic and fast.
 const IGNORED_DIRS = new Set([
   '.git',
   'node_modules',
@@ -54,6 +56,7 @@ const IGNORED_DIRS = new Set([
 export const TICKET_ID_PATTERN = /\b([ABCD]-\d{2})\b/gi;
 export const EXPLICIT_TICKET_BRANCH_PATTERN = /^[A-Za-z0-9._-]+\/([ABCD]-\d{2})$/;
 
+// Shared ownership paths are allowed across tracks to avoid false positives on governance/docs changes.
 export const SHARED_OWNERSHIP_PATTERNS = [
   '.gitignore',
   '.qwen/**',
@@ -172,6 +175,7 @@ export const TRACK_OWNERSHIP_RULES = {
   },
 };
 
+// Argument parsing intentionally supports both --key=value and --key value forms for CI shell portability.
 export function parseArgs(argv) {
   const args = {};
   // Walk tokens sequentially so both --key=value and --key value formats are supported.
@@ -271,6 +275,7 @@ export function sortTicketIds(ticketIds) {
     });
 }
 
+// Ticket extraction is case-insensitive, then canonicalized to uppercase for stable comparisons.
 export function extractTicketIds(text) {
   const found = [];
   if (!text) {
@@ -317,6 +322,7 @@ export function inferTracksFromTicketIds(ticketIds) {
   return [...tracks].sort();
 }
 
+// Process mode is an explicit fallback and should only activate when a clear "process" marker exists.
 export function inferProcessModeFromSources(...sources) {
   return sources.some((source) => /\bprocess\b/i.test(String(source || '')));
 }

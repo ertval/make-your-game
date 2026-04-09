@@ -89,10 +89,10 @@ export function createGameFlow({ gameStatus, clock, levelLoader, world, onRestar
     }
 
     if (gameStatus.currentState === GAME_STATE.LEVEL_COMPLETE) {
-      // Advance to the next level before transitioning to PLAYING
-      // so the loader receives the incremented level index.
       if (levelLoader && typeof levelLoader.advanceLevel === 'function') {
-        levelLoader.advanceLevel();
+        levelLoader.advanceLevel({
+          reason: 'level-complete',
+        });
       }
 
       const movedToPlaying = safeTransition(gameStatus, GAME_STATE.PLAYING);
