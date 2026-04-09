@@ -55,6 +55,8 @@ export const TICKET_ID_PATTERN = /\b([ABCD]-\d{2})\b/gi;
 export const EXPLICIT_TICKET_BRANCH_PATTERN = /^[A-Za-z0-9._-]+\/([ABCD]-\d{2})$/;
 
 export const SHARED_OWNERSHIP_PATTERNS = [
+  '.gitignore',
+  '.qwen/**',
   'AGENTS.md',
   'README.md',
   '.github/**',
