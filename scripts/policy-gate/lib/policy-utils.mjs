@@ -1,8 +1,16 @@
+/*
+ * Module: policy-utils.mjs
+ * Purpose: Provides shared utilities and policy metadata for policy-gate scripts.
+ * Public API: Exports ticket parsing helpers, ownership rules, filesystem helpers, and process-mode resolution used by all gate scripts.
+ * Implementation Notes: Utilities are synchronous and deterministic to keep local and CI policy outcomes consistent.
+ */
+
 import { spawnSync } from 'node:child_process';
 import fs from 'node:fs';
 import path from 'node:path';
 import process from 'node:process';
 
+// Checklist sections must stay in sync with docs/implementation/pr-template.md contract enforcement.
 export const REQUIRED_SECTIONS = [
   'Layer boundary confirmation',
   'What changed',
@@ -17,7 +25,7 @@ export const REQUIRED_SECTIONS = [
 export const REQUIRED_CHECKBOXES = [
   'I read AGENTS.md and the agentic workflow guide',
   'I ran `npm run policy` locally',
-  'I verified my branch name or commits reference at least one ticket ID from docs/implementation/ticket-tracker.md, or I marked the PR body with process for a GENERAL_DOCS_PROCESS branch',
+  'I verified my branch name follows <owner-or-scope>/<TRACK>-<NN> (for example ekaramet/A-03), or I marked the PR body with process for a GENERAL_DOCS_PROCESS branch',
   'I confirmed changed files stay within the declared ticket track ownership scope',
   'I ran the applicable local checks',
   'I listed the audit IDs affected by this change',
@@ -35,6 +43,7 @@ export const REQUIRED_LAYER_CHECKBOXES = [
   'No framework imports or canvas APIs were introduced in this change',
 ];
 
+// Policy scans ignore generated and dependency folders to keep repository checks deterministic and fast.
 const IGNORED_DIRS = new Set([
   '.git',
   'node_modules',
@@ -45,7 +54,9 @@ const IGNORED_DIRS = new Set([
 ]);
 
 export const TICKET_ID_PATTERN = /\b([ABCD]-\d{2})\b/gi;
+export const EXPLICIT_TICKET_BRANCH_PATTERN = /^[A-Za-z0-9._-]+\/([ABCD]-\d{2})$/;
 
+// Shared ownership paths are allowed across tracks to avoid false positives on governance/docs changes.
 export const SHARED_OWNERSHIP_PATTERNS = [
   'AGENTS.md',
   'README.md',
@@ -71,6 +82,7 @@ export const TRACK_OWNERSHIP_RULES = {
       'src/game/**',
       'src/debug/**',
       'src/ecs/world/**',
+      'src/ecs/components/actors.js',
       'tests/**',
     ],
   },
@@ -86,6 +98,18 @@ export const TRACK_OWNERSHIP_RULES = {
       'src/ecs/systems/explosion-system.js',
       'src/ecs/systems/power-up-system.js',
       'src/ecs/systems/ghost-ai-system.js',
+    ],
+    testPatterns: [
+      'tests/unit/components/**',
+      'tests/unit/systems/input-system.test.js',
+      'tests/unit/systems/player-move-system.test.js',
+      'tests/unit/systems/collision-system.test.js',
+      'tests/unit/systems/bomb-tick-system.test.js',
+      'tests/unit/systems/explosion-system.test.js',
+      'tests/unit/systems/power-up-system.test.js',
+      'tests/unit/systems/ghost-ai-system.test.js',
+      'tests/integration/adapters/input-adapter.test.js',
+      'tests/integration/gameplay/b-*.test.js',
     ],
   },
   C: {
@@ -107,12 +131,24 @@ export const TRACK_OWNERSHIP_RULES = {
       'assets/manifests/audio-manifest.json',
       'docs/schemas/audio-manifest.schema.json',
     ],
+    testPatterns: [
+      'tests/unit/systems/scoring-system.test.js',
+      'tests/unit/systems/timer-system.test.js',
+      'tests/unit/systems/life-system.test.js',
+      'tests/unit/systems/spawn-system.test.js',
+      'tests/unit/systems/pause-system.test.js',
+      'tests/unit/systems/level-progress-system.test.js',
+      'tests/integration/adapters/hud-adapter.test.js',
+      'tests/integration/adapters/screens-adapter.test.js',
+      'tests/integration/adapters/storage-adapter.test.js',
+      'tests/integration/adapters/audio-adapter.test.js',
+      'tests/integration/gameplay/c-*.test.js',
+    ],
   },
   D: {
     name: 'Track D (Resources/Rendering/Visual)',
     patterns: [
       'src/ecs/resources/**',
-      'src/ecs/components/visual.js',
       'src/ecs/systems/render-collect-system.js',
       'src/ecs/systems/render-dom-system.js',
       'src/adapters/dom/renderer-adapter.js',
@@ -126,9 +162,18 @@ export const TRACK_OWNERSHIP_RULES = {
       'docs/schemas/map.schema.json',
       'docs/schemas/visual-manifest.schema.json',
     ],
+    testPatterns: [
+      'tests/unit/resources/**',
+      'tests/unit/systems/render-collect-system.test.js',
+      'tests/unit/systems/render-dom-system.test.js',
+      'tests/integration/adapters/renderer-adapter.test.js',
+      'tests/integration/adapters/sprite-pool-adapter.test.js',
+      'tests/integration/gameplay/d-*.test.js',
+    ],
   },
 };
 
+// Argument parsing intentionally supports both --key=value and --key value forms for CI shell portability.
 export function parseArgs(argv) {
   const args = {};
   for (let index = 0; index < argv.length; index += 1) {
@@ -226,6 +271,7 @@ export function sortTicketIds(ticketIds) {
     });
 }
 
+// Ticket extraction is case-insensitive, then canonicalized to uppercase for stable comparisons.
 export function extractTicketIds(text) {
   const found = [];
   if (!text) {
@@ -247,6 +293,13 @@ export function inferTicketIdsFromSources(...sources) {
   return sortTicketIds(all);
 }
 
+export function extractTicketIdFromBranchName(branchName) {
+  const match = String(branchName || '')
+    .trim()
+    .match(EXPLICIT_TICKET_BRANCH_PATTERN);
+  return match ? String(match[1]).toUpperCase() : '';
+}
+
 export function inferTracksFromTicketIds(ticketIds) {
   const tracks = new Set();
   for (const ticketId of ticketIds || []) {
@@ -264,6 +317,7 @@ export function inferTracksFromTicketIds(ticketIds) {
   return [...tracks].sort();
 }
 
+// Process mode is an explicit fallback and should only activate when a clear "process" marker exists.
 export function inferProcessModeFromSources(...sources) {
   return sources.some((source) => /\bprocess\b/i.test(String(source || '')));
 }
@@ -341,7 +395,11 @@ export function findOwnershipViolations(trackCode, files) {
     };
   }
 
-  const allowedPatterns = [...SHARED_OWNERSHIP_PATTERNS, ...rule.patterns];
+  const allowedPatterns = [
+    ...SHARED_OWNERSHIP_PATTERNS,
+    ...(rule.patterns || []),
+    ...(rule.testPatterns || []),
+  ];
   const violations = (files || [])
     .map((file) => normalizePolicyPath(file))
     .filter(Boolean)
@@ -472,10 +530,22 @@ export function collectBranchCommitMessages(options = {}) {
   }
 
   if (mergeBase) {
-    return runCommand('git', ['log', '--format=%s%n%b', `${mergeBase}..${headRef}`]).trim();
+    return runCommand('git', [
+      'log',
+      '--first-parent',
+      '--format=%s%n%b',
+      `${mergeBase}..${headRef}`,
+    ]).trim();
   }
 
-  return runCommand('git', ['log', '--format=%s%n%b', '-n', '30', headRef]).trim();
+  return runCommand('git', [
+    'log',
+    '--first-parent',
+    '--format=%s%n%b',
+    '-n',
+    '30',
+    headRef,
+  ]).trim();
 }
 
 export function collectChangedFiles(baseSha, headSha, options = {}) {
@@ -506,6 +576,23 @@ export function collectChangedFiles(baseSha, headSha, options = {}) {
         .filter(Boolean),
     ),
   ].sort();
+}
+
+export function collectLocalWorkingTreeFiles() {
+  if (!commandSucceeded('git', ['rev-parse', '--is-inside-work-tree'])) {
+    return [];
+  }
+
+  const trackedChanges = runCommand('git', ['diff', '--name-only', 'HEAD'])
+    .split(/\r?\n/)
+    .map((line) => line.trim())
+    .filter(Boolean);
+  const untrackedChanges = runCommand('git', ['ls-files', '--others', '--exclude-standard'])
+    .split(/\r?\n/)
+    .map((line) => line.trim())
+    .filter(Boolean);
+
+  return [...new Set([...trackedChanges, ...untrackedChanges])].sort();
 }
 
 export function walkFiles(rootDir, predicate) {

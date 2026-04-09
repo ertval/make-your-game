@@ -1,8 +1,13 @@
 /*
  * Query helpers for bitmask-based ECS component matching.
+ * Purpose: Provides deterministic bitmask query matching over active ECS entity ids.
  *
  * The query index stores per-entity masks and resolves deterministic
  * membership checks used by systems at fixed-step boundaries.
+ *
+ * Public API:
+ * - hasAllComponents(entityMask, requiredMask)
+ * - QueryIndex
  */
 
 export function hasAllComponents(entityMask, requiredMask) {

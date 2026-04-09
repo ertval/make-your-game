@@ -1,3 +1,11 @@
+/*
+ * Script: run-all.mjs
+ * Purpose: The main orchestrator for the policy checks. Runs quality gates, prepares context,
+ * and executes other specialized gates sequentially based on the scope ('pr' or 'repo').
+ * Implementation Notes: Provides unified fallbacks (e.g. if a process marker is discovered
+ * instead of ticket IDs, it switches to repo-wide scanning).
+ */
+
 import fs from 'node:fs';
 import process from 'node:process';
 import {
@@ -15,12 +23,15 @@ const mode = args.mode || 'local';
 const scope = args.scope || 'pr';
 const metaPath = args['meta-file'] || '.policy-pr-meta.json';
 const validScopes = new Set(['pr', 'repo', 'all']);
+// We validate the scope early to prevent cascading failures in downstream scripts holding bad assumptions.
 if (!validScopes.has(scope)) {
   throw new Error(`Invalid --scope value "${scope}". Expected one of: pr, repo, all.`);
 }
 
+// We fallback to strict requirements ('ci' mode limits) when the approval flag is not explicitly provided.
 const requireApproval =
   args['require-approval'] !== undefined ? toBool(args['require-approval']) : mode === 'ci';
+// We allow opting out of heavy integrity checks during local rapid development.
 const runIntegrityChecks =
   args['run-integrity-checks'] !== undefined ? toBool(args['run-integrity-checks']) : true;
 const rawHeaderMode = args['header-mode'] ?? process.env.POLICY_HEADER_MODE;
@@ -33,6 +44,7 @@ if (headerMode && !['warn', 'error', 'fail'].includes(headerMode)) {
 }
 const headerModeArgs = headerMode ? [`--mode=${headerMode}`] : [];
 
+// We separate orchestrator-specific args from generic ones so we can forward context to child scripts unmodified.
 const passThrough = [];
 for (const [key, value] of Object.entries(args)) {
   if (
@@ -47,6 +59,7 @@ for (const [key, value] of Object.entries(args)) {
   passThrough.push(`--${key}=${value}`);
 }
 
+// We wrap shell execution to unify error propagation and consistently hint the user on how to reproduce the step locally.
 function runStep(label, command, commandArgs, retryHint) {
   try {
     runCommand(command, commandArgs, { stdio: 'inherit' });
@@ -60,12 +73,14 @@ function runStep(label, command, commandArgs, retryHint) {
 let ranRepoFallback = false;
 
 if (scope === 'pr' || scope === 'all') {
+  // We run the base project lint/test suite first so we don't bother doing policy validation on fundamentally broken code.
   runStep('Project quality gate', 'npm', ['run', 'policy:quality'], 'npm run policy:quality');
 
   runCommand('node', ['scripts/policy-gate/prepare-context.mjs', ...passThrough], {
     stdio: 'inherit',
   });
 
+  // We parse the extracted git metadata file to infer PR intent and verify traceability.
   const metadata = fs.existsSync(metaPath) ? readJson(metaPath) : {};
   const branchTicketIds = inferTicketIdsFromSources(metadata.branchName || '');
   const commitTicketIds = inferTicketIdsFromSources(metadata.commitMessages || '');
@@ -78,6 +93,7 @@ if (scope === 'pr' || scope === 'all') {
       metadata.body || '',
     );
 
+  // We establish an audit mode flag based on context clues to control the rigor of subsequent gates.
   const auditMode = hasPrMetadata
     ? 'TICKET'
     : hasProcessMode
@@ -162,6 +178,7 @@ if (scope === 'pr' || scope === 'all') {
 }
 
 if ((scope === 'repo' || scope === 'all') && !(scope === 'all' && ranRepoFallback)) {
+  // We execute repo-wide policies for deeper validation when specifically requested or on merge to main.
   runStep(
     'Repo-wide forbidden-tech scan',
     'npm',

@@ -1,3 +1,10 @@
+/*
+ * Script: validate-schema.mjs
+ * Purpose: Validates map and asset manifest JSON files against project JSON Schemas.
+ * Public API: N/A (CLI script).
+ * Implementation Notes: Compiles schemas once per run to avoid duplicate $id collisions and exits non-zero on validation errors.
+ */
+
 import fs from 'node:fs';
 import path from 'node:path';
 import process from 'node:process';
@@ -15,6 +22,7 @@ function collectMapPairs() {
   const schemaPath = 'docs/schemas/map.schema.json';
   const pairs = [];
 
+  // We guard against missing map directories so the project doesn't crash on absolute first-time setup or clean checkout.
   if (fs.existsSync(mapsDir)) {
     for (const entry of fs.readdirSync(mapsDir)) {
       if (entry.endsWith('.json')) {
@@ -57,6 +65,7 @@ for (const pair of pairs) {
   }
 
   // Compile each schema only once to avoid duplicate $id conflicts.
+  // We compile ajv schemas lazily and memoize them because compiling complex JSONSchema references is computationally expensive.
   let validate;
   if (compiledSchemas.has(pair.schema)) {
     validate = compiledSchemas.get(pair.schema);
@@ -66,6 +75,7 @@ for (const pair of pairs) {
     compiledSchemas.set(pair.schema, validate);
   }
 
+  // We parse synchronously here assuming asset data files are bounded and schema validation sits outside hot-paths.
   const data = JSON.parse(fs.readFileSync(dataPath, 'utf8'));
   const valid = validate(data);
 

@@ -29,11 +29,13 @@ sbom.json
 
 # Logs and temporary files
 *.log
+.tmp*
 npm-debug.log*
 yarn-debug.log*
 pnpm-debug.log*
 tmp/
 temp/
+.audit*
 
 # CI runtime artifacts
 .policy-pr-meta.json
