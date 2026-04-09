@@ -12,9 +12,13 @@
  * - getCurrentLevelIndex()
  */
 
-function clampLevelIndex(levelIndex) {
+function clampLevelIndex(levelIndex, maxLevel) {
   if (!Number.isFinite(levelIndex) || levelIndex < 0) {
     return 0;
+  }
+
+  if (maxLevel !== undefined && levelIndex > maxLevel) {
+    return maxLevel;
   }
 
   return Math.floor(levelIndex);
@@ -24,7 +28,9 @@ export function createLevelLoader({
   world,
   mapResourceKey = 'mapResource',
   loadMapForLevel = null,
+  totalLevels = 3,
 } = {}) {
+  const maxLevelIndex = totalLevels - 1;
   let currentLevelIndex = 0;
 
   function resolveMapForLevel(levelIndex, options = {}) {
@@ -36,7 +42,7 @@ export function createLevelLoader({
   }
 
   function loadLevel(levelIndex, options = {}) {
-    currentLevelIndex = clampLevelIndex(levelIndex);
+    currentLevelIndex = clampLevelIndex(levelIndex, maxLevelIndex);
     const mapResource = resolveMapForLevel(currentLevelIndex, options);
 
     if (world && typeof world.setResource === 'function') {
@@ -54,6 +60,10 @@ export function createLevelLoader({
   }
 
   function advanceLevel(options = {}) {
+    if (currentLevelIndex >= maxLevelIndex) {
+      return null;
+    }
+
     return loadLevel(currentLevelIndex + 1, {
       ...options,
       advance: true,

@@ -33,8 +33,8 @@ const forbiddenPatterns = [
 // We branch based on scope to support both targeted PR diff scanning (faster) and exhaustive repo audits.
 const files =
   scope === 'changed'
-    // We conditionally filter out deleted files by checking `existsSync` so we don't try to read paths that no longer exist.
-    ? readLines(changedPath).filter((file) => sourcePattern.test(file) && fs.existsSync(file))
+    ? // We conditionally filter out deleted files by checking `existsSync` so we don't try to read paths that no longer exist.
+      readLines(changedPath).filter((file) => sourcePattern.test(file) && fs.existsSync(file))
     : walkFiles(process.cwd(), (file) => sourcePattern.test(file));
 
 const violations = [];

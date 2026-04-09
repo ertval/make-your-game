@@ -245,7 +245,7 @@ make-your-game/
 │   │   ├── systems/
 │   │   │   ├── input-system.js        # Applies adapter input to components
 │   │   │   ├── player-move-system.js  # Grid-constrained player motion
-│   │   │   ├── ghost-ai-system.js     # Chasing, fleeing, pathing
+│   │   │   ├── ghost-ai-system.js     # Normal, stunned, dead pathing
 │   │   │   ├── bomb-tick-system.js    # Fuse countdown, chain reaction marking
 │   │   │   ├── explosion-system.js    # Bomb destruction and fire spawn
 │   │   │   ├── collision-system.js    # Entity overlap checks
@@ -517,7 +517,7 @@ Shared structure inside component storage array definitions. These are documente
 /**
  * @typedef {Object} Ghost
  * @property {number} type - Personality ID (0=Blinky, 1=Pinky, 2=Inky, 3=Clyde)
- * @property {number} state - Chasing, Fleeing, Dead, Stunned
+ * @property {number} state - NORMAL (0), STUNNED (1), DEAD (2)
  * @property {number} speed
  * @property {number} timerMs - State duration timer
  */
