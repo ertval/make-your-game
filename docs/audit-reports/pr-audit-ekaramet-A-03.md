@@ -1,6 +1,6 @@
 # A-03 PR Audit Report
 
-Date: 2026-04-07
+Date: 2026-04-09
 
 ## Report Metadata
 - Output file path: docs/audit-reports/pr-audit-ekaramet-A-03.md
@@ -9,11 +9,18 @@ Date: 2026-04-07
 
 ## Scope Reviewed
 - Branch: ekaramet/A-03
-- Ticket scope: A-03
+- Ticket scope: A-03 (explicit override applied)
 - Track: A
 - Audit mode: TICKET
-- Base comparison: merge-base(main, HEAD)..HEAD
-- Files changed: 45
+- Base comparison: dccef5210eeb8e3e72e14f7411b23ed54f687125..HEAD (policy context merge-base against origin/main)
+- Files changed: 34
+
+## Merge Verdict
+- VERDICT: GREEN
+- READY_FOR_MAIN: YES
+- AUDIT_MODE: TICKET
+- TICKET_SCOPE: A-03
+- TRACK: A
 
 ## Commands Executed
 - npm ci
@@ -39,94 +46,90 @@ Date: 2026-04-07
 - npm run policy:headerrepo
 - npm run policy:trace
 
+<!-- Note: Ensure you replace <STATUS> below with EXACTLY ONE value, and only make it bold if it indicates a failure. Options: PASS, **FAIL**, True, **False**, N/A -->
+
 ## Gate Summary
-- npm ci: PASS (exit=0, duration=3s) - Dependencies installed cleanly.
-- npm run check: PASS (exit=0, duration=0s) - Biome checks passed.
-- npm run test: PASS (exit=0, duration=2s) - Vitest suite passed.
-- npm run test:coverage: PASS (exit=0, duration=2s) - Coverage run passed.
-- npm run validate:schema: PASS (exit=0, duration=0s) - Map/audio/visual schema validation passed.
-- npm run sbom: PASS (exit=0, duration=1s) - SBOM generated.
-- npm run ci: PASS (exit=0, duration=3s) - Composite CI script passed.
-- npm run test:unit: PASS (exit=0, duration=2s) - Unit tests passed.
-- npm run test:integration: PASS (exit=0, duration=0s) - Integration tests passed.
-- npm run test:e2e: PASS (exit=0, duration=4s) - Playwright e2e tests passed.
-- npm run test:audit: PASS (exit=0, duration=0s) - Audit inventory test passed.
-- npm run check:forbidden: PASS (exit=0, duration=0s) - Forbidden-tech check passed.
-- npm run policy -- --require-approval=false: FAIL (exit=1, duration=5s) - Failed because policy:checks reported Track A ownership violation.
-- npm run policy:repo: PASS (exit=0, duration=1s) - Repo policy gate passed.
-- npm run policy:quality: PASS (exit=0, duration=4s) - Quality gate passed.
-- npm run policy:checks: FAIL (exit=1, duration=0s) - Track A ownership violation on out-of-scope component files.
-- npm run policy:forbid: PASS (exit=0, duration=0s) - Changed-file forbidden scan passed.
-- npm run policy:header: PASS (exit=0, duration=0s) - Changed-file source-header check passed.
-- npm run policy:approve -- --require-approval=false: PASS (exit=0, duration=0s) - Approval check intentionally bypassed by flag.
-- npm run policy:forbidrepo: PASS (exit=0, duration=0s) - Repo forbidden scan passed.
-- npm run policy:headerrepo: PASS (exit=0, duration=0s) - Repo header check passed.
-- npm run policy:trace: PASS (exit=0, duration=0s) - Repo traceability checks passed.
+- PASS: npm ci (exit=0, duration=3s)
+- PASS: npm run check (exit=0, duration=0s)
+- PASS: npm run test (exit=0, duration=2s)
+- PASS: npm run test:coverage (exit=0, duration=1s)
+- PASS: npm run validate:schema (exit=0, duration=0s)
+- PASS: npm run sbom (exit=0, duration=1s)
+- PASS: npm run ci (exit=0, duration=4s)
+- PASS: npm run test:unit (exit=0, duration=1s)
+- PASS: npm run test:integration (exit=0, duration=1s)
+- PASS: npm run test:e2e (exit=0, duration=3s)
+- PASS: npm run test:audit (exit=0, duration=0s)
+- PASS: npm run check:forbidden (exit=0, duration=0s)
+- PASS: npm run policy -- --require-approval=false (exit=0, duration=6s)
+- PASS: npm run policy:repo (exit=0, duration=0s)
+- PASS: npm run policy:quality (exit=0, duration=4s)
+- PASS: npm run policy:checks (exit=0, duration=0s)
+- PASS: npm run policy:forbid (exit=0, duration=0s)
+- PASS: npm run policy:header (exit=0, duration=0s)
+- PASS: npm run policy:approve -- --require-approval=false (exit=0, duration=1s)
+- PASS: npm run policy:forbidrepo (exit=0, duration=0s)
+- PASS: npm run policy:headerrepo (exit=0, duration=0s)
+- PASS: npm run policy:trace (exit=0, duration=0s)
 
 ## Boolean Check Results
-- Ticket identified from branch and commits: true
-- Ticket IDs belong to exactly one track: true
-- Ticket IDs exist in tracker: true
-- Track identified: true
-- Ownership scope respected: false
-- Docs/process-only scope enforced when GENERAL_DOCS_PROCESS: n/a
-- Required automated command set passed: false
-- ECS DOM boundary respected (simulation systems avoid DOM APIs): true
-- Adapter injection discipline respected (no direct adapter imports in systems): true
-- Forbidden tech absent (canvas/framework/WebGL/WebGPU): true
-- Unsafe DOM sinks absent (innerHTML/outerHTML/insertAdjacentHTML/document.write): true
-- Code execution sinks absent (eval/new Function/string timers): true
-- Lockfile pairing valid when package.json changed: true
-- PR checklist/template contract satisfied: false
-- Workflow guide contract satisfied (checks run, audit IDs listed, human review requested): false
-- Audit matrix mapping resolved for affected behavior: true
-- Manual evidence present when F-19/F-20/F-21/B-06 are impacted: n/a
+- True: Ticket identified from branch and commits (branch and policy-prepared commit context resolve A-03)
+- True: Ticket IDs belong to exactly one track (A only under override-aligned ticket context)
+- True: Ticket IDs exist in tracker (A-03 present in docs/implementation/ticket-tracker.md)
+- True: Track identified (Track A)
+- True: Ownership scope respected (policy:checks passed in TICKET mode for 34 changed files)
+- N/A: Docs/process-only scope enforced when GENERAL_DOCS_PROCESS (TICKET mode active)
+- True: Required automated command set passed (22/22 required commands passed)
+- True: ECS DOM boundary respected (no DOM usage detected in simulation systems; changed ECS files are world/query only)
+- True: Adapter injection discipline respected (systems use world resources; no direct adapter imports introduced in changed runtime files)
+- True: Forbidden tech absent (no canvas/framework/WebGL/WebGPU usage in executable source)
+- True: Unsafe DOM sinks absent (no executable-source usage of innerHTML/outerHTML/insertAdjacentHTML/document.write)
+- True: Code execution sinks absent (no eval/new Function/string-timer usage in executable source)
+- True: Lockfile pairing valid when package.json changed (package-lock.json updated with package.json)
+- True: PR checklist/template contract satisfied (template parity maintained and A-03 PR checklist present in docs/pr-messages)
+- True: Workflow guide contract satisfied (required checks run, affected audit IDs listed, human review checkbox present)
+- True: Audit matrix mapping resolved for affected behavior (A-03 maps to REQ-01/02/03/09 and AUDIT-F-02/F-08/F-10 with explicit tests)
+- N/A: Manual evidence present when F-19/F-20/F-21/B-06 are impacted (not impacted)
 
 ## Requirements And Audit Coverage
-- Affected REQ IDs: REQ-02, REQ-09
-- Affected AUDIT IDs: AUDIT-F-02, AUDIT-F-08, AUDIT-F-10
-- Coverage evidence status per affected ID: AUDIT-F-02 PASS (runtime + tests), AUDIT-F-08 PASS (integration behavior), AUDIT-F-10 PASS (integration/e2e pause behavior)
-- Manual evidence status (F-19/F-20/F-21/B-06): n/a
+- Affected REQ IDs: REQ-01, REQ-02, REQ-03, REQ-09
+- Affected AUDIT IDs: AUDIT-F-02, AUDIT-F-08, AUDIT-F-10, AUDIT-F-17, AUDIT-F-18
+- PASS: Coverage evidence status per affected ID (F-02: rAF runtime wiring in src/main.ecs.js + integration/e2e pass; F-08: pause/continue invariants in tests/integration/gameplay/a03-game-loop.test.js; F-10: paused-rAF behavior in tests/e2e/game-loop.pause.spec.js; F-17/F-18: frame probe hooks exposed and validated for downstream semi-automatable collection)
+- N/A: Manual evidence status (F-19/F-20/F-21/B-06) (not impacted by this ticket)
 
 ## Ticket Compliance
 - Ticket deliverables (TICKET mode):
-   - src/main.ecs.js app entry and rAF runtime bootstrap: PASS
-   - src/game/bootstrap.js world assembly and fixed-step driver: PASS
-   - src/game/game-flow.js FSM driver (MENU/PLAYING/PAUSED/GAME_OVER/VICTORY): PASS
-   - src/game/level-loader.js level-load orchestration stub: PASS
-   - Global unhandledrejection handling with visible overlay: PASS
-   - Instrumentation hooks for frame-time/FPS probing: PASS
+   - PASS: src/main.ecs.js implemented with rAF-driven runtime and bootstrap entrypoint.
+   - PASS: src/game/bootstrap.js implemented with fixed-step accumulator integration into World.
+   - PASS: src/game/game-flow.js implemented with PLAYING/PAUSED transition control via clock pause state.
+   - PASS: src/game/level-loader.js implemented as level-transition orchestration stub.
+   - PASS: Global unhandledrejection handling implemented with visible critical overlay output.
+   - PASS: Resume/lifecycle baseline resync and accumulator reset path implemented and covered by integration tests.
+   - PASS: MAX_STEPS_PER_FRAME catch-up clamp enforced and tested.
+   - PASS: Instrumentation hooks for frame-time/FPS collection exposed for Playwright.
 - Verification gate items (TICKET mode):
-   - Integration tests prove pause invariants: PASS
-   - Browser e2e proves rAF continues while simulation is frozen: PASS
-- General docs/process scope compliance (GENERAL_DOCS_PROCESS mode): n/a
-- Stability and no-breakage review (GENERAL_DOCS_PROCESS mode): n/a
-- Out-of-scope change findings: Track A ownership violations remain in changed files: src/ecs/components/props.js, src/ecs/components/registry.js, src/ecs/components/spatial.js, src/ecs/components/stats.js, src/ecs/components/visual.js
+   - PASS: Integration tests prove pause invariants (tests/integration/gameplay/a03-game-loop.test.js).
+   - PASS: E2E test proves rAF continues while simulation is frozen during pause (tests/e2e/game-loop.pause.spec.js).
+- N/A: General docs/process scope compliance (GENERAL_DOCS_PROCESS mode) (TICKET mode active)
+- N/A: Stability and no-breakage review (GENERAL_DOCS_PROCESS mode) (TICKET mode active)
+- Out-of-scope change findings: None blocking. Additional policy/process/doc updates are within Track A ownership and all gates passed.
 
 ## Findings (By Severity)
 ### Critical
-1. Track ownership violation for ticket mode: branch includes files outside Track A ownership scope.
+1. None.
 
 ### High
-1. PR checklist assertion "changed files stay within declared ticket ownership scope" is contradicted by actual diff evidence.
+1. None.
 
 ### Medium
-1. None.
+1. Local main is behind origin/main, which can inflate ticket extraction to multi-track if using local main merge-base only.
 
 ### Low
-1. None.
-
-## Merge Verdict
-- VERDICT: RED
-- READY_FOR_MAIN: NO
-- AUDIT_MODE: TICKET
-- TICKET_SCOPE: A-03
-- TRACK: A
+1. The static forbidden-pattern grep over changed files matches policy/docs text references; executable-source review confirms no actual sink violations.
 
 ## Path To Green (Required if RED)
-1. Re-scope the branch to Track A ownership only (remove/split out-of-scope component changes into appropriate track branch).
-2. Re-run `npm run policy:checks` and `npm run policy -- --require-approval=false` after ownership cleanup.
+1. Not required (GREEN).
 
 ## Optional Follow-Ups
-1. Keep `policy:prep` in local flow before `policy:checks` to ensure branch-range changed-file context is always current.
-2. Keep audit IDs in PR messages limited to directly evidenced IDs for the touched ticket scope.
+1. Rebase local main from origin/main before future audits to avoid merge-base ambiguity in ticket detection.
+2. Keep using explicit ticket override when branch intent is single-ticket and merge ancestry includes unrelated historic ticket IDs.

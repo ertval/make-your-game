@@ -142,7 +142,9 @@ if (missingPurpose.length > 0) {
 
 if (lowCommentRatio.length > 0) {
   hasViolations = true;
-  details.push(`Source files below minimum comment ratio, add more comments in critical sections (${MIN_COMMENT_RATIO * 100}%):`);
+  details.push(
+    `Source files below minimum comment ratio, add more comments in critical sections (${MIN_COMMENT_RATIO * 100}%):`,
+  );
   lowCommentRatio.forEach((f) => {
     details.push(`- ${f}`);
   });

@@ -49,6 +49,7 @@ const PROCESS_SCOPE_PATTERNS = [
   'changed-files.txt',
 ];
 
+// Ticket context resolution prioritizes explicit CLI and branch ticket IDs to keep checks deterministic.
 function deriveTicketContext() {
   const branchName = meta.branchName || '';
   const requireBranchTicket = String(args['require-branch-ticket'] || 'false') === 'true';
@@ -96,6 +97,7 @@ function deriveTicketContext() {
   };
 }
 
+// Association checks enforce one-track ownership so cross-track branches are split before review.
 function assertTicketAssociation() {
   const context = deriveTicketContext();
 
@@ -164,6 +166,7 @@ function assertTicketAssociation() {
   };
 }
 
+// Process branches are intentionally constrained to governance/doc surfaces to protect product-code integrity.
 function assertProcessScope() {
   const violations = changedFiles.filter((file) => !matchesOwnership(file, PROCESS_SCOPE_PATTERNS));
 
@@ -183,6 +186,7 @@ function assertProcessScope() {
   );
 }
 
+// Ownership enforcement uses path patterns instead of AST analysis to keep policy checks lightweight.
 function assertTrackOwnership(trackCode, ticketIds) {
   if (changedFiles.length === 0) {
     console.warn(
@@ -212,6 +216,7 @@ function assertTrackOwnership(trackCode, ticketIds) {
   );
 }
 
+// Canonical ranges guard against matrix drift when requirement/audit IDs are edited manually.
 function buildIdRange(prefix, start, end) {
   if (!Number.isFinite(start) || !Number.isFinite(end) || start <= 0 || end <= 0 || end < start) {
     throw new Error(`Invalid ID range for ${prefix}: ${start}..${end}`);
@@ -321,6 +326,7 @@ function collectMatrixTraceabilityIds(matrixText) {
   };
 }
 
+// Traceability verification ensures docs/audit.md and matrix rows remain synchronized for gate reliability.
 function verifyTraceabilityCoverage() {
   const auditText = readText('docs/audit.md');
   const matrixText = readText('docs/implementation/audit-traceability-matrix.md');

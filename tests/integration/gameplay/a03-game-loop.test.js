@@ -196,4 +196,42 @@ describe('A-03 game loop and runtime', () => {
 
     runtime.stop();
   });
+
+  it('prevents large catch-up bursts after blur by resetting the timing baseline', () => {
+    const bootstrap = createBootstrap({ now: 0 });
+    const documentStub = createDocumentStub();
+    const windowStub = createWindowStub();
+    const scheduledFrames = [];
+    let nowMs = 0;
+
+    const runtime = createGameRuntime({
+      bootstrap,
+      documentRef: documentStub,
+      nowProvider: () => nowMs,
+      requestFrame: vi.fn((callback) => {
+        scheduledFrames.push(callback);
+        return scheduledFrames.length;
+      }),
+      windowRef: windowStub,
+    });
+
+    bootstrap.gameFlow.startGame();
+    runtime.start();
+
+    const initialFrame = scheduledFrames.shift();
+    initialFrame(20);
+
+    const frameBeforeGap = bootstrap.world.frame;
+
+    nowMs = 10_000;
+    windowStub.dispatch('blur');
+
+    const postBlurFrame = scheduledFrames.shift();
+    postBlurFrame(10_000 + FIXED_DT_MS * 2);
+
+    expect(bootstrap.world.frame - frameBeforeGap).toBe(2);
+    expect(bootstrap.world.frame - frameBeforeGap).toBeLessThan(MAX_STEPS_PER_FRAME);
+
+    runtime.stop();
+  });
 });
