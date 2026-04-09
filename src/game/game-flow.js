@@ -78,6 +78,12 @@ export function createGameFlow({ gameStatus, clock, levelLoader } = {}) {
     }
 
     if (gameStatus.currentState === GAME_STATE.LEVEL_COMPLETE) {
+      if (levelLoader && typeof levelLoader.advanceLevel === 'function') {
+        levelLoader.advanceLevel({
+          reason: 'level-complete',
+        });
+      }
+
       const movedToPlaying = safeTransition(gameStatus, GAME_STATE.PLAYING);
       applyPauseFromState(clock, gameStatus);
       return movedToPlaying;
