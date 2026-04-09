@@ -8,9 +8,9 @@
 ## Phase Order (Prototype-First)
 
 - **P0 Foundation**: `D-01` to `D-04`
-- **P1 Visual Prototype**: `D-05` to `D-08`
+- **P1 Visual Prototype**: `D-05` to `D-09`
 - **P2 Playable MVP**: No new Track D tickets
-- **P3 Feature Complete + Hardening**: `D-09`
+- **P3 Feature Complete + Hardening**: None
 - **P4 Polish and Validation**: `D-10`, `D-11`
 
 ---
@@ -154,7 +154,7 @@
 #### D-08: Render DOM System (The Batcher)
 **Priority**: ��� Critical
 **Phase**: P1 Visual Prototype
-**Depends On**: `D-06`, `D-07`
+**Depends On**: `D-06`, `D-07`, `D-09`
 **Impacts**: Frame-time stability and compositor-only writes (`AUDIT-F-19`, `AUDIT-F-20`, `AUDIT-F-21`)
 **Blocks**: D-09, D-10 || A-05
 
@@ -174,8 +174,8 @@
 
 #### D-09: Sprite Pool Adapter
 **Priority**: ��� Critical
-**Phase**: P3 Feature Complete + Hardening
-**Depends On**: `D-06`, `D-08`
+**Phase**: P1 Visual Prototype
+**Depends On**: `D-06`
 **Impacts**: Allocation stability and memory reuse (`AUDIT-B-03`)
 **Blocks**: None
 

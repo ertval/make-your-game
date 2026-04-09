@@ -25,6 +25,7 @@ import {
 } from './lib/policy-utils.mjs';
 
 const args = parseArgs(process.argv.slice(2));
+// Resolve input metadata from CLI arguments or the generated PR meta JSON.
 const metaPath = args['meta-file'] || '.policy-pr-meta.json';
 const changedPath = args['changed-file'] || 'changed-files.txt';
 const checkSet = args['check-set'] || 'pr';
@@ -51,12 +52,14 @@ const PROCESS_SCOPE_PATTERNS = [
 
 // Ticket context resolution prioritizes explicit CLI and branch ticket IDs to keep checks deterministic.
 function deriveTicketContext() {
+  // Extract and merge ticket IDs from branch name, commit messages, CLI args, and meta JSON.
   const branchName = meta.branchName || '';
   const requireBranchTicket = String(args['require-branch-ticket'] || 'false') === 'true';
   const explicitTicketIds = inferTicketIdsFromSources(
     args['ticket-id'] || '',
     args['ticket-ids'] || '',
   );
+  // Try the strict <owner>/<TRACK>-<NN> pattern first, then fall back to general extraction.
   const explicitBranchTicketId = extractTicketIdFromBranchName(branchName);
   const branchTicketIds = explicitBranchTicketId
     ? [explicitBranchTicketId]
@@ -168,6 +171,7 @@ function assertTicketAssociation() {
 
 // Process branches are intentionally constrained to governance/doc surfaces to protect product-code integrity.
 function assertProcessScope() {
+  // Filter changed files against the allowed docs/process/governance path patterns.
   const violations = changedFiles.filter((file) => !matchesOwnership(file, PROCESS_SCOPE_PATTERNS));
 
   if (violations.length === 0) {
@@ -328,6 +332,7 @@ function collectMatrixTraceabilityIds(matrixText) {
 
 // Traceability verification ensures docs/audit.md and matrix rows remain synchronized for gate reliability.
 function verifyTraceabilityCoverage() {
+  // Read canonical audit requirement sources and cross-check the traceability matrix.
   const auditText = readText('docs/audit.md');
   const matrixText = readText('docs/implementation/audit-traceability-matrix.md');
 
@@ -398,6 +403,7 @@ function enforceAuditAndDependencyPairing() {
   const touchesPrefix = (prefix) => changedFiles.some((file) => file.startsWith(prefix));
   const has = (file) => changed.has(file);
 
+  // Verify package.json and package-lock.json changed together to prevent lockfile drift.
   const packageJsonChanged = has('package.json');
   const packageLockChanged = has('package-lock.json');
   if (!packageJsonChanged && packageLockChanged) {
@@ -469,6 +475,7 @@ function enforceAuditAndDependencyPairing() {
 
 function scanSecurityAndArchitectureBoundaries() {
   const sourcePattern = /\.(js|mjs|cjs|ts|tsx|jsx|html)$/;
+  // Scan for dangerous DOM sinks, code execution, forbidden APIs, and ECS boundary violations.
   const unsafeSinks = [
     /\binnerHTML\b/,
     /\bouterHTML\b/,
@@ -490,6 +497,7 @@ function scanSecurityAndArchitectureBoundaries() {
     /require\s*\(\s*['"](?:react|vue|angular|svelte|phaser|pixi\.js|three|jquery)['"]\s*\)/,
   ];
 
+  // DOM APIs are only permitted in `src/ecs/systems/render-dom-system.js`.
   const domAPIs = [
     /\bdocument\./,
     /\bwindow\./,
@@ -521,6 +529,7 @@ function scanSecurityAndArchitectureBoundaries() {
     const isSystemFile = normalizedPath.startsWith('src/ecs/systems/');
     const isRenderSystem = normalizedPath === 'src/ecs/systems/render-dom-system.js';
 
+    // Reject any unsafe sinks unconditionally across all source files.
     for (const pattern of unsafeSinks) {
       if (pattern.test(content)) {
         throw new Error(`Unsafe sink or forbidden API found in ${file}: ${pattern}`);

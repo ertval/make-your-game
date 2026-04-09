@@ -6,7 +6,7 @@
  * the current status is not PLAYING.
  *
  * Public API:
- * - createGameFlow({ gameStatus, clock, levelLoader })
+ * - createGameFlow({ gameStatus, clock, levelLoader, world, onRestart })
  * - startGame(options)
  * - pauseGame()
  * - resumeGame()
@@ -35,7 +35,7 @@ function safeTransition(gameStatus, nextState) {
   return true;
 }
 
-export function createGameFlow({ gameStatus, clock, levelLoader } = {}) {
+export function createGameFlow({ gameStatus, clock, levelLoader, world, onRestart } = {}) {
   if (!gameStatus) {
     throw new Error('createGameFlow requires a gameStatus resource.');
   }
@@ -45,6 +45,17 @@ export function createGameFlow({ gameStatus, clock, levelLoader } = {}) {
   }
 
   applyPauseFromState(clock, gameStatus);
+
+  function destroyAllEntities() {
+    if (!world || typeof world.entityStore !== 'object') {
+      return;
+    }
+
+    const activeIds = world.entityStore.getActiveIds();
+    for (const handle of activeIds) {
+      world.destroyEntity(handle);
+    }
+  }
 
   function startGame(options = {}) {
     const levelIndex = Number.isFinite(options.levelIndex) ? options.levelIndex : 0;
@@ -117,11 +128,19 @@ export function createGameFlow({ gameStatus, clock, levelLoader } = {}) {
       return false;
     }
 
+    // Tear down existing entities so restart doesn't accumulate stale data.
+    destroyAllEntities();
+
     if (levelLoader && typeof levelLoader.restartCurrentLevel === 'function') {
       levelLoader.restartCurrentLevel({
         ...options,
         reason: 'restart-level',
       });
+    }
+
+    // Notify the caller to reset the simulation clock and component stores.
+    if (typeof onRestart === 'function') {
+      onRestart();
     }
 
     applyPauseFromState(clock, gameStatus);

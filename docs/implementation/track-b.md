@@ -9,8 +9,8 @@
 
 - **P0 Foundation**: `B-01`
 - **P1 Visual Prototype**: `B-02` to `B-03`
-- **P2 Playable MVP**: `B-04`
-- **P3 Feature Complete + Hardening**: `B-05` to `B-09`
+- **P2 Playable MVP**: `B-04`, `B-05`
+- **P3 Feature Complete + Hardening**: `B-06` to `B-09`
 
 ---
 
@@ -122,7 +122,7 @@
 
 #### B-05: Core Gameplay Event Surface
 **Priority**: ��� Medium
-**Phase**: P3 Feature Complete + Hardening
+**Phase**: P2 Playable MVP
 **Depends On**: `B-04`, `D-01` (event-queue resource)
 **Impacts**: Deterministic base event emission from collision/movement systems for scoring, audio, and visual consumers
 **Blocks**: A-08, B-09
@@ -143,7 +143,7 @@
 #### B-06: Bomb & Explosion Systems
 **Priority**: ��� Critical
 **Phase**: P3 Feature Complete + Hardening
-**Depends On**: `B-03` (movement/grid), `B-04` (collision), `D-01` (constants/rng), `D-03` (map resource)
+**Depends On**: `B-02` (input), `B-03` (movement/grid), `B-04` (collision), `D-01` (constants/rng), `D-03` (map resource)
 **Impacts**: Bomberman mechanics, chain reactions, combo rules (`AUDIT-F-13`, `AUDIT-B-03`)
 **Blocks**: A-08, B-07, B-09
 
@@ -157,7 +157,7 @@
 - [ ] Enforce one-bomb-per-cell placement, `3000ms` fuse, `500ms` fire lifetime, cross-pattern propagation, and wall-stop rules.
 - [ ] Enforce strict pellet pass-through mechanics (pellets are NEVER destroyed by fire).
 - [ ] Enforce power-up destruction (power-ups ARE destroyed by fire without being collected).
-- [ ] Apply combo explosion multipliers logic (`200 * 2^(n-1)` for `n` ghosts killed in one chain).
+- [ ] Emit chain depth in the explosion event payload to support combo explosion multipliers logic (`200 * 2^(n-1)` for `n` ghosts killed in one chain) — but keep pointing authority strictly in the scoring system (C-01).
 - [ ] Verification gate: unit tests for explosion geometry, chain determinism, pellet immunity, and wall blocking.
 
 ---
@@ -212,7 +212,7 @@
 #### B-09: Cross-System Gameplay Event Hooks
 **Priority**: ��� Medium
 **Phase**: P3 Feature Complete + Hardening
-**Depends On**: `C-01` (scoring), `C-02` (timer/lives), `B-05` (event baseline), `B-06` (bombs/explosions), `B-08` (ghost AI), `D-01` (event-queue)
+**Depends On**: `B-05` (event baseline), `B-06` (bombs/explosions), `B-08` (ghost AI), `C-01` (scoring), `C-02` (timer/lives), `C-04` (pause/prog), `D-01` (event-queue)
 **Impacts**: Final deterministic integration surface for audio/visual cues
 **Blocks**: A-08, C-07
 

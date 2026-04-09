@@ -194,12 +194,20 @@ export function createGameRuntime({
       return;
     }
 
-    frameProbe.recordFrame(frameNowMs);
-    bootstrap.stepFrame(frameNowMs, {
-      fixedDtMs: FIXED_DT_MS,
-      maxStepsPerFrame: MAX_STEPS_PER_FRAME,
-    });
-    frameHandle = scheduleFrame(onAnimationFrame);
+    try {
+      frameProbe.recordFrame(frameNowMs);
+      bootstrap.stepFrame(frameNowMs, {
+        fixedDtMs: FIXED_DT_MS,
+        maxStepsPerFrame: MAX_STEPS_PER_FRAME,
+      });
+    } catch (error) {
+      // Catch unexpected errors outside the system-dispatch boundary
+      // (e.g., tickClock, applyDeferredMutations) so the loop survives.
+      console.error('Game frame error.', error);
+    } finally {
+      // Always schedule the next frame, even if this one threw.
+      frameHandle = scheduleFrame(onAnimationFrame);
+    }
   }
 
   function onVisibilityChange() {

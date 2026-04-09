@@ -11,13 +11,11 @@
  */
 
 import { advanceSimTime, createClock, resetClock, tickClock } from '../ecs/resources/clock.js';
-import { FIXED_DT_MS, MAX_STEPS_PER_FRAME } from '../ecs/resources/constants.js';
+import { FIXED_DT_MS, MAX_STEPS_PER_FRAME, TOTAL_LEVELS } from '../ecs/resources/constants.js';
 import { createGameStatus } from '../ecs/resources/game-status.js';
-import { World } from '../ecs/world/world.js';
+import { DEFAULT_PHASE_ORDER, World } from '../ecs/world/world.js';
 import { createGameFlow } from './game-flow.js';
 import { createLevelLoader } from './level-loader.js';
-
-const PHASE_ORDER = ['input', 'physics', 'logic', 'render'];
 
 function toFiniteTimestamp(nowMs) {
   if (!Number.isFinite(nowMs)) {
@@ -37,6 +35,13 @@ function normalizeSystemRegistration(phase, registration, index) {
   }
 
   if (registration && typeof registration.update === 'function') {
+    // Detect mismatched phase declarations so configuration errors surface early.
+    if (registration.phase && registration.phase !== phase) {
+      throw new Error(
+        `System "${registration.name || 'unnamed'}" declares phase "${registration.phase}" but is registered under "${phase}".`,
+      );
+    }
+
     return {
       ...registration,
       phase,
@@ -47,7 +52,7 @@ function normalizeSystemRegistration(phase, registration, index) {
 }
 
 export function registerSystemsByPhase(world, systemsByPhase = {}) {
-  for (const phase of PHASE_ORDER) {
+  for (const phase of DEFAULT_PHASE_ORDER) {
     const registrations = Array.isArray(systemsByPhase[phase]) ? systemsByPhase[phase] : [];
 
     for (let index = 0; index < registrations.length; index += 1) {
@@ -64,12 +69,18 @@ export function createBootstrap(options = {}) {
   const levelLoader = createLevelLoader({
     loadMapForLevel: options.loadMapForLevel,
     mapResourceKey: options.mapResourceKey || 'mapResource',
+    totalLevels: TOTAL_LEVELS,
     world,
   });
   const gameFlow = createGameFlow({
     clock,
     gameStatus,
     levelLoader,
+    onRestart: () => {
+      // Reset simulation clock to zero so timers/counters start fresh.
+      resetClock(clock, clock.realTimeMs);
+    },
+    world,
   });
 
   world.setResource('clock', clock);

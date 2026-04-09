@@ -58,6 +58,8 @@ export const EXPLICIT_TICKET_BRANCH_PATTERN = /^[A-Za-z0-9._-]+\/([ABCD]-\d{2})$
 
 // Shared ownership paths are allowed across tracks to avoid false positives on governance/docs changes.
 export const SHARED_OWNERSHIP_PATTERNS = [
+  '.gitignore',
+  '.qwen/**',
   'AGENTS.md',
   'README.md',
   '.github/**',
@@ -176,6 +178,7 @@ export const TRACK_OWNERSHIP_RULES = {
 // Argument parsing intentionally supports both --key=value and --key value forms for CI shell portability.
 export function parseArgs(argv) {
   const args = {};
+  // Walk tokens sequentially so both --key=value and --key value formats are supported.
   for (let index = 0; index < argv.length; index += 1) {
     const token = argv[index];
     if (!token.startsWith('--')) {
@@ -208,6 +211,7 @@ export function toBool(value, defaultValue = false) {
   if (typeof value === 'boolean') {
     return value;
   }
+  // Normalize string inputs to a canonical lowercase form before comparison.
   const normalized = String(value).trim().toLowerCase();
   return normalized === '1' || normalized === 'true' || normalized === 'yes';
 }
@@ -278,6 +282,7 @@ export function extractTicketIds(text) {
     return found;
   }
 
+  // Use a global regex match to capture every ticket ID occurrence in the text.
   for (const match of String(text).matchAll(TICKET_ID_PATTERN)) {
     found.push(String(match[1]).toUpperCase());
   }
@@ -366,6 +371,7 @@ export function readTicketIdsFromTracker(trackerPath = 'docs/implementation/tick
 }
 
 function globToRegExp(pattern) {
+  // Normalize path separators so glob matching works on Windows and Unix.
   const normalized = normalizePolicyPath(pattern);
   const escaped = escapeRegex(normalized)
     .replace(/\\\*\\\*/g, '.*')
@@ -374,14 +380,17 @@ function globToRegExp(pattern) {
 }
 
 export function pathMatchesPattern(filePath, pattern) {
+  // Test a single file path against a glob-style pattern.
   return globToRegExp(pattern).test(normalizePolicyPath(filePath));
 }
 
 export function matchesOwnership(filePath, patterns) {
+  // A file matches ownership if it satisfies any single ownership pattern.
   return patterns.some((pattern) => pathMatchesPattern(filePath, pattern));
 }
 
 export function findOwnershipViolations(trackCode, files) {
+  // Resolve the track rules, then collect every file that falls outside the allowed patterns.
   const normalizedTrack = String(trackCode || '')
     .trim()
     .toUpperCase();
@@ -414,6 +423,7 @@ export function findOwnershipViolations(trackCode, files) {
 }
 
 export function runCommand(command, commandArgs, options = {}) {
+  // Use spawnSync for deterministic local command execution with captured output.
   const isWindowsNpm = process.platform === 'win32' && command === 'npm';
 
   const result = spawnSync(command, commandArgs, {
@@ -436,6 +446,7 @@ export function runCommand(command, commandArgs, options = {}) {
 }
 
 export function commandSucceeded(command, commandArgs) {
+  // Run a command with output suppressed to test exit status only.
   const result = spawnSync(command, commandArgs, {
     cwd: process.cwd(),
     stdio: 'ignore',
@@ -576,23 +587,6 @@ export function collectChangedFiles(baseSha, headSha, options = {}) {
         .filter(Boolean),
     ),
   ].sort();
-}
-
-export function collectLocalWorkingTreeFiles() {
-  if (!commandSucceeded('git', ['rev-parse', '--is-inside-work-tree'])) {
-    return [];
-  }
-
-  const trackedChanges = runCommand('git', ['diff', '--name-only', 'HEAD'])
-    .split(/\r?\n/)
-    .map((line) => line.trim())
-    .filter(Boolean);
-  const untrackedChanges = runCommand('git', ['ls-files', '--others', '--exclude-standard'])
-    .split(/\r?\n/)
-    .map((line) => line.trim())
-    .filter(Boolean);
-
-  return [...new Set([...trackedChanges, ...untrackedChanges])].sort();
 }
 
 export function walkFiles(rootDir, predicate) {
