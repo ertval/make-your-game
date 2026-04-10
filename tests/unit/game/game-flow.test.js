@@ -12,6 +12,7 @@ import { describe, expect, it, vi } from 'vitest';
 
 import { createClock } from '../../../src/ecs/resources/clock.js';
 import { createGameStatus, GAME_STATE } from '../../../src/ecs/resources/game-status.js';
+import { World } from '../../../src/ecs/world/world.js';
 import { createGameFlow } from '../../../src/game/game-flow.js';
 
 describe('game-flow', () => {
@@ -96,5 +97,31 @@ describe('game-flow', () => {
     expect(gameFlow.restartLevel()).toBe(false);
     expect(levelLoader.restartCurrentLevel).not.toHaveBeenCalled();
     expect(gameStatus.currentState).toBe(GAME_STATE.MENU);
+  });
+
+  it('destroys active entities before restarting the current level', () => {
+    const world = new World();
+    const firstEntity = world.createEntity(0b0001);
+    const secondEntity = world.createEntity(0b0010);
+    const gameStatus = createGameStatus(GAME_STATE.PLAYING);
+    const clock = createClock(0);
+    const levelLoader = {
+      restartCurrentLevel: vi.fn(),
+    };
+
+    const gameFlow = createGameFlow({
+      clock,
+      gameStatus,
+      levelLoader,
+      world,
+    });
+
+    expect(world.getEntityCount()).toBe(2);
+    expect(gameFlow.restartLevel({ source: 'pause-menu' })).toBe(true);
+
+    expect(levelLoader.restartCurrentLevel).toHaveBeenCalledTimes(1);
+    expect(world.getEntityCount()).toBe(0);
+    expect(world.entityStore.isAlive(firstEntity)).toBe(false);
+    expect(world.entityStore.isAlive(secondEntity)).toBe(false);
   });
 });

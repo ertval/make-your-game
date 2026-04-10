@@ -42,19 +42,26 @@ function clampLevelIndex(levelIndex, maxLevel) {
  * @returns {function} Sync loadMapForLevel(levelIndex, options) -> MapResource|null
  */
 export function createSyncMapLoader(preloadMaps) {
+  const canonicalMaps = Array.isArray(preloadMaps)
+    ? preloadMaps.map((mapResource) => (mapResource ? cloneMap(mapResource) : mapResource))
+    : [];
+
   return function loadMapForLevel(levelIndex, options = {}) {
-    if (!Number.isFinite(levelIndex) || levelIndex < 0 || levelIndex >= preloadMaps.length) {
+    if (!Number.isFinite(levelIndex) || levelIndex < 0 || levelIndex >= canonicalMaps.length) {
       return null;
     }
 
-    const baseMap = preloadMaps[levelIndex];
+    const baseMap = canonicalMaps[levelIndex];
+    if (!baseMap) {
+      return null;
+    }
 
-    // On restart, clone to ensure canonical reset.
-    if (options.restart && baseMap) {
+    // Always return a fresh clone so runtime mutations never taint canonical maps.
+    if (options.restart) {
       return cloneMap(baseMap);
     }
 
-    return baseMap;
+    return cloneMap(baseMap);
   };
 }
 
