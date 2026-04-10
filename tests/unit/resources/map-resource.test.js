@@ -368,6 +368,11 @@ describe('map-resource — semantic validation (invalid rejection)', () => {
     rawMap.grid[0][3] = CELL_TYPE.EMPTY;
     expect(() => createMapResource(rawMap)).toThrow('Map semantic validation failed');
   });
+
+  it('rejects malformed JSON before semantic validation can run', () => {
+    const malformedMapJson = '{"level": 1, "metadata": '; // truncated payload
+    expect(() => JSON.parse(malformedMapJson)).toThrow(SyntaxError);
+  });
 });
 
 // ---------------------------------------------------------------------------

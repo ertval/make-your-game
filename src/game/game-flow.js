@@ -52,7 +52,12 @@ export function createGameFlow({ gameStatus, clock, levelLoader, world, onRestar
     }
 
     const activeIds = world.entityStore.getActiveIds();
-    for (const handle of activeIds) {
+    for (const id of activeIds) {
+      const generation = world.entityStore.generations[id];
+      const handle = {
+        generation,
+        id,
+      };
       world.destroyEntity(handle);
     }
   }
