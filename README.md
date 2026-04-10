@@ -486,6 +486,7 @@ tests/
     - Semi-Automatable: `F-17`, `F-18`, `B-05`
     - Manual-With-Evidence: `F-19`, `F-20`, `F-21`, `B-06`
 - The project is complete only when all mapped automated checks pass and required manual evidence artifacts are attached.
+- See the [Phase Testing & Verification Report](file:///home/ertval/code/zone-modules/make-your-game/docs/audit-reports/phase-testing-verification-report.md) for detailed testing instructions and exit criteria for each phase.
 
 ---
 

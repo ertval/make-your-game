@@ -185,6 +185,7 @@ Audit test coverage MUST be split into three categories:
 - SHOULD include seed-based determinism tests for timing/input-sensitive behavior.
 - MUST verify pause invariants: rAF active, simulation frozen, HUD responsive.
 - MUST maintain end-to-end/integration verification coverage for every question in `docs/audit.md` (functional and bonus), with explicit automated checks for Fully Automatable and Semi-Automatable items and explicit evidence artifacts for Manual-With-Evidence items.
+- All verification steps and phase-specific exit criteria are documented in the [Phase Testing & Verification Report](file:///home/ertval/code/zone-modules/make-your-game/docs/audit-reports/phase-testing-verification-report.md).
 
 ---
 
