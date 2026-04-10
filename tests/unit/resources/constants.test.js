@@ -146,6 +146,9 @@ describe('constants', () => {
     expect(CELL_TYPE.POWER_PELLET).toBe(4);
     expect(CELL_TYPE.GHOST_HOUSE).toBe(5);
     expect(CELL_TYPE.PLAYER_START).toBe(6);
+    expect(CELL_TYPE.POWER_UP_BOMB).toBe(7);
+    expect(CELL_TYPE.POWER_UP_FIRE).toBe(8);
+    expect(CELL_TYPE.POWER_UP_SPEED).toBe(9);
   });
 
   it('defines pool sizes consistent with constants', () => {
