@@ -70,7 +70,8 @@
 
 - [x] Implement `map-resource.js`: Parses map on load, stores a fixed representation of the static grid cells.
 - [x] Load map resources asynchronously and reject invalid data before world injection.
-- [x] Verification gate: unit tests for valid parse, invalid JSON rejection, spawn point extraction; e2e restart test proves canonical map reset.
+- [x] Verification gate (unit): unit tests for valid parse, invalid JSON rejection, spawn point extraction.
+- [ ] Verification gate (e2e): Playwright e2e restart test proves canonical map reset — **DEFERRED to D-06** (board generation ticket; depends on D-03 and is the natural integration point for restart flow testing).
 
 ---
 
@@ -132,6 +133,7 @@
 - [ ] Define Content Security Policy (CSP) and Trusted Types rollout plan (relaxed for Vite dev, strict for production).
 - [ ] Use `textContent` and explicit attribute APIs for all dynamic content.
 - [ ] Verification gate: adapter tests confirm safe DOM sinks, no innerHTML usage.
+- [ ] **DEFERRED from D-03**: Playwright e2e restart test proves canonical map reset (load level, trigger restart, verify board returns to initial state with correct cell types and spawn positions).
 
 ---
 
