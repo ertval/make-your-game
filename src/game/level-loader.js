@@ -2,7 +2,12 @@
  * Game level loading orchestration.
  *
  * This module owns level index bookkeeping and delegates map payload loading
- * to an injected provider so Track D can wire real map resources later.
+ * to an injected provider. The injected loadMapForLevel is called synchronously
+ * and must return a parsed map resource (or null).
+ *
+ * For async preloading during initialization, use createMapResource from
+ * ecs/resources/map-resource.js together with fetch() before creating the
+ * level loader, or provide a sync factory that returns preloaded resources.
  *
  * Public API:
  * - createLevelLoader({ world, mapResourceKey, loadMapForLevel })
@@ -11,6 +16,8 @@
  * - advanceLevel(options)
  * - getCurrentLevelIndex()
  */
+
+import { cloneMap } from '../ecs/resources/map-resource.js';
 
 function clampLevelIndex(levelIndex, maxLevel) {
   if (!Number.isFinite(levelIndex) || levelIndex < 0) {
@@ -24,6 +31,33 @@ function clampLevelIndex(levelIndex, maxLevel) {
   return Math.floor(levelIndex);
 }
 
+/**
+ * Build a sync loadMapForLevel function from a preloaded map array.
+ *
+ * This is the recommended integration pattern: preload all maps
+ * asynchronously during initialization, then pass the resulting
+ * array to this factory to get a sync loader for the level-loader.
+ *
+ * @param {MapResource[]} preloadMaps — Array of pre-parsed map resources, indexed by levelIndex.
+ * @returns {function} Sync loadMapForLevel(levelIndex, options) -> MapResource|null
+ */
+export function createSyncMapLoader(preloadMaps) {
+  return function loadMapForLevel(levelIndex, options = {}) {
+    if (!Number.isFinite(levelIndex) || levelIndex < 0 || levelIndex >= preloadMaps.length) {
+      return null;
+    }
+
+    const baseMap = preloadMaps[levelIndex];
+
+    // On restart, clone to ensure canonical reset.
+    if (options.restart && baseMap) {
+      return cloneMap(baseMap);
+    }
+
+    return baseMap;
+  };
+}
+
 export function createLevelLoader({
   world,
   mapResourceKey = 'mapResource',
@@ -32,13 +66,18 @@ export function createLevelLoader({
 } = {}) {
   const maxLevelIndex = totalLevels - 1;
   let currentLevelIndex = 0;
+  // Cache the last successfully loaded map for restart cloning.
+  let cachedMapResource = null;
 
   function resolveMapForLevel(levelIndex, options = {}) {
     if (typeof loadMapForLevel !== 'function') {
       return null;
     }
 
-    return loadMapForLevel(levelIndex, options);
+    return loadMapForLevel(levelIndex, {
+      ...options,
+      cachedMapResource,
+    });
   }
 
   function loadLevel(levelIndex, options = {}) {
@@ -47,6 +86,11 @@ export function createLevelLoader({
 
     if (world && typeof world.setResource === 'function') {
       world.setResource(mapResourceKey, mapResource);
+    }
+
+    // Cache the loaded map for future restart cloning.
+    if (mapResource) {
+      cachedMapResource = mapResource;
     }
 
     return mapResource;

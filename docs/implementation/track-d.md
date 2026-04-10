@@ -29,12 +29,12 @@
 - `src/ecs/resources/event-queue.js` — deterministic insertion-order event queue
 - `src/ecs/resources/game-status.js` — FSM enum states
 
-- [ ] Add `src/ecs/resources/constants.js`: Define all canonical gameplay constants: `SIMULATION_HZ=60`, `MAX_STEPS_PER_FRAME=5`, `PLAYER_START_LIVES=3`, `BOMB_FUSE_MS=3000`, `FIRE_DURATION_MS=500`, `DEFAULT_FIRE_RADIUS=2`, `INVINCIBILITY_MS=2000`, `STUN_MS=5000`, `SPEED_BOOST_MULTIPLIER=1.5`, `SPEED_BOOST_MS=10000`, `MAX_CHAIN_DEPTH=10`.
-- [ ] Implement `src/ecs/resources/clock.js`: Tracks elapsed simulation time, delta, and logic pause-state vs unpaused system state.
-- [ ] Implement `src/ecs/resources/rng.js`: Predictable `Math.random` replacement for deterministic runs.
-- [ ] Implement `src/ecs/resources/event-queue.js`: Deterministic insertion-order event queue for cross-system communication.
-- [ ] Implement `src/ecs/resources/game-status.js`: FSM enum states: `MENU → PLAYING ↔ PAUSED → LEVEL_COMPLETE → VICTORY` or `GAME_OVER`.
-- [ ] Verification gate: unit tests validate deterministic RNG sequences, event ordering, and pause-safe simulation clock progression.
+- [x] Add `src/ecs/resources/constants.js`: Define all canonical gameplay constants: `SIMULATION_HZ=60`, `MAX_STEPS_PER_FRAME=5`, `PLAYER_START_LIVES=3`, `BOMB_FUSE_MS=3000`, `FIRE_DURATION_MS=500`, `DEFAULT_FIRE_RADIUS=2`, `INVINCIBILITY_MS=2000`, `STUN_MS=5000`, `SPEED_BOOST_MULTIPLIER=1.5`, `SPEED_BOOST_MS=10000`, `MAX_CHAIN_DEPTH=10`.
+- [x] Implement `src/ecs/resources/clock.js`: Tracks elapsed simulation time, delta, and logic pause-state vs unpaused system state.
+- [x] Implement `src/ecs/resources/rng.js`: Predictable `Math.random` replacement for deterministic runs.
+- [x] Implement `src/ecs/resources/event-queue.js`: Deterministic insertion-order event queue for cross-system communication.
+- [x] Implement `src/ecs/resources/game-status.js`: FSM enum states: `MENU → PLAYING ↔ PAUSED → LEVEL_COMPLETE → VICTORY` or `GAME_OVER`.
+- [x] Verification gate: unit tests validate deterministic RNG sequences, event ordering, and pause-safe simulation clock progression.
 
 ---
 
@@ -49,12 +49,12 @@
 - `assets/maps/level-1.json`, `assets/maps/level-2.json`, `assets/maps/level-3.json`
 - `docs/schemas/map.schema.json` (JSON Schema 2020-12)
 
-- [ ] Create 3 JSON map blueprints (Levels 1, 2, and 3) by strictly parsing the exact ASCII map layouts provided in `game-description.md` §8.1.
+- [x] Create 3 JSON map blueprints (Levels 1, 2, and 3) by strictly parsing the exact ASCII map layouts provided in `game-description.md` §8.1.
   - Apply the exact Level 1, Level 2, and Level 3 grid structures and entity spawn placements without manually balancing or altering the design.
   - Configure the level JSON timers per §8 (120s, 180s, 240s) and ghost limits per level (2, 3, 4 ghosts).
-- [ ] Implement JSON Schema 2020-12 for map validation.
-- [ ] Maps MUST include strict grid placement rules for: empty space (` `), indestructible walls (`���`), destructible walls (`���`), pellets (`·`), power pellets (`⚡`), bomb+ (`���+`), fire+ (`���+`), speed boost (`���`), and ghost house area.
-- [ ] Verification gate: schema tests (valid + invalid fixtures) pass.
+- [x] Implement JSON Schema 2020-12 for map validation.
+- [x] Maps MUST include strict grid placement rules for: empty space (` `), indestructible walls (`���`), destructible walls (`���`), pellets (`·`), power pellets (`⚡`), bomb+ (`���+`), fire+ (`���+`), speed boost (`���`), and ghost house area.
+- [x] Verification gate: schema tests (valid + invalid fixtures) pass.
 
 ---
 
@@ -68,9 +68,10 @@
 **Deliverables**:
 - `src/ecs/resources/map-resource.js` — parses map JSON, stores fixed grid representation, spawn points
 
-- [ ] Implement `map-resource.js`: Parses map on load, stores a fixed representation of the static grid cells.
-- [ ] Load map resources asynchronously and reject invalid data before world injection.
-- [ ] Verification gate: unit tests for valid parse, invalid JSON rejection, spawn point extraction; e2e restart test proves canonical map reset.
+- [x] Implement `map-resource.js`: Parses map on load, stores a fixed representation of the static grid cells.
+- [x] Load map resources asynchronously and reject invalid data before world injection.
+- [x] Verification gate (unit): unit tests for valid parse, invalid JSON rejection, spawn point extraction.
+- [ ] Verification gate (e2e): Playwright e2e restart test proves canonical map reset — **DEFERRED to D-06** (board generation ticket; depends on D-03 and is the natural integration point for restart flow testing).
 
 ---
 
@@ -132,6 +133,7 @@
 - [ ] Define Content Security Policy (CSP) and Trusted Types rollout plan (relaxed for Vite dev, strict for production).
 - [ ] Use `textContent` and explicit attribute APIs for all dynamic content.
 - [ ] Verification gate: adapter tests confirm safe DOM sinks, no innerHTML usage.
+- [ ] **DEFERRED from D-03**: Playwright e2e restart test proves canonical map reset (load level, trigger restart, verify board returns to initial state with correct cell types and spawn positions).
 
 ---
 
