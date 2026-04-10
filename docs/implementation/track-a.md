@@ -30,17 +30,17 @@
 - CI workflow configuration with merge gates (lint, tests, coverage)
 - Static CI scan failing on `<canvas>` usage and banned frameworks
 
-- [ ] Initialize `package.json` with ES modules, configure Vite and Biome.
-- [ ] Setup Vitest for pure system/component testing.
-- [ ] Setup Playwright for e2e/audit testing.
-- [ ] Configure CI merge gates (lint, tests, coverage minimums, protected branch checks).
-- [ ] Implement dependency governance (strict lockfile policy and SBOM generation).
-- [ ] Create `index.html` structure with core `<div>` mount points (game-board, hud, overlay containers).
-- [ ] Commit basic CSS reset and variable stubs.
-- [ ] Add all scripts in `package.json`.
-- [ ] Add `vite.config.js`, `biome.json`, `vitest.config.js`, and `playwright.config.js` with CI-compatible defaults.
-- [ ] Add a static CI scan that fails on `<canvas>` usage and banned framework dependencies (`react`, `vue`, `angular`, `svelte`).
-- [ ] Verification gate: CI passes on baseline and fails when intentionally introducing a banned dependency or `<canvas>` node.
+- [x] Initialize `package.json` with ES modules, configure Vite and Biome.
+- [x] Setup Vitest for pure system/component testing.
+- [x] Setup Playwright for e2e/audit testing.
+- [x] Configure CI merge gates (lint, tests, coverage minimums, protected branch checks).
+- [x] Implement dependency governance (strict lockfile policy and SBOM generation).
+- [x] Create `index.html` structure with core `<div>` mount points (game-board, hud, overlay containers).
+- [x] Commit basic CSS reset and variable stubs.
+- [x] Add all scripts in `package.json`.
+- [x] Add `vite.config.js`, `biome.json`, `vitest.config.js`, and `playwright.config.js` with CI-compatible defaults.
+- [x] Add a static CI scan that fails on `<canvas>` usage and banned framework dependencies (`react`, `vue`, `angular`, `svelte`).
+- [x] Verification gate: CI passes on baseline and fails when intentionally introducing a banned dependency or `<canvas>` node.
 
 ---
 
@@ -56,16 +56,16 @@
 - `src/ecs/world/entity-store.js` — ID generation, recycling, stale-handle protection
 - `src/ecs/world/query.js` — bitmask component matching
 
-- [ ] Implement `src/ecs/world/entity-store.js` using ID arrays via a recycling pool to avoid GC chunks.
-- [ ] Implement `src/ecs/world/query.js`: Provides fast entity lookups matching component masks (bitmask-based).
-- [ ] Implement `src/ecs/world/world.js`:
+- [x] Implement `src/ecs/world/entity-store.js` using ID arrays via a recycling pool to avoid GC chunks.
+- [x] Implement `src/ecs/world/query.js`: Provides fast entity lookups matching component masks (bitmask-based).
+- [x] Implement `src/ecs/world/world.js`:
   - Registers systems and dictates phase ordering (Input -> Physics -> Logic -> Render).
   - Handles fixed-step logic loop (`accumulator`) and calls simulation systems.
   - Passes resource references smoothly without global singleton abuse.
-- [ ] Enforce deterministic system ordering and a single deferred-structural-mutation sync point per fixed step.
-- [ ] Catch exceptions at the system-dispatch boundary, log them, and skip the faulting system for the current frame rather than crashing the loop.
-- [ ] Add generation-based stale-handle protection semantics for recycled entity IDs.
-- [ ] Verification gate: unit tests cover ID recycling, stale-handle rejection, deferred mutation application, and deterministic system order.
+- [x] Enforce deterministic system ordering and a single deferred-structural-mutation sync point per fixed step.
+- [x] Catch exceptions at the system-dispatch boundary, log them, and skip the faulting system for the current frame rather than crashing the loop.
+- [x] Add generation-based stale-handle protection semantics for recycled entity IDs.
+- [x] Verification gate: unit tests cover ID recycling, stale-handle rejection, deferred mutation application, and deterministic system order.
 
 ---
 
@@ -83,17 +83,17 @@
 - `src/game/level-loader.js` — level transition orchestration (stub, data from D-03)
 - Global `unhandledrejection` handler with error overlay
 
-- [ ] Implement `main.ecs.js`: Boots World, binds `window.requestAnimationFrame`.
-- [ ] Connect `rAF` pipeline into World's internal accumulator update.
-- [ ] Implement basic state-transition flow (playing, paused) handled by checking `clock.isPaused` to freeze simulation while keeping rAF active.
-- [ ] Add resume safety and lifecycle handling: baseline reset (`lastFrameTime = now`) and accumulator clamp/clear on unpause and tab restore.
-- [ ] Clamp catch-up using `MAX_STEPS_PER_FRAME` and resync clock baselines on `blur` and `visibilitychange` recovery.
-- [ ] Add global `unhandledrejection` handler that logs the error and displays a visible error overlay for critical failures.
-- [ ] Add instrumentation hooks for Playwright frame-time/FPS collection in semi-automated audit tests.
-- [ ] Implement `src/game/bootstrap.js`: World assembly + system registration order.
-- [ ] Implement `src/game/game-flow.js`: FSM driver that coordinates state transitions.
-- [ ] Implement `src/game/level-loader.js`: Level transition orchestration (data from Track D map resource).
-- [ ] Verification gate: integration tests prove pause invariants; e2e proves rAF continues while simulation is frozen.
+- [x] Implement `main.ecs.js`: Boots World, binds `window.requestAnimationFrame`.
+- [x] Connect `rAF` pipeline into World's internal accumulator update.
+- [x] Implement basic state-transition flow (playing, paused) handled by checking `clock.isPaused` to freeze simulation while keeping rAF active.
+- [x] Add resume safety and lifecycle handling: baseline reset (`lastFrameTime = now`) and accumulator clamp/clear on unpause and tab restore.
+- [x] Clamp catch-up using `MAX_STEPS_PER_FRAME` and resync clock baselines on `blur` and `visibilitychange` recovery.
+- [x] Add global `unhandledrejection` handler that logs the error and displays a visible error overlay for critical failures.
+- [x] Add instrumentation hooks for Playwright frame-time/FPS collection in semi-automated audit tests.
+- [x] Implement `src/game/bootstrap.js`: World assembly + system registration order.
+- [x] Implement `src/game/game-flow.js`: FSM driver that coordinates state transitions.
+- [x] Implement `src/game/level-loader.js`: Level transition orchestration (data from Track D map resource).
+- [x] Verification gate: integration tests prove pause invariants; e2e proves rAF continues while simulation is frozen.
 
 ---
 
@@ -112,13 +112,13 @@
 - `tests/unit/resources/constants.test.js`
 - `tests/unit/resources/map-resource.test.js`
 
-- [ ] Write unit tests for `clock.js`: time progression, pause freeze, resume baseline reset, accumulator clamp.
-- [ ] Write unit tests for `rng.js`: deterministic sequences from same seed, different seeds produce different sequences.
-- [ ] Write unit tests for `event-queue.js`: insertion ordering, flush behavior, deterministic iteration.
-- [ ] Write unit tests for `game-status.js`: FSM transitions, invalid transition rejection.
-- [ ] Write unit tests for `constants.js`: all canonical values correct.
-- [ ] Write unit tests for `map-resource.js`: valid parse, invalid JSON rejection, spawn point extraction.
-- [ ] Verification gate: all core/resource unit tests green with >90% line coverage on tested files.
+- [x] Write unit tests for `clock.js`: time progression, pause freeze, resume baseline reset, accumulator clamp.
+- [x] Write unit tests for `rng.js`: deterministic sequences from same seed, different seeds produce different sequences.
+- [x] Write unit tests for `event-queue.js`: insertion ordering, flush behavior, deterministic iteration.
+- [x] Write unit tests for `game-status.js`: FSM transitions, invalid transition rejection.
+- [x] Write unit tests for `constants.js`: all canonical values correct.
+- [x] Write unit tests for `map-resource.js`: valid parse, invalid JSON rejection, spawn point extraction.
+- [x] Verification gate: all core/resource unit tests green with >90% line coverage on tested files.
 
 ---
 
