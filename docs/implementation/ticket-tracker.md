@@ -30,9 +30,9 @@ Coverage mapping remains canonical in `audit-traceability-matrix.md`.
 ## 📈 Summary Snapshot
 
 - Total tickets: `39`
-- Done: `7`
+- Done: `8`
 - In Progress: `0`
-- Not Started: `32`
+- Not Started: `31`
 
 ## 🛣️ Prototype-First Claim Queue (Global)
 
@@ -103,7 +103,7 @@ Canonical ticket ID ranges used by policy checks:
 - [ ] **B-08** P3 - Ghost AI System (Depends on: B-03, B-04, B-07, C-03, D-01, D-03) | Blocks: A-06; A-08; B-09
 - [ ] **B-09** P3 - Cross-System Gameplay Event Hooks (Depends on: B-05, B-06, B-08, C-01, C-02, C-04, D-01) | Blocks: A-05; A-06; A-08; C-07
 - [ ] **C-07** P3 - Audio Cue Mapping & Runtime Integration (Depends on: B-09, C-06) | Blocks: A-08
-- [ ] **A-04** P3 - Unit Tests - ECS Core & Resources (Depends on: A-02, A-03, D-01, D-03) | Blocks: None
+- [x] **A-04** P3 - Unit Tests - ECS Core & Resources (Depends on: A-02, A-03, D-01, D-03) | Blocks: None
 - [ ] **A-05** P3 - Integration Tests - Multi-System & Adapter Boundaries (Depends on: A-03, B-03, B-04, B-06, B-09, C-01, C-02, C-04, C-05, D-08) | Blocks: A-09
 - [ ] **A-06** P3 - E2E Audit Tests (Playwright) (Depends on: A-03, B-04, B-06, B-07, B-08, B-09, C-01, C-02, C-03, C-04, C-05) | Blocks: A-09
 - [ ] **A-08** P3 - Unit Tests - All Gameplay Systems (Depends on: B-01 through B-09, C-01 through C-05, C-07) | Blocks: A-09

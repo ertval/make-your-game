@@ -45,6 +45,27 @@ describe('event-queue', () => {
     expect(queue.events).toHaveLength(1);
   });
 
+  it('peek sorts events by frame when frames differ', () => {
+    const queue = createEventQueue();
+    enqueue(queue, 'LateFrame', {}, 10);
+    enqueue(queue, 'EarlyFrame', {}, 2);
+
+    const events = peek(queue);
+    expect(events[0].type).toBe('EarlyFrame');
+    expect(events[1].type).toBe('LateFrame');
+    expect(queue.events).toHaveLength(2);
+  });
+
+  it('peek preserves insertion order for the same frame', () => {
+    const queue = createEventQueue();
+    enqueue(queue, 'First', {}, 5);
+    enqueue(queue, 'Second', {}, 5);
+
+    const events = peek(queue);
+    expect(events[0].type).toBe('First');
+    expect(events[1].type).toBe('Second');
+  });
+
   it('clear discards all events and resets order counter', () => {
     const queue = createEventQueue();
     enqueue(queue, 'Test', {}, 1);
