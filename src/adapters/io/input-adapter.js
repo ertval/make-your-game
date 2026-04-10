@@ -18,6 +18,8 @@
  *   without depending on OS key repeat behavior.
  * - Edge-triggered actions are buffered in `pressedKeys` so one-shot inputs
  *   like bomb, pause, and confirm can be consumed exactly once per fixed step.
+ * - `drainPressedKeys()` reuses an internal Set buffer so fixed-step input
+ *   sampling does not allocate fresh collections every simulation tick.
  * - `clearHeldKeys()` intentionally clears both held and pressed input state
  *   because the runtime already calls that method on blur/visibility recovery.
  * - The adapter also listens for `blur` and hidden `visibilitychange` events
@@ -111,6 +113,7 @@ export function createInputAdapter(options = {}) {
   const documentTarget = options.documentTarget || defaultDocumentTarget;
   const heldKeys = new Set();
   const pressedKeys = new Set();
+  const drainedPressedKeys = new Set();
 
   /**
    * Clear all tracked key state.
@@ -125,12 +128,17 @@ export function createInputAdapter(options = {}) {
   /**
    * Drain buffered edge-triggered intents in insertion order.
    *
-   * @returns {Set<string>} Snapshot of pressed intents since the last drain.
+   * @returns {Set<string>} Reused snapshot of pressed intents since the last drain.
    */
   function drainPressedKeys() {
-    const drainedKeys = new Set(pressedKeys);
+    drainedPressedKeys.clear();
+
+    for (const pressedKey of pressedKeys) {
+      drainedPressedKeys.add(pressedKey);
+    }
+
     pressedKeys.clear();
-    return drainedKeys;
+    return drainedPressedKeys;
   }
 
   /**

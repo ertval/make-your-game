@@ -40,6 +40,13 @@ function createDocumentStub() {
 }
 
 describe('keyboard input adapter', () => {
+  it('returns null for nullish and non-object inputs', () => {
+    expect(normalizeKeyboardIntent()).toBeNull();
+    expect(normalizeKeyboardIntent(null)).toBeNull();
+    expect(normalizeKeyboardIntent('ArrowUp')).toBeNull();
+    expect(normalizeKeyboardIntent(42)).toBeNull();
+  });
+
   it('normalizes the canonical gameplay keys into stable intents', () => {
     expect(normalizeKeyboardIntent({ code: 'ArrowUp' })).toBe(INPUT_INTENT.UP);
     expect(normalizeKeyboardIntent({ code: 'ArrowDown' })).toBe(INPUT_INTENT.DOWN);
@@ -51,6 +58,8 @@ describe('keyboard input adapter', () => {
     expect(normalizeKeyboardIntent({ code: 'Enter' })).toBe(INPUT_INTENT.CONFIRM);
     expect(normalizeKeyboardIntent({ key: 'P' })).toBe(INPUT_INTENT.PAUSE);
     expect(normalizeKeyboardIntent({ key: ' ' })).toBe(INPUT_INTENT.BOMB);
+    expect(normalizeKeyboardIntent({ key: 'Esc' })).toBe(INPUT_INTENT.PAUSE);
+    expect(normalizeKeyboardIntent({ key: 'Spacebar' })).toBe(INPUT_INTENT.BOMB);
   });
 
   it('captures recognized keydown and keyup events into held and pressed state', () => {
@@ -164,6 +173,61 @@ describe('keyboard input adapter', () => {
     adapter.destroy();
   });
 
+  it('tracks simultaneous held keys independently', () => {
+    const eventTarget = createEventTargetStub();
+    const adapter = createInputAdapter({ eventTarget });
+
+    eventTarget.dispatch('keydown', {
+      code: 'ArrowUp',
+      repeat: false,
+    });
+    eventTarget.dispatch('keydown', {
+      code: 'ArrowRight',
+      repeat: false,
+    });
+
+    expect(adapter.heldKeys.has(INPUT_INTENT.UP)).toBe(true);
+    expect(adapter.heldKeys.has(INPUT_INTENT.RIGHT)).toBe(true);
+    expect(adapter.heldKeys.size).toBe(2);
+
+    eventTarget.dispatch('keyup', {
+      code: 'ArrowUp',
+    });
+
+    expect(adapter.heldKeys.has(INPUT_INTENT.UP)).toBe(false);
+    expect(adapter.heldKeys.has(INPUT_INTENT.RIGHT)).toBe(true);
+
+    adapter.destroy();
+  });
+
+  it('reuses the drained pressed-key Set across calls', () => {
+    const eventTarget = createEventTargetStub();
+    const adapter = createInputAdapter({ eventTarget });
+
+    eventTarget.dispatch('keydown', {
+      code: 'Space',
+      repeat: false,
+    });
+
+    const firstDrain = adapter.drainPressedKeys();
+    expect(firstDrain.has(INPUT_INTENT.BOMB)).toBe(true);
+
+    eventTarget.dispatch('keyup', {
+      code: 'Space',
+    });
+    eventTarget.dispatch('keydown', {
+      code: 'Enter',
+      repeat: false,
+    });
+
+    const secondDrain = adapter.drainPressedKeys();
+    expect(secondDrain).toBe(firstDrain);
+    expect(secondDrain.has(INPUT_INTENT.BOMB)).toBe(false);
+    expect(secondDrain.has(INPUT_INTENT.CONFIRM)).toBe(true);
+
+    adapter.destroy();
+  });
+
   it('clears held and pressed input state on window blur', () => {
     const eventTarget = createEventTargetStub();
     const windowTarget = createEventTargetStub();
@@ -217,5 +281,20 @@ describe('keyboard input adapter', () => {
     expect(adapter.pressedKeys.size).toBe(0);
 
     adapter.destroy();
+  });
+
+  it('stops mutating state after destroy removes the listeners', () => {
+    const eventTarget = createEventTargetStub();
+    const adapter = createInputAdapter({ eventTarget });
+
+    adapter.destroy();
+
+    eventTarget.dispatch('keydown', {
+      code: 'ArrowLeft',
+      repeat: false,
+    });
+
+    expect(adapter.heldKeys.size).toBe(0);
+    expect(adapter.pressedKeys.size).toBe(0);
   });
 });
