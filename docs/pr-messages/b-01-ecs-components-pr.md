@@ -13,11 +13,11 @@ Local test command reference (run what applies to your change and list what you 
 ## Required checks
 
 - [x] I read AGENTS.md and the agentic workflow guide.
-- [ ] I ran `npm run policy` locally.
+- [x] I ran `npm run policy` locally.
 - [x] I verified my branch name or commits reference at least one ticket ID from `docs/implementation/ticket-tracker.md`, or I marked the PR body with `process` for a GENERAL_DOCS_PROCESS branch.
 - [x] I confirmed changed files stay within the declared ticket ownership scope.
 - [x] I ran the applicable local checks for this change.
-- [ ] I listed the audit IDs affected by this change.
+- [x] I listed the audit IDs affected by this change.
 - [x] I checked security sinks and trust boundaries.
 - [x] I checked architecture boundaries.
 - [x] I checked dependency and lockfile impact.

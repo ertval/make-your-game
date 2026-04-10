@@ -107,6 +107,31 @@ describe('World', () => {
     expect(world.query(0b0010)).toEqual([recycled.id]);
   });
 
+  it('rejects stale handles across multiple recycling generations', () => {
+    const world = new World();
+    const staleHandles = [];
+
+    let current = world.createEntity();
+
+    for (let cycle = 0; cycle < 3; cycle += 1) {
+      staleHandles.push(current);
+      expect(world.destroyEntity(current)).toBe(true);
+
+      const recycled = world.createEntity();
+      expect(recycled.id).toBe(current.id);
+      expect(recycled.generation).toBe(current.generation + 1);
+      current = recycled;
+    }
+
+    for (let index = 0; index < staleHandles.length; index += 1) {
+      expect(world.destroyEntity(staleHandles[index])).toBe(false);
+      expect(world.setEntityMask(staleHandles[index], 0b0100)).toBe(false);
+    }
+
+    expect(world.setEntityMask(current, 0b0100)).toBe(true);
+    expect(world.query(0b0100)).toEqual([current.id]);
+  });
+
   it('catches system errors and continues dispatching remaining systems', () => {
     const world = new World();
     const consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});

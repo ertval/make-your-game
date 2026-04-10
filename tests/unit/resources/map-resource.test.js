@@ -86,6 +86,13 @@ function createMinimalValidRawMap() {
   };
 }
 
+/**
+ * Parse raw map JSON text and build a map resource.
+ */
+function parseMapJsonToResource(rawJsonText) {
+  return createMapResource(JSON.parse(rawJsonText));
+}
+
 // ---------------------------------------------------------------------------
 // Valid map parsing
 // ---------------------------------------------------------------------------
@@ -367,6 +374,20 @@ describe('map-resource — semantic validation (invalid rejection)', () => {
     const rawMap = createMinimalValidRawMap();
     rawMap.grid[0][3] = CELL_TYPE.EMPTY;
     expect(() => createMapResource(rawMap)).toThrow('Map semantic validation failed');
+  });
+
+  it('rejects malformed JSON at parse boundary before resource creation', () => {
+    const malformedMapJson = '{"level": 1, "metadata": '; // truncated payload
+    expect(() => parseMapJsonToResource(malformedMapJson)).toThrow(SyntaxError);
+  });
+
+  it('rejects semantically invalid JSON payload after parse during resource creation', () => {
+    const rawMap = createMinimalValidRawMap();
+    rawMap.grid[0][3] = CELL_TYPE.EMPTY;
+    const invalidButParseableJson = JSON.stringify(rawMap);
+    expect(() => parseMapJsonToResource(invalidButParseableJson)).toThrow(
+      'Map semantic validation failed',
+    );
   });
 });
 

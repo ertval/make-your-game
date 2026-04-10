@@ -121,4 +121,18 @@ describe('clock', () => {
     tickClock(clock, FIXED_DT_MS * 1.5);
     expect(clock.alpha).toBeCloseTo(0.5, 4);
   });
+
+  it('handles fixed-step boundary conditions around epsilon without extra steps', () => {
+    const baseline = 1_000;
+    const epsilon = 0.000001;
+
+    const barelyAdvancedClock = createClock(baseline);
+    expect(tickClock(barelyAdvancedClock, baseline + epsilon)).toBe(0);
+
+    const justBelowStepClock = createClock(baseline);
+    expect(tickClock(justBelowStepClock, baseline + FIXED_DT_MS - epsilon)).toBe(0);
+
+    const justAboveStepClock = createClock(baseline);
+    expect(tickClock(justAboveStepClock, baseline + FIXED_DT_MS + epsilon)).toBe(1);
+  });
 });
