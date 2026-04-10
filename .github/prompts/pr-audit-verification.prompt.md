@@ -238,30 +238,6 @@ Date: YYYY-MM-DD
 - TICKET_SCOPE: <detected ticket IDs or none>
 - TRACK: <A|B|C|D|GENERAL>
 
-## Commands Executed
-- npm ci
-- npm run check
-- npm run test
-- npm run test:coverage
-- npm run validate:schema
-- npm run sbom
-- npm run ci
-- npm run test:unit
-- npm run test:integration
-- npm run test:e2e
-- npm run test:audit
-- npm run check:forbidden
-- npm run policy -- --require-approval=false
-- npm run policy:repo
-- npm run policy:quality
-- npm run policy:checks
-- npm run policy:forbid
-- npm run policy:header
-- npm run policy:approve -- --require-approval=false
-- npm run policy:forbidrepo
-- npm run policy:headerrepo
-- npm run policy:trace
-
 <!-- Note: Ensure you replace <STATUS> below with EXACTLY ONE value, and only make it bold if it indicates a failure. Options: PASS, **FAIL**, True, **False**, N/A -->
 
 ## Gate Summary
