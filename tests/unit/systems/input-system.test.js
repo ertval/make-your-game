@@ -154,4 +154,23 @@ describe('input-system', () => {
     expect(inputState.pause[player.id]).toBe(0);
     expect(inputState.confirm[player.id]).toBe(0);
   });
+
+  it('returns early without throwing when the input-state resource is missing', () => {
+    const world = new World();
+    const inputSystem = createInputSystem();
+    const player = world.createEntity(COMPONENT_MASK.PLAYER | COMPONENT_MASK.INPUT_STATE);
+
+    world.setResource(
+      'inputAdapter',
+      createAdapterStub({
+        heldKeys: ['left'],
+        pressedKeys: ['confirm'],
+      }),
+    );
+
+    expect(() => {
+      inputSystem.update({ world });
+    }).not.toThrow();
+    expect(player.id).toBeGreaterThanOrEqual(0);
+  });
 });

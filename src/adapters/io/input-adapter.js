@@ -177,7 +177,6 @@ export function createInputAdapter(options = {}) {
       return;
     }
 
-    event.preventDefault?.();
     heldKeys.delete(intent);
   }
 

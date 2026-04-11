@@ -65,19 +65,23 @@ describe('keyboard input adapter', () => {
   it('captures recognized keydown and keyup events into held and pressed state', () => {
     const eventTarget = createEventTargetStub();
     const adapter = createInputAdapter({ eventTarget });
-    const preventDefaultCalls = [];
+    const keydownPreventDefaultCalls = [];
+    const keyupPreventDefault = {
+      enter: 0,
+      left: 0,
+    };
 
     eventTarget.dispatch('keydown', {
       code: 'ArrowLeft',
       preventDefault() {
-        preventDefaultCalls.push('down-left');
+        keydownPreventDefaultCalls.push('down-left');
       },
       repeat: false,
     });
     eventTarget.dispatch('keydown', {
       code: 'Enter',
       preventDefault() {
-        preventDefaultCalls.push('down-enter');
+        keydownPreventDefaultCalls.push('down-enter');
       },
       repeat: false,
     });
@@ -93,19 +97,23 @@ describe('keyboard input adapter', () => {
     eventTarget.dispatch('keyup', {
       code: 'ArrowLeft',
       preventDefault() {
-        preventDefaultCalls.push('up-left');
+        keyupPreventDefault.left += 1;
       },
     });
     eventTarget.dispatch('keyup', {
       code: 'Enter',
       preventDefault() {
-        preventDefaultCalls.push('up-enter');
+        keyupPreventDefault.enter += 1;
       },
     });
 
     expect(adapter.heldKeys.has(INPUT_INTENT.LEFT)).toBe(false);
     expect(adapter.heldKeys.has(INPUT_INTENT.CONFIRM)).toBe(false);
-    expect(preventDefaultCalls).toEqual(['down-left', 'down-enter', 'up-left', 'up-enter']);
+    expect(keydownPreventDefaultCalls).toEqual(['down-left', 'down-enter']);
+    expect(keyupPreventDefault).toEqual({
+      enter: 0,
+      left: 0,
+    });
 
     adapter.destroy();
   });
