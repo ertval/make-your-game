@@ -12,9 +12,11 @@ You are a **Codebase Audit Orchestrator**. Your mission is to execute a comprehe
 2. `docs/requirements.md` and `docs/game-description.md` (feature and gameplay source of truth)
 3. `docs/audit.md` (acceptance/pass criteria source of truth)
 4. `docs/implementation/implementation-plan.md`
-5. `docs/implementation/track-a.md`, `track-b.md`, `track-c.md`, `track-d.md`
-6. `docs/implementation/audit-traceability-matrix.md`
-7. `package.json`, `vite.config.js`, `vitest.config.js`, `playwright.config.js`
+5. `docs/implementation/agentic-workflow-guide.md` (team process, policies, and gate workflow)
+6. `docs/implementation/track-a.md`, `track-b.md`, `track-c.md`, `track-d.md`
+7. `docs/implementation/audit-traceability-matrix.md`
+8. `docs/audit-reports/phase-testing-verification-report.md`
+9. `package.json`, `vite.config.js`, `vitest.config.js`, `playwright.config.js`
 
 **Important behavior requirements:**
 - **Read-only audit.** Do not modify any source code, tests, or documentation.
@@ -75,11 +77,13 @@ You MUST spawn exactly **5 dedicated subagents** — one per analysis domain bel
 
 ---
 
-### Agent 3: Architecture & ECS Violations
+### Agent 3: Architecture, ECS Violations & Guideline Drift
 
-**Objective:** Identify violations of the ECS architecture rules, boundary breaches, and structural integrity issues as defined in `AGENTS.md`.
+**Objective:** Identify violations of the ECS architecture rules, boundary breaches, structural integrity issues, and any drift from project canonical guidelines (`AGENTS.md`, `docs/requirements.md`, `docs/game-description.md`, `docs/audit.md`).
 
 **Scope:**
+- **Guideline Drift**: Check for feature/gameplay drift against `docs/requirements.md` and `docs/game-description.md`. Check for testing and criteria drift against `docs/audit.md`. Check for architectural standard drift against `AGENTS.md` and `docs/implementation/agentic-workflow-guide.md`.
+- **Codebase Ownership Policy Drift**: Verify that the precise file/folder track ownership rules in `scripts/policy-gate/lib/policy-utils.mjs` exactly mirror the ownership descriptions in `docs/implementation/track-a.md` through `track-d.md` and `docs/implementation/implementation-plan.md`. Are there any mismatches?
 - **Structural deferral**: Are entity/component add/remove deferred to sync points? Or do they happen immediately during dispatch?
 - **Opaque entities**: Do any systems or game-flow code access entity internals (IDs, stores) directly instead of through world API?
 - **DOM isolation**: Do simulation systems (anything under `src/ecs/systems/` except render systems) call DOM APIs?
@@ -136,12 +140,13 @@ You MUST spawn exactly **5 dedicated subagents** — one per analysis domain bel
 - **Integration test coverage**: Are cross-system interactions tested (world scheduling, bomb chains, pause logic)?
 - **Adapter test coverage**: Are adapter boundaries tested (input normalization, DOM write batching)?
 - **E2E coverage**: Map existing Playwright specs against `docs/audit.md` question list — what's missing?
-- **Audit verification**: Is `tests/e2e/audit/audit.e2e.test.js` testing actual behavior or just inventorying IDs?
+- **Audit verification matrix**: Is `docs/implementation/audit-traceability-matrix.md` out-of-sync with the actual Playwright/Vitest specs? Is `tests/e2e/audit/audit.e2e.test.js` testing actual behavior or just inventorying IDs?
+- **Phase testing parity**: Is `docs/audit-reports/phase-testing-verification-report.md` fully up-to-date with testing methods, phase execution, and manual evidence instructions for `docs/audit.md`?
 - **Audit category enforcement**: Per `AGENTS.md`, are Fully Automatable (F-01..F-16, B-01..B-04), Semi-Automatable (F-17, F-18, B-05), and Manual-With-Evidence (F-19..F-21, B-06) categories all satisfied?
 - **Coverage configuration**: Does `vitest.config.js` include only `src/` in coverage targets? Are tests excluded?
-- **CI pipeline**: Does `.github/workflows/policy-gate.yml` enforce all required gates? Can it pass with no tests?
+- **CI pipeline & Policy gates**: Does `.github/workflows/policy-gate.yml` enforce all required gates? Are branch name validations, source header checks, and ownership error messages correctly reporting constraints based on `scripts/policy-gate/run-checks.mjs`?
 - **Test flakiness**: Are there fixed `waitForTimeout` calls in Playwright tests? Should they use state-driven waits?
-- **Policy gate gaps**: Are dependency bans, header checks, and traceability checks actually enforced or just warned?
+- **Policy gate gaps**: Are codebase ownership bounds, dependency bans, header checks, and traceability checks actually enforced or just warned?
 - **Performance testing**: Are there frame-time, long-task, or allocation tests per `AGENTS.md` performance acceptance criteria?
 
 **Deliverables per finding:**
@@ -187,7 +192,7 @@ Use this exact markdown structure:
 Five parallel analysis passes were executed across the codebase:
 1. **Bugs & Logic Errors** — <brief scope summary>
 2. **Dead Code & Unused References** — <brief scope summary>
-3. **Architecture & ECS Violations** — <brief scope summary>
+3. **Architecture, ECS Violations & Guideline Drift** — <brief scope summary>
 4. **Code Quality & Security** — <brief scope summary>
 5. **Tests & CI Gaps** — <brief scope summary>
 
@@ -209,6 +214,8 @@ Each pass was evidence-driven and read-only. Findings include concrete file/line
 1. <risk summary>
 2. <risk summary>
 3. <risk summary>
+4. <risk summary>
+5. <risk summary>
 
 ---
 
@@ -216,11 +223,10 @@ Each pass was evidence-driven and read-only. Findings include concrete file/line
 
 ### BUG-01: <title> ⬆ <SEVERITY>
 **Origin:** <which agent(s) found this>
-**Files:**
+**Files:** Ownership: <Track A/B/C/D/General>
 - `<file>` (~L<line>)
 
 **Problem:** <description>
-
 **Impact:** <impact>
 
 **Fix:** <suggestion with code snippet if applicable>
@@ -236,7 +242,7 @@ Each pass was evidence-driven and read-only. Findings include concrete file/line
 ### DEAD-01: <title> ⬆ <SEVERITY>
 <... same structure ...>
 
-## 3) Architecture & ECS Violations
+## 3) Architecture, ECS Violations & Guideline Drift
 
 ### ARCH-01: <title> ⬆ <SEVERITY>
 **Violated rule:** <quote from AGENTS.md>
