@@ -142,6 +142,7 @@ describe('actor component stores', () => {
     expect(store.right).toBeInstanceOf(Uint8Array);
     expect(store.bomb).toBeInstanceOf(Uint8Array);
     expect(store.pause).toBeInstanceOf(Uint8Array);
+    expect(store.confirm).toBeInstanceOf(Uint8Array);
 
     expect(store.up).toHaveLength(maxEntities);
     expect(store.down).toHaveLength(maxEntities);
@@ -149,6 +150,7 @@ describe('actor component stores', () => {
     expect(store.right).toHaveLength(maxEntities);
     expect(store.bomb).toHaveLength(maxEntities);
     expect(store.pause).toHaveLength(maxEntities);
+    expect(store.confirm).toHaveLength(maxEntities);
   });
 
   it('resets one input snapshot slot back to no pressed inputs', () => {
@@ -162,6 +164,7 @@ describe('actor component stores', () => {
     store.right[entityId] = 1;
     store.bomb[entityId] = 1;
     store.pause[entityId] = 1;
+    store.confirm[entityId] = 1;
     store.right[untouchedEntityId] = 1;
 
     resetInputState(store, entityId);
@@ -172,6 +175,7 @@ describe('actor component stores', () => {
     expect(store.right[entityId]).toBe(0);
     expect(store.bomb[entityId]).toBe(0);
     expect(store.pause[entityId]).toBe(0);
+    expect(store.confirm[entityId]).toBe(0);
 
     expect(store.right[untouchedEntityId]).toBe(1);
   });

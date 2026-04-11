@@ -71,6 +71,7 @@ function runStep(label, command, commandArgs, retryHint) {
 }
 
 let ranRepoFallback = false;
+let contextPrepared = false;
 
 if (scope === 'pr' || scope === 'all') {
   // We run the base project lint/test suite first so we don't bother doing policy validation on fundamentally broken code.
@@ -79,6 +80,7 @@ if (scope === 'pr' || scope === 'all') {
   runCommand('node', ['scripts/policy-gate/prepare-context.mjs', ...passThrough], {
     stdio: 'inherit',
   });
+  contextPrepared = true;
 
   // We parse the extracted git metadata file to infer PR intent and verify traceability.
   const metadata = fs.existsSync(metaPath) ? readJson(metaPath) : {};
@@ -178,6 +180,16 @@ if (scope === 'pr' || scope === 'all') {
 }
 
 if ((scope === 'repo' || scope === 'all') && !(scope === 'all' && ranRepoFallback)) {
+  if (!contextPrepared) {
+    runStep(
+      'Policy context preparation',
+      'node',
+      ['scripts/policy-gate/prepare-context.mjs', ...passThrough],
+      'npm run policy:prep',
+    );
+    contextPrepared = true;
+  }
+
   // We execute repo-wide policies for deeper validation when specifically requested or on merge to main.
   runStep(
     'Repo-wide forbidden-tech scan',

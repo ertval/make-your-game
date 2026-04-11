@@ -77,7 +77,21 @@ describe('policy-utils ticket and process detection', () => {
     expect(result.violations).toEqual([]);
   });
 
-  it('rejects Track B changes to non-B tests and non-B source files', () => {
+  it('allows shared styles/base.css for any track', () => {
+    expect(findOwnershipViolations('A', ['styles/base.css']).violations).toEqual([]);
+    expect(findOwnershipViolations('B', ['styles/base.css']).violations).toEqual([]);
+    expect(findOwnershipViolations('C', ['styles/base.css']).violations).toEqual([]);
+    expect(findOwnershipViolations('D', ['styles/base.css']).violations).toEqual([]);
+  });
+
+  it('treats registry.js as Track B-owned scope', () => {
+    expect(findOwnershipViolations('B', ['src/ecs/components/registry.js']).violations).toEqual([]);
+    expect(findOwnershipViolations('C', ['src/ecs/components/registry.js']).violations).toEqual([
+      'src/ecs/components/registry.js',
+    ]);
+  });
+
+  it('allows Track B tests for B-owned files and rejects out-of-scope files', () => {
     const result = findOwnershipViolations('B', [
       'tests/unit/components/actors.test.js',
       'tests/unit/resources/clock.test.js',
@@ -90,7 +104,7 @@ describe('policy-utils ticket and process detection', () => {
     ]);
   });
 
-  it('rejects Track C changes to Track B test files', () => {
+  it('allows Track C tests for C-owned files and rejects out-of-scope tests', () => {
     const result = findOwnershipViolations('C', [
       'tests/unit/systems/scoring-system.test.js',
       'tests/unit/systems/ghost-ai-system.test.js',
@@ -99,7 +113,7 @@ describe('policy-utils ticket and process detection', () => {
     expect(result.violations).toEqual(['tests/unit/systems/ghost-ai-system.test.js']);
   });
 
-  it('rejects Track D changes to Track C adapters tests', () => {
+  it('allows Track D tests for D-owned files and rejects out-of-scope tests', () => {
     const result = findOwnershipViolations('D', [
       'tests/integration/adapters/renderer-adapter.test.js',
       'tests/integration/adapters/audio-adapter.test.js',
