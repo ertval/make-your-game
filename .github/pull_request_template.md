@@ -9,7 +9,7 @@ Local test command reference (run what applies to your change and list what you 
 - Audit-map updates: `npm run test:audit`
 - Manifest/schema updates: `npm run validate:schema`
 - Local checks rerun with prepared metadata: `npm run policy:checks:local`
-- Repo-wide rerun when needed: `npm run policy:repo`
+- Repo-only troubleshooting rerun: `npm run policy:repo`
 
 ## Required checks
 
@@ -18,7 +18,9 @@ Local test command reference (run what applies to your change and list what you 
 - [ ] I verified my branch name follows `<owner-or-scope>/<TRACK>-<NN>` (for example `ekaramet/A-03`), or I marked the PR body with `process` for a GENERAL_DOCS_PROCESS branch.
 - [ ] I confirmed changed files stay within the declared ticket ownership scope.
 - [ ] I ran the applicable local checks for this change.
-- [ ] I listed the audit IDs affected by this change.
+- [ ] I listed each affected AUDIT ID with execution type (Fully Automatable, Semi-Automatable, or Manual-With-Evidence) and linked the passing test output or evidence artifact.
+- [ ] I confirmed full audit coverage remains mapped for F-01 through F-21 and B-01 through B-06.
+- [ ] If affected, I attached Manual-With-Evidence artifacts for F-19, F-20, F-21, and B-06.
 - [ ] I checked security sinks and trust boundaries.
 - [ ] I checked architecture boundaries.
 - [ ] I checked dependency and lockfile impact.
@@ -42,7 +44,8 @@ Local test command reference (run what applies to your change and list what you 
 - 
 
 ## Audit questions affected
-- 
+- AUDIT-XX | Execution type: Fully Automatable or Semi-Automatable or Manual-With-Evidence | Verification: test name or evidence note | Evidence path/link:
+- AUDIT-YY | Execution type: Fully Automatable or Semi-Automatable or Manual-With-Evidence | Verification: test name or evidence note | Evidence path/link:
 
 ## Security notes
 - 

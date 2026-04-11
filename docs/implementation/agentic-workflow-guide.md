@@ -79,6 +79,8 @@ For bug fixes, follow the repo bug-fix workflow:
 4. Prove the fix passes.
 5. Check nearby systems for regressions.
 
+If no deterministic repro is possible after 2 bounded attempts, document the blocker and attempted repro paths, capture minimal evidence (logs, steps, observed vs expected), and request guidance before broad or risky changes.
+
 ## 5. Branch and PR Rules
 
 Every branch should represent one logical change.
@@ -107,12 +109,14 @@ A PR is not ready until the following are true.
 - Formatting and linting pass for the changed scope.
 - Relevant unit tests pass.
 - Relevant integration tests pass.
-- Audit-related e2e coverage exists for any affected audit question.
+- For each affected audit ID, verification is listed by execution category: Fully Automatable, Semi-Automatable, or Manual-With-Evidence.
+- Audit coverage remains explicit and intact for F-01 through F-21 and B-01 through B-06 (no orphaned mappings).
+- If this change affects F-19, F-20, F-21, or B-06, required manual evidence artifacts are attached.
 - Gameplay-critical changes include performance evidence.
 - The diff does not introduce forbidden APIs or unsafe DOM patterns.
 - The change does not break the repo’s ECS boundaries.
 - Documentation is updated if behavior, constraints, or testing expectations changed.
-- The script-driven gates pass locally: `npm run policy` and `npm run policy:repo`.
+- The script-driven gate baseline passes locally: `npm run policy`. Run `npm run policy:repo` only as a targeted repo-only rerun.
 
 ### Required evidence for gameplay-critical changes
 
@@ -120,9 +124,20 @@ Attach a short note with:
 
 - Scenario tested.
 - Browser and machine context.
-- Frame-time observations.
+- Frame-time observations (`p50`, `p95`, `p99`).
 - Pause and resume observations.
+- Paint usage observations when rendering/compositing changed.
+- Layer count and promotion observations when rendering/compositing changed.
 - Memory or allocation notes if relevant.
+- Evidence artifact paths for any affected Manual-With-Evidence audit IDs.
+
+### Required audit category mapping
+
+For each affected audit ID in `docs/audit.md`, include the execution category in the PR:
+
+- Fully Automatable: automated checks (Vitest and/or Playwright) for F-01 through F-16 and B-01 through B-04.
+- Semi-Automatable: Playwright Performance API measurement for F-17, F-18, and B-05.
+- Manual-With-Evidence: signed evidence note plus DevTools trace artifacts for F-19, F-20, F-21, and B-06.
 
 ## 7. Audit Queries to Check Before PR
 
@@ -169,7 +184,7 @@ Use `../audit.md` as the acceptance checklist. For any change that touches gamep
 - Is the code using asynchronous work only where it actually improves performance?
 - Is the project well done overall?
 
-If a PR touches one of these areas, the author should state which audit IDs changed and how they were verified. If a change affects several audit items, list them explicitly in the PR description.
+If a PR touches one of these areas, list each affected audit ID, its execution category, and the exact verification artifact or passing test output.
 
 ## 8. Security Rules
 
@@ -253,7 +268,7 @@ The docs entrypoint for the PR contract lives in `docs/implementation/pr-templat
 Follow the agreed ticket order and keep branches short-lived and single-purpose.
 
 - Follow the phase-first execution order (`P0 -> P1 -> P2 -> P3 -> P4`) from `ticket-tracker.md` and claim only tickets whose dependencies are complete.
-- Typical first-ticket starts are `A-01`, `B-01`, and `D-01`; Track C usually starts in `P2` after `B-04` unlocks scoring/timer/life dependencies.
+- Typical first-ticket starts are `A-01`, `B-01`, and `D-01`; Track C starts in `P2`, where `C-03` can begin after `D-01` and `D-03`, while `C-01` and `C-02` start after `B-04` unlocks collision-driven dependencies.
 - Use one branch per ticket slice.
 - Use the same branch only for the one logical change it was created for.
 - Branches must follow: `<owner-or-scope>/<TRACK>-<NN>`.
@@ -269,7 +284,9 @@ Before opening a PR, confirm the description and checklist cover all required it
 - [ ] I verified my branch name follows `<owner-or-scope>/<TRACK>-<NN>` (for example `ekaramet/A-03`), or I marked the PR body with `process` for a GENERAL_DOCS_PROCESS branch.
 - [ ] I confirmed changed files stay within the declared ticket track ownership scope.
 - [ ] I ran the applicable local checks for this change.
-- [ ] I listed the audit IDs affected by this change.
+- [ ] I listed each affected audit ID with execution type (Fully Automatable, Semi-Automatable, or Manual-With-Evidence) and linked the test output or evidence artifact.
+- [ ] I confirmed full audit coverage remains mapped for `F-01..F-21` and `B-01..B-06`.
+- [ ] If affected, I attached Manual-With-Evidence artifacts for `F-19`, `F-20`, `F-21`, and `B-06`.
 - [ ] I checked security sinks and trust boundaries.
 - [ ] I checked architecture boundaries.
 - [ ] I checked dependency and lockfile impact.
@@ -292,11 +309,11 @@ Local test command reference (run what applies to your change and list what you 
 - Audit-map updates: `npm run test:audit`
 - Manifest/schema updates: `npm run validate:schema`
 - Local checks rerun with prepared metadata: `npm run policy:checks:local`
-- Repo-wide rerun when needed: `npm run policy:repo`
+- Repo-only troubleshooting rerun: `npm run policy:repo`
 
 ### Manual gate workflow (required)
 
-Run the local checks before opening a PR. Commit your changes properly using the branch's ticket ID in the commit message before running the local checks (as the policy scripts analyze commit metadata).
+Run the local checks before opening a PR. For ticketed branches, include the branch ticket ID in commit messages before running local checks (policy scripts analyze commit metadata). For intentional docs/process branches without a ticket ID, include `process` in the PR body so policy can classify GENERAL_DOCS_PROCESS mode.
 
 1. Commit your changes:
 
@@ -320,13 +337,13 @@ npm run policy:header
 npm run policy:approve
 ```
 
-4. Run the repo gate:
+4. Run the repo gate only when you need an isolated repo-only rerun:
 
 ```bash
 npm run policy:repo
 ```
 
-5. If the repo gate fails, rerun the narrower command that matches the failure:
+5. If the isolated repo rerun fails, run the narrower command that matches the failure:
 
 ```bash
 npm run policy:forbidrepo

@@ -25,7 +25,7 @@ Coverage mapping remains canonical in `audit-traceability-matrix.md`.
 3. Defer broad hardening tickets (A-04, A-05, A-06, A-07, A-08) until after the playable MVP loop is visible and interactive.
 4. Inside each phase, claim tickets whose dependencies are already complete.
 5. If a higher phase ticket is needed early, record the reason in the ticket line text.
-6. Track ticket phase labels (P0-P3) remain unchanged; the claim queue below is the active sequencing rule.
+6. Track ticket phase labels (P0-P4) remain unchanged; the claim queue below is the active sequencing rule.
 
 ## 📈 Summary Snapshot
 
