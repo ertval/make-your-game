@@ -40,6 +40,23 @@ Local test command reference (run what applies to your change and list what you 
 - Added `.qwen/**` to allowed GENERAL_DOCS_PROCESS scope so tracked policy-tooling settings are treated as governance changes.
 - Formatted policy-gate scripts and `.qwen/settings.json` with Biome so `npm run check` and policy umbrellas pass.
 - Added the final branch audit report for this branch under `docs/audit-reports/`.
+- feat: add comprehensive codebase audit report establishing ownership and cross-reference matrices, deduplicating and consolidating finding.
+- refactor: improve code formatting and enhance ownership track assertions in policy utilities.
+- refactor: implement owner-track validation logic and enhance permissions in settings.
+- refactor: enhance policy gate fallback logging and preserve ticket associations during process mode conflicts.
+- chore: add comment to setPauseState in clock resource.
+- refactor: streamline error messages and enhance policy-gate scripts for clarity; update settings and documentation for process compliance.
+- refactor: enhance error messages across policy-gate scripts with actionable remediation steps.
+- refactor: update documentation and PR template for clarity; enhance audit ID tracking and evidence requirements.
+- refactor: enhance code analysis and PR audit prompts for clarity and completeness; add new audit checks and improve existing requirements.
+- refactor: update code analysis and PR audit prompts for clarity and guideline compliance; remove outdated audit reports.
+- refactor: update AGENTS.md constraints and replace codebase-analysis-audit prompt with code-analysis-audit.
+- Add PR Audit Reports for A-04, CI simplification, review fixes, D-03, and D-04.
+- feat: add new codebase analysis and audit report with detailed findings and recommendations.
+- feat: add WebSearch permission to settings and create codebase analysis audit report.
+- chore: remove obsolete consolidated implementation plan audit report.
+- refactor: consolidate testing documentation into the phase verification report and add an optimization report.
+- docs: establish phase testing verification protocols and mark initial implementation milestones as complete.
 
 ## Why
 - This branch is a process/docs/governance branch and contains historical multi-track ticket references in commit metadata.
