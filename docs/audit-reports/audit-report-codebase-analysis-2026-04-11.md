@@ -112,7 +112,7 @@ Each pass was evidence-driven and read-only. Findings include concrete file/line
 
 ### BUG-05: Non-positive frame deltas force artificial simulation progress ⬆ Medium
 **Origin:** Agent 1 (BUG-05)
-**Files:** Ownership: General
+**Files:** Ownership: Track D (`src/ecs/resources/**`)
 - `src/ecs/resources/clock.js` (~L67)
 - `src/ecs/resources/clock.js` (~L68)
 
@@ -125,9 +125,9 @@ Each pass was evidence-driven and read-only. Findings include concrete file/line
 
 ---
 
-### BUG-06: Frame probe “latest” metric reports max sample instead of most recent ⬆ Low
+### BUG-06: Frame probe "latest" metric reports max sample instead of most recent ⬆ Low
 **Origin:** Agent 1 (BUG-06)
-**Files:** Ownership: General
+**Files:** Ownership: Track A (`src/main.ecs.js`)
 - `src/main.ecs.js` (~L82)
 
 **Problem:** Latest frame metric is derived from sorted percentile array rather than ring-buffer cursor.
@@ -143,7 +143,7 @@ Each pass was evidence-driven and read-only. Findings include concrete file/line
 
 ### DEAD-01: Unreachable fallback branch in ticket-association logic ⬆ Medium
 **Origin:** Agent 2 (DEAD-01)
-**Files:** Ownership: General
+**Files:** Ownership: Track A (`scripts/policy-gate/**`)
 - `scripts/policy-gate/run-checks.mjs` (~L116)
 - `scripts/policy-gate/run-checks.mjs` (~L127)
 - `scripts/policy-gate/run-checks.mjs` (~L137)
@@ -157,7 +157,7 @@ Each pass was evidence-driven and read-only. Findings include concrete file/line
 
 ### DEAD-02: Restart option branch in sync map loader is behaviorally dead ⬆ Low
 **Origin:** Agent 2 (DEAD-02)
-**Files:** Ownership: General
+**Files:** Ownership: Track A (`src/game/**`)
 - `src/game/level-loader.js` (~L60)
 - `src/game/level-loader.js` (~L61)
 - `src/game/level-loader.js` (~L64)
@@ -171,7 +171,7 @@ Each pass was evidence-driven and read-only. Findings include concrete file/line
 
 ### DEAD-03: ECS scaffolding modules are production-dead (test-only references) ⬆ Medium
 **Origin:** Agent 2 (DEAD-04)
-**Files:** Ownership: General
+**Files:** Ownership: Track B (`src/ecs/components/**`), Track D (`src/ecs/resources/**`, `src/ecs/render-intent.js`)
 - `src/ecs/components/spatial.js` (~L48)
 - `src/ecs/components/props.js` (~L49)
 - `src/ecs/components/stats.js` (~L33)
@@ -188,7 +188,7 @@ Each pass was evidence-driven and read-only. Findings include concrete file/line
 
 ### DEAD-04: Ownership rules contain stale patterns for non-existent files ⬆ Medium
 **Origin:** Agent 2 (DEAD-05)
-**Files:** Ownership: General
+**Files:** Ownership: Track A (`scripts/policy-gate/**`)
 - `scripts/policy-gate/lib/policy-utils.mjs` (~L182)
 - `scripts/policy-gate/lib/policy-utils.mjs` (~L260)
 - `scripts/policy-gate/lib/policy-utils.mjs` (~L261)
@@ -204,7 +204,7 @@ Each pass was evidence-driven and read-only. Findings include concrete file/line
 
 ### DEAD-05: Generated artifacts are committed but excluded from active checks ⬆ Low
 **Origin:** Agent 2 (DEAD-06)
-**Files:** Ownership: General
+**Files:** Ownership: Track A (`coverage/**`, `biome.json`), Shared (`**/.gitkeep`)
 - `coverage/index.html` (~L1)
 - `test-results/.last-run.json` (~L1)
 - `biome.json` (~L27)
@@ -221,7 +221,7 @@ Each pass was evidence-driven and read-only. Findings include concrete file/line
 
 ### DEAD-06: JSDoc signatures drift from implementation ⬆ Low
 **Origin:** Agent 2 (DEAD-07)
-**Files:** Ownership: General
+**Files:** Ownership: Track D (`src/ecs/resources/**`, `src/ecs/render-intent.js`)
 - `src/ecs/resources/map-resource.js` (~L26)
 - `src/ecs/resources/map-resource.js` (~L449)
 - `src/ecs/render-intent.js` (~L16)
@@ -239,7 +239,7 @@ Each pass was evidence-driven and read-only. Findings include concrete file/line
 ### ARCH-01: Render commit architecture is not wired into runtime ⬆ Blocking
 **Origin:** Agent 3 (ARCH-01)
 **Violated rule:** "Batching: MUST batch DOM writes in a dedicated render commit phase once per frame." and "Commit Phases: MUST separate render read/compute from DOM write commit phases."
-**Files:** Ownership: General
+**Files:** Ownership: Track A (`src/main.ecs.js`, `src/game/**`), Track D (`src/ecs/render-intent.js`)
 - `src/main.ecs.js` (~L304)
 - `src/game/bootstrap.js` (~L91)
 - `src/ecs/render-intent.js` (~L4)
@@ -254,7 +254,7 @@ Each pass was evidence-driven and read-only. Findings include concrete file/line
 ### ARCH-02: Input adapter resource injection contract is not satisfied ⬆ Critical
 **Origin:** Agent 3 (ARCH-02), Agent 2 (DEAD-03)
 **Violated rule:** "Adapter Injection: Adapters MUST be registered as World resources and accessed through the resource API. Systems MUST NOT import adapters directly."
-**Files:** Ownership: General
+**Files:** Ownership: Track A (`src/game/**`), Track B (`src/ecs/systems/input-system.js`)
 - `src/game/bootstrap.js` (~L86)
 - `src/game/bootstrap.js` (~L89)
 - `src/game/bootstrap.js` (~L126)
@@ -270,7 +270,7 @@ Each pass was evidence-driven and read-only. Findings include concrete file/line
 ### ARCH-03: Game-flow restart path bypasses opaque-entity and deferred-mutation boundaries ⬆ High
 **Origin:** Agent 3 (ARCH-03)
 **Violated rule:** "Structure: MUST structure gameplay with ECS: entities as opaque IDs, components as data-only, systems as behavior." and "Structural Deferral: MUST defer entity/component add/remove operations to a controlled sync point."
-**Files:** Ownership: General
+**Files:** Ownership: Track A (`src/game/**`, `src/ecs/world/**`)
 - `src/game/game-flow.js` (~L49)
 - `src/game/game-flow.js` (~L56)
 - `src/game/game-flow.js` (~L61)
@@ -287,7 +287,7 @@ Each pass was evidence-driven and read-only. Findings include concrete file/line
 ### ARCH-04: Deterministic cross-system event ordering is defined but not integrated ⬆ High
 **Origin:** Agent 3 (ARCH-04)
 **Violated rule:** "Event Ordering: MUST process cross-system events in deterministic insertion order."
-**Files:** Ownership: General
+**Files:** Ownership: Track D (`src/ecs/resources/**`), Track A (`src/game/**`)
 - `src/ecs/resources/event-queue.js` (~L32)
 - `src/ecs/resources/event-queue.js` (~L67)
 - `src/game/bootstrap.js` (~L86)
@@ -302,7 +302,7 @@ Each pass was evidence-driven and read-only. Findings include concrete file/line
 ### ARCH-05: Audit behavioral verification is structurally unsatisfiable in current harness ⬆ Blocking
 **Origin:** Agent 3 (ARCH-05), Agent 5 (CI-01)
 **Violated rule:** "MUST maintain end-to-end/integration verification coverage for every question in docs/audit.md... with explicit automated checks for Fully Automatable and Semi-Automatable items and explicit evidence artifacts for Manual-With-Evidence items."
-**Files:** Ownership: General
+**Files:** Ownership: Track A (`tests/**`, `package.json`, `playwright.config.js`)
 - `tests/e2e/audit/audit.e2e.test.js` (~L21)
 - `package.json` (~L23)
 - `playwright.config.js` (~L6)
@@ -317,7 +317,7 @@ Each pass was evidence-driven and read-only. Findings include concrete file/line
 ### ARCH-06: Render-intent contract drifts from implementation-plan specification ⬆ Medium
 **Origin:** Agent 3 (ARCH-06)
 **Violated rule:** Implementation contract mismatch between `docs/implementation/implementation-plan.md` §5 and `src/ecs/render-intent.js`.
-**Files:** Ownership: General
+**Files:** Ownership: Shared (`docs/**`), Track D (`src/ecs/render-intent.js`)
 - `docs/implementation/implementation-plan.md` (~L536)
 - `docs/implementation/implementation-plan.md` (~L542)
 - `docs/implementation/implementation-plan.md` (~L543)
@@ -337,7 +337,7 @@ Each pass was evidence-driven and read-only. Findings include concrete file/line
 ### ARCH-07: Asset-pipeline runtime contract is not implemented in bootstrap path ⬆ Medium
 **Origin:** Agent 3 (ARCH-07)
 **Violated rule:** "Runtime loads assets from manifests only." and "Critical startup assets are preloaded."
-**Files:** Ownership: General
+**Files:** Ownership: Shared (`docs/**`), Track A (`src/game/**`), Track D (`src/ecs/render-intent.js`)
 - `docs/implementation/assets-pipeline.md` (~L86)
 - `docs/implementation/assets-pipeline.md` (~L87)
 - `docs/implementation/assets-pipeline.md` (~L89)
@@ -354,7 +354,7 @@ Each pass was evidence-driven and read-only. Findings include concrete file/line
 ### ARCH-08: Track ownership policy drift between docs and policy-utils rules ⬆ Medium
 **Origin:** Agent 3 (ARCH-08)
 **Violated rule:** Track boundary ownership declarations in track docs versus policy gate ownership map.
-**Files:** Ownership: General
+**Files:** Ownership: Shared (`docs/**`), Track A (`scripts/policy-gate/**`)
 - `docs/implementation/track-b.md` (~L30)
 - `docs/implementation/track-b.md` (~L52)
 - `docs/implementation/track-d.md` (~L89)
@@ -372,7 +372,7 @@ Each pass was evidence-driven and read-only. Findings include concrete file/line
 
 ### SEC-01: Production CSP and Trusted Types are not enforced ⬆ High
 **Origin:** Agent 4 (SEC-01)
-**Files:** Ownership: General
+**Files:** Ownership: Track A (`index.html`, `vite.config.js`)
 - `index.html` (~L4)
 - `index.html` (~L15)
 - `vite.config.js` (~L4)
@@ -386,7 +386,7 @@ Each pass was evidence-driven and read-only. Findings include concrete file/line
 
 ### SEC-02: Schema validation is fail-open for missing schema/data files ⬆ High
 **Origin:** Agent 4 (SEC-02)
-**Files:** Ownership: General
+**Files:** Ownership: Track A (`scripts/validate-schema.mjs`)
 - `scripts/validate-schema.mjs` (~L63)
 
 **Problem:** Missing validation inputs log warnings and continue.
@@ -398,7 +398,7 @@ Each pass was evidence-driven and read-only. Findings include concrete file/line
 
 ### SEC-03: Policy-gate security scan can be bypassed by editing excluded gate files ⬆ Critical
 **Origin:** Agent 4 (SEC-03)
-**Files:** Ownership: General
+**Files:** Ownership: Track A (`scripts/policy-gate/**`)
 - `scripts/policy-gate/run-checks.mjs` (~L653)
 - `scripts/policy-gate/run-checks.mjs` (~L697)
 - `scripts/policy-gate/run-checks.mjs` (~L776)
@@ -412,7 +412,7 @@ Each pass was evidence-driven and read-only. Findings include concrete file/line
 
 ### SEC-04: Repo-wide forbidden-tech scanner has incomplete pattern coverage ⬆ Medium
 **Origin:** Agent 4 (SEC-04)
-**Files:** Ownership: General
+**Files:** Ownership: Track A (`scripts/policy-gate/**`)
 - `scripts/policy-gate/check-forbidden.mjs` (~L19)
 - `scripts/policy-gate/check-forbidden.mjs` (~L20)
 - `scripts/policy-gate/run-all.mjs` (~L246)
@@ -427,7 +427,7 @@ Each pass was evidence-driven and read-only. Findings include concrete file/line
 
 ### SEC-05: Approval requirement enforcement is fail-open on CI/API misconfiguration ⬆ Medium
 **Origin:** Agent 4 (SEC-05)
-**Files:** Ownership: General
+**Files:** Ownership: Track A (`scripts/policy-gate/**`)
 - `scripts/policy-gate/require-approval.mjs` (~L27)
 - `scripts/policy-gate/require-approval.mjs` (~L33)
 - `scripts/policy-gate/require-approval.mjs` (~L47)
@@ -444,7 +444,7 @@ Each pass was evidence-driven and read-only. Findings include concrete file/line
 
 ### CI-01: CI merge gate does not execute browser E2E tests ⬆ Critical
 **Origin:** Agent 5 (CI-02)
-**Files:** Ownership: General
+**Files:** Ownership: Track A (`.github/workflows/**`, `scripts/policy-gate/**`, `package.json`)
 - `.github/workflows/policy-gate.yml` (~L51)
 - `scripts/policy-gate/run-project-gate.mjs` (~L19)
 - `package.json` (~L18)
@@ -459,7 +459,7 @@ Each pass was evidence-driven and read-only. Findings include concrete file/line
 
 ### CI-02: Semi-automatable performance gates lack threshold assertions ⬆ High
 **Origin:** Agent 5 (CI-03)
-**Files:** Ownership: General
+**Files:** Ownership: Track A (`tests/**`, `AGENTS.md`)
 - `tests/e2e/game-loop.pause.spec.js` (~L10)
 - `tests/e2e/audit/audit-question-map.js` (~L100)
 - `tests/e2e/audit/audit-question-map.js` (~L108)
@@ -477,7 +477,7 @@ Each pass was evidence-driven and read-only. Findings include concrete file/line
 
 ### CI-03: Coverage gate scope can be inflated by test files ⬆ High
 **Origin:** Agent 5 (CI-04)
-**Files:** Ownership: General
+**Files:** Ownership: Track A (`vitest.config.js`, `scripts/policy-gate/**`)
 - `vitest.config.js` (~L11)
 - `vitest.config.js` (~L12)
 - `scripts/policy-gate/run-project-gate.mjs` (~L20)
@@ -491,7 +491,7 @@ Each pass was evidence-driven and read-only. Findings include concrete file/line
 
 ### CI-04: Policy gate checks inventory parity but not audit-category/evidence obligations ⬆ High
 **Origin:** Agent 5 (CI-05)
-**Files:** Ownership: General
+**Files:** Ownership: Track A (`scripts/policy-gate/**`, `docs/implementation/pr-template.md`)
 - `scripts/policy-gate/run-checks.mjs` (~L599)
 - `scripts/policy-gate/run-checks.mjs` (~L604)
 - `scripts/policy-gate/lib/policy-utils.mjs` (~L31)
@@ -506,7 +506,7 @@ Each pass was evidence-driven and read-only. Findings include concrete file/line
 
 ### CI-05: Source-header policy is warning-only in CI ⬆ Medium
 **Origin:** Agent 5 (CI-06)
-**Files:** Ownership: General
+**Files:** Ownership: Track A (`.github/workflows/**`, `scripts/policy-gate/**`)
 - `.github/workflows/policy-gate.yml` (~L26)
 - `scripts/policy-gate/check-source-headers.mjs` (~L176)
 - `scripts/policy-gate/check-source-headers.mjs` (~L178)
@@ -520,7 +520,7 @@ Each pass was evidence-driven and read-only. Findings include concrete file/line
 
 ### CI-06: Playwright pause test uses fixed sleeps (flakiness risk) ⬆ Medium
 **Origin:** Agent 5 (CI-07)
-**Files:** Ownership: General
+**Files:** Ownership: Track A (`tests/**`)
 - `tests/e2e/game-loop.pause.spec.js` (~L21)
 - `tests/e2e/game-loop.pause.spec.js` (~L29)
 - `tests/e2e/game-loop.pause.spec.js` (~L38)
@@ -534,7 +534,7 @@ Each pass was evidence-driven and read-only. Findings include concrete file/line
 
 ### CI-07: Audit/phase documentation is out of sync with executable test reality ⬆ Medium
 **Origin:** Agent 5 (CI-08)
-**Files:** Ownership: General
+**Files:** Ownership: Shared (`docs/**`), Track A (`docs/implementation/ticket-tracker.md`)
 - `docs/implementation/audit-traceability-matrix.md` (~L30)
 - `docs/audit-reports/phase-testing-verification-report.md` (~L18)
 - `docs/audit-reports/phase-testing-verification-report.md` (~L66)
