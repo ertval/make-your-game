@@ -25,6 +25,7 @@ This directory contains scripts used to enforce project policies as part of the 
 
 - Track ownership patterns are intentionally ticket-track level, not per-ticket granularity.
 - Shared governance and docs paths are represented by `SHARED_OWNERSHIP_PATTERNS`.
+- `styles/base.css` is shared ownership and can be modified by any track.
 - Track A owns all test paths in policy enforcement (`tests/**`).
 - Tracks B, C, and D can modify scoped tests that correspond to their owned implementation files via `testPatterns`.
 

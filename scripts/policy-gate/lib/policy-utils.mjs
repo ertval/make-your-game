@@ -65,6 +65,7 @@ export const SHARED_OWNERSHIP_PATTERNS = [
   '.github/**',
   '.gitea/**',
   'docs/**',
+  'styles/base.css',
   'package-lock.json',
   '**/.gitkeep',
 ];
@@ -84,7 +85,6 @@ export const TRACK_OWNERSHIP_RULES = {
       'src/game/**',
       'src/debug/**',
       'src/ecs/world/**',
-      'styles/base.css',
       'styles/reset.css',
       'tests/**',
     ],

@@ -237,6 +237,7 @@ make-your-game/
 │   │   │   ├── entity-store.js        # ID generation & recycling
 │   │   │   └── query.js               # Component mask matching
 │   │   ├── components/
+│   │   │   ├── registry.js            # canonical component bitmask registry
 │   │   │   ├── spatial.js             # position + velocity + collider (always co-occur)
 │   │   │   ├── actors.js              # player + ghost + input-state (actor data)
 │   │   │   ├── props.js               # bomb + fire + power-up (prop data)
