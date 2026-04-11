@@ -21,9 +21,9 @@ import {
   readLines,
   readText,
   readTicketIdsFromTracker,
+  SHARED_OWNERSHIP_PATTERNS,
   sortTicketIds,
   TRACK_OWNERSHIP_RULES,
-  SHARED_OWNERSHIP_PATTERNS,
 } from './lib/policy-utils.mjs';
 
 const args = parseArgs(process.argv.slice(2));
@@ -210,9 +210,9 @@ function assertTrackOwnership(trackCode, ticketIds) {
   }
 
   const allowedSummary = result.allowedPatterns.join(', ');
-  
+
   const formattedViolations = result.violations.map((file) => {
-    let actualTracks = [];
+    const actualTracks = [];
     if (matchesOwnership(file, SHARED_OWNERSHIP_PATTERNS)) {
       actualTracks.push('Shared');
     } else {
@@ -531,6 +531,34 @@ function scanSecurityAndArchitectureBoundaries() {
   ];
 
   for (const file of changedFiles) {
+    if (path.basename(file) === 'package.json') {
+      if (!fs.existsSync(file)) {
+        continue;
+      }
+
+      const packageJson = readJson(file);
+      const deps = {
+        ...(packageJson.dependencies ?? {}),
+        ...(packageJson.devDependencies ?? {}),
+      };
+      for (const banned of [
+        'react',
+        'vue',
+        'angular',
+        'svelte',
+        'phaser',
+        'pixi.js',
+        'three',
+        'jquery',
+      ]) {
+        if (deps[banned]) {
+          throw new Error(`Banned framework dependency detected in package.json: ${banned}`);
+        }
+      }
+
+      continue;
+    }
+
     if (!sourcePattern.test(file)) {
       continue;
     }
@@ -568,32 +596,14 @@ function scanSecurityAndArchitectureBoundaries() {
         }
       }
     }
-
-    if (path.basename(file) === 'package.json') {
-      const packageJson = JSON.parse(content);
-      const deps = {
-        ...(packageJson.dependencies ?? {}),
-        ...(packageJson.devDependencies ?? {}),
-      };
-      for (const banned of [
-        'react',
-        'vue',
-        'angular',
-        'svelte',
-        'phaser',
-        'pixi.js',
-        'three',
-        'jquery',
-      ]) {
-        if (deps[banned]) {
-          throw new Error(`Banned framework dependency detected in package.json: ${banned}`);
-        }
-      }
-    }
   }
 }
 
 verifyTraceabilityCoverage();
+
+if (checkSet === 'repo' || checkSet === 'all') {
+  enforceAuditAndDependencyPairing();
+}
 
 if (checkSet === 'pr' || checkSet === 'all') {
   const ticketContext = assertTicketAssociation();
@@ -615,7 +625,6 @@ if (checkSet === 'pr' || checkSet === 'all') {
   } else {
     assertTrackOwnership(ticketContext.trackCode, ticketContext.ticketIds);
   }
-  enforceAuditAndDependencyPairing();
   scanSecurityAndArchitectureBoundaries();
 }
 
