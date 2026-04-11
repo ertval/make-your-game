@@ -105,16 +105,16 @@
 - `styles/grid.css` — strict grid-template layouts and positioning
 - `styles/animations.css` — walking pulse, bomb fuse, explosion fade, ghost stun flash, invincibility blink, speed trail
 
-- [ ] Build `styles/variables.css`: color palette, spacing tokens, z-index scale, animation timing.
-- [ ] Build `styles/grid.css` using strict grid-template layouts and absolute positioning over grid cells.
-- [ ] Apply strict **`will-change` policy**:
+- [x] Build `styles/variables.css`: color palette, spacing tokens, z-index scale, animation timing.
+- [x] Build `styles/grid.css` using strict grid-template layouts and absolute positioning over grid cells.
+- [x] Apply strict **`will-change` policy**:
   - Player sprite: `will-change: transform` (always moving).
   - Ghost sprites: `will-change: transform` (always moving).
   - Bomb sprites, fire tiles, static grid cells, and HUD elements: **NO** `will-change`.
   - Target layer count baseline: ~5 promoted sprite layers (player + 4 ghosts).
-- [ ] Build `styles/animations.css`: walking pulse, bomb fuse animation, explosion fade, ghost stun flash, invincibility blink, speed boost trail/tint.
-- [ ] Respect `prefers-reduced-motion` for non-gameplay animations (menus, transitions, overlays).
-- [ ] Verification gate: DevTools layer evidence confirms minimal-but-nonzero layers and policy compliance.
+- [x] Build `styles/animations.css`: walking pulse, bomb fuse animation, explosion fade, ghost stun flash, invincibility blink, speed boost trail/tint.
+- [x] Respect `prefers-reduced-motion` for non-gameplay animations (menus, transitions, overlays).
+- [ ] Verification gate: DevTools layer evidence confirms minimal-but-nonzero layers and policy compliance — **structural compliance verified via code inspection (will-change policy enforced in CSS); runtime DevTools layer/paint evidence deferred to D-08** where DOM rendering is active and browser DevTools Performance panel traces can be captured.
 
 ---
 
@@ -171,6 +171,10 @@
 - [ ] Enforce strict render commit phases: no layout reads interleaved with write loops.
 - [ ] Keep commit path write-only and pool reclaim in same commit window.
 - [ ] Verification gate: traces show no forced-layout thrash loops and no recurring long tasks > 50ms.
+- [ ] **DEFERRED from D-05**: DevTools layer/paint evidence confirms `AUDIT-F-20` (layer minimization) and `AUDIT-F-21` (layer promotion) compliance — capture DevTools Performance panel traces showing:
+  - Only player + 4 ghost sprites carry `will-change: transform` (target ~5 promoted layers).
+  - Bombs, fire tiles, static grid cells, and HUD elements do NOT create compositor layers.
+  - Paint rectangles are minimal and confined to moving sprite bounds during normal gameplay.
 
 ---
 
