@@ -119,6 +119,7 @@ export function createInputStateStore(maxEntities) {
     right: new Uint8Array(maxEntities),
     bomb: new Uint8Array(maxEntities),
     pause: new Uint8Array(maxEntities),
+    confirm: new Uint8Array(maxEntities),
   };
 }
 
@@ -135,4 +136,5 @@ export function resetInputState(store, entityId) {
   store.right[entityId] = 0;
   store.bomb[entityId] = 0;
   store.pause[entityId] = 0;
+  store.confirm[entityId] = 0;
 }
