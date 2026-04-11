@@ -48,6 +48,7 @@ You MUST spawn exactly **5 dedicated subagents** — one per analysis domain bel
 
 **Deliverables per finding:**
 - Unique ID (e.g., `BUG-01`)
+- Track Ownership and Ticket IDs (Consult `docs/implementation/implementation-plan.md` and `docs/implementation/ticket-tracker.md` to map files to their EXACT Track (A,B,C,D) and Ticket IDs. Do NOT default to 'General')
 - Severity: Blocking / Critical / High / Medium / Low
 - Affected files with line numbers
 - Problem description with root cause
@@ -71,6 +72,7 @@ You MUST spawn exactly **5 dedicated subagents** — one per analysis domain bel
 
 **Deliverables per finding:**
 - Unique ID (e.g., `DEAD-01`)
+- Track Ownership and Ticket IDs (Consult `docs/implementation/implementation-plan.md` and `docs/implementation/ticket-tracker.md` to map files to their EXACT Track (A,B,C,D) and Ticket IDs. Do NOT default to 'General')
 - Severity: High / Medium / Low
 - Affected files with line numbers
 - What is dead/unused and why
@@ -102,6 +104,7 @@ You MUST spawn exactly **5 dedicated subagents** — one per analysis domain bel
 
 **Deliverables per finding:**
 - Unique ID (e.g., `ARCH-01`)
+- Track Ownership and Ticket IDs (Consult `docs/implementation/implementation-plan.md` and `docs/implementation/ticket-tracker.md` to map files to their EXACT Track (A,B,C,D) and Ticket IDs. Do NOT default to 'General')
 - Severity: Blocking / Critical / High / Medium / Low
 - Violated AGENTS.md rule (quote the specific rule)
 - Affected files with line numbers
@@ -128,6 +131,7 @@ You MUST spawn exactly **5 dedicated subagents** — one per analysis domain bel
 
 **Deliverables per finding:**
 - Unique ID (e.g., `SEC-01`)
+- Track Ownership and Ticket IDs (Consult `docs/implementation/implementation-plan.md` and `docs/implementation/ticket-tracker.md` to map files to their EXACT Track (A,B,C,D) and Ticket IDs. Do NOT default to 'General')
 - Severity: Blocking / Critical / High / Medium / Low
 - Affected files with line numbers
 - Security impact assessment
@@ -155,6 +159,7 @@ You MUST spawn exactly **5 dedicated subagents** — one per analysis domain bel
 
 **Deliverables per finding:**
 - Unique ID (e.g., `CI-01`)
+- Track Ownership and Ticket IDs (Consult `docs/implementation/implementation-plan.md` and `docs/implementation/ticket-tracker.md` to map files to their EXACT Track (A,B,C,D) and Ticket IDs. Do NOT default to 'General')
 - Severity: Blocking / Critical / High / Medium / Low
 - Affected files with line numbers
 - What is missing and why it matters
@@ -226,8 +231,8 @@ Each pass was evidence-driven and read-only. Findings include concrete file/line
 ## 1) Bugs & Logic Errors
 
 ### BUG-01: <title> ⬆ <SEVERITY>
-**Origin:** <which agent(s) found this>
-**Files:** Ownership: <Track A/B/C/D/General>
+**Origin:** <Agent description (e.g., "1. Bugs & Logic Errors")>
+**Files:** Ownership: <Track Ownership e.g. A / B / C / D> (Tickets: <Ticket IDs e.g., A-03, A-08>)
 - `<file>` (~L<line>)
 
 **Problem:** <description>
@@ -249,9 +254,9 @@ Each pass was evidence-driven and read-only. Findings include concrete file/line
 ## 3) Architecture, ECS Violations & Guideline Drift
 
 ### ARCH-01: <title> ⬆ <SEVERITY>
-**Origin:** <which agent(s) found this>
+**Origin:** <Agent description (e.g., "3. Architecture, ECS Violations & Guideline Drift")>
 **Violated rule:** <quote from AGENTS.md>
-**Files:** Ownership: <Track A/B/C/D/General>
+**Files:** Ownership: <Track A/B/C/D> (Tickets: <Ticket IDs e.g., C-01, D-04>)
 - `<file>` (~L<line>)
 
 **Problem:** <description>
@@ -277,9 +282,9 @@ Each pass was evidence-driven and read-only. Findings include concrete file/line
 
 ## Cross-Reference: Finding ID Mapping
 
-| Consolidated ID | Agent 1 | Agent 2 | Agent 3 | Agent 4 | Agent 5 | Description |
-|----------------|---------|---------|---------|---------|---------|-------------|
-| BUG-01 | BUG-01 | — | — | — | — | <short desc> |
+| Consolidated ID | Agent 1 | Agent 2 | Agent 3 | Agent 4 | Agent 5 | Track Ownership | Description |
+|----------------|---------|---------|---------|---------|---------|-----------------|-------------|
+| BUG-01 | BUG-01 | — | — | — | — | Track A | <short desc> |
 <... complete mapping table ...>
 
 ---
@@ -287,16 +292,16 @@ Each pass was evidence-driven and read-only. Findings include concrete file/line
 ## Recommended Fix Order
 
 ### Phase 1 — Blocking & Critical (must fix before any merge)
-1. **<ID>**: <action>
+1. **<ID>**: <action> (<Track Ownership>)
 
 ### Phase 2 — High Severity (immediate follow-up)
-2. **<ID>**: <action>
+2. **<ID>**: <action> (<Track Ownership>)
 
 ### Phase 3 — Medium Severity
-3. **<ID>**: <action>
+3. **<ID>**: <action> (<Track Ownership>)
 
 ### Phase 4 — Low Severity (maintenance)
-4. **<ID>**: <action>
+4. **<ID>**: <action> (<Track Ownership>)
 
 ---
 
