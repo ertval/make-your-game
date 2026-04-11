@@ -128,6 +128,7 @@ if (missingHeaders.length > 0) {
   missingHeaders.forEach((f) => {
     details.push(`- ${f}`);
   });
+  details.push('Action: Add a descriptive top-of-file block comment to these files.');
 }
 
 if (missingPurpose.length > 0) {
@@ -138,16 +139,18 @@ if (missingPurpose.length > 0) {
   missingPurpose.forEach((f) => {
     details.push(`- ${f}`);
   });
+  details.push('Action: Ensure the top-of-file comment provides context such as "Purpose: ...".');
 }
 
 if (lowCommentRatio.length > 0) {
   hasViolations = true;
   details.push(
-    `Source files below minimum comment ratio, add more comments in critical sections (${MIN_COMMENT_RATIO * 100}%):`,
+    `Source files below minimum comment ratio (${MIN_COMMENT_RATIO * 100}%):`,
   );
   lowCommentRatio.forEach((f) => {
     details.push(`- ${f}`);
   });
+  details.push('Action: Add inline comments to explain complex logic and decisions in critical sections.');
 }
 
 if (!hasViolations) {

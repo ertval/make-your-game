@@ -50,12 +50,12 @@ for (const file of files) {
   }
 }
 
-// A non-zero length means the CI check should break here to prevent non-compliant tech from entering the trunk.
 if (violations.length > 0) {
-  console.error('Forbidden technology usage detected:');
+  console.error('Forbidden technology usage detected. The following files contain forbidden APIs or frameworks:');
   for (const violation of violations) {
     console.error(`- ${violation}`);
   }
+  console.error('Action: Use safe DOM APIs or Vanilla ESM imports instead. Frameworks, CJS imports, and raw canvas accesses are forbidden.');
   process.exit(1);
 }
 

@@ -459,7 +459,13 @@ export function runCommand(command, commandArgs, options = {}) {
     const stderr = (result.stderr || '').trim();
     const stdout = (result.stdout || '').trim();
     const detail = spawnError || stderr || stdout;
-    throw new Error(`${command} ${commandArgs.join(' ')} failed${detail ? `: ${detail}` : ''}`);
+    throw new Error(
+      [
+        `Command execution failed: ${command} ${commandArgs.join(' ')}`,
+        `Details: ${detail || 'No output'}`,
+        'Action: Review the command details above to determine the cause of the failure.',
+      ].join('\n')
+    );
   }
 
   return result.stdout || '';

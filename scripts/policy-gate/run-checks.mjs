@@ -90,6 +90,7 @@ function deriveTicketContext() {
         `Branch "${branchName}" does not follow the required ticket format.`,
         'Expected: <owner-or-scope>/<TRACK>-<NN>, for example ekaramet/A-03.',
         'Allowed track prefixes: A, B, C, D.',
+        'Action: Rename your branch using the format <owner-or-scope>/<TRACK>-<NN> (e.g., git branch -m new-branch-name).',
       ].join('\n'),
     );
   }
@@ -242,7 +243,12 @@ function assertTrackOwnership(trackCode, ticketIds) {
 // Canonical ranges guard against matrix drift when requirement/audit IDs are edited manually.
 function buildIdRange(prefix, start, end) {
   if (!Number.isFinite(start) || !Number.isFinite(end) || start <= 0 || end <= 0 || end < start) {
-    throw new Error(`Invalid ID range for ${prefix}: ${start}..${end}`);
+    throw new Error(
+      [
+        `Invalid ID range for ${prefix}: ${start}..${end}.`,
+        'Action: Check the numeric bounds provided to buildIdRange.',
+      ].join('\n'),
+    );
   }
 
   return Array.from({ length: end - start + 1 }, (_, offset) => {
@@ -258,7 +264,10 @@ function collectExpectedRequirementIds(matrixText) {
   const { requirementIds } = collectMatrixTraceabilityIds(matrixText);
   if (requirementIds.length === 0) {
     throw new Error(
-      'Unable to derive requirement IDs from docs/implementation/audit-traceability-matrix.md. Add explicit REQ-xx rows there.',
+      [
+        'Unable to derive requirement IDs from docs/implementation/audit-traceability-matrix.md.',
+        'Action: Add explicit REQ-xx rows to the traceability matrix table.',
+      ].join('\n'),
     );
   }
 
@@ -269,14 +278,22 @@ function collectExpectedRequirementIds(matrixText) {
 
   if (requirementIds.length !== contiguousIds.length) {
     throw new Error(
-      'Requirement IDs in docs/implementation/audit-traceability-matrix.md must be contiguous REQ-xx rows without gaps.',
+      [
+        'Requirement IDs in docs/implementation/audit-traceability-matrix.md must be contiguous REQ-xx rows without gaps.',
+        `Detected gap in range from ${min} to ${max}.`,
+        'Action: Review the bounds and ensure every REQ-xx id is present in the document sequentially.',
+      ].join('\n'),
     );
   }
 
   for (let index = 0; index < requirementIds.length; index += 1) {
     if (requirementIds[index] !== contiguousIds[index]) {
       throw new Error(
-        'Requirement IDs in docs/implementation/audit-traceability-matrix.md must be ordered and gap-free.',
+        [
+          'Requirement IDs in docs/implementation/audit-traceability-matrix.md must be ordered and gap-free.',
+          `Mismatched sequence at position ${index}: expected ${contiguousIds[index]}, found ${requirementIds[index]}.`,
+          'Action: Sort the requirement IDs in ascending order without gaps.',
+        ].join('\n'),
       );
     }
   }
@@ -317,7 +334,10 @@ function collectExpectedAuditIds(auditText) {
 
   if (functionalCount === 0 && bonusCount === 0) {
     throw new Error(
-      'Unable to derive audit IDs from docs/audit.md. Add explicit AUDIT IDs or keep canonical functional/bonus question headings.',
+      [
+        'Unable to derive audit IDs from docs/audit.md.',
+        'Action: Add explicit AUDIT IDs or keep canonical functional/bonus question headings.',
+      ].join('\n'),
     );
   }
 
@@ -394,7 +414,13 @@ function verifyTraceabilityCoverage() {
   }
 
   if (mismatches.length > 0) {
-    throw new Error(mismatches.join('\n'));
+    throw new Error(
+      [
+        'Traceability matrix coverage violation:',
+        ...mismatches,
+        'Action: Synchronize docs/implementation/audit-traceability-matrix.md with docs/audit.md to ensure all requirements and audits are mapped correctly.',
+      ].join('\n')
+    );
   }
 }
 
@@ -426,12 +452,22 @@ function enforceAuditAndDependencyPairing() {
   const packageJsonChanged = has('package.json');
   const packageLockChanged = has('package-lock.json');
   if (!packageJsonChanged && packageLockChanged) {
-    throw new Error('package.json and package-lock.json must change together.');
+    throw new Error(
+      [
+        'package.json and package-lock.json must change together.',
+        'Action: If you updated package-lock.json manually, ensure package.json reflects the matching changes or revert it.',
+      ].join('\n'),
+    );
   }
 
   if (packageJsonChanged && !packageLockChanged) {
     if (!fs.existsSync('package-lock.json')) {
-      throw new Error('package-lock.json is required when package.json is present.');
+      throw new Error(
+        [
+          'package-lock.json is required when package.json is present.',
+          'Action: Run `npm install` and commit the generated package-lock.json.',
+        ].join('\n'),
+      );
     }
 
     const packageJson = readJson('package.json');
@@ -449,7 +485,11 @@ function enforceAuditAndDependencyPairing() {
 
     if (dependencyMismatch) {
       throw new Error(
-        'Dependency manifest changed without synchronized package-lock.json updates.',
+        [
+          'Dependency manifest drift detected.',
+          'File package.json changed without synchronized package-lock.json updates.',
+          'Action: Run `npm install` to update package-lock.json and commit the result.',
+        ].join('\n'),
       );
     }
   }
@@ -472,7 +512,11 @@ function enforceAuditAndDependencyPairing() {
     }
     if (required.length) {
       throw new Error(
-        `Audit-related changes must update the following paths in the same PR: ${required.join(', ')}`,
+        [
+          'Audit-related doc or test drift violation.',
+          `The active branch changed audit docs/tests, which requires coordinated updates on the following paths: ${required.join(', ')}`,
+          'Action: Include changes to all required audit or traceability files in the same branch to keep validation synchronized.',
+        ].join('\n'),
       );
     }
   }
@@ -487,7 +531,11 @@ function enforceAuditAndDependencyPairing() {
 
   if (auditCount !== auditIds || auditIds !== uniqueAuditIds) {
     throw new Error(
-      `Audit inventory mismatch: docs/audit.md has ${auditCount} questions, audit map has ${auditIds} IDs, unique IDs ${uniqueAuditIds}.`,
+      [
+        'Audit inventory mismatch between docs/audit.md and tests/e2e/audit/audit-question-map.js.',
+        `Details: docs/audit.md has ${auditCount} questions. audit-question-map.js has ${auditIds} IDs (unique: ${uniqueAuditIds}).`,
+        'Action: Ensure every question in docs/audit.md has an entry in tests/e2e/audit/audit-question-map.js and IDs are unique.',
+      ].join('\n'),
     );
   }
 }
@@ -552,7 +600,12 @@ function scanSecurityAndArchitectureBoundaries() {
         'jquery',
       ]) {
         if (deps[banned]) {
-          throw new Error(`Banned framework dependency detected in package.json: ${banned}`);
+          throw new Error(
+            [
+              `Banned framework dependency detected in package.json: ${banned}.`,
+              'Action: Remove the framework dependency to comply with project constraints (Vanilla DOM/ECS).',
+            ].join('\n'),
+          );
         }
       }
 
@@ -579,20 +632,38 @@ function scanSecurityAndArchitectureBoundaries() {
     // Reject any unsafe sinks unconditionally across all source files.
     for (const pattern of unsafeSinks) {
       if (pattern.test(content)) {
-        throw new Error(`Unsafe sink or forbidden API found in ${file}: ${pattern}`);
+        throw new Error(
+          [
+            `Unsafe sink or forbidden API found in file: ${file}`,
+            `Matched pattern: ${pattern}`,
+            'Action: Use safe DOM APIs (e.g., textContent, classList) or predefined abstractions instead of innerHTML/eval.',
+          ].join('\n'),
+        );
       }
     }
 
     for (const pattern of frameworkImports) {
       if (pattern.test(content)) {
-        throw new Error(`Framework or CommonJS import found in ${file}: ${pattern}`);
+        throw new Error(
+          [
+            `Framework or CommonJS import found in file: ${file}`,
+            `Matched pattern: ${pattern}`,
+            'Action: Use Vanilla ESM imports syntax only. Frameworks are forbidden.',
+          ].join('\n'),
+        );
       }
     }
 
     if (isSystemFile && !isRenderSystem) {
       for (const pattern of domAPIs) {
         if (pattern.test(content)) {
-          throw new Error(`DOM boundary violation in ECS system file ${file}: ${pattern}`);
+          throw new Error(
+            [
+              `DOM boundary violation in ECS system file: ${file}`,
+              `Matched pattern: ${pattern}`,
+              'Action: DO NOT mutate DOM in simulation systems. Move DOM logic to an adapter or src/ecs/systems/render-dom-system.js.',
+            ].join('\n'),
+          );
         }
       }
     }

@@ -64,7 +64,13 @@ const approvals = reviews.filter((review) => {
 });
 
 if (approvals.length === 0) {
-  throw new Error('At least one independent approval is required before merge.');
+  throw new Error(
+    [
+      'Approval policy violation.',
+      'At least one independent approval is required before merge.',
+      'Action: Request a code review from another team member who did not author the pull request.',
+    ].join('\n')
+  );
 }
 
 console.log(`Approval check passed with ${approvals.length} independent approval(s).`);
