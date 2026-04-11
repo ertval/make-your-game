@@ -49,7 +49,7 @@ Local test command reference (run what applies to your change and list what you 
 - Focus-loss clearing is required to prevent stuck movement or stuck actions after tab switches and window blur events.
 
 ## Tests
-- `npx vitest run tests/unit/adapters/input-adapter.test.js tests/unit/components/actors.test.js tests/unit/systems/input-system.test.js` (passed)
+- `npx vitest run tests/integration/adapters/input-adapter.test.js tests/unit/components/actors.test.js tests/unit/systems/input-system.test.js` (passed)
 - `./node_modules/.bin/biome check src/adapters/io/input-adapter.js src/ecs/components/actors.js src/ecs/systems/input-system.js tests/unit/adapters/input-adapter.test.js tests/unit/components/actors.test.js tests/unit/systems/input-system.test.js` (passed)
 
 ## Audit questions affected

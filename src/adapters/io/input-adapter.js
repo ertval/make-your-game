@@ -83,8 +83,8 @@ export function normalizeKeyboardIntent(event) {
   }
 
   // Prefer `code` so the physical control mapping stays stable across layouts.
-  if (typeof event.code === 'string' && event.code in KEYBOARD_CODE_BINDINGS) {
-    return KEYBOARD_CODE_BINDINGS[event.code];
+  if (typeof event.code === 'string') {
+    return KEYBOARD_CODE_BINDINGS[event.code] || null;
   }
 
   // Fall back to `key` so tests and synthetic events can still exercise the adapter.

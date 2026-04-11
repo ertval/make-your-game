@@ -62,6 +62,21 @@ describe('keyboard input adapter', () => {
     expect(normalizeKeyboardIntent({ key: 'Spacebar' })).toBe(INPUT_INTENT.BOMB);
   });
 
+  it('prefers KeyboardEvent.code over key when both are present', () => {
+    expect(
+      normalizeKeyboardIntent({
+        code: 'KeyA',
+        key: 'ArrowUp',
+      }),
+    ).toBeNull();
+    expect(
+      normalizeKeyboardIntent({
+        code: 'ArrowLeft',
+        key: 'q',
+      }),
+    ).toBe(INPUT_INTENT.LEFT);
+  });
+
   it('captures recognized keydown and keyup events into held and pressed state', () => {
     const eventTarget = createEventTargetStub();
     const adapter = createInputAdapter({ eventTarget });
