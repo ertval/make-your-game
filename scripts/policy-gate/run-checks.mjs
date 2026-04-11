@@ -108,12 +108,12 @@ function deriveTicketContext() {
 function assertTicketAssociation() {
   const context = deriveTicketContext();
 
-  function createProcessFallback(message) {
-    console.warn(message);
+  function createProcessFallback(message, originalTicketIds = []) {
+    console.warn(`\n⚠️  POLICY WARNING: ${message}\n`);
     return {
       branchTicketIds: context.branchTicketIds,
       commitTicketIds: context.commitTicketIds,
-      ticketIds: [],
+      ticketIds: originalTicketIds,
       trackCode: 'GENERAL',
       processMode: true,
       processMarkerDetected: true,
@@ -132,7 +132,8 @@ function assertTicketAssociation() {
 
   if (context.ticketIds.length === 0 && processMode) {
     return createProcessFallback(
-      'No ticket ID found in branch or commit metadata. Continuing because a process marker was detected.',
+      'No ticket ID found in branch or commit metadata. Continuing because a "process" marker was detected.',
+      [],
     );
   }
 
@@ -148,10 +149,17 @@ function assertTicketAssociation() {
     if (processMode) {
       return createProcessFallback(
         [
-          'Process marker detected with non-resolvable ticket association; continuing in GENERAL_DOCS_PROCESS mode.',
-          `Detected ticket IDs: ${context.ticketIds.join(', ')}.`,
-          `Detected tracks: ${context.trackCodes.join(', ') || '(none)'}.`,
+          'Track Association Conflict Detected.',
+          `The branch contains ticket IDs from multiple tracks: ${context.trackCodes.join(', ')}.`,
+          'Normally, this would require splitting the branch into track-specific PRs.',
+          '',
+          'PROCEEDING IN GENERAL_DOCS_PROCESS MODE:',
+          'A "process" marker was detected, so the gate will allow this conflict BUT will strictly',
+          'enforce that NO product code is modified. Only documentation and governance files are allowed.',
+          '',
+          `Detected ticket IDs: ${context.ticketIds.join(', ')}`,
         ].join('\n'),
+        context.ticketIds,
       );
     }
 
