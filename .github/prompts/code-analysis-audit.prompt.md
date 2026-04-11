@@ -17,6 +17,7 @@ You are a **Codebase Audit Orchestrator**. Your mission is to execute a comprehe
 7. `docs/implementation/audit-traceability-matrix.md`
 8. `docs/audit-reports/phase-testing-verification-report.md`
 9. `package.json`, `vite.config.js`, `vitest.config.js`, `playwright.config.js`
+10. `README.md`, `docs/README.md`, `scripts/policy-gate/README.md`
 
 **Important behavior requirements:**
 - **Read-only audit.** Do not modify any source code, tests, or documentation.
@@ -95,6 +96,9 @@ You MUST spawn exactly **5 dedicated subagents** — one per analysis domain bel
 - **Pause invariants**: Is rAF active while paused? Is simulation frozen? Is timing baseline reset on unpause?
 - **DOM pooling**: Are pooled elements hidden with `transform: translate(-9999px)` instead of `display:none`?
 - **Event determinism**: Are cross-system events processed in deterministic insertion order?
+- **Audit Question Behavioral Coverage**: For every audit question (F-01..F-21, B-01..B-06 from `docs/audit.md`), verify that the architectural patterns in the codebase can structurally satisfy the question's behavioral requirement. Flag any question where the code provably cannot pass the audit gate (e.g., F-02 requires rAF but no rAF loop exists; F-04 requires no canvas but a canvas element is present; F-12 requires a working countdown but no timer system is wired).
+- **Render-Intent Contract Integrity**: Verify that `src/ecs/render-intent.js` (Track D) honours the contract from `docs/implementation/implementation-plan.md §5`: the render-intent buffer MUST be pre-allocated once (`new Array(MAX_RENDER_INTENTS)`) and reused every frame (not re-created), visual state MUST be encoded as a `classBits` bitmask integer (not a string array), and `MAX_RENDER_INTENTS` must accommodate the maximum entity capacity declared in `constants.js`.
+- **Asset Pipeline Drift**: Check that visual/audio asset organisation, naming conventions, and CI validation gates in the repository match the standards defined in `docs/implementation/assets-pipeline.md`. Flag any asset that deviates from the naming rules or any manifest reference that points to a non-existent file.
 
 **Deliverables per finding:**
 - Unique ID (e.g., `ARCH-01`)
@@ -141,7 +145,7 @@ You MUST spawn exactly **5 dedicated subagents** — one per analysis domain bel
 - **Adapter test coverage**: Are adapter boundaries tested (input normalization, DOM write batching)?
 - **E2E coverage**: Map existing Playwright specs against `docs/audit.md` question list — what's missing?
 - **Audit verification matrix**: Is `docs/implementation/audit-traceability-matrix.md` out-of-sync with the actual Playwright/Vitest specs? Is `tests/e2e/audit/audit.e2e.test.js` testing actual behavior or just inventorying IDs?
-- **Phase testing parity**: Is `docs/audit-reports/phase-testing-verification-report.md` fully up-to-date with testing methods, phase execution, and manual evidence instructions for `docs/audit.md`?
+- **Phase testing parity**: Is `docs/audit-reports/phase-testing-verification-report.md` fully up-to-date with testing methods, phase execution, and manual evidence instructions for `docs/audit.md`? Does the report's phase completion status accurately reflect the ticket statuses in `docs/implementation/ticket-tracker.md`? Flag any ticket marked `[x]` (Done) in the tracker whose corresponding phase gate is still shown as pending in the report, and vice versa.
 - **Audit category enforcement**: Per `AGENTS.md`, are Fully Automatable (F-01..F-16, B-01..B-04), Semi-Automatable (F-17, F-18, B-05), and Manual-With-Evidence (F-19..F-21, B-06) categories all satisfied?
 - **Coverage configuration**: Does `vitest.config.js` include only `src/` in coverage targets? Are tests excluded?
 - **CI pipeline & Policy gates**: Does `.github/workflows/policy-gate.yml` enforce all required gates? Are branch name validations, source header checks, and ownership error messages correctly reporting constraints based on `scripts/policy-gate/run-checks.mjs`?
@@ -245,8 +249,19 @@ Each pass was evidence-driven and read-only. Findings include concrete file/line
 ## 3) Architecture, ECS Violations & Guideline Drift
 
 ### ARCH-01: <title> ⬆ <SEVERITY>
+**Origin:** <which agent(s) found this>
 **Violated rule:** <quote from AGENTS.md>
-<... same structure ...>
+**Files:** Ownership: <Track A/B/C/D/General>
+- `<file>` (~L<line>)
+
+**Problem:** <description>
+**Impact:** <impact on determinism, encapsulation, or performance>
+
+**Fix:** <suggested architectural fix>
+
+---
+
+<... repeat for each ARCH finding ...>
 
 ## 4) Code Quality & Security
 

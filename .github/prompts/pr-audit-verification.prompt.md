@@ -80,12 +80,17 @@ You are a strict PR audit verifier, QA, Security, and Code Quality Review Agent 
    - Required checks run
    - Audit IDs listed
    - Human review requested
-4. Verify AGENTS.md constraints are respected, including:
-   - ECS boundaries
-   - DOM isolation
-   - input/pause/timing invariants
-   - safe DOM sinks and forbidden APIs
-   - no canvas/framework usage
+4. Verify ALL MUST-level AGENTS.md constraints are respected, including:
+   - ECS boundaries (structure, DOM isolation, adapter injection — no direct adapter imports in systems)
+   - Loop/timing/pause invariants (rAF-only loop, fixed-step accumulator, resume safety, visibility handling)
+   - Input rules (hold-to-move via keydown sets, blur state clearing, per-step snapshot determinism)
+   - Rendering/DOM rules (compositor-friendly updates, batched commit phase, DOM pooling with `transform: translate(-9999px)`, no layout thrashing)
+   - Performance/memory rules (no recurring allocations in hot loops, preallocation/pooling of transient entities)
+   - Error handling (critical errors user-visible; system exceptions non-crashing; global `unhandledrejection` handler installed)
+   - Security/code quality (Biome linting, safe DOM sinks, no `var`/`require`/`XMLHttpRequest`, `addEventListener` only, file header comments present)
+   - Accessibility (keyboard-first controls, pause focus management, `prefers-reduced-motion` respected for non-gameplay animations)
+   - No canvas/WebGL/WebGPU/framework usage
+5. Verify CI workflow parity: confirm `.github/workflows/policy-gate.yml` and `.gitea/workflows/policy-gate.yml` exist and have identical content.
 
 ### 4) Verify requirements, audit traceability coverage, and detect drift
 
@@ -108,47 +113,47 @@ You are a strict PR audit verifier, QA, Security, and Code Quality Review Agent 
 
 ### 5) Run all automated tests and CI policy scripts
 
-The subagent assigned to this procedure MUST run `npm ci` first. Once that finishes, it MUST spawn an additional fleet of parallel subagents—one subagent per command—to run the remaining test and policy checks concurrently. Capture the exit code, duration, and key failure lines for each command:
+The subagent assigned to this procedure MUST first run `npm ci`. Then execute in three phases — Phase C commands run ONLY to isolate a failure from Phase B umbrella commands:
 
+**Phase A — Sequential dependency (must complete before Phase B):**
 1. `npm ci`
-2. `npm run check`
-3. `npm run test`
-4. `npm run test:coverage`
-5. `npm run validate:schema`
-6. `npm run sbom`
-7. `npm run ci`
-8. `npm run test:unit`
-9. `npm run test:integration`
-10. `npm run test:e2e`
-11. `npm run test:audit`
-12. `npm run check:forbidden`
-13. `npm run policy -- --require-approval=false`
-14. `npm run policy:repo`
-15. `npm run policy:quality`
-16. `npm run policy:checks`
-17. `npm run policy:forbid`
-18. `npm run policy:header`
-19. `npm run policy:approve -- --require-approval=false`
-20. `npm run policy:forbidrepo`
-21. `npm run policy:headerrepo`
-22. `npm run policy:trace`
+
+**Phase B — Parallel (spawn one subagent per command):**
+Capture exit code, duration, and key failure lines for each.
+2. `npm run ci` — quality umbrella: runs `check`, `test`, `test:coverage`, `validate:schema`, `sbom`
+3. `npm run test:unit`
+4. `npm run test:integration`
+5. `npm run test:e2e`
+6. `npm run test:audit`
+7. `npm run check:forbidden`
+8. `npm run policy -- --require-approval=false` — PR umbrella gate: runs `policy:quality`, then `policy:checks`/`policy:forbid`/`policy:header`/`policy:approve` when ticket metadata is resolvable, or falls back to `npm run policy:repo`
+9. `npm run policy:repo` — repo umbrella gate: runs `policy:forbidrepo`, `policy:headerrepo`, `policy:trace`
+
+**Phase C — Narrow reruns (run ONLY when a Phase B command fails, to isolate the specific failure):**
+- `npm run policy:quality` — isolates Biome/test/coverage/schema/SBOM failures from `npm run policy`
+- `npm run policy:checks` — isolates ticket-association/ownership failures
+- `npm run policy:forbid` — isolates forbidden-tech failures in changed files
+- `npm run policy:header` — isolates source-header failures in changed files
+- `npm run policy:approve -- --require-approval=false` — isolates approval failures
+- `npm run policy:forbidrepo` — isolates repo-wide forbidden-tech failures
+- `npm run policy:headerrepo` — isolates repo-wide source-header failures
+- `npm run policy:trace` — isolates traceability/dependency-pairing failures
 
 Notes:
-- `npm run policy` is the umbrella PR gate. It already runs `policy:quality`, and then `policy:checks`/`policy:forbid`/`policy:header`/`policy:approve` when branch or commit ticket metadata is resolvable, or falls back to `npm run policy:repo` when it is not.
-- `npm run policy:repo` is the umbrella repo gate. It already runs `policy:forbidrepo`, `policy:headerrepo`, and `policy:trace` unless repo integrity checks are disabled.
-- Run the umbrella commands first.
-- Run the narrower `policy:*` commands only when you need to isolate a failure, or when you need explicit standalone evidence for a specific gate.
-- If a command is missing, report it explicitly as a blocker.
-- If a command fails due environment-only reasons, classify as "environment blocker" and still return RED unless policy allows skip.
+- If a command is missing from `package.json`, report it explicitly as a blocker.
+- If a command fails for environment-only reasons (e.g., no network, missing runner secret), classify as "environment blocker" and still return RED unless policy explicitly allows skip.
 
 ### 6) Static policy checks in diff
 
 Additionally inspect changed files for:
-- Unsafe sinks: innerHTML, outerHTML, insertAdjacentHTML, document.write
-- Code execution sinks: eval, new Function, string setTimeout/setInterval
-- Forbidden tech: canvas APIs and framework imports
-- ECS system DOM usage outside src/ecs/systems/render-dom-system.js
-- Missing lockfile pairing when package.json changed
+- Unsafe sinks: `innerHTML`, `outerHTML`, `insertAdjacentHTML`, `document.write`
+- Code execution sinks: `eval`, `new Function`, string-based `setTimeout`/`setInterval`
+- Forbidden tech: canvas APIs (`<canvas>`, `getContext`), WebGL/WebGPU, and framework imports (React, Vue, Angular, jQuery)
+- Legacy APIs: `var` declarations, `require()` calls, `XMLHttpRequest`
+- Inline handler attributes: `onclick=`, `onload=`, etc. (must use `addEventListener`)
+- ECS system DOM usage outside `src/ecs/systems/render-dom-system.js`
+- Missing lockfile pairing when `package.json` changed
+- New source files missing the required top-of-file block comment (per AGENTS.md §Security and Code Quality)
 
 Any violation => RED.
 
@@ -172,6 +177,8 @@ If RED, include a minimal "Path To Green" checklist with only blocking items in 
 ## Final Output Format (Mandatory)
 
 Return exactly the markdown template below. Replace `<STATUS>` with exactly one specific outcome: `PASS`, `**FAIL**`, `True`, `**False**`, or `N/A`. Note that ONLY negative outcomes (FAIL/False) should be formatted in bold. Put the status value at the very front of the line.
+
+In the Gate Summary, list only top-level umbrella commands. List a narrow command only if the umbrella failed and a narrow rerun was executed to isolate the failure.
 
 **Save your report in file named `docs/audit-reports/pr-audit-<branch-name>.md` and share with the team.**
 
@@ -215,10 +222,17 @@ Date: YYYY-MM-DD
 - <STATUS>: Required automated command set passed (<reason if false>)
 - <STATUS>: ECS DOM boundary respected (simulation systems avoid DOM APIs) (<reason if false>)
 - <STATUS>: Adapter injection discipline respected (no direct adapter imports in systems) (<reason if false>)
-- <STATUS>: Forbidden tech absent (canvas/framework/WebGL/WebGPU) (<reason if false>)
+- <STATUS>: Forbidden tech absent (canvas/WebGL/WebGPU/framework imports) (<reason if false>)
+- <STATUS>: Legacy APIs absent (no var/require/XMLHttpRequest) (<reason if false>)
+- <STATUS>: Inline handler attributes absent (addEventListener only) (<reason if false>)
 - <STATUS>: Unsafe DOM sinks absent (innerHTML/outerHTML/insertAdjacentHTML/document.write) (<reason if false>)
 - <STATUS>: Code execution sinks absent (eval/new Function/string timers) (<reason if false>)
 - <STATUS>: Lockfile pairing valid when package.json changed (<reason if false>)
+- <STATUS>: New source files include required top-of-file block comment (<reason if false>)
+- <STATUS>: Error handling contract respected (critical errors user-visible, system errors non-crashing, unhandledrejection installed) (<reason if false>)
+- <STATUS>: Accessibility invariants respected (keyboard-first, pause focus, prefers-reduced-motion) (<reason if false>)
+- <STATUS>: Performance/memory rules respected (no recurring hot-loop allocations in changed code) (<reason if false>)
+- <STATUS>: Rendering pipeline rules respected (batching, pooling with offscreen transform, no layout thrashing) (<reason if false>)
 - <STATUS>: PR checklist/template contract satisfied (<reason if false>)
 - <STATUS>: Workflow guide contract satisfied (checks run, audit IDs listed, human review requested) (<reason if false>)
 - <STATUS>: Audit matrix mapping resolved for affected behavior (<reason if false>)
@@ -228,7 +242,7 @@ Date: YYYY-MM-DD
 - <STATUS>: No gameplay/feature drift from `docs/game-description.md` (<reason if false>)
 - <STATUS>: No architectural standard drift from `AGENTS.md` (<reason if false>)
 - <STATUS>: No drift from `README.md`, `docs/README.md`, and `scripts/policy-gate/README.md` (<reason if false>)
-- <STATUS>: Policy workflow parity status (.github and .gitea) (<reason if false>)
+- <STATUS>: CI workflow parity confirmed (.github/workflows and .gitea/workflows match) (<reason if false>)
 
 ## Requirements And Audit Coverage
 - Affected REQ IDs: <list>
