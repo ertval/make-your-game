@@ -1,9 +1,9 @@
 /**
- * Unit tests for the B-02 keyboard input adapter.
+ * Integration tests for the B-02 keyboard input adapter.
  *
  * These checks protect the adapter contract for normalized key mapping,
- * ignored-key filtering, and repeat-safe edge buffering so later systems can
- * consume input deterministically per fixed simulation step.
+ * ignored-key filtering, repeat-safe edge buffering, and focus-loss recovery
+ * so later systems can consume input deterministically per fixed simulation step.
  */
 
 import { describe, expect, it } from 'vitest';
@@ -151,7 +151,6 @@ describe('keyboard input adapter', () => {
     expect(adapter.pressedKeys.size).toBe(1);
     expect([...adapter.drainPressedKeys()]).toEqual([INPUT_INTENT.BOMB]);
 
-    // Repeated keydown after the first drain still must not synthesize new presses.
     eventTarget.dispatch('keydown', {
       code: 'Space',
       repeat: true,
@@ -159,7 +158,6 @@ describe('keyboard input adapter', () => {
 
     expect(adapter.pressedKeys.size).toBe(0);
 
-    // A fresh physical press after keyup should produce one new buffered edge.
     eventTarget.dispatch('keyup', {
       code: 'Space',
     });
