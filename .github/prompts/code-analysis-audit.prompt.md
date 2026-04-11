@@ -320,7 +320,7 @@ Each pass was evidence-driven and read-only. Findings include concrete file/line
 
 Before finalizing, verify the report meets these quality criteria:
 
-- [ ] Every finding has a unique ID, severity, file paths with line numbers, and a concrete fix suggestion
+- [ ] Every finding has a unique ID, Track Ownership, severity, file paths with line numbers, and a concrete fix suggestion
 - [ ] No duplicate findings — overlapping issues from multiple agents are merged
 - [ ] Cross-reference table is complete — every finding maps back to its source agent(s)
 - [ ] Fix order is prioritized: Blocking → Critical → High → Medium → Low
