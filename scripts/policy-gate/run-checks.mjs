@@ -22,6 +22,8 @@ import {
   readText,
   readTicketIdsFromTracker,
   sortTicketIds,
+  TRACK_OWNERSHIP_RULES,
+  SHARED_OWNERSHIP_PATTERNS,
 } from './lib/policy-utils.mjs';
 
 const args = parseArgs(process.argv.slice(2));
@@ -208,12 +210,29 @@ function assertTrackOwnership(trackCode, ticketIds) {
   }
 
   const allowedSummary = result.allowedPatterns.join(', ');
+  
+  const formattedViolations = result.violations.map((file) => {
+    let actualTracks = [];
+    if (matchesOwnership(file, SHARED_OWNERSHIP_PATTERNS)) {
+      actualTracks.push('Shared');
+    } else {
+      for (const [key, rule] of Object.entries(TRACK_OWNERSHIP_RULES)) {
+        const rules = [...(rule.patterns || []), ...(rule.testPatterns || [])];
+        if (matchesOwnership(file, rules)) {
+          actualTracks.push(`Track ${key}`);
+        }
+      }
+    }
+    const ownershipInfo = actualTracks.length > 0 ? actualTracks.join(', ') : 'Unknown Track';
+    return `- ${file} (Belongs to: ${ownershipInfo})`;
+  });
+
   throw new Error(
     [
       `Ownership violation for ${result.trackName || `Track ${trackCode}`}.`,
       `Tickets: ${ticketIds.join(', ')}.`,
-      'The following changed files are outside allowed ownership:',
-      ...result.violations.map((file) => `- ${file}`),
+      'The following changed files are outside allowed ownership patterns for the current track:',
+      ...formattedViolations,
       `Allowed path patterns for this track: ${allowedSummary}`,
       'Action: move out-of-scope file changes to the correct track branch, or use a ticket that matches the modified ownership area.',
     ].join('\n'),
