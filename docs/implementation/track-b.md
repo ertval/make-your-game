@@ -2,7 +2,7 @@
 
 ��� Source plan: `docs/implementation/implementation-plan.md` (Section 3)
 
-> **Scope**: All ECS component data definitions, input adapter/system, movement & grid collision, entity collision, bomb/explosion simulation, power-up effects, ghost AI behavior, and deterministic gameplay event emission from simulation systems. Pure ECS simulation — no DOM, no audio playback, no visual asset work. **Does NOT own** scoring/timer/lives, pause/progression UX, HUD/screens adapters, or visual rendering infrastructure.
+> **Scope**: All ECS component data definitions, input adapter/system, movement & grid collision, entity collision, bomb/explosion simulation, power-up effects, ghost AI behavior, and deterministic gameplay event emission from simulation systems. Pure ECS simulation — no DOM, no audio playback, no visual asset work. Track B may modify tests that map to Track B-owned implementation files; Track A retains global testing ownership. **Does NOT own** scoring/timer/lives, pause/progression UX, HUD/screens adapters, or visual rendering infrastructure.
 > **Execution model**: Deliver the core physics pipeline first, then add combat depth, AI behavior, and final event-contract consolidation.
 
 ## Phase Order (Prototype-First)
@@ -22,12 +22,16 @@
 **Blocks**: A-08, B-02, B-03, B-04 || D-04
 
 **Deliverables**:
+- `src/ecs/components/registry.js` — canonical component bitmask registry used by ECS queries
 - `src/ecs/components/spatial.js` — position (SoA Float64Array), velocity, collider
 - `src/ecs/components/actors.js` — player, ghost, input-state
 - `src/ecs/components/props.js` — bomb, fire, power-up, pellet
 - `src/ecs/components/stats.js` — score, timer, health
 - `src/ecs/components/visual.js` — renderable, visual-state (classBits bitmask)
 
+- [ ] Implement `src/ecs/components/registry.js`:
+  - Define canonical component bitmasks used by entity/query matching.
+  - Ensure bit values remain unique powers of two and stable for deterministic queries.
 - [ ] Implement `src/ecs/components/spatial.js`:
   - `position` (row, col, prevRow, prevCol, targetRow, targetCol) — SoA Float64Array.
   - `velocity` (direction vector, speed multiplier).

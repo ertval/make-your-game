@@ -2,7 +2,7 @@
 
 ��� Source plan: `docs/implementation/implementation-plan.md` (Section 3)
 
-> **Scope**: Scoring/timer/lives systems, spawn timing, pause/progression gameplay flow systems, HUD and screen overlay adapters, storage adapter, audio adapter, audio cue mapping, SFX/music production, and audio manifest governance. Dev 3 owns the player-facing runtime feedback loop across gameplay state, UI feedback, and sound.
+> **Scope**: Scoring/timer/lives systems, spawn timing, pause/progression gameplay flow systems, HUD and screen overlay adapters, storage adapter, audio adapter, audio cue mapping, SFX/music production, and audio manifest governance. Dev 3 owns the player-facing runtime feedback loop across gameplay state, UI feedback, and sound. Track C may modify tests that map to Track C-owned implementation files; Track A retains global testing ownership.
 > **Execution model**: Deliver scoring/lives/timer + gameplay flow UI for MVP, then layer audio integration and polish.
 
 ## Phase Order (Prototype-First)
