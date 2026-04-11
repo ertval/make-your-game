@@ -183,16 +183,16 @@ After all 5 subagents return their findings, you (the orchestrator) MUST:
 
 ## Output Report Format (Mandatory)
 
-Save the report to: `docs/audit-reports/audit-report-codebase-analysis-<DATE>.md`
+Save the report to: `docs/audit-reports/audit-report-<PHASE>-<DATE>.md`
 
 Use this exact markdown structure:
 
 ```md
-# Codebase Analysis & Audit Report
+# Codebase Analysis & Audit Report - <PHASE>
 
 **Date:** <YYYY-MM-DD>
 **Project:** make-your-game (Ms. Ghostman — Modern JavaScript 2026 DOM + ECS Game)
-**Scope:** Full repository review — 5 parallel analysis passes
+**Scope:** Full repository review for <PHASE> — 5 parallel analysis passes
 
 ---
 
@@ -326,4 +326,4 @@ Before finalizing, verify the report meets these quality criteria:
 - [ ] Fix order is prioritized: Blocking → Critical → High → Medium → Low
 - [ ] Executive summary counts match the actual findings in the report
 - [ ] All 5 analysis domains have at least one section in the report (even if "No issues found")
-- [ ] Report is saved to the correct path: `docs/audit-reports/audit-report-codebase-analysis-<DATE>.md`
+- [ ] Report is saved to the correct path: `docs/audit-reports/audit-report-<PHASE>-<DATE>.md`
