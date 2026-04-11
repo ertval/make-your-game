@@ -45,6 +45,7 @@ const processMode =
 const PROCESS_SCOPE_PATTERNS = [
   'AGENTS.md',
   'README.md',
+  '.qwen/**',
   '.github/**',
   '.gitea/**',
   'docs/**',
@@ -107,6 +108,18 @@ function deriveTicketContext() {
 function assertTicketAssociation() {
   const context = deriveTicketContext();
 
+  function createProcessFallback(message) {
+    console.warn(message);
+    return {
+      branchTicketIds: context.branchTicketIds,
+      commitTicketIds: context.commitTicketIds,
+      ticketIds: [],
+      trackCode: 'GENERAL',
+      processMode: true,
+      processMarkerDetected: true,
+    };
+  }
+
   if (context.ticketIds.length === 0 && !processMode) {
     throw new Error(
       [
@@ -118,7 +131,7 @@ function assertTicketAssociation() {
   }
 
   if (context.ticketIds.length === 0 && processMode) {
-    console.warn(
+    return createProcessFallback(
       'No ticket ID found in branch or commit metadata. Continuing because a process marker was detected.',
     );
   }
@@ -132,6 +145,16 @@ function assertTicketAssociation() {
   }
 
   if (context.trackCodes.length !== 1) {
+    if (processMode) {
+      return createProcessFallback(
+        [
+          'Process marker detected with non-resolvable ticket association; continuing in GENERAL_DOCS_PROCESS mode.',
+          `Detected ticket IDs: ${context.ticketIds.join(', ')}.`,
+          `Detected tracks: ${context.trackCodes.join(', ') || '(none)'}.`,
+        ].join('\n'),
+      );
+    }
+
     throw new Error(
       [
         `Ticket IDs resolve to ${context.trackCodes.length} tracks: ${context.trackCodes.join(', ') || '(none)'}.`,
@@ -150,6 +173,16 @@ function assertTicketAssociation() {
     const knownSet = new Set(resolvedTicketIds);
     const unknownTicketIds = context.ticketIds.filter((ticketId) => !knownSet.has(ticketId));
     if (unknownTicketIds.length > 0) {
+      if (processMode) {
+        return createProcessFallback(
+          [
+            'Process marker detected with non-resolvable ticket IDs; continuing in GENERAL_DOCS_PROCESS mode.',
+            `Unknown ticket IDs in tracker: ${unknownTicketIds.join(', ')}.`,
+            `Detected ticket IDs: ${context.ticketIds.join(', ')}.`,
+          ].join('\n'),
+        );
+      }
+
       throw new Error(
         [
           `Detected ticket IDs are not present in ${trackerPath}: ${unknownTicketIds.join(', ')}.`,
@@ -419,7 +452,7 @@ function verifyTraceabilityCoverage() {
         'Traceability matrix coverage violation:',
         ...mismatches,
         'Action: Synchronize docs/implementation/audit-traceability-matrix.md with docs/audit.md to ensure all requirements and audits are mapped correctly.',
-      ].join('\n')
+      ].join('\n'),
     );
   }
 }

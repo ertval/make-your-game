@@ -69,7 +69,7 @@ if (approvals.length === 0) {
       'Approval policy violation.',
       'At least one independent approval is required before merge.',
       'Action: Request a code review from another team member who did not author the pull request.',
-    ].join('\n')
+    ].join('\n'),
   );
 }
 

@@ -144,13 +144,13 @@ if (missingPurpose.length > 0) {
 
 if (lowCommentRatio.length > 0) {
   hasViolations = true;
-  details.push(
-    `Source files below minimum comment ratio (${MIN_COMMENT_RATIO * 100}%):`,
-  );
+  details.push(`Source files below minimum comment ratio (${MIN_COMMENT_RATIO * 100}%):`);
   lowCommentRatio.forEach((f) => {
     details.push(`- ${f}`);
   });
-  details.push('Action: Add inline comments to explain complex logic and decisions in critical sections.');
+  details.push(
+    'Action: Add inline comments to explain complex logic and decisions in critical sections.',
+  );
 }
 
 if (!hasViolations) {

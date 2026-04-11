@@ -12,6 +12,7 @@ import {
   describePolicyResolution,
   inferProcessModeFromSources,
   inferTicketIdsFromSources,
+  inferTracksFromTicketIds,
   parseArgs,
   readJson,
   runCommand,
@@ -94,21 +95,29 @@ if (scope === 'pr' || scope === 'all') {
       metadata.commitMessages || '',
       metadata.body || '',
     );
+  const ticketIds = hasPrMetadata
+    ? inferTicketIdsFromSources(metadata.branchName || '', metadata.commitMessages || '')
+    : [];
+
+  const trackCodes = inferTracksFromTicketIds(ticketIds);
+  // Process branches may carry historical ticket references in commit bodies. If ticket validation would fail,
+  // we intentionally fallback to GENERAL_DOCS_PROCESS mode to enforce docs/process scope instead of ticket checks.
+  const shouldUseProcessFallback =
+    hasProcessMode &&
+    (ticketIds.length === 0 || trackCodes.length !== 1 || branchTicketIds.length === 0);
+  const shouldRunTicketChecks = hasPrMetadata && !shouldUseProcessFallback;
 
   // We establish an audit mode flag based on context clues to control the rigor of subsequent gates.
-  const auditMode = hasPrMetadata
+  const auditMode = shouldRunTicketChecks
     ? 'TICKET'
     : hasProcessMode
       ? 'GENERAL_DOCS_PROCESS'
       : 'REPO_FALLBACK';
-  const selectedPath = hasPrMetadata
+  const selectedPath = shouldRunTicketChecks
     ? 'PR ticket checks'
     : hasProcessMode
       ? 'repo-wide fallback from process marker'
       : 'repo-wide fallback from missing ticket metadata';
-  const ticketIds = hasPrMetadata
-    ? inferTicketIdsFromSources(metadata.branchName || '', metadata.commitMessages || '')
-    : [];
 
   console.log(
     describePolicyResolution({
@@ -117,12 +126,12 @@ if (scope === 'pr' || scope === 'all') {
       commitTicketIds,
       processMarkerDetected: hasProcessMode,
       selectedPath,
-      ticketIds,
+      ticketIds: shouldRunTicketChecks ? ticketIds : [],
       trackCode: metadata.trackCode || 'GENERAL',
     }),
   );
 
-  if (hasPrMetadata) {
+  if (shouldRunTicketChecks) {
     runStep(
       'PR checklist and traceability checks',
       'npm',

@@ -51,11 +51,15 @@ for (const file of files) {
 }
 
 if (violations.length > 0) {
-  console.error('Forbidden technology usage detected. The following files contain forbidden APIs or frameworks:');
+  console.error(
+    'Forbidden technology usage detected. The following files contain forbidden APIs or frameworks:',
+  );
   for (const violation of violations) {
     console.error(`- ${violation}`);
   }
-  console.error('Action: Use safe DOM APIs or Vanilla ESM imports instead. Frameworks, CJS imports, and raw canvas accesses are forbidden.');
+  console.error(
+    'Action: Use safe DOM APIs or Vanilla ESM imports instead. Frameworks, CJS imports, and raw canvas accesses are forbidden.',
+  );
   process.exit(1);
 }
 

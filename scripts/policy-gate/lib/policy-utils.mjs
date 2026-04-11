@@ -464,7 +464,7 @@ export function runCommand(command, commandArgs, options = {}) {
         `Command execution failed: ${command} ${commandArgs.join(' ')}`,
         `Details: ${detail || 'No output'}`,
         'Action: Review the command details above to determine the cause of the failure.',
-      ].join('\n')
+      ].join('\n'),
     );
   }
 
