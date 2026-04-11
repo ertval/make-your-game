@@ -8,7 +8,14 @@
 
 import fs from 'node:fs';
 import process from 'node:process';
-import { parseArgs, readLines, walkFiles } from './lib/policy-utils.mjs';
+import {
+  GATE_FAIL,
+  GATE_PASS,
+  GATE_WARN,
+  parseArgs,
+  readLines,
+  walkFiles,
+} from './lib/policy-utils.mjs';
 
 // Parse CLI arguments and validate execution mode
 // We default to 'changed' scope so developers iteratively get fast-feedback on only what they touched.
@@ -154,16 +161,18 @@ if (lowCommentRatio.length > 0) {
 }
 
 if (!hasViolations) {
-  console.log(`Code quality and comment check passed for ${files.length} file(s).`);
+  console.log(`${GATE_PASS} — Code quality and comment check for ${files.length} file(s).`);
   process.exit(0);
 }
 
 const errorOutput = details.join('\n');
 
 if (mode === 'error' || mode === 'fail') {
+  console.error(`${GATE_FAIL} — Source header violations found:`);
   console.error(errorOutput);
   process.exit(1);
 }
 
+console.warn(`${GATE_WARN} — Source header violations found (warn mode):`);
 console.warn(errorOutput);
-console.log('Code quality and comment check completed in warn mode; continuing.');
+console.log(`${GATE_WARN} — Code quality and comment check completed in warn mode; continuing.`);

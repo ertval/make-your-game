@@ -42,7 +42,7 @@ Findings below are consolidated, deduplicated, and re-numbered with a unified se
 ## 1) Bugs & Logic Errors
 
 ### BUG-01: Final level completion does not transition to VICTORY ⬆ HIGH
-**Origin:** Codex H-01, Qwen H-02
+**Origin:** Codex H-01, Qwen H-02 (Track A: A-03, A-08)
 **Files:**
 - `src/game/level-loader.js` (~L115)
 - `src/game/game-flow.js` (~L82-89, ~L96, ~L104)
@@ -68,7 +68,7 @@ if (gameStatus.currentState === GAME_STATE.LEVEL_COMPLETE) {
 ---
 
 ### BUG-02: `startGame()` is non-idempotent when already PLAYING — clock reset ⬆ HIGH
-**Origin:** Codex H-02, Qwen H-01
+**Origin:** Codex H-02, Qwen H-01 (Track A: A-03)
 **Files:**
 - `src/game/game-flow.js` (~L90-92, ~L109)
 - `src/main.ecs.js` (~L156-160, ~L185-186)
@@ -89,7 +89,7 @@ if (gameStatus.currentState === GAME_STATE.PLAYING) {
 ---
 
 ### BUG-03: Game can enter PLAYING with invalid/null map resource ⬆ HIGH
-**Origin:** Codex H-03
+**Origin:** Codex H-03 (Track A: A-03)
 **Files:**
 - `src/game/bootstrap.js` (~L70)
 - `src/game/level-loader.js` (~L80, ~L95)
@@ -105,7 +105,7 @@ if (gameStatus.currentState === GAME_STATE.PLAYING) {
 ---
 
 ### BUG-04: Out-of-bounds map access can be treated as passable ⬆ HIGH
-**Origin:** Codex H-04, Qwen L-08
+**Origin:** Codex H-04, Qwen L-08 (Track D: D-03)
 **Files:**
 - `src/ecs/resources/map-resource.js` (~L393, ~L449, ~L468)
 
@@ -119,7 +119,7 @@ if (gameStatus.currentState === GAME_STATE.PLAYING) {
 ---
 
 ### BUG-05: Semantic validator can throw TypeError on malformed map payloads ⬆ MEDIUM
-**Origin:** Codex M-01
+**Origin:** Codex M-01 (Track D: D-03)
 **Files:**
 - `src/ecs/resources/map-resource.js` (~L157, ~L231, ~L232)
 
@@ -130,7 +130,7 @@ if (gameStatus.currentState === GAME_STATE.PLAYING) {
 ---
 
 ### BUG-06: `loadLevel` commits level index before successful map resolve ⬆ MEDIUM
-**Origin:** Codex M-02
+**Origin:** Codex M-02 (Track A: A-03)
 **Files:**
 - `src/game/level-loader.js` (~L91, ~L95)
 
@@ -141,7 +141,7 @@ if (gameStatus.currentState === GAME_STATE.PLAYING) {
 ---
 
 ### BUG-07: `tickClock` maxDelta uses hardcoded multiplier instead of `maxStepsPerFrame` ⬆ MEDIUM
-**Origin:** Qwen M-03
+**Origin:** Qwen M-03 (Track D: D-01)
 **Files:**
 - `src/ecs/resources/clock.js` (~L68-71)
 
@@ -155,7 +155,7 @@ const maxDelta = fixedDtMs * maxStepsPerFrame;
 ---
 
 ### BUG-08: `isPassable` JSDoc documents non-existent `isGhost` parameter ⬆ MEDIUM
-**Origin:** Qwen M-02
+**Origin:** Qwen M-02 (Track D: D-03)
 **Files:**
 - `src/ecs/resources/map-resource.js` (JSDoc ~L26 vs implementation ~L449)
 
@@ -166,7 +166,7 @@ const maxDelta = fixedDtMs * maxStepsPerFrame;
 ---
 
 ### BUG-09: Event queue `orderCounter` never auto-reset between frames ⬆ MEDIUM
-**Origin:** Qwen M-04
+**Origin:** Qwen M-04 (Track D: D-01)
 **Files:**
 - `src/ecs/resources/event-queue.js`
 
@@ -177,7 +177,7 @@ const maxDelta = fixedDtMs * maxStepsPerFrame;
 ---
 
 ### BUG-10: `clock.js` `resyncTime` does not clamp accumulator to zero ⬆ LOW
-**Origin:** Qwen L-10
+**Origin:** Qwen L-10 (Track D: D-01)
 **Files:**
 - `src/ecs/resources/clock.js`
 
@@ -188,7 +188,7 @@ const maxDelta = fixedDtMs * maxStepsPerFrame;
 ---
 
 ### BUG-11: `clampLevelIndex` redundant `Math.floor` after bounds check ⬆ LOW
-**Origin:** Qwen L-02
+**Origin:** Qwen L-02 (Track A: A-03)
 **Files:**
 - `src/game/level-loader.js` (~L12-19)
 
@@ -201,7 +201,7 @@ const maxDelta = fixedDtMs * maxStepsPerFrame;
 ## 2) Dead Code & Unused References
 
 ### DEAD-01: Unreachable `package.json` dependency-ban branch in policy checks ⬆ HIGH
-**Origin:** Codex H-05
+**Origin:** Codex H-05 (Track A: A-01, A-07)
 **Files:**
 - `scripts/policy-gate/run-checks.mjs` (~L477, ~L515, ~L553)
 
@@ -212,7 +212,7 @@ const maxDelta = fixedDtMs * maxStepsPerFrame;
 ---
 
 ### DEAD-02: Dead conditional in `createSyncMapLoader` restart path ⬆ MEDIUM
-**Origin:** Codex M-03, Qwen M-01
+**Origin:** Codex M-03, Qwen M-01 (Track A: A-03)
 **Files:**
 - `src/game/level-loader.js` (~L51-61)
 
@@ -223,7 +223,7 @@ const maxDelta = fixedDtMs * maxStepsPerFrame;
 ---
 
 ### DEAD-03: Redundant `cachedMapResource` option plumbing ⬆ MEDIUM
-**Origin:** Codex M-04
+**Origin:** Codex M-04 (Track A: A-03)
 **Files:**
 - `src/game/level-loader.js` (~L86, ~L100)
 - `tests/unit/resources/map-resource.test.js` (~L489)
@@ -235,7 +235,7 @@ const maxDelta = fixedDtMs * maxStepsPerFrame;
 ---
 
 ### DEAD-04: `getSystemOrder` return value rarely consumed ⬆ LOW
-**Origin:** Qwen (Dead Code table)
+**Origin:** Qwen (Dead Code table) (Track A: A-02)
 **Files:**
 - `src/ecs/world/create-world.js`
 
@@ -246,7 +246,7 @@ const maxDelta = fixedDtMs * maxStepsPerFrame;
 ---
 
 ### DEAD-05: `advanceLevel` options object only uses `reason` property ⬆ LOW
-**Origin:** Qwen L-06
+**Origin:** Qwen L-06 (Track A: A-03)
 **Files:**
 - `src/game/level-loader.js`
 
@@ -257,7 +257,7 @@ const maxDelta = fixedDtMs * maxStepsPerFrame;
 ---
 
 ### DEAD-06: `resetOrderCounter` JSDoc claim unimplemented ⬆ LOW
-**Origin:** Qwen (Dead Code table)
+**Origin:** Qwen (Dead Code table) (Track D: D-01)
 **Files:**
 - `src/ecs/resources/event-queue.js`
 
@@ -266,7 +266,7 @@ const maxDelta = fixedDtMs * maxStepsPerFrame;
 ---
 
 ### DEAD-07: Duplicate npm scripts for same policy command ⬆ LOW
-**Origin:** Codex L-01
+**Origin:** Codex L-01 (Track A: A-01)
 **Files:**
 - `package.json` (~L17, ~L35)
 
@@ -277,7 +277,7 @@ const maxDelta = fixedDtMs * maxStepsPerFrame;
 ---
 
 ### DEAD-08: Tracked `changed-files.txt` artifact appears stale ⬆ LOW
-**Origin:** Codex L-02
+**Origin:** Codex L-02 (Track A: A-01)
 **Files:**
 - `changed-files.txt` (~L1)
 - `.gitignore` (~L42)
@@ -291,7 +291,7 @@ const maxDelta = fixedDtMs * maxStepsPerFrame;
 ## 3) Architecture & ECS Violations
 
 ### ARCH-01: Restart flow performs immediate structural mutation and breaks entity opacity ⬆ BLOCKING
-**Origin:** Codex C-01
+**Origin:** Codex C-01 (Track A: A-02, A-03)
 **Violated rule:** Structural deferral and opaque entities (AGENTS.md)
 **Files:**
 - `src/game/game-flow.js` (~L41-61)
@@ -306,7 +306,7 @@ const maxDelta = fixedDtMs * maxStepsPerFrame;
 ---
 
 ### ARCH-02: World API allows immediate structural mutation during dispatch ⬆ HIGH
-**Origin:** Codex H-06
+**Origin:** Codex H-06 (Track A: A-02)
 **Violated rule:** Structural changes must be deferred
 **Files:**
 - `src/ecs/world/world.js` (~L55, ~L61, ~L141)
@@ -318,7 +318,7 @@ const maxDelta = fixedDtMs * maxStepsPerFrame;
 ---
 
 ### ARCH-03: ECS World exposes mutable internal state — `entityStore` and `systemOrder` ⬆ HIGH
-**Origin:** Qwen H-03
+**Origin:** Qwen H-03 (Track A: A-02)
 **Files:**
 - `src/ecs/world/create-world.js`
 
@@ -342,7 +342,7 @@ getEntityStore() {
 ---
 
 ### ARCH-04: `EntityStore` missing boundary validation in `hasComponent`/`getComponent` ⬆ HIGH
-**Origin:** Qwen H-04
+**Origin:** Qwen H-04 (Track A: A-02)
 **Files:**
 - `src/ecs/world/entity-store.js` (~L55-66)
 
@@ -364,7 +364,7 @@ hasComponent(entityHandle, componentType) {
 ---
 
 ### ARCH-05: Render phase coupled to fixed-step simulation loop ⬆ HIGH
-**Origin:** Codex H-07
+**Origin:** Codex H-07 (Track A: A-02, A-03)
 **Violated rule:** One dedicated DOM commit per frame with clear read/compute vs write boundaries
 **Files:**
 - `src/ecs/world/world.js` (~L16, ~L141)
@@ -377,7 +377,7 @@ hasComponent(entityHandle, componentType) {
 ---
 
 ### ARCH-06: Input adapter contract leak via fallback field probing ⬆ MEDIUM
-**Origin:** Codex M-05
+**Origin:** Codex M-05 (Track A: A-03; Track B: B-02)
 **Files:**
 - `src/main.ecs.js` (~L97, ~L107)
 - `src/game/bootstrap.js` (~L125)
@@ -389,7 +389,7 @@ hasComponent(entityHandle, componentType) {
 ---
 
 ### ARCH-07: `DOMPool` `release()` does not remove event listeners ⬆ MEDIUM
-**Origin:** Qwen M-05
+**Origin:** Qwen M-05 (Track D: D-09)
 **Files:**
 - `src/render/dom-pool.js` (~L48-54)
 
@@ -400,7 +400,7 @@ hasComponent(entityHandle, componentType) {
 ---
 
 ### ARCH-08: Systems can access resources without capability gating ⬆ MEDIUM
-**Origin:** Qwen (Architecture table)
+**Origin:** Qwen (Architecture table) (Track A: A-02)
 **Files:**
 - World design overall
 
@@ -411,7 +411,7 @@ hasComponent(entityHandle, componentType) {
 ---
 
 ### ARCH-09: `EventQueue` `drain()` returns reference to internal array ⬆ LOW
-**Origin:** Qwen L-09
+**Origin:** Qwen L-09 (Track D: D-01)
 **Files:**
 - `src/ecs/resources/event-queue.js`
 
@@ -424,7 +424,7 @@ hasComponent(entityHandle, componentType) {
 ## 4) Code Quality & Security
 
 ### SEC-01: Map validation path can hard-fail on malformed structures ⬆ HIGH
-**Origin:** Codex H-08 (overlaps with BUG-05)
+**Origin:** Codex H-08 (Track D: D-03)
 **Files:**
 - `src/ecs/resources/map-resource.js` (~L146, ~L175, ~L336)
 
@@ -435,7 +435,7 @@ hasComponent(entityHandle, componentType) {
 ---
 
 ### SEC-02: Runtime map trust boundary is not strictly enforced ⬆ HIGH
-**Origin:** Codex H-09
+**Origin:** Codex H-09 (Track A: A-03; Track D: D-03)
 **Files:**
 - `src/game/level-loader.js` (~L80, ~L95)
 - `src/ecs/resources/map-resource.js` (~L334)
@@ -447,7 +447,7 @@ hasComponent(entityHandle, componentType) {
 ---
 
 ### SEC-03: Production CSP and Trusted Types enforcement is missing ⬆ MEDIUM
-**Origin:** Codex M-06
+**Origin:** Codex M-06 (Track A: A-01, A-07)
 **Files:**
 - `index.html` (~L4)
 - `vite.config.js` (~L3)
@@ -460,7 +460,7 @@ hasComponent(entityHandle, componentType) {
 ---
 
 ### SEC-04: Security scanning is primarily changed-file scoped ⬆ MEDIUM
-**Origin:** Codex M-07
+**Origin:** Codex M-07 (Track A: A-01)
 **Files:**
 - `scripts/policy-gate/run-checks.mjs` (~L514, ~L579)
 - `scripts/policy-gate/run-all.mjs` (~L200)
@@ -472,7 +472,7 @@ hasComponent(entityHandle, componentType) {
 ---
 
 ### SEC-05: Schema validation script can fail-open on missing files ⬆ MEDIUM
-**Origin:** Codex M-08
+**Origin:** Codex M-08 (Track A: A-07)
 **Files:**
 - `scripts/validate-schema.mjs` (~L62, ~L63)
 
@@ -483,7 +483,7 @@ hasComponent(entityHandle, componentType) {
 ---
 
 ### SEC-06: Repetitive runtime error loop risk without escalation budget ⬆ LOW
-**Origin:** Codex L-03
+**Origin:** Codex L-03 (Track A: A-02, A-03)
 **Files:**
 - `src/main.ecs.js` (~L192, ~L209)
 - `src/ecs/world/world.js` (~L144)
@@ -495,7 +495,7 @@ hasComponent(entityHandle, componentType) {
 ---
 
 ### SEC-07: `renderCriticalError` uses `textContent` — safe but limited formatting ⬆ LOW
-**Origin:** Qwen L-03
+**Origin:** Qwen L-03 (Track A: A-03)
 **Files:**
 - `src/main.ecs.js` (~L87-92)
 
@@ -506,7 +506,7 @@ hasComponent(entityHandle, componentType) {
 ---
 
 ### SEC-08: `UNHANDLED_REJECTION_HOOK_KEY` could conflict with other libraries ⬆ LOW
-**Origin:** Qwen L-04
+**Origin:** Qwen L-04 (Track A: A-03)
 **Files:**
 - `src/main.ecs.js` (~L96)
 
@@ -517,7 +517,7 @@ hasComponent(entityHandle, componentType) {
 ---
 
 ### SEC-09: `createDOMRenderer` accepts `hudQueries` but never validates query results ⬆ LOW
-**Origin:** Qwen L-07
+**Origin:** Qwen L-07 (Track D: D-06)
 **Files:**
 - `src/render/render-ecs.js`
 
@@ -530,7 +530,7 @@ hasComponent(entityHandle, componentType) {
 ## 5) Tests & CI Gaps
 
 ### CI-01: CI can pass with effectively no browser verification ⬆ BLOCKING
-**Origin:** Codex B-01
+**Origin:** Codex B-01 (Track A: A-01)
 **Files:**
 - `package.json` (~L21, ~L22)
 - `scripts/policy-gate/run-project-gate.mjs` (~L19)
@@ -543,7 +543,7 @@ hasComponent(entityHandle, componentType) {
 ---
 
 ### CI-02: Audit coverage test is inventory-only, not behavior verification ⬆ BLOCKING
-**Origin:** Codex B-02
+**Origin:** Codex B-02 (Track A: A-06)
 **Files:**
 - `tests/e2e/audit/audit.e2e.test.js` (~L6)
 - `tests/e2e/audit/audit-question-map.js` (~L3)
@@ -555,7 +555,7 @@ hasComponent(entityHandle, componentType) {
 ---
 
 ### CI-03: Semi-automatable and manual evidence categories are not CI-enforced ⬆ HIGH
-**Origin:** Codex B-03
+**Origin:** Codex B-03 (Track A: A-09)
 **Files:**
 - `docs/audit-reports/phase-testing-verification-report.md` (~L29, ~L30)
 - `scripts/policy-gate/run-checks.mjs` (~L401)
@@ -567,7 +567,7 @@ hasComponent(entityHandle, componentType) {
 ---
 
 ### CI-04: Functional E2E coverage is too narrow for documented scope ⬆ HIGH
-**Origin:** Codex H-10, Qwen (Test & CI Gaps table)
+**Origin:** Codex H-10, Qwen (Test & CI Gaps table) (Track A: A-06)
 **Files:**
 - `tests/e2e/game-loop.pause.spec.js`
 - `tests/e2e/game-loop.unhandled-rejection.spec.js`
@@ -590,7 +590,7 @@ hasComponent(entityHandle, componentType) {
 ---
 
 ### CI-05: Adapter-boundary integration coverage is effectively empty ⬆ HIGH
-**Origin:** Codex H-11
+**Origin:** Codex H-11 (Track A: A-05)
 **Files:**
 - `tests/integration/adapters/.gitkeep`
 - `vitest.config.js` (~L6)
@@ -603,7 +603,7 @@ hasComponent(entityHandle, componentType) {
 ---
 
 ### CI-06: Coverage gate is inflated by counting tests in coverage include ⬆ HIGH
-**Origin:** Codex H-12
+**Origin:** Codex H-12 (Track A: A-01)
 **Files:**
 - `vitest.config.js` (~L11, ~L12)
 
@@ -614,7 +614,7 @@ hasComponent(entityHandle, componentType) {
 ---
 
 ### CI-07: Playwright flakiness risk from fixed sleep timing ⬆ MEDIUM
-**Origin:** Codex M-09
+**Origin:** Codex M-09 (Track A: A-06)
 **Files:**
 - `tests/e2e/game-loop.pause.spec.js` (~L21, ~L29, ~L38)
 
@@ -625,7 +625,7 @@ hasComponent(entityHandle, componentType) {
 ---
 
 ### CI-08: Header policy check is warn-mode in CI ⬆ LOW
-**Origin:** Codex L-04
+**Origin:** Codex L-04 (Track A: A-01)
 **Files:**
 - `.github/workflows/policy-gate.yml` (~L26)
 - `scripts/policy-gate/check-source-headers.mjs` (~L22)
@@ -637,7 +637,7 @@ hasComponent(entityHandle, componentType) {
 ---
 
 ### CI-09: `game-flow.js` exports both named and default — inconsistent with project style ⬆ LOW
-**Origin:** Qwen L-05
+**Origin:** Qwen L-05 (Track A: A-03)
 **Files:**
 - `src/game/game-flow.js`
 
@@ -648,7 +648,7 @@ hasComponent(entityHandle, componentType) {
 ---
 
 ### CI-10: `main.ecs.js` bootstrap auto-executes on import in browser ⬆ LOW
-**Origin:** Qwen L-12
+**Origin:** Qwen L-12 (Track A: A-03)
 **Files:**
 - `src/main.ecs.js` (~L230-232)
 
@@ -659,7 +659,7 @@ hasComponent(entityHandle, componentType) {
 ---
 
 ### CI-11: Duplicate `advanceLevel` logic in test mock and implementation ⬆ LOW
-**Origin:** Qwen L-11
+**Origin:** Qwen L-11 (Track A: A-05, A-08)
 **Files:**
 - Various test files
 

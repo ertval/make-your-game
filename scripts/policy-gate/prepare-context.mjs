@@ -10,6 +10,7 @@ import process from 'node:process';
 import {
   collectBranchCommitMessages,
   collectChangedFiles,
+  GATE_PASS,
   getCurrentBranchName,
   getEventPath,
   getMergeBase,
@@ -107,6 +108,6 @@ const changedFiles = hasEventPayload
 writeJson(metaPath, metadata);
 writeLines(changedPath, changedFiles);
 
-console.log(`Wrote ${metaPath}`);
+console.log(`${GATE_PASS} — Context prepared: wrote ${metaPath}`);
 console.log(`Detected ticket IDs: ${ticketIds.join(', ') || '(none)'}`);
-console.log(`Wrote ${changedPath} with ${changedFiles.length} file(s).`);
+console.log(`${GATE_PASS} — Wrote ${changedPath} with ${changedFiles.length} file(s).`);

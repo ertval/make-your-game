@@ -7,7 +7,7 @@
 
 import fs from 'node:fs';
 import process from 'node:process';
-import { parseArgs, readLines, walkFiles } from './lib/policy-utils.mjs';
+import { GATE_FAIL, GATE_PASS, parseArgs, readLines, walkFiles } from './lib/policy-utils.mjs';
 
 const args = parseArgs(process.argv.slice(2));
 const scope = args.scope || 'repo';
@@ -52,7 +52,7 @@ for (const file of files) {
 
 if (violations.length > 0) {
   console.error(
-    'Forbidden technology usage detected. The following files contain forbidden APIs or frameworks:',
+    `${GATE_FAIL} — Forbidden technology usage detected. The following files contain forbidden APIs or frameworks:`,
   );
   for (const violation of violations) {
     console.error(`- ${violation}`);
@@ -63,4 +63,4 @@ if (violations.length > 0) {
   process.exit(1);
 }
 
-console.log(`Forbidden scan passed for ${files.length} file(s).`);
+console.log(`${GATE_PASS} — Forbidden scan passed for ${files.length} file(s).`);

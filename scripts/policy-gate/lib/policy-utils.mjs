@@ -479,6 +479,11 @@ export function resolvePrPolicyPath({
   };
 }
 
+// Visual markers make gate outcomes typographically scannable in CI and local logs.
+export const GATE_PASS = '✅ PASS';
+export const GATE_FAIL = '❌ FAIL';
+export const GATE_WARN = '⚠️  WARN';
+
 export function describePolicyResolution({
   auditMode,
   branchTicketIds = [],

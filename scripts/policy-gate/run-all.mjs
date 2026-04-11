@@ -11,6 +11,8 @@ import process from 'node:process';
 import {
   describePolicyResolution,
   extractOwnerFromBranch,
+  GATE_FAIL,
+  GATE_PASS,
   inferProcessModeFromSources,
   inferTicketIdsFromSources,
   parseArgs,
@@ -69,7 +71,7 @@ function runStep(label, command, commandArgs, retryHint) {
   } catch (error) {
     const hint = retryHint ? ` Retry with: ${retryHint}.` : '';
     const detail = error instanceof Error ? error.message : String(error);
-    throw new Error(`${label} failed.${hint} Original error: ${detail}`);
+    throw new Error(`${GATE_FAIL} — ${label} failed.${hint} Original error: ${detail}`);
   }
 }
 
@@ -182,6 +184,39 @@ if ((scope === 'repo' || scope === 'all') && !(scope === 'all' && ranRepoFallbac
     contextPrepared = true;
   }
 
+  // We read the prepared metadata to report owner and mode info for repo scope runs.
+  const metadata = fs.existsSync(metaPath) ? readJson(metaPath) : {};
+  const branchName = metadata.branchName || '';
+  const branchOwner = extractOwnerFromBranch(branchName);
+  const branchOwnerTrack = resolveOwnerTrackFromBranch(branchName);
+  const branchTicketIds = inferTicketIdsFromSources(metadata.branchName || '');
+  const commitTicketIds = inferTicketIdsFromSources(metadata.commitMessages || '');
+  const hasProcessMode =
+    Boolean(metadata.processMode) ||
+    inferProcessModeFromSources(
+      metadata.branchName || '',
+      metadata.commitMessages || '',
+      metadata.body || '',
+    );
+  const ticketIds = inferTicketIdsFromSources(
+    metadata.branchName || '',
+    metadata.commitMessages || '',
+  );
+
+  console.log(
+    describePolicyResolution({
+      auditMode: hasProcessMode ? 'GENERAL_DOCS_PROCESS' : 'TICKET',
+      branchTicketIds,
+      commitTicketIds,
+      owner: branchOwner,
+      ownerTrack: branchOwnerTrack,
+      processMarkerDetected: hasProcessMode,
+      selectedPath: 'repo-wide validation',
+      ticketIds,
+      trackCode: branchOwnerTrack || metadata.trackCode || 'GENERAL',
+    }),
+  );
+
   // We execute repo-wide policies for deeper validation when specifically requested or on merge to main.
   runStep(
     'Repo-wide forbidden-tech scan',
@@ -209,4 +244,4 @@ if ((scope === 'repo' || scope === 'all') && !(scope === 'all' && ranRepoFallbac
   }
 }
 
-console.log(`Policy gate completed in ${mode} mode for ${scope} scope.`);
+console.log(`${GATE_PASS} — Policy gate completed in ${mode} mode for ${scope} scope.`);

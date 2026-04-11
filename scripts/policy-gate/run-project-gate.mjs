@@ -6,7 +6,7 @@
  */
 
 import fs from 'node:fs';
-import { runCommand } from './lib/policy-utils.mjs';
+import { GATE_PASS, runCommand } from './lib/policy-utils.mjs';
 
 if (!fs.existsSync('package.json')) {
   console.log('package.json not present; skipping npm project gate.');
@@ -36,4 +36,4 @@ for (const script of commands) {
   runCommand('npm', ['run', script], { stdio: 'inherit' });
 }
 
-console.log('Project gate checks completed successfully.');
+console.log(`${GATE_PASS} — Project gate checks completed.`);

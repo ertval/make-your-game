@@ -6,7 +6,7 @@
  */
 
 import process from 'node:process';
-import { parseArgs, readJson, toBool } from './lib/policy-utils.mjs';
+import { GATE_PASS, parseArgs, readJson, toBool } from './lib/policy-utils.mjs';
 
 const args = parseArgs(process.argv.slice(2));
 const metaPath = args['meta-file'] || '.policy-pr-meta.json';
@@ -73,4 +73,6 @@ if (approvals.length === 0) {
   );
 }
 
-console.log(`Approval check passed with ${approvals.length} independent approval(s).`);
+console.log(
+  `${GATE_PASS} — Approval check passed with ${approvals.length} independent approval(s).`,
+);

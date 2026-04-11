@@ -14,6 +14,7 @@ import {
   extractOwnerFromBranch,
   extractTicketIdFromBranchName,
   findOwnershipViolations,
+  GATE_PASS,
   getOwnersForTrack,
   inferProcessModeFromSources,
   inferTicketIdsFromSources,
@@ -246,7 +247,7 @@ function assertTrackOwnership(trackCode, ticketIds) {
   const result = findOwnershipViolations(trackCode, changedFiles);
   if (result.violations.length === 0) {
     console.log(
-      `Ownership check passed for track ${trackCode} from tickets ${ticketIds.join(', ')} (${changedFiles.length} changed file(s)).`,
+      `${GATE_PASS} — Ownership check for track ${trackCode} from tickets ${ticketIds.join(', ')} (${changedFiles.length} changed file(s)).`,
     );
     return;
   }
@@ -290,7 +291,7 @@ function assertOwnerScopedOwnership(ticketIds) {
   const result = findOwnershipViolations(branchOwnerTrack, changedFiles);
   if (result.violations.length === 0) {
     console.log(
-      `Owner-scoped ownership check passed for ${branchOwner} (Track ${branchOwnerTrack}) with ${changedFiles.length} changed file(s).`,
+      `${GATE_PASS} — Owner-scoped ownership check for ${branchOwner} (Track ${branchOwnerTrack}) with ${changedFiles.length} changed file(s).`,
     );
     return;
   }
@@ -774,4 +775,4 @@ if (checkSet === 'pr' || checkSet === 'all') {
   scanSecurityAndArchitectureBoundaries();
 }
 
-console.log(`Policy checks completed successfully for ${checkSet} checks.`);
+console.log(`${GATE_PASS} — Policy checks completed for ${checkSet} checks.`);
