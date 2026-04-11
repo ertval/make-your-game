@@ -15,6 +15,7 @@ import {
   extractTicketIdFromBranchName,
   findOwnershipViolations,
   GATE_PASS,
+  GATE_WARN,
   getOwnersForTrack,
   inferProcessModeFromSources,
   inferTicketIdsFromSources,
@@ -105,7 +106,7 @@ function assertTicketAssociation() {
   const context = deriveTicketContext();
 
   function createProcessFallback(message, originalTicketIds = []) {
-    console.warn(`\n⚠️  POLICY WARNING: ${message}\n`);
+    console.warn(`\n${GATE_WARN} — POLICY WARNING: ${message}\n`);
     return {
       branchTicketIds: context.branchTicketIds,
       commitTicketIds: context.commitTicketIds,
@@ -196,7 +197,7 @@ function assertTicketAssociation() {
       );
     }
   } else {
-    console.warn(`Ticket list has no discoverable ticket IDs in ${trackerPath}.`);
+    console.warn(`${GATE_WARN} — Ticket list has no discoverable ticket IDs in ${trackerPath}.`);
   }
 
   return {
@@ -235,7 +236,7 @@ function formatOwnershipViolations(violations) {
 function assertTrackOwnership(trackCode, ticketIds) {
   if (changedFiles.length === 0) {
     console.warn(
-      'No changed files found in changed-files context. Skipping ownership path validation.',
+      `${GATE_WARN} — No changed files found in changed-files context. Skipping ownership path validation.`,
     );
     return;
   }

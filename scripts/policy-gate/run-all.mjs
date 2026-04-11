@@ -75,19 +75,8 @@ function runStep(label, command, commandArgs, retryHint) {
   }
 }
 
-let ranRepoFallback = false;
-let contextPrepared = false;
-
-if (scope === 'pr' || scope === 'all') {
-  // We run the base project lint/test suite first so we don't bother doing policy validation on fundamentally broken code.
-  runStep('Project quality gate', 'npm', ['run', 'policy:quality'], 'npm run policy:quality');
-
-  runCommand('node', ['scripts/policy-gate/prepare-context.mjs', ...passThrough], {
-    stdio: 'inherit',
-  });
-  contextPrepared = true;
-
-  // We parse the extracted git metadata file to infer PR intent and verify traceability.
+// We centralize metadata parsing so PR/repo flows cannot drift in how they infer owner, tickets, or process mode.
+function resolvePolicyContext() {
   const metadata = fs.existsSync(metaPath) ? readJson(metaPath) : {};
   const branchName = metadata.branchName || '';
   const branchOwner = extractOwnerFromBranch(branchName);
@@ -102,9 +91,45 @@ if (scope === 'pr' || scope === 'all') {
       metadata.commitMessages || '',
       metadata.body || '',
     );
-  const ticketIds = hasPrMetadata
-    ? inferTicketIdsFromSources(metadata.branchName || '', metadata.commitMessages || '')
-    : [];
+  const ticketIds = inferTicketIdsFromSources(
+    metadata.branchName || '',
+    metadata.commitMessages || '',
+  );
+
+  return {
+    metadata,
+    branchOwner,
+    branchOwnerTrack,
+    branchTicketIds,
+    commitTicketIds,
+    hasPrMetadata,
+    hasProcessMode,
+    ticketIds,
+  };
+}
+
+let ranRepoFallback = false;
+let contextPrepared = false;
+
+if (scope === 'pr' || scope === 'all') {
+  // We run the base project lint/test suite first so we don't bother doing policy validation on fundamentally broken code.
+  runStep('Project quality gate', 'npm', ['run', 'policy:quality'], 'npm run policy:quality');
+
+  runCommand('node', ['scripts/policy-gate/prepare-context.mjs', ...passThrough], {
+    stdio: 'inherit',
+  });
+  contextPrepared = true;
+
+  // We parse the extracted git metadata file to infer PR intent and verify traceability.
+  const {
+    metadata,
+    branchOwner,
+    branchOwnerTrack,
+    branchTicketIds,
+    commitTicketIds,
+    hasProcessMode,
+    ticketIds,
+  } = resolvePolicyContext();
 
   // Process-marker branches must still run PR checks so process-scope violations are enforced.
   const policyPath = resolvePrPolicyPath({
@@ -185,27 +210,24 @@ if ((scope === 'repo' || scope === 'all') && !(scope === 'all' && ranRepoFallbac
   }
 
   // We read the prepared metadata to report owner and mode info for repo scope runs.
-  const metadata = fs.existsSync(metaPath) ? readJson(metaPath) : {};
-  const branchName = metadata.branchName || '';
-  const branchOwner = extractOwnerFromBranch(branchName);
-  const branchOwnerTrack = resolveOwnerTrackFromBranch(branchName);
-  const branchTicketIds = inferTicketIdsFromSources(metadata.branchName || '');
-  const commitTicketIds = inferTicketIdsFromSources(metadata.commitMessages || '');
-  const hasProcessMode =
-    Boolean(metadata.processMode) ||
-    inferProcessModeFromSources(
-      metadata.branchName || '',
-      metadata.commitMessages || '',
-      metadata.body || '',
-    );
-  const ticketIds = inferTicketIdsFromSources(
-    metadata.branchName || '',
-    metadata.commitMessages || '',
-  );
+  const {
+    metadata,
+    branchOwner,
+    branchOwnerTrack,
+    branchTicketIds,
+    commitTicketIds,
+    hasProcessMode,
+    ticketIds,
+  } = resolvePolicyContext();
+  const auditMode = hasProcessMode
+    ? 'GENERAL_DOCS_PROCESS'
+    : ticketIds.length > 0
+      ? 'TICKET'
+      : 'GENERAL_DOCS_PROCESS';
 
   console.log(
     describePolicyResolution({
-      auditMode: hasProcessMode ? 'GENERAL_DOCS_PROCESS' : 'TICKET',
+      auditMode,
       branchTicketIds,
       commitTicketIds,
       owner: branchOwner,
