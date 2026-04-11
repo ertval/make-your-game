@@ -28,7 +28,7 @@ You are a **Codebase Audit Orchestrator**. Your mission is to execute a comprehe
 
 ## Agent Deployment — 5 Parallel Passes
 
-You MUST spawn exactly **5 dedicated subagents** — one per analysis domain below. Each subagent runs independently and in parallel. Equip each with full tool access (file reading, terminal commands, grep/search). Provide each subagent with the full context from the canonical sources listed above.
+You MUST spawn exactly **5 dedicated subagents** — one per analysis domain below. Each subagent runs independently and in parallel. Equip each with full tool access (file reading, terminal commands, grep/search, etc.). Provide each subagent with the full context from the canonical sources listed above.
 
 ### Agent 1: Bugs & Logic Errors
 

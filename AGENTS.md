@@ -1,12 +1,14 @@
 ---
-version: 1.1.0
-last-updated: 2026-03-28
+version: 1.2.0
+last-updated: 2026-04-11
 status: active
 ---
 
-# Agent Instructions: Modern JavaScript 2026 DOM + ECS Game Development
+# Agent Instructions: Ms. Ghostman — Modern JavaScript 2026 DOM + ECS Game Development
 
 > **Standards & Guidelines** — Mandatory technical constraints and workflows for development.
+
+> **Implementation note**: This document defines *target constraints* for the finished product. The project follows a docs-first workflow — rules below describe the required architecture and quality gates that all implementation must satisfy, not necessarily the current state of checked-in code. When auditing existing code, treat any deviation from these rules as an implementation gap to close, not a documentation error.
 
 ---
 
@@ -145,7 +147,7 @@ Follow this sequence for every reported issue:
 ## Security and Code Quality
 
 - **Tooling**: MUST use Biome for linting and formatting.
-- **Comments**: Always have single-line comments for every non-trivial line of code. Comments should explain the "why" and "how", not the "what". Also in the begining of each file, have a comment block that explains the file's purpose, its public API (if applicable), and any important implementation notes or constraints.
+- **Comments**: MUST include single-line comments for non-obvious logic — branching decisions, performance trade-offs, workaround rationale, and domain-specific calculations. Comments SHOULD explain the "why" and "how", not the "what". Each file MUST begin with a comment block that explains the file's purpose, its public API (if applicable), and any important implementation notes or constraints.
 - **CI Governance**: MUST enforce merge gates (linting and tests). When `package.json` and corresponding scripts are present, CI MUST also enforce coverage and dependency lockfile policies (with SBOM).
 - **Data Validation**: MUST validate JSON maps against JSON Schema 2020-12 in CI.
 - **Sinks and Policies**: MUST use safe DOM sinks (`textContent`, explicit attribute APIs), and strictly enforce Content Security Policy (CSP) and Trusted Types.
@@ -176,6 +178,9 @@ Follow this sequence for every reported issue:
 - **E2E / Browser Tests**: Use **Playwright** for audit questions requiring a real browser (FPS measurement, keyboard input, pause behavior, game loop validation). Vitest alone cannot satisfy browser-level audit assertions.
 
 ### Test Categorization for Audit Questions
+
+Audit IDs follow the numbering in `docs/audit.md`: F-01 through F-21 (functional) and B-01 through B-06 (bonus), totalling 27 questions. See `docs/implementation/audit-traceability-matrix.md` for the full requirement → audit → ticket → test mapping.
+
 Audit test coverage MUST be split into three categories:
 1. **Fully Automatable** (Vitest + Playwright): All functional questions F-01 to F-16, and bonus questions B-01, B-02, B-03, and B-04.
 2. **Semi-Automatable** (Performance API via Playwright `page.evaluate()`): F-17, F-18, B-05 — frame timing or async-performance measured against a threshold.
@@ -185,7 +190,7 @@ Audit test coverage MUST be split into three categories:
 - SHOULD include seed-based determinism tests for timing/input-sensitive behavior.
 - MUST verify pause invariants: rAF active, simulation frozen, HUD responsive.
 - MUST maintain end-to-end/integration verification coverage for every question in `docs/audit.md` (functional and bonus), with explicit automated checks for Fully Automatable and Semi-Automatable items and explicit evidence artifacts for Manual-With-Evidence items.
-- All verification steps and phase-specific exit criteria are documented in the [Phase Testing & Verification Report](file:///home/ertval/code/zone-modules/make-your-game/docs/audit-reports/phase-testing-verification-report.md).
+- All verification steps and phase-specific exit criteria are documented in the [Phase Testing & Verification Report](docs/audit-reports/phase-testing-verification-report.md).
 
 ---
 
@@ -201,6 +206,7 @@ For gameplay-critical update/render/input work, provide profile evidence that:
 | **Stutter** | No sustained dropped-frame pattern (continuous multi-second stutter bursts). |
 | **Long Tasks** | No recurring long tasks > 50 ms on the main interaction path. |
 | **Allocations** | No repeated burst allocations in core loops after warm-up. |
+| **DOM Elements** | ≤ 500 total after level load. Assert in dev-mode startup. Transient rendering MUST use fixed object pools. |
 
 *Evidence notes MUST include scenario, trace window, and key observations.*
 
