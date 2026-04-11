@@ -13,8 +13,11 @@ import {
   extractOwnerFromBranch,
   extractTicketIdFromBranchName,
   findOwnershipViolations,
+  getOwnersForTrack,
   inferProcessModeFromSources,
   inferTicketIdsFromSources,
+  resolveOwnerTrackFromBranch,
+  resolvePrPolicyPath,
 } from '../../../scripts/policy-gate/lib/policy-utils.mjs';
 
 describe('policy-utils ticket and process detection', () => {
@@ -57,6 +60,8 @@ describe('policy-utils ticket and process detection', () => {
       auditMode: 'GENERAL_DOCS_PROCESS',
       branchTicketIds: [],
       commitTicketIds: [],
+      owner: 'ekaramet',
+      ownerTrack: 'A',
       processMarkerDetected: true,
       selectedPath: 'process-marker fallback',
       ticketIds: [],
@@ -66,6 +71,8 @@ describe('policy-utils ticket and process detection', () => {
     expect(processSummary).toContain('mode=GENERAL_DOCS_PROCESS');
     expect(processSummary).toContain('path=process-marker fallback');
     expect(processSummary).toContain('tickets=(none)');
+    expect(processSummary).toContain('branchOwner=ekaramet');
+    expect(processSummary).toContain('ownerTrack=A');
     expect(processSummary).toContain('processMarker=true');
   });
 
@@ -133,6 +140,16 @@ describe('policy-utils owner-track validation', () => {
     expect(extractOwnerFromBranch('user.name/C-05')).toBe('user.name');
   });
 
+  it('resolves owner track from branch name and exposes track owners', () => {
+    expect(resolveOwnerTrackFromBranch('ekaramet/process-fixes')).toBe('A');
+    expect(resolveOwnerTrackFromBranch('asmyrogl/B-02')).toBe('B');
+    expect(resolveOwnerTrackFromBranch('unknown/anything')).toBe('');
+
+    expect(getOwnersForTrack('A')).toContain('ekaramet');
+    expect(getOwnersForTrack('D')).toContain('medvall');
+    expect(getOwnersForTrack('Z')).toEqual([]);
+  });
+
   it('returns empty string for invalid branch formats', () => {
     expect(extractOwnerFromBranch('')).toBe('');
     expect(extractOwnerFromBranch('no-slash')).toBe('');
@@ -175,5 +192,30 @@ describe('policy-utils owner-track validation', () => {
     expect(() => assertOwnerTrackMatch('A', '')).not.toThrow();
     expect(() => assertOwnerTrackMatch('B', undefined)).not.toThrow();
     expect(() => assertOwnerTrackMatch('C', null)).not.toThrow();
+  });
+});
+
+describe('policy-utils PR path resolution', () => {
+  it('runs PR checks for process mode even without branch ticket id', () => {
+    const result = resolvePrPolicyPath({
+      branchTicketIds: [],
+      commitTicketIds: ['A-04', 'D-03'],
+      hasProcessMode: true,
+    });
+
+    expect(result.shouldRunPrChecks).toBe(true);
+    expect(result.auditMode).toBe('GENERAL_DOCS_PROCESS');
+    expect(result.selectedPath).toBe('owner-scoped process checks');
+  });
+
+  it('falls back to repo checks only when no ticket metadata and no process marker exist', () => {
+    const result = resolvePrPolicyPath({
+      branchTicketIds: [],
+      commitTicketIds: [],
+      hasProcessMode: false,
+    });
+
+    expect(result.shouldRunPrChecks).toBe(false);
+    expect(result.auditMode).toBe('REPO_FALLBACK');
   });
 });

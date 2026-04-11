@@ -10,11 +10,13 @@ import fs from 'node:fs';
 import process from 'node:process';
 import {
   describePolicyResolution,
+  extractOwnerFromBranch,
   inferProcessModeFromSources,
   inferTicketIdsFromSources,
-  inferTracksFromTicketIds,
   parseArgs,
   readJson,
+  resolveOwnerTrackFromBranch,
+  resolvePrPolicyPath,
   runCommand,
   toBool,
 } from './lib/policy-utils.mjs';
@@ -85,6 +87,9 @@ if (scope === 'pr' || scope === 'all') {
 
   // We parse the extracted git metadata file to infer PR intent and verify traceability.
   const metadata = fs.existsSync(metaPath) ? readJson(metaPath) : {};
+  const branchName = metadata.branchName || '';
+  const branchOwner = extractOwnerFromBranch(branchName);
+  const branchOwnerTrack = resolveOwnerTrackFromBranch(branchName);
   const branchTicketIds = inferTicketIdsFromSources(metadata.branchName || '');
   const commitTicketIds = inferTicketIdsFromSources(metadata.commitMessages || '');
   const hasPrMetadata = branchTicketIds.length > 0 || commitTicketIds.length > 0;
@@ -99,39 +104,28 @@ if (scope === 'pr' || scope === 'all') {
     ? inferTicketIdsFromSources(metadata.branchName || '', metadata.commitMessages || '')
     : [];
 
-  const trackCodes = inferTracksFromTicketIds(ticketIds);
-  // Process branches may carry historical ticket references in commit bodies. If ticket validation would fail,
-  // we intentionally fallback to GENERAL_DOCS_PROCESS mode to enforce docs/process scope instead of ticket checks.
-  const shouldUseProcessFallback =
-    hasProcessMode &&
-    (ticketIds.length === 0 || trackCodes.length !== 1 || branchTicketIds.length === 0);
-  const shouldRunTicketChecks = hasPrMetadata && !shouldUseProcessFallback;
-
-  // We establish an audit mode flag based on context clues to control the rigor of subsequent gates.
-  const auditMode = shouldRunTicketChecks
-    ? 'TICKET'
-    : hasProcessMode
-      ? 'GENERAL_DOCS_PROCESS'
-      : 'REPO_FALLBACK';
-  const selectedPath = shouldRunTicketChecks
-    ? 'PR ticket checks'
-    : hasProcessMode
-      ? 'repo-wide fallback from process marker'
-      : 'repo-wide fallback from missing ticket metadata';
+  // Process-marker branches must still run PR checks so process-scope violations are enforced.
+  const policyPath = resolvePrPolicyPath({
+    branchTicketIds,
+    commitTicketIds,
+    hasProcessMode,
+  });
 
   console.log(
     describePolicyResolution({
-      auditMode,
+      auditMode: policyPath.auditMode,
       branchTicketIds,
       commitTicketIds,
+      owner: branchOwner,
+      ownerTrack: branchOwnerTrack,
       processMarkerDetected: hasProcessMode,
-      selectedPath,
-      ticketIds: shouldRunTicketChecks ? ticketIds : [],
-      trackCode: metadata.trackCode || 'GENERAL',
+      selectedPath: policyPath.selectedPath,
+      ticketIds: policyPath.shouldRunPrChecks ? ticketIds : [],
+      trackCode: branchOwnerTrack || metadata.trackCode || 'GENERAL',
     }),
   );
 
-  if (shouldRunTicketChecks) {
+  if (policyPath.shouldRunPrChecks) {
     runStep(
       'PR checklist and traceability checks',
       'npm',
@@ -165,17 +159,6 @@ if (scope === 'pr' || scope === 'all') {
       ],
       'npm run policy:approve',
     );
-  } else if (hasProcessMode) {
-    console.log(
-      'No ticket IDs found, but a process marker was detected. Running repo-wide policy checks instead.',
-    );
-    runStep(
-      'Repo-wide policy gate',
-      'npm',
-      ['run', 'policy:repo', '--', ...passThrough],
-      'npm run policy:repo',
-    );
-    ranRepoFallback = true;
   } else {
     console.log('No branch/commit ticket metadata found. Running repo-wide policy checks instead.');
     runStep(

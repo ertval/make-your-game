@@ -11,8 +11,10 @@ import {
   assertOwnerTrackMatch,
   describePolicyResolution,
   EXPLICIT_TICKET_BRANCH_PATTERN,
+  extractOwnerFromBranch,
   extractTicketIdFromBranchName,
   findOwnershipViolations,
+  getOwnersForTrack,
   inferProcessModeFromSources,
   inferTicketIdsFromSources,
   inferTracksFromTicketIds,
@@ -22,6 +24,7 @@ import {
   readLines,
   readText,
   readTicketIdsFromTracker,
+  resolveOwnerTrackFromBranch,
   SHARED_OWNERSHIP_PATTERNS,
   sortTicketIds,
   TRACK_OWNERSHIP_RULES,
@@ -39,25 +42,16 @@ if (!validCheckSets.has(checkSet)) {
 
 const meta = fs.existsSync(metaPath) ? readJson(metaPath) : {};
 const changedFiles = readLines(changedPath);
+const branchName = meta.branchName || '';
+const branchOwner = extractOwnerFromBranch(branchName);
+const branchOwnerTrack = resolveOwnerTrackFromBranch(branchName);
 const processMode =
   Boolean(meta.processMode) ||
-  inferProcessModeFromSources(meta.branchName || '', meta.commitMessages || '', meta.body || '');
-
-const PROCESS_SCOPE_PATTERNS = [
-  'AGENTS.md',
-  'README.md',
-  '.qwen/**',
-  '.github/**',
-  '.gitea/**',
-  'docs/**',
-  'scripts/policy-gate/**',
-  'changed-files.txt',
-];
+  inferProcessModeFromSources(branchName, meta.commitMessages || '', meta.body || '');
 
 // Ticket context resolution prioritizes explicit CLI and branch ticket IDs to keep checks deterministic.
 function deriveTicketContext() {
   // Extract and merge ticket IDs from branch name, commit messages, CLI args, and meta JSON.
-  const branchName = meta.branchName || '';
   const requireBranchTicket = String(args['require-branch-ticket'] || 'false') === 'true';
   const explicitTicketIds = inferTicketIdsFromSources(
     args['ticket-id'] || '',
@@ -154,9 +148,9 @@ function assertTicketAssociation() {
           `The branch contains ticket IDs from multiple tracks: ${context.trackCodes.join(', ')}.`,
           'Normally, this would require splitting the branch into track-specific PRs.',
           '',
-          'PROCEEDING IN GENERAL_DOCS_PROCESS MODE:',
-          'A "process" marker was detected, so the gate will allow this conflict BUT will strictly',
-          'enforce that NO product code is modified. Only documentation and governance files are allowed.',
+          'PROCEEDING IN OWNER-SCOPED PROCESS MODE:',
+          'A "process" marker was detected, so the gate will allow this ticket-track conflict but will still',
+          'enforce changed-file ownership against the branch owner track.',
           '',
           `Detected ticket IDs: ${context.ticketIds.join(', ')}`,
         ].join('\n'),
@@ -214,25 +208,26 @@ function assertTicketAssociation() {
   };
 }
 
-// Process branches are intentionally constrained to governance/doc surfaces to protect product-code integrity.
-function assertProcessScope() {
-  // Filter changed files against the allowed docs/process/governance path patterns.
-  const violations = changedFiles.filter((file) => !matchesOwnership(file, PROCESS_SCOPE_PATTERNS));
-
-  if (violations.length === 0) {
-    console.log(`Process-scope check passed (${changedFiles.length} changed file(s)).`);
-    return;
+function describeFileOwnership(file) {
+  const actualTracks = [];
+  if (matchesOwnership(file, SHARED_OWNERSHIP_PATTERNS)) {
+    actualTracks.push('Shared');
+  } else {
+    for (const [key, rule] of Object.entries(TRACK_OWNERSHIP_RULES)) {
+      const rules = [...(rule.patterns || []), ...(rule.testPatterns || [])];
+      if (matchesOwnership(file, rules)) {
+        const owners = getOwnersForTrack(key);
+        const ownerLabel = owners.length > 0 ? owners.join(', ') : 'unassigned';
+        actualTracks.push(`Track ${key} (owner: ${ownerLabel})`);
+      }
+    }
   }
 
-  throw new Error(
-    [
-      'GENERAL_DOCS_PROCESS scope violation.',
-      'The following changed files are outside allowed docs/process/governance areas:',
-      ...violations.map((file) => `- ${file}`),
-      `Allowed path patterns: ${PROCESS_SCOPE_PATTERNS.join(', ')}`,
-      'Action: remove product/runtime changes from the process branch or move them to a ticketed branch.',
-    ].join('\n'),
-  );
+  return actualTracks.length > 0 ? actualTracks.join(', ') : 'Unknown Track';
+}
+
+function formatOwnershipViolations(violations) {
+  return violations.map((file) => `- ${file} (Belongs to: ${describeFileOwnership(file)})`);
 }
 
 // Ownership enforcement uses path patterns instead of AST analysis to keep policy checks lightweight.
@@ -258,30 +253,59 @@ function assertTrackOwnership(trackCode, ticketIds) {
 
   const allowedSummary = result.allowedPatterns.join(', ');
 
-  const formattedViolations = result.violations.map((file) => {
-    const actualTracks = [];
-    if (matchesOwnership(file, SHARED_OWNERSHIP_PATTERNS)) {
-      actualTracks.push('Shared');
-    } else {
-      for (const [key, rule] of Object.entries(TRACK_OWNERSHIP_RULES)) {
-        const rules = [...(rule.patterns || []), ...(rule.testPatterns || [])];
-        if (matchesOwnership(file, rules)) {
-          actualTracks.push(`Track ${key}`);
-        }
-      }
-    }
-    const ownershipInfo = actualTracks.length > 0 ? actualTracks.join(', ') : 'Unknown Track';
-    return `- ${file} (Belongs to: ${ownershipInfo})`;
-  });
-
   throw new Error(
     [
       `Ownership violation for ${result.trackName || `Track ${trackCode}`}.`,
       `Tickets: ${ticketIds.join(', ')}.`,
       'The following changed files are outside allowed ownership patterns for the current track:',
-      ...formattedViolations,
+      ...formatOwnershipViolations(result.violations),
       `Allowed path patterns for this track: ${allowedSummary}`,
       'Action: move out-of-scope file changes to the correct track branch, or use a ticket that matches the modified ownership area.',
+    ].join('\n'),
+  );
+}
+
+function assertOwnerScopedOwnership(ticketIds) {
+  if (!branchOwner) {
+    throw new Error(
+      [
+        'GENERAL_DOCS_PROCESS ownership validation failed: unable to infer branch owner.',
+        `Branch name: "${branchName || '(empty)'}"`,
+        'Expected branch format: <owner>/<slug-or-ticket>.',
+        'Action: rename the branch so the owner prefix is present (for example: ekaramet/process-audit-fixes).',
+      ].join('\n'),
+    );
+  }
+
+  if (!branchOwnerTrack) {
+    throw new Error(
+      [
+        'GENERAL_DOCS_PROCESS ownership validation failed: branch owner is not registered.',
+        `Branch owner: "${branchOwner}"`,
+        'Action: add the owner to OWNER_TRACK_MAPPING in scripts/policy-gate/lib/policy-utils.mjs so ownership checks can resolve a track.',
+      ].join('\n'),
+    );
+  }
+
+  const result = findOwnershipViolations(branchOwnerTrack, changedFiles);
+  if (result.violations.length === 0) {
+    console.log(
+      `Owner-scoped ownership check passed for ${branchOwner} (Track ${branchOwnerTrack}) with ${changedFiles.length} changed file(s).`,
+    );
+    return;
+  }
+
+  const owners = getOwnersForTrack(branchOwnerTrack);
+  const ownerList = owners.length > 0 ? owners.join(', ') : branchOwner;
+  throw new Error(
+    [
+      `GENERAL_DOCS_PROCESS ownership violation for branch owner "${branchOwner}" (Track ${branchOwnerTrack}).`,
+      `Owner track maintainers: ${ownerList}.`,
+      `Context ticket IDs (informational): ${ticketIds.length > 0 ? ticketIds.join(', ') : '(none)'}.`,
+      'The following changed files are outside allowed ownership patterns for this owner track:',
+      ...formatOwnershipViolations(result.violations),
+      `Allowed path patterns for Track ${branchOwnerTrack}: ${result.allowedPatterns.join(', ')}`,
+      `Action: keep changes within Track ${branchOwnerTrack} ownership, or use a branch owned by the matching track owner.`,
     ].join('\n'),
   );
 }
@@ -724,21 +748,26 @@ if (checkSet === 'repo' || checkSet === 'all') {
 
 if (checkSet === 'pr' || checkSet === 'all') {
   const ticketContext = assertTicketAssociation();
+  const effectiveTrack = ticketContext.processMode
+    ? branchOwnerTrack || ticketContext.trackCode
+    : ticketContext.trackCode;
   console.log(
     describePolicyResolution({
       auditMode: ticketContext.processMode ? 'GENERAL_DOCS_PROCESS' : 'TICKET',
       branchTicketIds: ticketContext.branchTicketIds,
       commitTicketIds: ticketContext.commitTicketIds,
+      owner: branchOwner,
+      ownerTrack: branchOwnerTrack,
       processMarkerDetected: ticketContext.processMarkerDetected,
       selectedPath: ticketContext.processMode
-        ? 'process-marker fallback'
+        ? 'owner-scoped process checks'
         : 'ticketed ownership checks',
       ticketIds: ticketContext.ticketIds,
-      trackCode: ticketContext.trackCode,
+      trackCode: effectiveTrack,
     }),
   );
   if (ticketContext.processMode) {
-    assertProcessScope();
+    assertOwnerScopedOwnership(ticketContext.ticketIds);
   } else {
     assertTrackOwnership(ticketContext.trackCode, ticketContext.ticketIds);
   }

@@ -81,6 +81,41 @@ export function extractOwnerFromBranch(branchName) {
 }
 
 /**
+ * Resolve the mapped track for a branch owner, if one exists.
+ *
+ * @param {string} branchName — The full branch name (e.g. "ekaramet/A-03").
+ * @returns {string} The mapped track code (A/B/C/D) or empty string when not mapped.
+ */
+export function resolveOwnerTrackFromBranch(branchName) {
+  const owner = extractOwnerFromBranch(branchName);
+  if (!owner) {
+    return '';
+  }
+
+  return OWNER_TRACK_MAPPING[owner.toLowerCase()] || '';
+}
+
+/**
+ * Return all owners registered for a track code.
+ *
+ * @param {string} trackCode — Target track code.
+ * @returns {string[]} Sorted owner usernames.
+ */
+export function getOwnersForTrack(trackCode) {
+  const normalizedTrackCode = String(trackCode || '')
+    .trim()
+    .toUpperCase();
+  if (!normalizedTrackCode) {
+    return [];
+  }
+
+  return Object.entries(OWNER_TRACK_MAPPING)
+    .filter(([, mappedTrack]) => mappedTrack === normalizedTrackCode)
+    .map(([owner]) => owner)
+    .sort();
+}
+
+/**
  * Validate that the branch owner's assigned track matches the ticket's track.
  * Throws if the owner is mapped to a different track than the ticket specifies.
  *
@@ -406,10 +441,50 @@ export function inferProcessModeFromSources(...sources) {
   return sources.some((source) => /\bprocess\b/i.test(String(source || '')));
 }
 
+/**
+ * Resolve whether PR-local checks should run, or if we must fallback to repo-wide checks.
+ *
+ * Rationale:
+ * - Process-marker branches still require `policy:checks` so process-scope violations are caught.
+ * - Repo fallback is only valid when there is neither ticket metadata nor process marker context.
+ *
+ * @param {object} options
+ * @param {string[]} [options.branchTicketIds=[]] — Ticket IDs inferred from branch name.
+ * @param {string[]} [options.commitTicketIds=[]] — Ticket IDs inferred from branch commits.
+ * @param {boolean} [options.hasProcessMode=false] — Whether process marker context is active.
+ * @returns {{hasPrMetadata: boolean, shouldRunPrChecks: boolean, auditMode: string, selectedPath: string}}
+ */
+export function resolvePrPolicyPath({
+  branchTicketIds = [],
+  commitTicketIds = [],
+  hasProcessMode = false,
+} = {}) {
+  const hasPrMetadata = branchTicketIds.length > 0 || commitTicketIds.length > 0;
+  const shouldRunPrChecks = hasPrMetadata || hasProcessMode;
+
+  if (shouldRunPrChecks) {
+    return {
+      hasPrMetadata,
+      shouldRunPrChecks,
+      auditMode: hasProcessMode ? 'GENERAL_DOCS_PROCESS' : 'TICKET',
+      selectedPath: hasProcessMode ? 'owner-scoped process checks' : 'PR ticket checks',
+    };
+  }
+
+  return {
+    hasPrMetadata,
+    shouldRunPrChecks,
+    auditMode: 'REPO_FALLBACK',
+    selectedPath: 'repo-wide fallback from missing ticket metadata',
+  };
+}
+
 export function describePolicyResolution({
   auditMode,
   branchTicketIds = [],
   commitTicketIds = [],
+  owner = '',
+  ownerTrack = '',
   processMarkerDetected = false,
   selectedPath = '',
   ticketIds = [],
@@ -423,10 +498,12 @@ export function describePolicyResolution({
     'Policy checks resolved',
     `mode=${auditMode || (normalizedTicketIds.length > 0 ? 'TICKET' : 'GENERAL_DOCS_PROCESS')}`,
     `path=${selectedPath || (normalizedTicketIds.length > 0 ? 'ticketed checks' : 'fallback checks')}`,
-    `track=${normalizedTicketIds.length > 0 ? trackCode : 'GENERAL'}`,
+    `track=${trackCode || 'GENERAL'}`,
     `tickets=${normalizedTicketIds.length > 0 ? normalizedTicketIds.join(', ') : '(none)'}`,
     `branchTickets=${normalizedBranchTicketIds.length > 0 ? normalizedBranchTicketIds.join(', ') : '(none)'}`,
     `commitTickets=${normalizedCommitTicketIds.length > 0 ? normalizedCommitTicketIds.join(', ') : '(none)'}`,
+    `branchOwner=${owner || '(none)'}`,
+    `ownerTrack=${ownerTrack || '(none)'}`,
     `processMarker=${processMarkerDetected ? 'true' : 'false'}`,
   ].join('; ');
 }
@@ -517,11 +594,15 @@ export function runCommand(command, commandArgs, options = {}) {
     const spawnError = result.error ? String(result.error.message || result.error) : '';
     const stderr = (result.stderr || '').trim();
     const stdout = (result.stdout || '').trim();
-    const detail = spawnError || stderr || stdout;
+    const exitStatus = Number.isInteger(result.status) ? String(result.status) : '';
+    const inheritedOutputHint =
+      options.stdio === 'inherit' ? 'Command output was streamed above (stdio=inherit).' : '';
+    const detail = spawnError || stderr || stdout || inheritedOutputHint || 'No output';
     throw new Error(
       [
         `Command execution failed: ${command} ${commandArgs.join(' ')}`,
-        `Details: ${detail || 'No output'}`,
+        `Details: ${detail}`,
+        `Exit status: ${exitStatus || 'unknown'}`,
         'Action: Review the command details above to determine the cause of the failure.',
       ].join('\n'),
     );
