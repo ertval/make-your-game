@@ -1,17 +1,30 @@
-:root {
-  --color-bg: #12131a;
-  --color-surface: #1d2333;
-  --color-ink: #f0f3f8;
-  --color-accent: #ffb703;
-  --tile-size: 32px;
-  --board-width: 21;
-  --board-height: 17;
-}
+/**
+ * D-05: Base Styles & CSS Import Manifest
+ *
+ * Base reset styles and CSS import ordering for the Ms. Ghostman game.
+ * This file imports all CSS modules in the correct dependency order:
+ * variables -> grid -> animations -> base (this file)
+ *
+ * Implementation notes:
+ *   - CSS @import order matters: variables must load before grid/animations
+ *   - Vite handles CSS bundling in production builds automatically
+ *   - In development, individual files can be hot-reloaded independently
+ *   - This file serves as the canonical import manifest for all game styles
+ */
 
+/* Import CSS modules in dependency order */
+@import url("./variables.css");
+@import url("./grid.css");
+@import url("./animations.css");
+
+/* --- Base Reset & Global Styles --- */
+
+/** Universal box-sizing reset for consistent layout math. */
 * {
   box-sizing: border-box;
 }
 
+/** HTML and body base styles for full-viewport game. */
 html,
 body {
   margin: 0;
@@ -19,25 +32,28 @@ body {
   min-height: 100%;
 }
 
+/** Body styling with radial gradient background and typography. */
 body {
   background: radial-gradient(circle at top, #1a2540, var(--color-bg) 70%);
   color: var(--color-ink);
   font-family: "Segoe UI", "Trebuchet MS", sans-serif;
 }
 
+/** App shell layout with vertical stacking for HUD, board, and overlays. */
 .app-shell {
   min-height: 100vh;
   display: grid;
   grid-template-rows: auto 1fr auto;
-  gap: 1rem;
-  padding: 1rem;
+  gap: var(--space-sm);
+  padding: var(--space-sm);
 }
 
+/** Legacy ID-based selectors for backward compatibility with index.html structure. */
 #hud,
 #game-board,
 #overlay-root {
   background: color-mix(in srgb, var(--color-surface) 88%, #000 12%);
   border: 1px solid color-mix(in srgb, var(--color-accent) 40%, transparent 60%);
-  border-radius: 12px;
-  padding: 0.75rem;
+  border-radius: var(--radius-lg);
+  padding: calc(var(--space-sm) * 0.75);
 }
