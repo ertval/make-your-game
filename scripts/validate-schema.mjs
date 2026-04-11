@@ -93,3 +93,5 @@ for (const pair of pairs) {
 if (hasFailure) {
   process.exit(1);
 }
+
+// Implementation notes for clock.js:

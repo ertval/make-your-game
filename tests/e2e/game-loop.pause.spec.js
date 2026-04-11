@@ -52,3 +52,5 @@ test('keeps rAF active while paused and freezes simulation progression', async (
     pausedSnapshot.stats.sampleCount,
   );
 });
+
+// Note: This test relies on the Playwright environment and runtime hooks, so it is not designed to run in a standard Jest or Vitest environment. It should be executed as part of the end-to-end test suite where the browser context is available.

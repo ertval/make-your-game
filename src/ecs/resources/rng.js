@@ -101,3 +101,5 @@ export function pick(rng, array) {
 export function reseed(rng, seed) {
   rng.state = seed >>> 0;
 }
+
+// Implementation notes for tests/e2e/game-loop.pause.spec.js:
