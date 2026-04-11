@@ -19,7 +19,7 @@ If this guide conflicts with [AGENTS.md](../../AGENTS.md), [docs/requirements.md
 
 This guide describes the *process layer* on top of those tracks:
 
-- **Track A owner** (Dev 1): game loop, timing, CI gates, schema validation, and all testing/QA rails.
+- **Track A owner** (Dev 1): game loop, timing, CI gates, schema validation, and all testing/QA rails. Track A can modify all tests; Tracks B/C/D can modify tests that correspond to files they own.
 - **Track B owner** (Dev 2): gameplay simulation systems (components, input, movement, collisions, bombs/explosions, power-ups, ghost AI, gameplay events).
 - **Track C owner** (Dev 3): gameplay feedback systems (scoring/timer/lives, pause/progression, HUD/screens/storage) and audio adapter/cue/SFX/music/preload.
 - **Track D owner** (Dev 4): resources/map loading, renderer adapter, DOM batching, sprite pools, and visual assets/manifests.

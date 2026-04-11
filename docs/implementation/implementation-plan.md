@@ -237,6 +237,7 @@ make-your-game/
 │   │   │   ├── entity-store.js        # ID generation & recycling
 │   │   │   └── query.js               # Component mask matching
 │   │   ├── components/
+│   │   │   ├── registry.js            # canonical component bitmask registry
 │   │   │   ├── spatial.js             # position + velocity + collider (always co-occur)
 │   │   │   ├── actors.js              # player + ghost + input-state (actor data)
 │   │   │   ├── props.js               # bomb + fire + power-up (prop data)
@@ -325,7 +326,7 @@ Live ticket progress for this section is tracked in `docs/implementation/ticket-
 
 | Track | Developer | Tickets | Scope |
 |---|---|---|---|
-| Track A | Dev 1 | 9 | World engine, game flow, scaffolding, all testing (unit/integration/e2e/audit), CI, QA and evidence |
+| Track A | Dev 1 | 9 | World engine, game flow, scaffolding, all testing (unit/integration/e2e/audit), CI, QA and evidence. Track A can update all tests; feature tracks can update scoped tests tied to owned files |
 | Track B | Dev 2 | 9 | Components, input, movement and collision, bombs/explosions, power-ups, ghost AI, gameplay event contracts |
 | Track C | Dev 3 | 10 | Scoring/timer/lives, spawn, pause/progression, HUD/screens/storage adapters, audio adapter/cues/SFX/music/manifest |
 | Track D | Dev 4 | 11 | Resources, map loading, renderer and sprite pools, CSS/layout, gameplay and UI visual assets, visual manifest governance |
@@ -335,7 +336,7 @@ Live ticket progress for this section is tracked in `docs/implementation/ticket-
 
 | Dev | Critical Path Focus | Must Land Before | Depends On |
 |---|---|---|---|
-| Dev 1 | ECS world engine, game loop orchestration, CI wiring, all test and audit evidence | Any gameplay integration and final acceptance | None initially; later depends on B/C/D feature code for tests |
+| Dev 1 | ECS world engine, game loop orchestration, CI wiring, all test and audit evidence (global test ownership) | Any gameplay integration and final acceptance | None initially; later depends on B/C/D feature code for tests |
 | Dev 2 | Components, input, movement, collision, bombs, power-ups, ghost AI, event contracts | Consumers of simulation outcomes across C and D | Dev 1 world setup; Dev 4 resource/map contracts |
 | Dev 3 | Scoring/timer/lives, pause/progression, HUD/screens, audio pipeline | MVP UX readiness and audio feedback completeness | Dev 2 collision/event outputs; Dev 4 resources and layout primitives |
 | Dev 4 | Resources, map, render pipeline, sprite pools, visual assets and manifests | Deterministic world-state correctness and visual/perf evidence | Dev 1 world setup; Dev 2 movement/collision outputs |
