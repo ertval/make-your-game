@@ -144,5 +144,3 @@ export function resetClock(clock, now) {
 export function setPauseState(clock, paused) {
   clock.isPaused = paused;
 }
-
-//This is an out of ownership eddit still more stuff here
