@@ -101,7 +101,9 @@ export function assertOwnerTrackMatch(trackCode, branchName) {
     return;
   }
 
-  const normalizedTrackCode = String(trackCode || '').trim().toUpperCase();
+  const normalizedTrackCode = String(trackCode || '')
+    .trim()
+    .toUpperCase();
   if (ownerTrack !== normalizedTrackCode) {
     throw new Error(
       [

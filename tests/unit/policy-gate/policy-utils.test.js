@@ -8,13 +8,13 @@
 import { describe, expect, it } from 'vitest';
 
 import {
+  assertOwnerTrackMatch,
   describePolicyResolution,
+  extractOwnerFromBranch,
   extractTicketIdFromBranchName,
   findOwnershipViolations,
   inferProcessModeFromSources,
   inferTicketIdsFromSources,
-  extractOwnerFromBranch,
-  assertOwnerTrackMatch,
 } from '../../../scripts/policy-gate/lib/policy-utils.mjs';
 
 describe('policy-utils ticket and process detection', () => {

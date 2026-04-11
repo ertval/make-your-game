@@ -8,6 +8,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import {
+  assertOwnerTrackMatch,
   describePolicyResolution,
   EXPLICIT_TICKET_BRANCH_PATTERN,
   extractTicketIdFromBranchName,
@@ -24,7 +25,6 @@ import {
   SHARED_OWNERSHIP_PATTERNS,
   sortTicketIds,
   TRACK_OWNERSHIP_RULES,
-  assertOwnerTrackMatch,
 } from './lib/policy-utils.mjs';
 
 const args = parseArgs(process.argv.slice(2));
