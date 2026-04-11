@@ -86,10 +86,10 @@
 - `src/ecs/components/visual.js` additions (if not covered by B-01): render-intent structure, classBits definitions
 - Render-intent buffer pre-allocation contract documentation
 
-- [ ] Define `renderable.js` (sprite class references mapped to visual kinds) and `visual-state.js` (pure render flags only; no DOM handles in ECS components).
-- [ ] Define `render-intent.js` as a frame-local batch structure consumed by `render-dom-system.js`.
-- [ ] Enforce `classBits`-based visual flags and strict prohibition of DOM references in ECS component data.
-- [ ] Verification gate: contract tests validate no adapter/DOM leakage into ECS storage.
+- [x] Define `renderable.js` (sprite class references mapped to visual kinds) and `visual-state.js` (pure render flags only; no DOM handles in ECS components) — already shipped by B-01 in `visual.js`; D-04 respects this boundary with zero cross-track file modifications.
+- [x] Define `render-intent.js` as a frame-local batch structure consumed by `render-dom-system.js` — contract invariants documented in the `render-intent.js` file header; enforced by 16 unit tests.
+- [x] Enforce `classBits`-based visual flags and strict prohibition of DOM references in ECS component data.
+- [x] Verification gate: contract tests validate no adapter/DOM leakage into ECS storage (16 unit tests).
 
 ---
 
