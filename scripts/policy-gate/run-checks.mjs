@@ -24,6 +24,7 @@ import {
   SHARED_OWNERSHIP_PATTERNS,
   sortTicketIds,
   TRACK_OWNERSHIP_RULES,
+  assertOwnerTrackMatch,
 } from './lib/policy-utils.mjs';
 
 const args = parseArgs(process.argv.slice(2));
@@ -242,6 +243,10 @@ function assertTrackOwnership(trackCode, ticketIds) {
     );
     return;
   }
+
+  // Validate that the branch owner is authorized for this track.
+  const branchName = meta.branchName || '';
+  assertOwnerTrackMatch(trackCode, branchName);
 
   const result = findOwnershipViolations(trackCode, changedFiles);
   if (result.violations.length === 0) {

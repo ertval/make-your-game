@@ -56,6 +56,63 @@ const IGNORED_DIRS = new Set([
 export const TICKET_ID_PATTERN = /\b([ABCD]-\d{2})\b/gi;
 export const EXPLICIT_TICKET_BRANCH_PATTERN = /^[A-Za-z0-9._-]+\/([ABCD]-\d{2})$/;
 
+// Owner-to-track mapping enforces that each developer only modifies files in their assigned track.
+// This prevents cross-track edits when a branch owner's ticket belongs to a different track.
+export const OWNER_TRACK_MAPPING = {
+  ekaramet: 'A',
+  asmyrogl: 'B',
+  chbaikas: 'C',
+  medvall: 'D',
+};
+
+/**
+ * Extract the owner (username) from a branch name.
+ * Branch format: <owner>/<TRACK>-<NN>, e.g. "ekaramet/A-03"
+ * @param {string} branchName — The full branch name.
+ * @returns {string} The owner string, or empty string if not parseable.
+ */
+export function extractOwnerFromBranch(branchName) {
+  const normalized = String(branchName || '').trim();
+  const slashIndex = normalized.indexOf('/');
+  if (slashIndex <= 0) {
+    return '';
+  }
+  return normalized.slice(0, slashIndex);
+}
+
+/**
+ * Validate that the branch owner's assigned track matches the ticket's track.
+ * Throws if the owner is mapped to a different track than the ticket specifies.
+ *
+ * @param {string} trackCode — The resolved track code from ticket IDs (e.g. 'A', 'B', 'C', 'D').
+ * @param {string} branchName — The full branch name (e.g. "ekaramet/A-03").
+ * @throws {Error} If owner-track mismatch detected.
+ */
+export function assertOwnerTrackMatch(trackCode, branchName) {
+  const owner = extractOwnerFromBranch(branchName);
+  if (!owner) {
+    // Cannot extract owner — skip validation (may be a shared or CI branch).
+    return;
+  }
+
+  const ownerTrack = OWNER_TRACK_MAPPING[owner.toLowerCase()];
+  if (!ownerTrack) {
+    // Owner not in mapping — skip validation (new dev or unregistered owner).
+    return;
+  }
+
+  const normalizedTrackCode = String(trackCode || '').trim().toUpperCase();
+  if (ownerTrack !== normalizedTrackCode) {
+    throw new Error(
+      [
+        `Owner-track mismatch: branch owner "${owner}" is assigned to Track ${ownerTrack},`,
+        `but the ticket resolves to Track ${normalizedTrackCode}.`,
+        `Action: Use a ticket from Track ${ownerTrack} on this branch, or use a branch owned by Track ${normalizedTrackCode}'s assigned owner.`,
+      ].join('\n'),
+    );
+  }
+}
+
 // Shared ownership paths are allowed across tracks to avoid false positives on governance/docs changes.
 export const SHARED_OWNERSHIP_PATTERNS = [
   '.gitignore',
@@ -185,7 +242,7 @@ export const TRACK_OWNERSHIP_RULES = {
       'tests/unit/components/visual.test.js',
       'tests/unit/components/renderable.test.js',
       'tests/unit/components/visual-state.test.js',
-      'tests/unit/ecs/render-intent.test.js',
+      'tests/unit/render-intent/render-intent.test.js',
       'tests/unit/systems/render-collect-system.test.js',
       'tests/unit/systems/render-dom-system.test.js',
       'tests/integration/adapters/renderer-adapter.test.js',

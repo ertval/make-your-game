@@ -13,6 +13,8 @@ import {
   findOwnershipViolations,
   inferProcessModeFromSources,
   inferTicketIdsFromSources,
+  extractOwnerFromBranch,
+  assertOwnerTrackMatch,
 } from '../../../scripts/policy-gate/lib/policy-utils.mjs';
 
 describe('policy-utils ticket and process detection', () => {
@@ -120,5 +122,58 @@ describe('policy-utils ticket and process detection', () => {
     ]);
 
     expect(result.violations).toEqual(['tests/integration/adapters/audio-adapter.test.js']);
+  });
+});
+
+describe('policy-utils owner-track validation', () => {
+  it('extracts owner from branch name', () => {
+    expect(extractOwnerFromBranch('ekaramet/A-03')).toBe('ekaramet');
+    expect(extractOwnerFromBranch('asmyrogl/B-02')).toBe('asmyrogl');
+    expect(extractOwnerFromBranch('medvall/D-04')).toBe('medvall');
+    expect(extractOwnerFromBranch('user.name/C-05')).toBe('user.name');
+  });
+
+  it('returns empty string for invalid branch formats', () => {
+    expect(extractOwnerFromBranch('')).toBe('');
+    expect(extractOwnerFromBranch('no-slash')).toBe('');
+    expect(extractOwnerFromBranch('/A-01')).toBe('');
+  });
+
+  it('passes when owner track matches ticket track', () => {
+    // ekaramet owns Track A
+    expect(() => assertOwnerTrackMatch('A', 'ekaramet/A-03')).not.toThrow();
+    // asmyrogl owns Track B
+    expect(() => assertOwnerTrackMatch('B', 'asmyrogl/B-02')).not.toThrow();
+    // medvall owns Track D
+    expect(() => assertOwnerTrackMatch('D', 'medvall/D-04')).not.toThrow();
+  });
+
+  it('throws when owner track mismatches ticket track', () => {
+    // ekaramet (Track A owner) trying to use Track D ticket
+    expect(() => assertOwnerTrackMatch('D', 'ekaramet/D-01')).toThrow(
+      /Owner-track mismatch[\s\S]*ekaramet[\s\S]*Track A[\s\S]*Track D/,
+    );
+
+    // asmyrogl (Track B owner) trying to use Track A ticket
+    expect(() => assertOwnerTrackMatch('A', 'asmyrogl/A-01')).toThrow(
+      /Owner-track mismatch[\s\S]*asmyrogl[\s\S]*Track B[\s\S]*Track A/,
+    );
+
+    // medvall (Track D owner) trying to use Track B ticket
+    expect(() => assertOwnerTrackMatch('B', 'medvall/B-03')).toThrow(
+      /Owner-track mismatch[\s\S]*medvall[\s\S]*Track D[\s\S]*Track B/,
+    );
+  });
+
+  it('skips validation for unregistered owners', () => {
+    // Unknown owner — should not throw
+    expect(() => assertOwnerTrackMatch('C', 'newdev/C-05')).not.toThrow();
+    expect(() => assertOwnerTrackMatch('A', 'unknown/A-01')).not.toThrow();
+  });
+
+  it('skips validation when branch name is empty', () => {
+    expect(() => assertOwnerTrackMatch('A', '')).not.toThrow();
+    expect(() => assertOwnerTrackMatch('B', undefined)).not.toThrow();
+    expect(() => assertOwnerTrackMatch('C', null)).not.toThrow();
   });
 });
