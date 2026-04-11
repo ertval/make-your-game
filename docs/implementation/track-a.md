@@ -7,11 +7,11 @@
 
 ## Phase Order (Prototype-First)
 
-- **P0 Foundation**: `A-01` to `A-03`
-- **P1 Visual Prototype**: No new Track A tickets (support only)
-- **P2 Playable MVP**: `A-07`
-- **P3 Feature Complete + Hardening**: `A-04` to `A-06`, `A-08`
-- **P4 Final Acceptance**: `A-09`
+- **P0 Foundation**: `A-01` to `A-03`, `A-10`
+- **P1 Visual Prototype**: `A-11` (support only)
+- **P2 Playable MVP**: `A-07`, `A-12`
+- **P3 Feature Complete + Hardening**: `A-04` to `A-06`, `A-08`, `A-13`
+- **P4 Final Acceptance**: `A-09`, `A-14`
 
 ---
 
@@ -266,3 +266,91 @@
 - [ ] Verification gate: evidence links attached and all audit matrix rows covered.
 
 ---
+
+#### A-10: Phase Codebase Audit (P0 Foundation)
+**Priority**: 🚨 Critical
+**Phase**: P0 Foundation
+**Depends On**: `A-01` to `A-03`, `B-01`, `D-01` to `D-04`
+**Impacts**: Enforces codebase quality at the end of P0
+**Blocks**: `D-05`, `D-06`, `B-02`, `B-03`, `D-07`, `D-08`, `D-09`
+
+**Deliverables**:
+- Consolidated deduplicated codebase audit report for P0
+
+- [ ] Execute `codebase-analysis-audit` prompt against the P0 foundation codebase.
+- [ ] Merge the generated report to main.
+- [ ] Create a deduplicated consolidated report mapping all issues to track owners.
+- [ ] Map issues to existing or new implementation tickets.
+- [ ] Verification gate: P0 consolidated report merged to `docs/audit-reports/`.
+
+---
+
+#### A-11: Phase Codebase Audit (P1 Visual Prototype)
+**Priority**: 🚨 Critical
+**Phase**: P1 Visual Prototype
+**Depends On**: `D-05` to `D-09`, `B-02`, `B-03`
+**Impacts**: Enforces codebase quality at the end of P1
+**Blocks**: First-wave P2 tickets
+
+**Deliverables**:
+- Consolidated deduplicated codebase audit report for P1
+
+- [ ] Execute `codebase-analysis-audit` prompt against the P1 codebase.
+- [ ] Merge the generated report to main.
+- [ ] Create a deduplicated consolidated report mapping all issues to track owners.
+- [ ] Map issues to existing or new implementation tickets.
+- [ ] Verification gate: P1 consolidated report merged to `docs/audit-reports/`.
+
+---
+
+#### A-12: Phase Codebase Audit (P2 Playable MVP)
+**Priority**: 🚨 Critical
+**Phase**: P2 Playable MVP
+**Depends On**: `B-04`, `C-01` to `C-06`, `B-05`, `A-07`
+**Impacts**: Enforces codebase quality at the end of P2
+**Blocks**: First-wave P3 tickets
+
+**Deliverables**:
+- Consolidated deduplicated codebase audit report for P2
+
+- [ ] Execute `codebase-analysis-audit` prompt against the P2 codebase.
+- [ ] Merge the generated report to main.
+- [ ] Create a deduplicated consolidated report mapping all issues to track owners.
+- [ ] Map issues to existing or new implementation tickets.
+- [ ] Verification gate: P2 consolidated report merged to `docs/audit-reports/`.
+
+---
+
+#### A-13: Phase Codebase Audit (P3 Feature Complete + Hardening)
+**Priority**: 🚨 Critical
+**Phase**: P3 Feature Complete + Hardening
+**Depends On**: `B-06` to `B-09`, `C-07`, `A-04` to `A-06`, `A-08`
+**Impacts**: Enforces codebase quality at the end of P3
+**Blocks**: First-wave P4 tickets
+
+**Deliverables**:
+- Consolidated deduplicated codebase audit report for P3
+
+- [ ] Execute `codebase-analysis-audit` prompt against the P3 codebase.
+- [ ] Merge the generated report to main.
+- [ ] Create a deduplicated consolidated report mapping all issues to track owners.
+- [ ] Map issues to existing or new implementation tickets.
+- [ ] Verification gate: P3 consolidated report merged to `docs/audit-reports/`.
+
+---
+
+#### A-14: Phase Codebase Audit (P4 Polish + Validation)
+**Priority**: 🚨 Critical
+**Phase**: P4 Final Acceptance
+**Depends On**: `C-08` to `C-10`, `D-10`, `D-11`, `A-09`
+**Impacts**: Enforces codebase quality at the end of P4
+**Blocks**: None
+
+**Deliverables**:
+- Consolidated deduplicated codebase audit report for P4
+
+- [ ] Execute `codebase-analysis-audit` prompt against the final codebase.
+- [ ] Merge the generated report to main.
+- [ ] Create a deduplicated consolidated report mapping all issues to track owners.
+- [ ] Map issues to existing or new implementation tickets.
+- [ ] Verification gate: P4 consolidated report merged to `docs/audit-reports/`.

@@ -257,6 +257,11 @@ For a 4-dev team, this cadence works well:
 
 If a task stalls, stop adding scope. Either finish the slice or split it.
 
+### Phase Transitions & Codebase Audits
+
+> **Important Instruction:**
+> Every time a phase of the plan tracker is finished, each dev should run the prompt `codebase-analysis-audit` against the whole codebase. Merge the resulting report to main. Then there should be created a deduplicated consolidated report with all issues found. Then each can fix the ones owned by the track they follow.
+
 ## 12. PR Message and Gate Workflow
 
 This is the canonical workflow for PR messages and gate execution. Keep PR descriptions, local gate runs, and message archival aligned with this section.

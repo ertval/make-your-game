@@ -192,6 +192,11 @@ Audit test coverage MUST be split into three categories:
 - MUST maintain end-to-end/integration verification coverage for every question in `docs/audit.md` (functional and bonus), with explicit automated checks for Fully Automatable and Semi-Automatable items and explicit evidence artifacts for Manual-With-Evidence items.
 - All verification steps and phase-specific exit criteria are documented in the [Phase Testing & Verification Report](docs/audit-reports/phase-testing-verification-report.md).
 
+### Phase Transitions & Codebase Audits
+
+> **Important Instruction:**
+> Every time a phase of the plan tracker is finished, each dev should run the prompt `codebase-analysis-audit` against the whole codebase. Merge the resulting report to main. Then there should be created a deduplicated consolidated report with all issues found. Then each can fix the ones owned by the track they follow.
+
 ---
 
 ## Performance Acceptance Criteria (Auditable)

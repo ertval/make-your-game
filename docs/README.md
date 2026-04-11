@@ -72,6 +72,11 @@ Gate command reference:
 - **Update Tracker**: Once merged, go back to [`implementation/ticket-tracker.md`](implementation/ticket-tracker.md) and update your task status symbol to `[x]` (Done).
 - **Archive the PR Message (Required)**: Save the final PR message and verification summary under [`pr-messages/`](pr-messages/) and the audit report under [`audit-reports/`](audit-reports/).
 
+### 7. Phase Transitions & Codebase Audits
+
+> **Important Instruction:**
+> Every time a phase of the plan tracker is finished, each dev should run the prompt `codebase-analysis-audit` against the whole codebase. Merge the resulting report to main. Then there should be created a deduplicated consolidated report with all issues found. Then each can fix the ones owned by the track they follow.
+
 ## Actions Setup and Verification
 
 This repository uses [`../.github/workflows/policy-gate.yml`](../.github/workflows/policy-gate.yml) as the main PR gate.

@@ -421,6 +421,11 @@ The project is split into **4 parallel workflow tracks** to enable multiple deve
 > **Note**: For the full integration milestone breakdown, check `docs/implementation/implementation-plan.md`.
 > **Execution tracking**: Update `docs/implementation/ticket-tracker.md` as tickets move from `[ ]` -> `[-]` -> `[x]`.
 
+### Phase Transitions & Codebase Audits
+
+> **Important Instruction:**
+> Every time a phase of the plan tracker is finished, each dev should run the prompt `codebase-analysis-audit` against the whole codebase. Merge the resulting report to main. Then there should be created a deduplicated consolidated report with all issues found. Then each can fix the ones owned by the track they follow.
+
 ## 🧭 Documentation Flow
 
 Recommended reading order for new contributors:
