@@ -14,6 +14,9 @@
  * - resolvePriorityDirection(inputState, entityId): choose one held direction.
  * - getPlayerMoveSpeed(playerStore, entityId): resolve base vs boosted speed.
  * - hasReachedTarget(positionStore, entityId): compare current and target cell.
+ * - canStartMove(mapResource, row, col, direction): check adjacent tile passability.
+ * - startMoveTowardDirection(positionStore, velocityStore, entityId, row, col, direction): arm one move.
+ * - advanceTowardTarget(positionStore, velocityStore, entityId, distanceTiles): move and snap deterministically.
  * - createPlayerMoveSystem(options): create the physics-phase ECS system shell.
  *
  * Implementation notes:
@@ -26,6 +29,7 @@
  */
 
 import { COMPONENT_MASK } from '../components/registry.js';
+import { isPassable } from '../resources/map-resource.js';
 import { PLAYER_BASE_SPEED, SPEED_BOOST_MULTIPLIER } from '../resources/constants.js';
 
 /**
@@ -128,7 +132,104 @@ export function hasReachedTarget(positionStore, entityId) {
 }
 
 /**
- * Create the B-03 player movement system shell.
+ * Check whether the player can start moving from one tile into the chosen direction.
+ *
+ * @param {MapResource | null | undefined} mapResource - Map lookup resource.
+ * @param {number} row - Current tile row.
+ * @param {number} col - Current tile col.
+ * @param {'up' | 'left' | 'down' | 'right' | null} direction - Proposed direction.
+ * @returns {boolean} True when the adjacent tile is inside the legal player path.
+ */
+export function canStartMove(mapResource, row, col, direction) {
+  // Missing map data or missing direction means the system cannot approve a move.
+  if (!mapResource || !direction) {
+    return false;
+  }
+
+  const vector = PLAYER_MOVE_DIRECTION_VECTOR[direction];
+  if (!vector) {
+    return false;
+  }
+
+  // Passability is delegated to the canonical map resource so B-03 does not
+  // create a second source of truth for walls or ghost-house blocking.
+  return isPassable(mapResource, row + vector.rowDelta, col + vector.colDelta);
+}
+
+/**
+ * Arm one tile-to-tile move from the current cell center.
+ *
+ * @param {PositionStore} positionStore - Mutable position component store.
+ * @param {VelocityStore} velocityStore - Mutable velocity component store.
+ * @param {number} entityId - Entity slot to mutate.
+ * @param {number} row - Current tile row.
+ * @param {number} col - Current tile col.
+ * @param {'up' | 'left' | 'down' | 'right'} direction - Chosen move direction.
+ */
+export function startMoveTowardDirection(positionStore, velocityStore, entityId, row, col, direction) {
+  const vector = PLAYER_MOVE_DIRECTION_VECTOR[direction];
+
+  // Starting from the exact tile center prevents drift accumulation across cells.
+  positionStore.row[entityId] = row;
+  positionStore.col[entityId] = col;
+  positionStore.targetRow[entityId] = row + vector.rowDelta;
+  positionStore.targetCol[entityId] = col + vector.colDelta;
+  velocityStore.rowDelta[entityId] = vector.rowDelta;
+  velocityStore.colDelta[entityId] = vector.colDelta;
+}
+
+/**
+ * Stop movement cleanly on the current target tile.
+ *
+ * @param {PositionStore} positionStore - Mutable position component store.
+ * @param {VelocityStore} velocityStore - Mutable velocity component store.
+ * @param {number} entityId - Entity slot to mutate.
+ */
+export function stopAtCurrentTarget(positionStore, velocityStore, entityId) {
+  // Snapping to the target removes tiny floating-point leftovers before stopping.
+  positionStore.row[entityId] = positionStore.targetRow[entityId];
+  positionStore.col[entityId] = positionStore.targetCol[entityId];
+  velocityStore.rowDelta[entityId] = 0;
+  velocityStore.colDelta[entityId] = 0;
+}
+
+/**
+ * Advance one entity toward its current target cell by a tile distance.
+ *
+ * @param {PositionStore} positionStore - Mutable position component store.
+ * @param {VelocityStore} velocityStore - Mutable velocity component store.
+ * @param {number} entityId - Entity slot to mutate.
+ * @param {number} distanceTiles - Travel distance for this fixed step in tiles.
+ * @returns {number} Remaining unconsumed distance after the move.
+ */
+export function advanceTowardTarget(positionStore, velocityStore, entityId, distanceTiles) {
+  const rowDistance = positionStore.targetRow[entityId] - positionStore.row[entityId];
+  const colDistance = positionStore.targetCol[entityId] - positionStore.col[entityId];
+  const distanceToTarget = Math.max(Math.abs(rowDistance), Math.abs(colDistance));
+
+  // When the entity is already at target, no distance needs to be consumed.
+  if (distanceToTarget <= MOVEMENT_EPSILON) {
+    stopAtCurrentTarget(positionStore, velocityStore, entityId);
+    return distanceTiles;
+  }
+
+  const stepDistance = Math.min(distanceTiles, distanceToTarget);
+  const directionRow = rowDistance === 0 ? 0 : rowDistance / Math.abs(rowDistance);
+  const directionCol = colDistance === 0 ? 0 : colDistance / Math.abs(colDistance);
+
+  // Exactly one axis is expected to move, so this preserves cardinal motion only.
+  positionStore.row[entityId] += directionRow * stepDistance;
+  positionStore.col[entityId] += directionCol * stepDistance;
+
+  if (stepDistance + MOVEMENT_EPSILON >= distanceToTarget) {
+    stopAtCurrentTarget(positionStore, velocityStore, entityId);
+  }
+
+  return distanceTiles - stepDistance;
+}
+
+/**
+ * Create the B-03 player movement system.
  *
  * @param {{
  *   mapResourceKey?: string,
@@ -136,7 +237,7 @@ export function hasReachedTarget(positionStore, entityId) {
  *   positionResourceKey?: string,
  *   velocityResourceKey?: string,
  *   inputStateResourceKey?: string,
- *   requiredMask?: number,
+  *   requiredMask?: number,
  * }} [options] - Optional resource key overrides for later wiring and tests.
  * @returns {{ name: string, phase: string, update: Function }} ECS system registration.
  */
@@ -159,13 +260,65 @@ export function createPlayerMoveSystem(options = {}) {
       const velocityStore = world.getResource(velocityResourceKey);
       const inputState = world.getResource(inputStateResourceKey);
 
-      // Batch 1 freezes resource expectations without performing movement yet.
       if (!mapResource || !playerStore || !positionStore || !velocityStore || !inputState) {
         return;
       }
 
-      // Query resolution is part of the locked contract even before stepping logic exists.
-      world.query(requiredMask);
+      const entityIds = world.query(requiredMask);
+      const stepDistanceBase = Math.max(0, Number(context.dtMs) || 0) / 1000;
+
+      for (const entityId of entityIds) {
+        // Previous position is captured before any movement so later interpolation
+        // and change-detection systems can observe the exact last-step state.
+        positionStore.prevRow[entityId] = positionStore.row[entityId];
+        positionStore.prevCol[entityId] = positionStore.col[entityId];
+
+        const speedTilesPerSecond = getPlayerMoveSpeed(playerStore, entityId);
+        velocityStore.speedTilesPerSecond[entityId] = speedTilesPerSecond;
+
+        // Reaching the target at the start of a step means the entity is centered
+        // on a tile and can decide whether to start a fresh move this frame.
+        if (hasReachedTarget(positionStore, entityId)) {
+          stopAtCurrentTarget(positionStore, velocityStore, entityId);
+        }
+
+        const desiredDirection = resolvePriorityDirection(inputState, entityId);
+        let remainingDistance = speedTilesPerSecond * stepDistanceBase;
+
+        // If the player is centered on a tile, this is the only moment where a
+        // new move may begin. This enforces "finish the current cell first."
+        if (hasReachedTarget(positionStore, entityId)) {
+          const currentRow = positionStore.targetRow[entityId];
+          const currentCol = positionStore.targetCol[entityId];
+
+          if (canStartMove(mapResource, currentRow, currentCol, desiredDirection)) {
+            startMoveTowardDirection(
+              positionStore,
+              velocityStore,
+              entityId,
+              currentRow,
+              currentCol,
+              desiredDirection,
+            );
+          } else {
+            stopAtCurrentTarget(positionStore, velocityStore, entityId);
+            continue;
+          }
+        }
+
+        remainingDistance = advanceTowardTarget(
+          positionStore,
+          velocityStore,
+          entityId,
+          remainingDistance,
+        );
+
+        // The system intentionally does not chain into a second move within the
+        // same fixed step. A new decision happens only on the next simulation tick.
+        if (remainingDistance > MOVEMENT_EPSILON && hasReachedTarget(positionStore, entityId)) {
+          stopAtCurrentTarget(positionStore, velocityStore, entityId);
+        }
+      }
     },
   };
 }
