@@ -20,6 +20,8 @@ import {
 } from '../../../src/ecs/resources/constants.js';
 import { createMapResource } from '../../../src/ecs/resources/map-resource.js';
 import {
+  advanceTowardTarget,
+  canStartMove,
   createPlayerMoveSystem,
   getPlayerMoveSpeed,
   hasReachedTarget,
@@ -28,6 +30,8 @@ import {
   PLAYER_MOVE_DIRECTION_VECTOR,
   PLAYER_MOVE_REQUIRED_MASK,
   resolvePriorityDirection,
+  startMoveTowardDirection,
+  stopAtCurrentTarget,
 } from '../../../src/ecs/systems/player-move-system.js';
 import { World } from '../../../src/ecs/world/world.js';
 

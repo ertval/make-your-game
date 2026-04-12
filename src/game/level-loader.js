@@ -69,6 +69,7 @@ export function createLevelLoader({
   world,
   mapResourceKey = 'mapResource',
   loadMapForLevel = null,
+  onLevelLoaded = null,
   totalLevels = 3,
 } = {}) {
   const maxLevelIndex = totalLevels - 1;
@@ -98,6 +99,16 @@ export function createLevelLoader({
     // Cache the loaded map for future restart cloning.
     if (mapResource) {
       cachedMapResource = mapResource;
+    }
+
+    // The optional level-loaded hook lets runtime bootstrap code synchronize
+    // entity state from the freshly loaded map without coupling that work to
+    // the map loader's core bookkeeping.
+    if (typeof onLevelLoaded === 'function') {
+      onLevelLoaded(mapResource, {
+        ...options,
+        levelIndex: currentLevelIndex,
+      });
     }
 
     return mapResource;
