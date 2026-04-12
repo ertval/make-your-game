@@ -1,27 +1,17 @@
 /**
  * Unit tests for the B-03 player movement system.
  *
- * The first group locks the static movement contract chosen for B-03. The
- * second group adds the real stepping scenarios that the next implementation
- * batch must satisfy. Those stepping tests are intentionally written against
- * the final desired behavior even though the current system scaffold does not
- * implement movement yet.
+ * The contract group locks the static movement rules that must stay stable.
+ * The stepping group exercises real per-tick movement behavior, including
+ * directional coverage, wall and ghost-house blocking, previous-position
+ * bookkeeping, and deterministic replay of identical input traces.
  */
 
 import { describe, expect, it } from 'vitest';
 
 import { createInputStateStore, createPlayerStore } from '../../../src/ecs/components/actors.js';
+import { COMPONENT_MASK } from '../../../src/ecs/components/registry.js';
 import { createPositionStore, createVelocityStore } from '../../../src/ecs/components/spatial.js';
-import {
-  MOVEMENT_EPSILON,
-  PLAYER_MOVE_DIRECTION_PRIORITY,
-  PLAYER_MOVE_DIRECTION_VECTOR,
-  PLAYER_MOVE_REQUIRED_MASK,
-  createPlayerMoveSystem,
-  getPlayerMoveSpeed,
-  hasReachedTarget,
-  resolvePriorityDirection,
-} from '../../../src/ecs/systems/player-move-system.js';
 import {
   CELL_TYPE,
   FIXED_DT_MS,
@@ -29,7 +19,16 @@ import {
   SPEED_BOOST_MULTIPLIER,
 } from '../../../src/ecs/resources/constants.js';
 import { createMapResource } from '../../../src/ecs/resources/map-resource.js';
-import { COMPONENT_MASK } from '../../../src/ecs/components/registry.js';
+import {
+  createPlayerMoveSystem,
+  getPlayerMoveSpeed,
+  hasReachedTarget,
+  MOVEMENT_EPSILON,
+  PLAYER_MOVE_DIRECTION_PRIORITY,
+  PLAYER_MOVE_DIRECTION_VECTOR,
+  PLAYER_MOVE_REQUIRED_MASK,
+  resolvePriorityDirection,
+} from '../../../src/ecs/systems/player-move-system.js';
 import { World } from '../../../src/ecs/world/world.js';
 
 /**
@@ -145,6 +144,58 @@ function clearMovementInput(inputState, entityId) {
   inputState.left[entityId] = 0;
   inputState.down[entityId] = 0;
   inputState.right[entityId] = 0;
+}
+
+/**
+ * Set exactly one held movement direction for the entity.
+ *
+ * @param {InputStateStore} inputState - Mutable input snapshot store.
+ * @param {number} entityId - Entity slot to update.
+ * @param {'up' | 'left' | 'down' | 'right'} direction - Direction to hold.
+ */
+function holdSingleDirection(inputState, entityId, direction) {
+  clearMovementInput(inputState, entityId);
+  inputState[direction][entityId] = 1;
+}
+
+/**
+ * Move the player instantly to a chosen tile for directional coverage tests.
+ *
+ * @param {PositionStore} positionStore - Mutable position component store.
+ * @param {number} entityId - Entity slot to update.
+ * @param {number} row - Tile row to occupy.
+ * @param {number} col - Tile col to occupy.
+ */
+function setPlayerTile(positionStore, entityId, row, col) {
+  // The player starts centered on the requested tile with no pending travel.
+  positionStore.row[entityId] = row;
+  positionStore.col[entityId] = col;
+  positionStore.prevRow[entityId] = row;
+  positionStore.prevCol[entityId] = col;
+  positionStore.targetRow[entityId] = row;
+  positionStore.targetCol[entityId] = col;
+}
+
+/**
+ * Capture the full movement state needed for deterministic replay comparisons.
+ *
+ * @param {PositionStore} positionStore - Position component store.
+ * @param {VelocityStore} velocityStore - Velocity component store.
+ * @param {number} entityId - Entity slot to read.
+ * @returns {object} Serializable movement state snapshot.
+ */
+function snapshotMovementState(positionStore, velocityStore, entityId) {
+  return {
+    col: positionStore.col[entityId],
+    colDelta: velocityStore.colDelta[entityId],
+    prevCol: positionStore.prevCol[entityId],
+    prevRow: positionStore.prevRow[entityId],
+    row: positionStore.row[entityId],
+    rowDelta: velocityStore.rowDelta[entityId],
+    speedTilesPerSecond: velocityStore.speedTilesPerSecond[entityId],
+    targetCol: positionStore.targetCol[entityId],
+    targetRow: positionStore.targetRow[entityId],
+  };
 }
 
 /**
@@ -278,6 +329,60 @@ describe('player-move-system stepping behavior', () => {
     expect(velocityStore.speedTilesPerSecond[player.id]).toBe(PLAYER_BASE_SPEED);
   });
 
+  it('moves one fixed step upward toward an open adjacent tile', () => {
+    const { inputState, player, positionStore, system, velocityStore, world } =
+      createMovementHarness();
+
+    holdSingleDirection(inputState, player.id, 'up');
+    runMovementSteps({ system, world });
+
+    const expectedDistance = (PLAYER_BASE_SPEED * FIXED_DT_MS) / 1000;
+
+    expect(positionStore.row[player.id]).toBeCloseTo(3 - expectedDistance, 9);
+    expect(positionStore.col[player.id]).toBe(3);
+    expect(positionStore.targetRow[player.id]).toBe(2);
+    expect(positionStore.targetCol[player.id]).toBe(3);
+    expect(velocityStore.rowDelta[player.id]).toBe(-1);
+    expect(velocityStore.colDelta[player.id]).toBe(0);
+  });
+
+  it('moves one fixed step left toward an open adjacent tile', () => {
+    const { inputState, player, positionStore, system, velocityStore, world } =
+      createMovementHarness();
+
+    holdSingleDirection(inputState, player.id, 'left');
+    runMovementSteps({ system, world });
+
+    const expectedDistance = (PLAYER_BASE_SPEED * FIXED_DT_MS) / 1000;
+
+    expect(positionStore.row[player.id]).toBe(3);
+    expect(positionStore.col[player.id]).toBeCloseTo(3 - expectedDistance, 9);
+    expect(positionStore.targetRow[player.id]).toBe(3);
+    expect(positionStore.targetCol[player.id]).toBe(2);
+    expect(velocityStore.rowDelta[player.id]).toBe(0);
+    expect(velocityStore.colDelta[player.id]).toBe(-1);
+  });
+
+  it('moves one fixed step downward on an open corridor tile', () => {
+    const { inputState, player, positionStore, system, velocityStore, world } =
+      createMovementHarness();
+
+    // Reposition away from the spawn-adjacent ghost house so downward motion
+    // can be tested in isolation from the ghost-house blocking rule.
+    setPlayerTile(positionStore, player.id, 1, 1);
+    holdSingleDirection(inputState, player.id, 'down');
+    runMovementSteps({ system, world });
+
+    const expectedDistance = (PLAYER_BASE_SPEED * FIXED_DT_MS) / 1000;
+
+    expect(positionStore.row[player.id]).toBeCloseTo(1 + expectedDistance, 9);
+    expect(positionStore.col[player.id]).toBe(1);
+    expect(positionStore.targetRow[player.id]).toBe(2);
+    expect(positionStore.targetCol[player.id]).toBe(1);
+    expect(velocityStore.rowDelta[player.id]).toBe(1);
+    expect(velocityStore.colDelta[player.id]).toBe(0);
+  });
+
   it('continues into the next open tile while the same direction stays held', () => {
     const { inputState, player, positionStore, system, velocityStore, world } =
       createMovementHarness();
@@ -328,6 +433,22 @@ describe('player-move-system stepping behavior', () => {
     expect(velocityStore.colDelta[player.id]).toBe(0);
   });
 
+  it('does not allow the player to enter ghost-house tiles', () => {
+    const { inputState, player, positionStore, system, velocityStore, world } =
+      createMovementHarness();
+
+    // Spawn sits directly above the ghost house in this fixture, so down is illegal.
+    holdSingleDirection(inputState, player.id, 'down');
+    runMovementSteps({ system, world, steps: 12 });
+
+    expect(positionStore.row[player.id]).toBe(3);
+    expect(positionStore.col[player.id]).toBe(3);
+    expect(positionStore.targetRow[player.id]).toBe(3);
+    expect(positionStore.targetCol[player.id]).toBe(3);
+    expect(velocityStore.rowDelta[player.id]).toBe(0);
+    expect(velocityStore.colDelta[player.id]).toBe(0);
+  });
+
   it('finishes the current tile before stopping after the held input is released', () => {
     const { inputState, player, positionStore, system, velocityStore, world } =
       createMovementHarness();
@@ -346,6 +467,18 @@ describe('player-move-system stepping behavior', () => {
     expect(positionStore.targetCol[player.id]).toBe(4);
     expect(velocityStore.rowDelta[player.id]).toBe(0);
     expect(velocityStore.colDelta[player.id]).toBe(0);
+  });
+
+  it('records previous position before each movement step', () => {
+    const { inputState, player, positionStore, system, world } = createMovementHarness();
+
+    holdSingleDirection(inputState, player.id, 'right');
+    runMovementSteps({ system, world, steps: 1 });
+
+    expect(positionStore.prevRow[player.id]).toBe(3);
+    expect(positionStore.prevCol[player.id]).toBe(3);
+    expect(positionStore.row[player.id]).toBe(3);
+    expect(positionStore.col[player.id]).toBeGreaterThan(3);
   });
 
   it('finishes the current tile before turning into a new direction', () => {
@@ -401,13 +534,58 @@ describe('player-move-system stepping behavior', () => {
 
     runMovementSteps({ system, world, steps: 1 });
 
-    const expectedDistance =
-      (PLAYER_BASE_SPEED * SPEED_BOOST_MULTIPLIER * FIXED_DT_MS) / 1000;
+    const expectedDistance = (PLAYER_BASE_SPEED * SPEED_BOOST_MULTIPLIER * FIXED_DT_MS) / 1000;
 
     expect(positionStore.row[player.id]).toBe(3);
     expect(positionStore.col[player.id]).toBeCloseTo(3 + expectedDistance, 9);
     expect(velocityStore.speedTilesPerSecond[player.id]).toBe(
       PLAYER_BASE_SPEED * SPEED_BOOST_MULTIPLIER,
     );
+  });
+
+  it('produces identical movement traces for identical input sequences', () => {
+    const harnessA = createMovementHarness();
+    const harnessB = createMovementHarness();
+    const traceA = [];
+    const traceB = [];
+    const steps = [
+      { direction: 'right', count: 1 },
+      { direction: 'right', count: 11 },
+      { direction: null, count: 1 },
+      { direction: 'right', count: 12 },
+      { direction: null, count: 1 },
+      { direction: 'up', count: 12 },
+      { direction: null, count: 1 },
+    ];
+
+    for (const phase of steps) {
+      if (phase.direction) {
+        holdSingleDirection(harnessA.inputState, harnessA.player.id, phase.direction);
+        holdSingleDirection(harnessB.inputState, harnessB.player.id, phase.direction);
+      } else {
+        clearMovementInput(harnessA.inputState, harnessA.player.id);
+        clearMovementInput(harnessB.inputState, harnessB.player.id);
+      }
+
+      for (let stepIndex = 0; stepIndex < phase.count; stepIndex += 1) {
+        runMovementSteps({
+          system: harnessA.system,
+          world: harnessA.world,
+        });
+        runMovementSteps({
+          system: harnessB.system,
+          world: harnessB.world,
+        });
+
+        traceA.push(
+          snapshotMovementState(harnessA.positionStore, harnessA.velocityStore, harnessA.player.id),
+        );
+        traceB.push(
+          snapshotMovementState(harnessB.positionStore, harnessB.velocityStore, harnessB.player.id),
+        );
+      }
+    }
+
+    expect(traceA).toEqual(traceB);
   });
 });
