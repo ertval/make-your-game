@@ -1,29 +1,173 @@
 /**
- * Unit tests for the B-03 player movement contract scaffold.
+ * Unit tests for the B-03 player movement system.
  *
- * These tests lock the deterministic movement contract chosen for B-03 before
- * the full movement simulation is implemented. They cover direction priority,
- * speed selection, and target-cell comparison semantics.
+ * The first group locks the static movement contract chosen for B-03. The
+ * second group adds the real stepping scenarios that the next implementation
+ * batch must satisfy. Those stepping tests are intentionally written against
+ * the final desired behavior even though the current system scaffold does not
+ * implement movement yet.
  */
 
 import { describe, expect, it } from 'vitest';
 
 import { createInputStateStore, createPlayerStore } from '../../../src/ecs/components/actors.js';
-import { createPositionStore } from '../../../src/ecs/components/spatial.js';
+import { createPositionStore, createVelocityStore } from '../../../src/ecs/components/spatial.js';
 import {
   MOVEMENT_EPSILON,
   PLAYER_MOVE_DIRECTION_PRIORITY,
   PLAYER_MOVE_DIRECTION_VECTOR,
   PLAYER_MOVE_REQUIRED_MASK,
+  createPlayerMoveSystem,
   getPlayerMoveSpeed,
   hasReachedTarget,
   resolvePriorityDirection,
 } from '../../../src/ecs/systems/player-move-system.js';
 import {
+  CELL_TYPE,
+  FIXED_DT_MS,
   PLAYER_BASE_SPEED,
   SPEED_BOOST_MULTIPLIER,
 } from '../../../src/ecs/resources/constants.js';
+import { createMapResource } from '../../../src/ecs/resources/map-resource.js';
 import { COMPONENT_MASK } from '../../../src/ecs/components/registry.js';
+import { World } from '../../../src/ecs/world/world.js';
+
+/**
+ * Build a compact valid map used for movement-system unit tests.
+ *
+ * The layout intentionally gives the player a center spawn with open corridors
+ * and a legal upward turn one cell to the right so the tests can cover moving,
+ * stopping, blocking, and delayed turning without relying on large fixture data.
+ *
+ * @param {Array<[number, number, number]>} [overrides] - Optional [row, col, type] edits.
+ * @returns {object} Raw map JSON object ready for createMapResource().
+ */
+function createMovementRawMap(overrides = []) {
+  const rawMap = {
+    level: 99,
+    metadata: {
+      name: 'Movement Harness',
+      timerSeconds: 120,
+      maxGhosts: 2,
+      ghostSpeed: 4.0,
+      activeGhostTypes: [0, 1],
+    },
+    dimensions: { rows: 7, columns: 7 },
+    grid: [
+      [1, 1, 1, 1, 1, 1, 1],
+      [1, 3, 3, 3, 3, 3, 1],
+      [1, 3, 1, 3, 3, 3, 1],
+      [1, 3, 3, 6, 3, 3, 1],
+      [1, 3, 5, 5, 5, 3, 1],
+      [1, 3, 5, 5, 5, 3, 1],
+      [1, 1, 1, 1, 1, 1, 1],
+    ],
+    spawn: {
+      player: { row: 3, col: 3 },
+      ghostHouse: {
+        topRow: 4,
+        bottomRow: 5,
+        leftCol: 2,
+        rightCol: 4,
+      },
+      ghostSpawnPoint: { row: 4, col: 3 },
+    },
+  };
+
+  // Each override lets one test tweak a single blocking cell without cloning
+  // large JSON fixtures from disk.
+  for (const [row, col, cellType] of overrides) {
+    rawMap.grid[row][col] = cellType;
+  }
+
+  return rawMap;
+}
+
+/**
+ * Create a minimal world harness for the player movement system.
+ *
+ * @param {Array<[number, number, number]>} [mapOverrides] - Optional map cell overrides.
+ * @returns {{
+ *   inputState: InputStateStore,
+ *   mapResource: MapResource,
+ *   player: { id: number, generation: number },
+ *   playerStore: PlayerStore,
+ *   positionStore: PositionStore,
+ *   system: { update: Function },
+ *   velocityStore: VelocityStore,
+ *   world: World,
+ * }} Ready-to-run movement system harness.
+ */
+function createMovementHarness(mapOverrides = []) {
+  const world = new World();
+  const system = createPlayerMoveSystem();
+  const mapResource = createMapResource(createMovementRawMap(mapOverrides));
+  const playerStore = createPlayerStore(8);
+  const positionStore = createPositionStore(8);
+  const velocityStore = createVelocityStore(8);
+  const inputState = createInputStateStore(8);
+  const player = world.createEntity(PLAYER_MOVE_REQUIRED_MASK);
+
+  // The player begins centered on the spawn tile with no pending motion.
+  positionStore.row[player.id] = mapResource.playerSpawnRow;
+  positionStore.col[player.id] = mapResource.playerSpawnCol;
+  positionStore.prevRow[player.id] = mapResource.playerSpawnRow;
+  positionStore.prevCol[player.id] = mapResource.playerSpawnCol;
+  positionStore.targetRow[player.id] = mapResource.playerSpawnRow;
+  positionStore.targetCol[player.id] = mapResource.playerSpawnCol;
+
+  world.setResource('mapResource', mapResource);
+  world.setResource('player', playerStore);
+  world.setResource('position', positionStore);
+  world.setResource('velocity', velocityStore);
+  world.setResource('inputState', inputState);
+
+  return {
+    inputState,
+    mapResource,
+    player,
+    playerStore,
+    positionStore,
+    system,
+    velocityStore,
+    world,
+  };
+}
+
+/**
+ * Clear the directional input snapshot for one entity.
+ *
+ * @param {InputStateStore} inputState - Mutable input snapshot store.
+ * @param {number} entityId - Entity slot to clear.
+ */
+function clearMovementInput(inputState, entityId) {
+  inputState.up[entityId] = 0;
+  inputState.left[entityId] = 0;
+  inputState.down[entityId] = 0;
+  inputState.right[entityId] = 0;
+}
+
+/**
+ * Execute one or more fixed-step movement updates.
+ *
+ * @param {{
+ *   dtMs?: number,
+ *   steps?: number,
+ *   system: { update: Function },
+ *   world: World,
+ * }} options - Step-count and system harness configuration.
+ */
+function runMovementSteps({ system, world, steps = 1, dtMs = FIXED_DT_MS }) {
+  for (let stepIndex = 0; stepIndex < steps; stepIndex += 1) {
+    // The test harness mirrors the fixed-step context shape used by the runtime.
+    system.update({
+      dtMs,
+      frame: stepIndex,
+      simTimeMs: stepIndex * dtMs,
+      world,
+    });
+  }
+}
 
 describe('player-move-system contract', () => {
   it('uses the locked fixed direction priority for held movement input', () => {
@@ -110,5 +254,160 @@ describe('player-move-system contract', () => {
     positionStore.targetCol[1] = 5;
 
     expect(hasReachedTarget(positionStore, 1)).toBe(false);
+  });
+});
+
+describe('player-move-system stepping behavior', () => {
+  it('moves one fixed step toward an open adjacent tile', () => {
+    const { inputState, player, positionStore, system, velocityStore, world } =
+      createMovementHarness();
+
+    // Holding right from spawn should start a move toward the open tile at (3, 4).
+    inputState.right[player.id] = 1;
+
+    runMovementSteps({ system, world });
+
+    const expectedDistance = (PLAYER_BASE_SPEED * FIXED_DT_MS) / 1000;
+
+    expect(positionStore.row[player.id]).toBe(3);
+    expect(positionStore.col[player.id]).toBeCloseTo(3 + expectedDistance, 9);
+    expect(positionStore.targetRow[player.id]).toBe(3);
+    expect(positionStore.targetCol[player.id]).toBe(4);
+    expect(velocityStore.rowDelta[player.id]).toBe(0);
+    expect(velocityStore.colDelta[player.id]).toBe(1);
+    expect(velocityStore.speedTilesPerSecond[player.id]).toBe(PLAYER_BASE_SPEED);
+  });
+
+  it('continues into the next open tile while the same direction stays held', () => {
+    const { inputState, player, positionStore, system, velocityStore, world } =
+      createMovementHarness();
+
+    // The corridor to the right remains open for two tiles in the base fixture.
+    inputState.right[player.id] = 1;
+
+    runMovementSteps({ system, world, steps: 13 });
+
+    expect(positionStore.row[player.id]).toBe(3);
+    expect(positionStore.col[player.id]).toBeGreaterThan(4);
+    expect(positionStore.targetRow[player.id]).toBe(3);
+    expect(positionStore.targetCol[player.id]).toBe(5);
+    expect(velocityStore.colDelta[player.id]).toBe(1);
+  });
+
+  it('stops on the current tile when the next held direction is blocked by a wall', () => {
+    const { inputState, player, positionStore, system, velocityStore, world } =
+      createMovementHarness([[3, 5, CELL_TYPE.INDESTRUCTIBLE]]);
+
+    // The first tile to the right stays open, but the second tile becomes a wall.
+    inputState.right[player.id] = 1;
+
+    runMovementSteps({ system, world, steps: 13 });
+
+    expect(positionStore.row[player.id]).toBe(3);
+    expect(positionStore.col[player.id]).toBe(4);
+    expect(positionStore.targetRow[player.id]).toBe(3);
+    expect(positionStore.targetCol[player.id]).toBe(4);
+    expect(velocityStore.rowDelta[player.id]).toBe(0);
+    expect(velocityStore.colDelta[player.id]).toBe(0);
+  });
+
+  it('stops on the current tile when the next held direction is blocked by a destructible wall', () => {
+    const { inputState, player, positionStore, system, velocityStore, world } =
+      createMovementHarness([[3, 5, CELL_TYPE.DESTRUCTIBLE]]);
+
+    // Destructible walls are still impassable for B-03 movement.
+    inputState.right[player.id] = 1;
+
+    runMovementSteps({ system, world, steps: 13 });
+
+    expect(positionStore.row[player.id]).toBe(3);
+    expect(positionStore.col[player.id]).toBe(4);
+    expect(positionStore.targetRow[player.id]).toBe(3);
+    expect(positionStore.targetCol[player.id]).toBe(4);
+    expect(velocityStore.rowDelta[player.id]).toBe(0);
+    expect(velocityStore.colDelta[player.id]).toBe(0);
+  });
+
+  it('finishes the current tile before stopping after the held input is released', () => {
+    const { inputState, player, positionStore, system, velocityStore, world } =
+      createMovementHarness();
+
+    // The first step starts movement toward the next tile.
+    inputState.right[player.id] = 1;
+    runMovementSteps({ system, world, steps: 1 });
+
+    // Releasing the key must not stop the player mid-cell.
+    clearMovementInput(inputState, player.id);
+    runMovementSteps({ system, world, steps: 11 });
+
+    expect(positionStore.row[player.id]).toBe(3);
+    expect(positionStore.col[player.id]).toBe(4);
+    expect(positionStore.targetRow[player.id]).toBe(3);
+    expect(positionStore.targetCol[player.id]).toBe(4);
+    expect(velocityStore.rowDelta[player.id]).toBe(0);
+    expect(velocityStore.colDelta[player.id]).toBe(0);
+  });
+
+  it('finishes the current tile before turning into a new direction', () => {
+    const { inputState, player, positionStore, system, velocityStore, world } =
+      createMovementHarness();
+
+    // The player starts moving right toward the open tile at (3, 4).
+    inputState.right[player.id] = 1;
+    runMovementSteps({ system, world, steps: 1 });
+
+    // Switching to up should wait until the player reaches (3, 4).
+    clearMovementInput(inputState, player.id);
+    inputState.up[player.id] = 1;
+    runMovementSteps({ system, world, steps: 11 });
+
+    expect(positionStore.row[player.id]).toBe(3);
+    expect(positionStore.col[player.id]).toBe(4);
+    expect(positionStore.targetRow[player.id]).toBe(3);
+    expect(positionStore.targetCol[player.id]).toBe(4);
+
+    // The next fixed step should start the upward move from the tile center.
+    runMovementSteps({ system, world, steps: 1 });
+
+    expect(positionStore.row[player.id]).toBeLessThan(3);
+    expect(positionStore.col[player.id]).toBe(4);
+    expect(positionStore.targetRow[player.id]).toBe(2);
+    expect(positionStore.targetCol[player.id]).toBe(4);
+    expect(velocityStore.rowDelta[player.id]).toBe(-1);
+    expect(velocityStore.colDelta[player.id]).toBe(0);
+  });
+
+  it('snaps exactly to the target tile instead of overshooting it', () => {
+    const { inputState, player, positionStore, system, world } = createMovementHarness();
+
+    // Start the move, then release input so the player must complete one tile only.
+    inputState.right[player.id] = 1;
+    runMovementSteps({ system, world, steps: 1 });
+    clearMovementInput(inputState, player.id);
+    runMovementSteps({ system, world, steps: 11 });
+
+    expect(positionStore.row[player.id]).toBe(3);
+    expect(positionStore.col[player.id]).toBe(4);
+    expect(hasReachedTarget(positionStore, player.id)).toBe(true);
+  });
+
+  it('applies boosted speed during actual movement stepping', () => {
+    const { inputState, player, playerStore, positionStore, system, velocityStore, world } =
+      createMovementHarness();
+
+    // The movement step should use the boosted speed immediately when active.
+    playerStore.isSpeedBoosted[player.id] = 1;
+    inputState.right[player.id] = 1;
+
+    runMovementSteps({ system, world, steps: 1 });
+
+    const expectedDistance =
+      (PLAYER_BASE_SPEED * SPEED_BOOST_MULTIPLIER * FIXED_DT_MS) / 1000;
+
+    expect(positionStore.row[player.id]).toBe(3);
+    expect(positionStore.col[player.id]).toBeCloseTo(3 + expectedDistance, 9);
+    expect(velocityStore.speedTilesPerSecond[player.id]).toBe(
+      PLAYER_BASE_SPEED * SPEED_BOOST_MULTIPLIER,
+    );
   });
 });
