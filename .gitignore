@@ -26,6 +26,9 @@ test-results/
 .turbo/
 *.tsbuildinfo
 sbom.json
+venv/
+*.py
+tools/
 
 # Logs and temporary files
 *.log
