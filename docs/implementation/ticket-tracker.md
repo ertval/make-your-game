@@ -30,9 +30,9 @@ Coverage mapping remains canonical in `audit-traceability-matrix.md`.
 ## 📈 Summary Snapshot
 
 - Total tickets: `39`
-- Done: `8`
+- Done: `9`
 - In Progress: `0`
-- Not Started: `31`
+- Not Started: `30`
 
 ## 🛣️ Prototype-First Claim Queue (Global)
 
@@ -76,7 +76,7 @@ Canonical ticket ID ranges used by policy checks:
 
 ### Q1 / P1 Visual Prototype
 
-- [ ] **D-05** P1 - CSS Layout & Grid Structure (Depends on: A-01) | Blocks: C-05; D-06
+- [x] **D-05** P1 - CSS Layout & Grid Structure (Depends on: A-01) | Blocks: C-05; D-06
 - [ ] **D-06** P1 - Renderer Adapter & Board Generation (Depends on: D-04, D-05, D-03) | Blocks: D-08; D-09; D-10
 - [x] **B-02** P1 - Input Adapter & Input System (Depends on: B-01, A-03, D-01) | Blocks: A-08; B-03
 - [ ] **B-03** P1 - Movement & Grid Collision System (Depends on: B-01, B-02, D-03) | Blocks: A-05; A-08; B-04; B-06; B-08; D-07

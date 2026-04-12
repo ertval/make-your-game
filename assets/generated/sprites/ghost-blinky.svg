@@ -1,0 +1,28 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" width="32" height="32">
+  <!--
+    Blinky Ghost (Red)
+    Leader ghost - aggressive, direct pursuer
+    Features: Red body, large eyes, determined expression
+  -->
+  <defs>
+    <linearGradient id="blinkyBody" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#ff3333"/>
+      <stop offset="100%" stop-color="#cc0000"/>
+    </linearGradient>
+  </defs>
+  <!-- Ghost body with wavy bottom -->
+  <path d="M16 2 C8 2 2 8 2 16 L2 28 L6 26 L10 28 L14 26 L18 28 L22 26 L26 28 L30 26 L30 16 C30 8 24 2 16 2 Z" fill="url(#blinkyBody)"/>
+  <!-- Left eye -->
+  <ellipse cx="11" cy="14" rx="3.5" ry="4.5" fill="#ffffff"/>
+  <circle cx="12.5" cy="15" r="2" fill="#000033"/>
+  <circle cx="13" cy="14.5" r="0.8" fill="#ffffff"/>
+  <!-- Right eye -->
+  <ellipse cx="21" cy="14" rx="3.5" ry="4.5" fill="#ffffff"/>
+  <circle cx="22.5" cy="15" r="2" fill="#000033"/>
+  <circle cx="23" cy="14.5" r="0.8" fill="#ffffff"/>
+  <!-- Angry eyebrows -->
+  <line x1="8" y1="9" x2="14" y2="10.5" stroke="#000033" stroke-width="1.5" stroke-linecap="round"/>
+  <line x1="24" y1="9" x2="18" y2="10.5" stroke="#000033" stroke-width="1.5" stroke-linecap="round"/>
+  <!-- Frowning scowl mouth -->
+  <path d="M12 21 Q16 18 20 21" fill="none" stroke="#000033" stroke-width="1.5" stroke-linecap="round"/>
+</svg>

@@ -1,0 +1,243 @@
+/**
+ * D-05: CSS Animations & Keyframes
+ *
+ * Animation keyframes and state-driven visual effects for Ms. Ghostman gameplay.
+ * All animations respect prefers-reduced-motion for non-gameplay effects.
+ *
+ * Public API:
+ *   - Keyframe animations: walking pulse, bomb fuse, explosion fade, ghost stun flash,
+ *     invincibility blink, speed boost trail, pellet pulse
+ *   - State classes that trigger animations (e.g., .sprite--stunned, .sprite--invincible)
+ *
+ * Implementation notes:
+ *   - Animations use compositor-only properties (transform, opacity) where possible
+ *   - Non-gameplay animations respect prefers-reduced-motion media query
+ *   - Gameplay animations remain active to preserve game readability and feedback
+ *   - Animation durations are defined in variables.css for easy tuning
+ */
+
+/* --- Walking Pulse Animation (Player & Ghosts) --- */
+
+/** Pellet pulsing animation for power pellets. */
+@keyframes pellet-pulse {
+  0%,
+  100% {
+    transform: translate(-50%, -50%) scale(1);
+    opacity: 1;
+  }
+  50% {
+    transform: translate(-50%, -50%) scale(1.3);
+    opacity: 0.8;
+  }
+}
+
+/** Walking pulse effect for player sprite (subtle scale pulse). */
+@keyframes walking-pulse {
+  0%,
+  100% {
+    transform: translate3d(var(--pos-x, 0), var(--pos-y, 0), 0) scale(1);
+  }
+  50% {
+    transform: translate3d(var(--pos-x, 0), var(--pos-y, 0), 0) scale(1.05);
+  }
+}
+
+/** Apply walking pulse to player sprite. */
+.sprite--player.is-moving {
+  animation: walking-pulse var(--anim-walk-duration) ease-in-out infinite;
+}
+
+/* --- Bomb Fuse Animation --- */
+
+/** Bomb fuse ticking animation (pulsing border and glow). */
+@keyframes bomb-fuse {
+  0%,
+  100% {
+    border-color: var(--color-bomb-fuse);
+    box-shadow: 0 0 4px var(--color-bomb-fuse);
+  }
+  50% {
+    border-color: #ff9900;
+    box-shadow:
+      0 0 12px var(--color-bomb-fuse),
+      0 0 20px rgba(255, 102, 0, 0.5);
+  }
+}
+
+/** Apply fuse animation to active bombs. */
+.sprite--bomb.is-fusing {
+  animation: bomb-fuse var(--anim-bomb-fuse-duration) ease-in-out infinite;
+}
+
+/* --- Explosion Fade Animation --- */
+
+/** Fire explosion fade-in and fade-out. */
+@keyframes explosion-fade {
+  0% {
+    opacity: 0;
+    transform: translate3d(var(--pos-x, 0), var(--pos-y, 0), 0) scale(0.5);
+  }
+  30% {
+    opacity: 1;
+    transform: translate3d(var(--pos-x, 0), var(--pos-y, 0), 0) scale(1.2);
+  }
+  70% {
+    opacity: 1;
+    transform: translate3d(var(--pos-x, 0), var(--pos-y, 0), 0) scale(1);
+  }
+  100% {
+    opacity: 0;
+    transform: translate3d(var(--pos-x, 0), var(--pos-y, 0), 0) scale(0.8);
+  }
+}
+
+/** Apply explosion fade to fire tiles. */
+.sprite--fire.is-active {
+  animation: explosion-fade var(--anim-fire-duration) ease-out forwards;
+}
+
+/* --- Ghost Stun Flash Animation --- */
+
+/** Ghost stunned state flash (rapid color/opacity change). */
+@keyframes stun-flash {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.5;
+  }
+}
+
+/** Apply stun flash to stunned ghosts. */
+.sprite--ghost--stunned {
+  animation: stun-flash var(--anim-stun-flash-duration) ease-in-out infinite;
+}
+
+/* --- Invincibility Blink Animation --- */
+
+/** Player invincibility blink (rapid visibility toggle). */
+@keyframes invincible-blink {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.2;
+  }
+}
+
+/** Apply invincibility blink to player when invincible. */
+.sprite--player.is-invincible {
+  animation: invincible-blink var(--anim-invincible-blink-duration) ease-in-out infinite;
+}
+
+/* --- Speed Boost Trail Animation --- */
+
+/** Speed boost trail/tint effect (glow and scale). */
+@keyframes speed-trail {
+  0%,
+  100% {
+    box-shadow: 0 0 8px var(--color-powerup-speed);
+    filter: hue-rotate(0deg);
+  }
+  50% {
+    box-shadow:
+      0 0 20px var(--color-powerup-speed),
+      0 0 30px rgba(0, 255, 136, 0.6);
+    filter: hue-rotate(30deg);
+  }
+}
+
+/** Apply speed boost trail to player when boosted. */
+.sprite--player.is-speed-boosted {
+  animation: speed-trail var(--anim-speed-trail-duration) ease-in-out infinite;
+}
+
+/* --- Menu & Overlay Animations (Non-Gameplay) --- */
+
+/** Overlay fade-in animation for UI screens. */
+@keyframes overlay-fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+/** Menu slide-in animation for panels. */
+@keyframes menu-slide-in {
+  from {
+    transform: translateY(-20px);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+/** Apply fade-in to active overlays. */
+.overlay--active {
+  animation: overlay-fade-in var(--anim-overlay-fade-duration) var(--anim-easing);
+}
+
+/** Apply slide-in to overlay panels. */
+.overlay--active .overlay__panel {
+  animation: menu-slide-in var(--anim-menu-transition-duration) var(--anim-easing);
+}
+
+/* --- Reduced Motion Support --- */
+
+/** Disable non-gameplay animations when user prefers reduced motion. */
+@media (prefers-reduced-motion: reduce) {
+  /** Pellet pulse: disable pulsing, keep static appearance. */
+  .collectible--power-pellet {
+    animation: none;
+  }
+
+  /** Walking pulse: disable scale animation, keep base transform. */
+  .sprite--player.is-moving {
+    animation: none;
+  }
+
+  /** Bomb fuse: disable pulsing, keep static border. */
+  .sprite--bomb.is-fusing {
+    animation: none;
+    border-color: var(--color-bomb-fuse);
+  }
+
+  /** Explosion fade: keep simplified fade without scale. */
+  .sprite--fire.is-active {
+    animation: none;
+    opacity: 0.8;
+  }
+
+  /** Ghost stun flash: disable flashing, keep static tint. */
+  .sprite--ghost--stunned {
+    animation: none;
+    opacity: 0.7;
+  }
+
+  /** Invincibility blink: disable blinking, keep static tint. */
+  .sprite--player.is-invincible {
+    animation: none;
+    opacity: 0.6;
+  }
+
+  /** Speed boost trail: disable animation, keep static glow. */
+  .sprite--player.is-speed-boosted {
+    animation: none;
+    box-shadow: 0 0 8px var(--color-powerup-speed);
+  }
+
+  /** Menu transitions: disable slide-in, keep instant appearance. */
+  .overlay--active {
+    animation: none;
+  }
+
+  .overlay--active .overlay__panel {
+    animation: none;
+  }
+}
