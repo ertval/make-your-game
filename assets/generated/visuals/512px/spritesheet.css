@@ -1,0 +1,282 @@
+.sprite {
+  background-image: url('spritesheet.webp');
+  background-repeat: no-repeat;
+  display: inline-block;
+}
+
+.sprite-player-death {
+  width: 512px;
+  height: 512px;
+  background-position: -0px -0px;
+}
+
+.sprite-player-idle {
+  width: 512px;
+  height: 512px;
+  background-position: -514px -0px;
+}
+
+.sprite-player-walk-down-01 {
+  width: 512px;
+  height: 512px;
+  background-position: -1028px -0px;
+}
+
+.sprite-player-walk-down-02 {
+  width: 512px;
+  height: 512px;
+  background-position: -0px -514px;
+}
+
+.sprite-player-walk-left-01 {
+  width: 512px;
+  height: 512px;
+  background-position: -0px -1028px;
+}
+
+.sprite-player-walk-left-02 {
+  width: 512px;
+  height: 512px;
+  background-position: -514px -514px;
+}
+
+.sprite-player-walk-right-01 {
+  width: 512px;
+  height: 512px;
+  background-position: -514px -1028px;
+}
+
+.sprite-player-walk-right-02 {
+  width: 512px;
+  height: 512px;
+  background-position: -1028px -514px;
+}
+
+.sprite-player-walk-up-01 {
+  width: 512px;
+  height: 512px;
+  background-position: -1028px -1028px;
+}
+
+.sprite-player-walk-up-02 {
+  width: 512px;
+  height: 512px;
+  background-position: -1542px -0px;
+}
+
+.sprite-fire-tile-center {
+  width: 512px;
+  height: 512px;
+  background-position: -1542px -514px;
+}
+
+.sprite-fire-tile {
+  width: 512px;
+  height: 512px;
+  background-position: -1542px -1028px;
+}
+
+.sprite-ghost-blinky-normal {
+  width: 512px;
+  height: 512px;
+  background-position: -2056px -0px;
+}
+
+.sprite-ghost-blinky-walk-01 {
+  width: 512px;
+  height: 512px;
+  background-position: -2570px -0px;
+}
+
+.sprite-ghost-blinky-walk-02 {
+  width: 512px;
+  height: 512px;
+  background-position: -3084px -0px;
+}
+
+.sprite-ghost-clyde-normal {
+  width: 512px;
+  height: 512px;
+  background-position: -2056px -514px;
+}
+
+.sprite-ghost-clyde-walk-01 {
+  width: 512px;
+  height: 512px;
+  background-position: -2056px -1028px;
+}
+
+.sprite-ghost-clyde-walk-02 {
+  width: 512px;
+  height: 512px;
+  background-position: -2570px -514px;
+}
+
+.sprite-ghost-eyes-dead {
+  width: 512px;
+  height: 512px;
+  background-position: -3084px -514px;
+}
+
+.sprite-ghost-inky-normal {
+  width: 512px;
+  height: 512px;
+  background-position: -2570px -1028px;
+}
+
+.sprite-ghost-inky-walk-01 {
+  width: 512px;
+  height: 512px;
+  background-position: -3084px -1028px;
+}
+
+.sprite-ghost-inky-walk-02 {
+  width: 512px;
+  height: 512px;
+  background-position: -0px -1542px;
+}
+
+.sprite-ghost-pinky-normal {
+  width: 512px;
+  height: 512px;
+  background-position: -0px -2056px;
+}
+
+.sprite-ghost-pinky-walk-01 {
+  width: 512px;
+  height: 512px;
+  background-position: -0px -2570px;
+}
+
+.sprite-ghost-pinky-walk-02 {
+  width: 512px;
+  height: 512px;
+  background-position: -0px -3084px;
+}
+
+.sprite-ghost-stunned-01 {
+  width: 512px;
+  height: 512px;
+  background-position: -514px -1542px;
+}
+
+.sprite-ghost-stunned-02 {
+  width: 512px;
+  height: 512px;
+  background-position: -514px -2056px;
+}
+
+.sprite-ghost-stunned {
+  width: 512px;
+  height: 512px;
+  background-position: -514px -2570px;
+}
+
+.sprite-wall-destruct-01 {
+  width: 512px;
+  height: 512px;
+  background-position: -514px -3084px;
+}
+
+.sprite-wall-destructible {
+  width: 512px;
+  height: 512px;
+  background-position: -1028px -1542px;
+}
+
+.sprite-wall-indestructible {
+  width: 512px;
+  height: 512px;
+  background-position: -1028px -2056px;
+}
+
+.sprite-bomb-fuse-01 {
+  width: 409px;
+  height: 409px;
+  background-position: -3598px -0px;
+}
+
+.sprite-bomb-fuse-02 {
+  width: 409px;
+  height: 409px;
+  background-position: -0px -3598px;
+}
+
+.sprite-bomb-fuse-03 {
+  width: 409px;
+  height: 409px;
+  background-position: -3598px -411px;
+}
+
+.sprite-bomb-idle {
+  width: 409px;
+  height: 409px;
+  background-position: -411px -3598px;
+}
+
+.sprite-power-pellet-02 {
+  width: 332px;
+  height: 332px;
+  background-position: -3598px -822px;
+}
+
+.sprite-power-pellet-01 {
+  width: 307px;
+  height: 307px;
+  background-position: -822px -3598px;
+}
+
+.sprite-powerup-bomb {
+  width: 307px;
+  height: 307px;
+  background-position: -3598px -1156px;
+}
+
+.sprite-powerup-fire {
+  width: 307px;
+  height: 307px;
+  background-position: -3598px -1465px;
+}
+
+.sprite-powerup-speed {
+  width: 307px;
+  height: 307px;
+  background-position: -1028px -2570px;
+}
+
+.sprite-power-pellet {
+  width: 256px;
+  height: 256px;
+  background-position: -1028px -2879px;
+}
+
+.sprite-hud-bomb-icon {
+  width: 256px;
+  height: 256px;
+  background-position: -1028px -3137px;
+}
+
+.sprite-hud-fire-radius {
+  width: 256px;
+  height: 256px;
+  background-position: -1131px -3395px;
+}
+
+.sprite-hud-heart-empty {
+  width: 256px;
+  height: 256px;
+  background-position: -1131px -3653px;
+}
+
+.sprite-hud-heart-full {
+  width: 256px;
+  height: 256px;
+  background-position: -1286px -2879px;
+}
+
+.sprite-pellet {
+  width: 153px;
+  height: 153px;
+  background-position: -3932px -822px;
+}
+
