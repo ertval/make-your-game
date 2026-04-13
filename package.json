@@ -37,7 +37,7 @@
     "policy:headerrepo": "node scripts/policy-gate/check-source-headers.mjs --scope=repo --mode=fail",
     "policy:approve": "node scripts/policy-gate/require-approval.mjs",
     "policy:prep": "node scripts/policy-gate/prepare-context.mjs",
-    "sbom": "npm ls --all --json --omit=optional > sbom.json"
+    "sbom": "npm ls --all --json --package-lock-only --omit=optional > sbom.json"
   },
   "devDependencies": {
     "@biomejs/biome": "^2.4.10",
