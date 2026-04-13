@@ -29,14 +29,15 @@ jobs:
       CI_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       GITEA_TOKEN: ${{ secrets.GITEA_TOKEN }}
       POLICY_HEADER_MODE: warn
+      FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           fetch-depth: 0
 
       - name: Setup Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v6
         with:
           node-version: 20
           cache: npm
