@@ -29,31 +29,31 @@
 - `src/ecs/components/stats.js` — score, timer, health
 - `src/ecs/components/visual.js` — renderable, visual-state (classBits bitmask)
 
-- [ ] Implement `src/ecs/components/registry.js`:
+- [x] Implement `src/ecs/components/registry.js`:
   - Define canonical component bitmasks used by entity/query matching.
   - Ensure bit values remain unique powers of two and stable for deterministic queries.
-- [ ] Implement `src/ecs/components/spatial.js`:
+- [x] Implement `src/ecs/components/spatial.js`:
   - `position` (row, col, prevRow, prevCol, targetRow, targetCol) — SoA Float64Array.
   - `velocity` (direction vector, speed multiplier).
   - `collider` (type enum: player, ghost, bomb, fire, pellet, powerup, wall).
-- [ ] Implement `src/ecs/components/actors.js`:
+- [x] Implement `src/ecs/components/actors.js`:
   - `player` (lives, maxBombs, fireRadius, invincibilityMs, speedBoostMs, isSpeedBoosted).
   - `ghost` (type: blinky/pinky/inky/clyde, state: normal/stunned/dead, timerMs, speed).
   - `input-state` (up, down, left, right, bomb, pause — snapshot per fixed step).
-- [ ] Implement `src/ecs/components/props.js`:
+- [x] Implement `src/ecs/components/props.js`:
   - `bomb` (fuseMs, radius, ownerId, row, col).
   - `fire` (burnTimerMs, row, col).
   - `power-up` (type: bombPlus/firePlus/speedBoost).
   - `pellet` (isPowerPellet flag).
-- [ ] Implement `src/ecs/components/stats.js`:
+- [x] Implement `src/ecs/components/stats.js`:
   - `score` (total points, combo counter).
   - `timer` (remainingMs, levelDurationMs).
   - `health` (lives remaining, invincibility state).
-- [ ] Implement `src/ecs/components/visual.js`:
+- [x] Implement `src/ecs/components/visual.js`:
   - `renderable` (kind: player/ghost/bomb/fire/pellet/wall/powerup, spriteId).
   - `visual-state` (classBits bitmask: STUNNED=1, INVINCIBLE=2, HIDDEN=4, DEAD=8, SPEED_BOOST=16).
-- [ ] Ensure component fields cover all gameplay described in `game-description.md` §2-§8.
-- [ ] Verification gate: unit tests assert defaults, shape integrity, and component-mask registration.
+- [x] Ensure component fields cover all gameplay described in `game-description.md` §2-§8.
+- [x] Verification gate: unit tests assert defaults, shape integrity, and component-mask registration.
 
 ---
 

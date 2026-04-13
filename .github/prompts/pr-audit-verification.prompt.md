@@ -16,13 +16,15 @@ You are a strict PR audit verifier, QA, Security, and Code Quality Review Agent 
 6. `docs/implementation/ticket-tracker.md`
 7. `docs/implementation/audit-traceability-matrix.md`
 8. `docs/implementation/agentic-workflow-guide.md`
-9. `docs/implementation/pr-template.md` and `.github/pull_request_template.md`
-10. `package.json` and `scripts/policy-gate/*.mjs`
+9. `docs/implementation/pr-template.md`
+10. `README.md` and `docs/README.md` (project overview and onboarding flow)
+11. `scripts/policy-gate/README.md` (policy gate documentation)
+12. `package.json` and `scripts/policy-gate/*`
 
 **Important behavior requirements:**
 - Audit only. Do not change source code or docs.
 - Run commands non-interactively.
-- **Optimize Execution (Parallel Subdelegation)**: You act as the orchestrator. To ensure the audit finishes as quickly as possible, you MUST spawn one dedicated, fully functional subagent for EACH of the distinct "Audit Procedure" steps below. Fully functional means you MUST equip these subagents with all available tools to read files, execute terminal commands, and write reports. Ask each subagent to handle its specific procedure in parallel (where independent) and wait for all of them to reliably return their detailed findings and evidence to you (the orchestrator). Give each optimal prompt instructions and context. Respect sequential dependencies like running `npm ci` before tests.
+- **Optimize Execution (Parallel Subdelegation)**: You act as the orchestrator. You MUST spawn one dedicated, fully functional subagent for EACH of the distinct "Audit Procedure" steps below. Fully functional means you MUST equip these subagents with all available tools to read files, execute terminal commands, and write reports. Ask each subagent to handle its specific procedure in parallel and wait for all of them to reliably return their detailed findings and evidence to you (the orchestrator). Give each optimal prompt instructions and context. Respect sequential dependencies like running `npm ci` before tests.
 - Continue collecting evidence even after failures; do not stop at first failure.
 - Return a final binary verdict: GREEN or RED.
 - GREEN is allowed only if every required gate in this prompt passes.
@@ -36,7 +38,7 @@ You are a strict PR audit verifier, QA, Security, and Code Quality Review Agent 
 
 ## Audit Procedure
 
-**Important Orchestration Rule:** Assign ONE dedicated subagent for each of the numbered procedures below (1 to 6) to execute them in parallel wherever possible. Give each optimal prompt instructions and context. You will act as the orchestrator compiling their final outputs.
+**Important Orchestration Rule:** Assign ONE dedicated subagent (full access to all tools) for each of the numbered procedures below (1 to 6) to execute them in parallel. Give each agent, optimal prompt instructions and context. You will act as the orchestrator compiling their final outputs.
 
 ### 1) Resolve ticket scope from branch and commits
 
@@ -78,118 +80,82 @@ You are a strict PR audit verifier, QA, Security, and Code Quality Review Agent 
    - Required checks run
    - Audit IDs listed
    - Human review requested
-4. Verify AGENTS.md constraints are respected, including:
-   - ECS boundaries
-   - DOM isolation
-   - input/pause/timing invariants
-   - safe DOM sinks and forbidden APIs
-   - no canvas/framework usage
+4. Verify ALL MUST-level AGENTS.md constraints are respected, including:
+   - ECS boundaries (structure, DOM isolation, adapter injection — no direct adapter imports in systems)
+   - Loop/timing/pause invariants (rAF-only loop, fixed-step accumulator, resume safety, visibility handling)
+   - Input rules (hold-to-move via keydown sets, blur state clearing, per-step snapshot determinism)
+   - Rendering/DOM rules (compositor-friendly updates, batched commit phase, DOM pooling with `transform: translate(-9999px)`, no layout thrashing)
+   - Performance/memory rules (no recurring allocations in hot loops, preallocation/pooling of transient entities)
+   - Error handling (critical errors user-visible; system exceptions non-crashing; global `unhandledrejection` handler installed)
+   - Security/code quality (Biome linting, safe DOM sinks, no `var`/`require`/`XMLHttpRequest`, `addEventListener` only, file header comments present)
+   - Accessibility (keyboard-first controls, pause focus management, `prefers-reduced-motion` respected for non-gameplay animations)
+   - No canvas/WebGL/WebGPU/framework usage
+5. Verify CI workflow parity: confirm `.github/workflows/policy-gate.yml` and `.gitea/workflows/policy-gate.yml` exist and have identical content.
 
-### 4) Verify requirements and audit traceability coverage
+### 4) Verify requirements, audit traceability coverage, and detect drift
 
 1. Map affected behavior to:
    - docs/requirements.md objectives
    - docs/game-description.md gameplay rules
    - docs/audit.md questions
-2. Cross-check mapping in docs/implementation/audit-traceability-matrix.md.
-3. Confirm affected AUDIT IDs are explicitly listed and verified in test/evidence output.
-4. Enforce AGENTS audit category split:
+2. Detect Drift and ensure Guideline Satisfaction:
+   - Evaluate against `docs/requirements.md` and `docs/game-description.md` to ensure no feature or gameplay requirement drift.
+   - Evaluate against `docs/audit.md` to ensure all acceptance criteria and rules continue passing and no metric checks drifted.
+   - Evaluate against `AGENTS.md` to guarantee no architectural, performance, DOM-isolation, or ECS constraints are compromised.
+   - Evaluate against `README.md`, `docs/README.md`, and `scripts/policy-gate/README.md` to ensure project overview, documentation maps, onboarding flows, and policy gate documentation remain accurate and aligned with the implementation.
+3. Cross-check mapping in docs/implementation/audit-traceability-matrix.md.
+4. Confirm affected AUDIT IDs are explicitly listed and verified in test/evidence output.
+5. Enforce AGENTS audit category split:
    - Fully Automatable
    - Semi-Automatable
    - Manual-With-Evidence
-5. If manual evidence IDs are impacted (F-19, F-20, F-21, B-06), require explicit artifact references. Missing evidence => RED.
+6. If manual evidence IDs are impacted (F-19, F-20, F-21, B-06), require explicit artifact references. Missing evidence => RED.
 
 ### 5) Run all automated tests and CI policy scripts
 
-The subagent assigned to this procedure MUST run `npm ci` first. Once that finishes, it MUST spawn an additional fleet of parallel subagents—one subagent per command—to run the remaining test and policy checks concurrently. Capture the exit code, duration, and key failure lines for each command:
+The subagent assigned to this procedure MUST first run `npm ci`. Then execute in three phases — Phase C commands run ONLY to isolate a failure from Phase B umbrella commands:
 
+**Phase A — Sequential dependency (must complete before Phase B):**
 1. `npm ci`
-2. `npm run check`
-3. `npm run test`
-4. `npm run test:coverage`
-5. `npm run validate:schema`
-6. `npm run sbom`
-7. `npm run ci`
-8. `npm run test:unit`
-9. `npm run test:integration`
-10. `npm run test:e2e`
-11. `npm run test:audit`
-12. `npm run check:forbidden`
-13. `npm run policy -- --require-approval=false`
-14. `npm run policy:repo`
-15. `npm run policy:quality`
-16. `npm run policy:checks`
-17. `npm run policy:forbid`
-18. `npm run policy:header`
-19. `npm run policy:approve -- --require-approval=false`
-20. `npm run policy:forbidrepo`
-21. `npm run policy:headerrepo`
-22. `npm run policy:trace`
+
+**Phase B — Parallel (spawn one subagent per command):**
+Capture exit code, duration, and key failure lines for each.
+2. `npm run ci` — quality umbrella: runs `check`, `test`, `test:coverage`, `validate:schema`, `sbom`
+3. `npm run test:unit`
+4. `npm run test:integration`
+5. `npm run test:e2e`
+6. `npm run test:audit`
+7. `npm run check:forbidden`
+8. `npm run policy -- --require-approval=false` — PR umbrella gate: runs `policy:quality`, then `policy:checks`/`policy:forbid`/`policy:header`/`policy:approve` when ticket metadata is resolvable, or falls back to `npm run policy:repo`
+9. `npm run policy:repo` — repo umbrella gate: runs `policy:forbidrepo`, `policy:headerrepo`, `policy:trace`
+
+**Phase C — Narrow reruns (run ONLY when a Phase B command fails, to isolate the specific failure):**
+- `npm run policy:quality` — isolates Biome/test/coverage/schema/SBOM failures from `npm run policy`
+- `npm run policy:checks` — isolates ticket-association/ownership failures
+- `npm run policy:forbid` — isolates forbidden-tech failures in changed files
+- `npm run policy:header` — isolates source-header failures in changed files
+- `npm run policy:approve -- --require-approval=false` — isolates approval failures
+- `npm run policy:forbidrepo` — isolates repo-wide forbidden-tech failures
+- `npm run policy:headerrepo` — isolates repo-wide source-header failures
+- `npm run policy:trace` — isolates traceability/dependency-pairing failures
 
 Notes:
-- `npm run policy` is the umbrella PR gate. It already runs `policy:quality`, and then `policy:checks`/`policy:forbid`/`policy:header`/`policy:approve` when branch or commit ticket metadata is resolvable, or falls back to `npm run policy:repo` when it is not.
-- `npm run policy:repo` is the umbrella repo gate. It already runs `policy:forbidrepo`, `policy:headerrepo`, and `policy:trace` unless repo integrity checks are disabled.
-- Run the umbrella commands first.
-- Run the narrower `policy:*` commands only when you need to isolate a failure, or when you need explicit standalone evidence for a specific gate.
-- If a command is missing, report it explicitly as a blocker.
-- If a command fails due environment-only reasons, classify as "environment blocker" and still return RED unless policy allows skip.
+- If a command is missing from `package.json`, report it explicitly as a blocker.
+- If a command fails for environment-only reasons (e.g., no network, missing runner secret), classify as "environment blocker" and still return RED unless policy explicitly allows skip.
 
 ### 6) Static policy checks in diff
 
 Additionally inspect changed files for:
-- Unsafe sinks: innerHTML, outerHTML, insertAdjacentHTML, document.write
-- Code execution sinks: eval, new Function, string setTimeout/setInterval
-- Forbidden tech: canvas APIs and framework imports
-- ECS system DOM usage outside src/ecs/systems/render-dom-system.js
-- Missing lockfile pairing when package.json changed
+- Unsafe sinks: `innerHTML`, `outerHTML`, `insertAdjacentHTML`, `document.write`
+- Code execution sinks: `eval`, `new Function`, string-based `setTimeout`/`setInterval`
+- Forbidden tech: canvas APIs (`<canvas>`, `getContext`), WebGL/WebGPU, and framework imports (React, Vue, Angular, jQuery)
+- Legacy APIs: `var` declarations, `require()` calls, `XMLHttpRequest`
+- Inline handler attributes: `onclick=`, `onload=`, etc. (must use `addEventListener`)
+- ECS system DOM usage outside `src/ecs/systems/render-dom-system.js`
+- Missing lockfile pairing when `package.json` changed
+- New source files missing the required top-of-file block comment (per AGENTS.md §Security and Code Quality)
 
 Any violation => RED.
-
-## Final Output Format (required)
-
-Return exactly these sections in order. Replace `<STATUS>` with exactly one specific outcome: `PASS`, `**FAIL**`, `True`, `**False**`, or `N/A`. Note that ONLY negative outcomes (FAIL/False) should be formatted in bold. Put the status value at the very front of the line.
-
-1. Scope Reviewed
-- Document branch, ticket scope, track, audit mode, base comparison, and affected files.
-
-2. Merge Verdict
-- VERDICT: <GREEN or **RED**>
-- READY_FOR_MAIN: <YES or **NO**>
-- AUDIT_MODE: TICKET or GENERAL_DOCS_PROCESS
-- TICKET_SCOPE: <detected ticket IDs>
-- TRACK: <A|B|C|D|GENERAL>
-
-3. Gate Summary
-- One line per command exactly like this: <STATUS>: <command> (exit=<code>, duration=<seconds>, <short reason if fail>).
-
-4. Ticket Compliance
-- If AUDIT_MODE is TICKET:
-   - Ticket deliverables: <STATUS>: <deliverable item> (<reason if fail>)
-   - Verification gate items: <STATUS>: <gate item> (<reason if fail>)
-   - Scope creep findings (if any)
-- If AUDIT_MODE is GENERAL_DOCS_PROCESS:
-   - <STATUS>: General docs/process scope compliance (<reason if fail>)
-   - <STATUS>: Stability and no-breakage review (<reason if fail>)
-   - <STATUS>: Out-of-scope product-code changes without ticket (<reason if fail>)
-
-5. Requirements And Audit Coverage
-- Affected REQ IDs
-- Affected AUDIT IDs
-- <STATUS>: Coverage evidence status for each affected ID (<artifact/test reference or reason if fail>)
-- <STATUS>: Manual evidence status for F-19/F-20/F-21/B-06 when applicable (<reason if fail>)
-
-6. AGENTS And Workflow Compliance
-- <STATUS>: ECS boundary status (<reason if false>)
-- <STATUS>: Security sink status (<reason if false>)
-- <STATUS>: PR checklist/template status (<reason if false>)
-- <STATUS>: Policy workflow parity status (.github and .gitea) (<reason if false>)
-
-7. Blockers
-- Numbered list of merge blockers with concrete fix actions.
-- If none, write: None.
-
-8. Optional Follow-Ups
-- Non-blocking improvements only.
 
 ## Verdict Rules
 
@@ -202,16 +168,19 @@ Set GREEN only if all conditions below are true:
 - Requirements/audit coverage is complete for affected behavior.
 - All required automated commands above pass.
 - Any required manual evidence is present for impacted manual audit IDs.
+- No drift or guideline violations detected against `docs/audit.md`, `docs/requirements.md`, `AGENTS.md`, `docs/game-description.md`, `README.md`, `docs/README.md`, and `scripts/policy-gate/README.md`.
 
 Otherwise set RED.
 
-If RED, include a minimal "Path to Green" checklist with only blocking items.
+If RED, include a minimal "Path To Green" checklist with only blocking items in your report.
+
+## Final Output Format (Mandatory)
+
+Return exactly the markdown template below. Replace `<STATUS>` with exactly one specific outcome: `PASS`, `**FAIL**`, `True`, `**False**`, or `N/A`. Note that ONLY negative outcomes (FAIL/False) should be formatted in bold. Put the status value at the very front of the line.
+
+In the Gate Summary, list only top-level umbrella commands. List a narrow command only if the umbrella failed and a narrow rerun was executed to isolate the failure.
 
 **Save your report in file named `docs/audit-reports/pr-audit-<branch-name>.md` and share with the team.**
-
-## Audit Report Format (Mandatory)
-
-Use this exact markdown structure for every audit report so outputs remain consistent and traceable across branches, tracks, and tickets.
 
 ```md
 # <TICKET-ID or GENERAL> PR Audit Report
@@ -253,14 +222,27 @@ Date: YYYY-MM-DD
 - <STATUS>: Required automated command set passed (<reason if false>)
 - <STATUS>: ECS DOM boundary respected (simulation systems avoid DOM APIs) (<reason if false>)
 - <STATUS>: Adapter injection discipline respected (no direct adapter imports in systems) (<reason if false>)
-- <STATUS>: Forbidden tech absent (canvas/framework/WebGL/WebGPU) (<reason if false>)
+- <STATUS>: Forbidden tech absent (canvas/WebGL/WebGPU/framework imports) (<reason if false>)
+- <STATUS>: Legacy APIs absent (no var/require/XMLHttpRequest) (<reason if false>)
+- <STATUS>: Inline handler attributes absent (addEventListener only) (<reason if false>)
 - <STATUS>: Unsafe DOM sinks absent (innerHTML/outerHTML/insertAdjacentHTML/document.write) (<reason if false>)
 - <STATUS>: Code execution sinks absent (eval/new Function/string timers) (<reason if false>)
 - <STATUS>: Lockfile pairing valid when package.json changed (<reason if false>)
+- <STATUS>: New source files include required top-of-file block comment (<reason if false>)
+- <STATUS>: Error handling contract respected (critical errors user-visible, system errors non-crashing, unhandledrejection installed) (<reason if false>)
+- <STATUS>: Accessibility invariants respected (keyboard-first, pause focus, prefers-reduced-motion) (<reason if false>)
+- <STATUS>: Performance/memory rules respected (no recurring hot-loop allocations in changed code) (<reason if false>)
+- <STATUS>: Rendering pipeline rules respected (batching, pooling with offscreen transform, no layout thrashing) (<reason if false>)
 - <STATUS>: PR checklist/template contract satisfied (<reason if false>)
 - <STATUS>: Workflow guide contract satisfied (checks run, audit IDs listed, human review requested) (<reason if false>)
 - <STATUS>: Audit matrix mapping resolved for affected behavior (<reason if false>)
 - <STATUS>: Manual evidence present when F-19/F-20/F-21/B-06 are impacted (<reason if false>)
+- <STATUS>: No drift from `docs/audit.md` acceptance criteria (<reason if false>)
+- <STATUS>: No gameplay/feature drift from `docs/requirements.md` (<reason if false>)
+- <STATUS>: No gameplay/feature drift from `docs/game-description.md` (<reason if false>)
+- <STATUS>: No architectural standard drift from `AGENTS.md` (<reason if false>)
+- <STATUS>: No drift from `README.md`, `docs/README.md`, and `scripts/policy-gate/README.md` (<reason if false>)
+- <STATUS>: CI workflow parity confirmed (.github/workflows and .gitea/workflows match) (<reason if false>)
 
 ## Requirements And Audit Coverage
 - Affected REQ IDs: <list>
@@ -277,8 +259,8 @@ Date: YYYY-MM-DD
 - <STATUS>: Stability and no-breakage review (GENERAL_DOCS_PROCESS mode) (<reason if fail>)
 - Out-of-scope change findings: <none|list>
 
-## Findings (By Severity)
-### Critical
+## Blockers & Findings (By Severity)
+### Critical (Blockers)
 1. <finding or None>
 
 ### High

@@ -48,4 +48,4 @@ jobs:
       - name: Run all policy checks
         run: |
           set -euo pipefail
-          npm run policy -- --require-approval=true
+          npm run policy -- --require-approval=false

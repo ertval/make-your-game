@@ -48,7 +48,7 @@ This document is the single source of truth for requirement-to-audit-to-ticket-t
 | REQ-07 | Keyboard-only control path | B-02, C-05, A-06 | AUDIT-F-11, AUDIT-F-12 | `tests/e2e/audit/audit.e2e.test.js` + adapter focus tests | Mapped, Planned, Pending |
 | REQ-08 | Hold-to-move without key spamming | B-02, B-03, A-06 | AUDIT-F-12 | `tests/e2e/audit/audit.e2e.test.js` + input adapter tests | Mapped, Planned, Pending |
 | REQ-09 | Pause/continue/restart at any time and paused frames unaffected | A-03, C-04, C-05, A-06 | AUDIT-F-08, AUDIT-F-09, AUDIT-F-10, AUDIT-F-17 | `tests/e2e/audit/audit.e2e.test.js` + pause performance traces | Mapped, Planned, Pending |
-| REQ-10 | Layers minimal but non-zero | D-05, D-08, A-09 | AUDIT-F-20, AUDIT-F-21 | DevTools evidence artifacts linked in matrix updates | Mapped, Planned, Pending |
+| REQ-10 | Layers minimal but non-zero and paint usage minimized | D-05, D-08, A-09 | AUDIT-F-19, AUDIT-F-20, AUDIT-F-21 | DevTools paint/layer evidence artifacts linked in matrix updates | Mapped, Planned, Pending |
 | REQ-11 | No canvas | A-01, D-06 | AUDIT-F-04 | Static scan + `tests/e2e/audit/audit.e2e.test.js` | Mapped, Planned, Pending |
 | REQ-12 | No frameworks (vanilla JS/DOM only) | A-01 | AUDIT-F-05 | CI dependency gate + `tests/e2e/audit/audit.e2e.test.js` | Mapped, Planned, Pending |
 | REQ-13 | Single-player only | B-02, C-04, A-06 | AUDIT-F-03 | `tests/e2e/audit/audit.e2e.test.js` | Mapped, Planned, Pending |
