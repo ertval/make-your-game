@@ -6,7 +6,7 @@
  */
 
 import process from 'node:process';
-import { parseArgs, readJson, toBool } from './lib/policy-utils.mjs';
+import { GATE_PASS, parseArgs, readJson, toBool } from './lib/policy-utils.mjs';
 
 const args = parseArgs(process.argv.slice(2));
 const metaPath = args['meta-file'] || '.policy-pr-meta.json';
@@ -64,7 +64,15 @@ const approvals = reviews.filter((review) => {
 });
 
 if (approvals.length === 0) {
-  throw new Error('At least one independent approval is required before merge.');
+  throw new Error(
+    [
+      'Approval policy violation.',
+      'At least one independent approval is required before merge.',
+      'Action: Request a code review from another team member who did not author the pull request.',
+    ].join('\n'),
+  );
 }
 
-console.log(`Approval check passed with ${approvals.length} independent approval(s).`);
+console.log(
+  `${GATE_PASS} — Approval check passed with ${approvals.length} independent approval(s).`,
+);

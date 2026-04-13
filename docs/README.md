@@ -31,7 +31,7 @@ Welcome to the Ms. Ghostman project! If you are picking up a ticket for the firs
 - **Find your Track**: The workload is divided into 4 tracks (A, B, C, D) defined in [`implementation/implementation-plan.md`](implementation/implementation-plan.md#section-3-workflow-tracks-balanced-workload) and detailed in [`implementation/track-a.md`](implementation/track-a.md), [`implementation/track-b.md`](implementation/track-b.md), [`implementation/track-c.md`](implementation/track-c.md), and [`implementation/track-d.md`](implementation/track-d.md).
 - **Set Status and Notes**: Open [`implementation/ticket-tracker.md`](implementation/ticket-tracker.md), find an unstarted ticket in your track, and update its status symbol to `[-]` (In Progress). Keep dependency and blocker text current on the same line.
 - **Understand the Scope**: Read the ticket description carefully. Identify the bounded scope and exactly what needs to change.
-- **Follow the Prototype-First Phase Order**: Execute tickets by global phase (`P0 → P1 → P2 → P3 → P4`) using [`implementation/ticket-tracker.md`](implementation/ticket-tracker.md). Claim only tickets whose dependencies are complete. Typical first-ticket starting points are `A-01`, `B-01`, and `D-01`, then Track C joins in `P2` after collision contracts land.
+- **Follow the Prototype-First Phase Order**: Execute tickets by global phase (`P0 → P1 → P2 → P3 → P4`) using [`implementation/ticket-tracker.md`](implementation/ticket-tracker.md). Claim only tickets whose dependencies are complete. Typical first-ticket starting points are `A-01`, `B-01`, and `D-01`. Track C starts in `P2`: `C-03` can begin after `D-01` and `D-03`, while `C-01` and `C-02` begin after `B-04`.
 
 ### 2. Read the Critical Constraints
 Before writing any code, you **MUST** consult the canonical specs:
@@ -53,7 +53,7 @@ As detailed in the [`implementation/agentic-workflow-guide.md`](implementation/a
 Gate command reference:
 
 - `npm run policy` for the default all-in-one gate.
-- `npm run policy:repo` for the repo-wide gate.
+- `npm run policy:repo` for repo-only troubleshooting reruns.
 - `npm run policy:quality`, `npm run policy:checks:local`, `npm run policy:checks`, `npm run policy:forbid`, `npm run policy:header`, `npm run policy:forbidrepo`, `npm run policy:headerrepo`, `npm run policy:trace`, and `npm run policy:approve` when you need a narrower rerun.
 
 ### 4. Run Pre-PR Gates
@@ -62,14 +62,20 @@ Gate command reference:
 
 ### 5. Open the Pull Request
 - **Use the Template**: Read [`implementation/pr-template.md`](implementation/pr-template.md), then open the PR with [`.github/pull_request_template.md`](../.github/pull_request_template.md). This template is the enforced PR contract for required checklist labels, layer boundaries, and section format. Fill out the entire checklist and follow the PR message structure in [PR Message and Gate Workflow](implementation/agentic-workflow-guide.md#12-pr-message-and-gate-workflow).
-- **Attach Evidence**: If your PR touches gameplay-critical paths (e.g., performance, rendering, or pausing), attach the required performance evidence (frame stats, traces) as defined in [`../AGENTS.md`](../AGENTS.md).
-- **Reference Audits**: Explicitly list which `AUDIT-*` IDs from [`implementation/audit-traceability-matrix.md`](implementation/audit-traceability-matrix.md) this PR satisfies and how each affected question was verified.
+- **Attach Evidence**: If your PR touches gameplay-critical paths (e.g., performance, rendering, or pausing), attach required evidence with scenario, environment, frame stats (`p50`, `p95`, `p99`), and trace notes as defined in [`../AGENTS.md`](../AGENTS.md).
+- **Reference Audits**: Explicitly list each affected `AUDIT-*` ID from [`implementation/audit-traceability-matrix.md`](implementation/audit-traceability-matrix.md) with execution type (Fully Automatable, Semi-Automatable, Manual-With-Evidence) and the exact verification artifact or test output.
+- **Manual-With-Evidence IDs**: If affected, include signed evidence and artifact links for `F-19`, `F-20`, `F-21`, and `B-06`.
 - **Review and Merge**: Ensure another dev verifies that the ECS boundaries are intact and security rules are met. Review the diff as a human before merging, and do not merge until the applicable local checks and audit coverage pass.
 
 ### 6. Review and Merge
 - **Review**: Ensure another dev verifies that the ECS boundaries are intact and security rules are met.
 - **Update Tracker**: Once merged, go back to [`implementation/ticket-tracker.md`](implementation/ticket-tracker.md) and update your task status symbol to `[x]` (Done).
 - **Archive the PR Message (Required)**: Save the final PR message and verification summary under [`pr-messages/`](pr-messages/) and the audit report under [`audit-reports/`](audit-reports/).
+
+### 7. Phase Transitions & Codebase Audits
+
+> **Important Instruction:**
+> Every time a phase of the plan tracker is finished, each dev should run the prompt `codebase-analysis-audit` against the whole codebase. Merge the resulting report to main. Then there should be created a deduplicated consolidated report with all issues found. Then each can fix the ones owned by the track they follow.
 
 ## Actions Setup and Verification
 
@@ -97,15 +103,14 @@ This repository uses [`../.github/workflows/policy-gate.yml`](../.github/workflo
 When documents conflict, the following order of authority applies:
 
 ```
-AGENTS.md                         ← normative for all implementation constraints
-  └── requirements.md             ← normative for project objectives
-  └── game-description.md         ← normative for gameplay rules and feature intent
-  └── audit.md                    ← normative for pass/fail acceptance
-        └── implementation/implementation-plan.md  ← execution guide (canonical for track/task ownership)
-              └── implementation/ticket-tracker.md  ← live line-by-line ticket execution status and dependency/block mapping board
-              └── implementation/audit-traceability-matrix.md  ← canonical requirement/audit/ticket/test coverage mapping
-              └── implementation/agentic-workflow-guide.md  ← process guide (references plan for ownership)
-              └── implementation/assets-pipeline.md  ← visual/audio asset authoring and validation workflow
+docs/requirements.md + docs/game-description.md     ← normative for project requirements and gameplay intent
+  └── docs/audit.md                                 ← normative for pass/fail acceptance
+        └── AGENTS.md                               ← normative engineering constraints and quality gates applied to implementation
+              └── implementation/implementation-plan.md  ← execution guide (canonical for track/task ownership)
+                    └── implementation/ticket-tracker.md  ← live ticket execution status and dependency/block mapping board
+                    └── implementation/audit-traceability-matrix.md  ← canonical requirement/audit/ticket/test coverage mapping
+                    └── implementation/agentic-workflow-guide.md  ← process guide (references plan for ownership)
+                    └── implementation/assets-pipeline.md  ← visual/audio asset authoring and validation workflow
 ```
 
 ---

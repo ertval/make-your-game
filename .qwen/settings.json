@@ -1,6 +1,13 @@
 {
   "permissions": {
-    "allow": ["Bash(node *)", "Bash(git checkout *)", "Bash(npm run *)", "Bash(npx *)"]
+    "allow": [
+      "Bash(node *)",
+      "Bash(git checkout *)",
+      "Bash(npm run *)",
+      "Bash(npx *)",
+      "WebSearch",
+      "Bash(npm test *)"
+    ]
   },
   "$version": 3
 }

@@ -7,7 +7,7 @@
 
 import fs from 'node:fs';
 import process from 'node:process';
-import { parseArgs, readLines, walkFiles } from './lib/policy-utils.mjs';
+import { GATE_FAIL, GATE_PASS, parseArgs, readLines, walkFiles } from './lib/policy-utils.mjs';
 
 const args = parseArgs(process.argv.slice(2));
 const scope = args.scope || 'repo';
@@ -50,13 +50,17 @@ for (const file of files) {
   }
 }
 
-// A non-zero length means the CI check should break here to prevent non-compliant tech from entering the trunk.
 if (violations.length > 0) {
-  console.error('Forbidden technology usage detected:');
+  console.error(
+    `${GATE_FAIL} — Forbidden technology usage detected. The following files contain forbidden APIs or frameworks:`,
+  );
   for (const violation of violations) {
     console.error(`- ${violation}`);
   }
+  console.error(
+    'Action: Use safe DOM APIs or Vanilla ESM imports instead. Frameworks, CJS imports, and raw canvas accesses are forbidden.',
+  );
   process.exit(1);
 }
 
-console.log(`Forbidden scan passed for ${files.length} file(s).`);
+console.log(`${GATE_PASS} — Forbidden scan passed for ${files.length} file(s).`);

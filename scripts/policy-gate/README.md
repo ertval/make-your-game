@@ -1,6 +1,6 @@
 # Policy Gate Scripts
 
-This directory contains scripts used to enforce project policies as part of the local git hooks or Continuous Integration (`npm run ci` / `npm run policy`).
+This directory contains scripts used to enforce project policies via `npm run policy` and `npm run policy:repo`. Note: `npm run ci` runs project quality checks and does not replace policy ownership and PR-governance checks.
 
 ## Script Functionality
 
