@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" width="32" height="32">
+  <!--
+    Ms. Ghostman Player Sprite — Classic Pac-Man
+    Simple yellow circle with wedge mouth facing right. No eyes, no decorations.
+    This serves as a placeholder until a proper character design is finalized.
+  -->
+  <defs>
+    <radialGradient id="pacBody" cx="40%" cy="40%" r="60%">
+      <stop offset="0%" stop-color="#ffe033"/>
+      <stop offset="100%" stop-color="#ffcc00"/>
+    </radialGradient>
+  </defs>
+  <path d="M16 16 L28 8 A14 14 0 1 0 28 24 Z" fill="url(#pacBody)"/>
+</svg>

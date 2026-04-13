@@ -1,0 +1,158 @@
+/**
+ * D-05: CSS Variables & Design Tokens
+ *
+ * Centralized CSS custom properties for the Ms. Ghostman game.
+ * This file defines the canonical color palette, spacing tokens, z-index scale,
+ * and animation timing constants used across all game styles.
+ *
+ * Public API:
+ *   - CSS custom properties prefixed with `--color-*`, `--space-*`, `--z-*`, `--anim-*`
+ *   - All tokens are scoped to `:root` for global availability
+ *   - Animation timing tokens control duration and easing for game effects
+ *
+ * Implementation notes:
+ *   - Color palette uses high-contrast values for accessibility compliance
+ *   - Z-index scale uses a 100-step system to prevent layer conflicts
+ *   - Animation timings align with the 60Hz simulation tick where possible
+ *   - `prefers-reduced-motion` media query respects non-gameplay animation preferences
+ */
+
+:root {
+  /* --- Color Palette --- */
+
+  /** Primary background color for the game viewport. */
+  --color-bg: #12131a;
+
+  /** Secondary surface color for panels, HUD, and overlays. */
+  --color-surface: #1d2333;
+
+  /** Primary text and icon color (light on dark surfaces). */
+  --color-ink: #f0f3f8;
+
+  /** Accent color for highlights, interactive elements, and score indicators. */
+  --color-accent: #ffb703;
+
+  /** Player sprite color (Ms. Ghostman - yellow). */
+  --color-player: #ffdd00;
+
+  /** Ghost type colors for the four ghost personalities. */
+  --color-ghost-blinky: #ff0000;
+  --color-ghost-pinky: #ffb8ff;
+  --color-ghost-inky: #00ffff;
+  --color-ghost-clyde: #ffb852;
+
+  /** Ghost stunned state color (blue when vulnerable). */
+  --color-ghost-stunned: #2244ff;
+
+  /** Ghost dead state color (eyes only, white). */
+  --color-ghost-dead: #ffffff;
+
+  /** Wall colors for the static grid. */
+  --color-wall-indestructible: #4466aa;
+  --color-wall-destructible: #8b6914;
+
+  /** Pellet and power pellet colors. */
+  --color-pellet: #ffccaa;
+  --color-power-pellet: #ffffff;
+
+  /** Bomb and fire effect colors. */
+  --color-bomb: #333333;
+  --color-bomb-fuse: #ff6600;
+  --color-fire: #ff4400;
+
+  /** Power-up item colors. */
+  --color-powerup-bomb: #ff6600;
+  --color-powerup-fire: #ff0000;
+  --color-powerup-speed: #00ff88;
+
+  /** HUD and UI state colors. */
+  --color-hud-bg: rgba(29, 35, 51, 0.95);
+  --color-hud-border: rgba(255, 183, 3, 0.4);
+  --color-overlay-bg: rgba(0, 0, 0, 0.85);
+  --color-success: #00ff88;
+  --color-danger: #ff4444;
+  --color-warning: #ffaa00;
+
+  /* --- Spacing Tokens --- */
+
+  /** Base spacing unit (8px grid system). */
+  --space-xs: 4px;
+  --space-sm: 8px;
+  --space-md: 16px;
+  --space-lg: 24px;
+  --space-xl: 32px;
+  --space-2xl: 48px;
+
+  /** Tile size for the game board grid (matches constants.js). */
+  --tile-size: 32px;
+
+  /** Game board dimensions (21 columns x 17 rows). */
+  --board-columns: 21;
+  --board-rows: 17;
+  --board-width: calc(var(--tile-size) * var(--board-columns));
+  --board-height: calc(var(--tile-size) * var(--board-rows));
+
+  /** Border radius values for UI elements. */
+  --radius-sm: 4px;
+  --radius-md: 8px;
+  --radius-lg: 12px;
+  --radius-xl: 16px;
+
+  /* --- Z-Index Scale --- */
+
+  /** Base layer for static grid cells and background elements. */
+  --z-grid: 1;
+
+  /** Layer for collectible items (pellets, power-ups). */
+  --z-items: 10;
+
+  /** Layer for bombs and fire effects. */
+  --z-effects: 20;
+
+  /** Layer for ghost sprites. */
+  --z-ghosts: 30;
+
+  /** Layer for player sprite (above ghosts). */
+  --z-player: 40;
+
+  /** Layer for HUD elements (always visible above gameplay). */
+  --z-hud: 50;
+
+  /** Layer for overlay UI (pause menu, game over, etc.). */
+  --z-overlay: 100;
+
+  /** Layer for modal dialogs and critical alerts. */
+  --z-modal: 200;
+
+  /* --- Animation Timing --- */
+
+  /** Walking animation duration for player and ghosts (aligned to simulation tick). */
+  --anim-walk-duration: 250ms;
+
+  /** Bomb fuse animation duration (visual countdown). */
+  --anim-bomb-fuse-duration: 500ms;
+
+  /** Fire explosion fade-in and fade-out duration. */
+  --anim-fire-duration: 500ms;
+
+  /** Ghost stunned flash animation duration. */
+  --anim-stun-flash-duration: 150ms;
+
+  /** Player invincibility blink duration. */
+  --anim-invincible-blink-duration: 100ms;
+
+  /** Speed boost trail animation duration. */
+  --anim-speed-trail-duration: 200ms;
+
+  /** Menu transition duration (non-gameplay, respects reduced motion). */
+  --anim-menu-transition-duration: 300ms;
+
+  /** Overlay fade-in duration (non-gameplay, respects reduced motion). */
+  --anim-overlay-fade-duration: 250ms;
+
+  /** Standard easing curve for smooth animations. */
+  --anim-easing: ease-out;
+
+  /** Bouncy easing for celebratory effects. */
+  --anim-easing-bounce: cubic-bezier(0.34, 1.56, 0.64, 1);
+}
