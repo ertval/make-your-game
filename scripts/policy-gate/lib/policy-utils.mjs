@@ -156,6 +156,7 @@ export const SHARED_OWNERSHIP_PATTERNS = [
   '.qwen/**',
   'AGENTS.md',
   'README.md',
+  'LICENSE',
   '.github/**',
   '.gitea/**',
   'docs/**',
@@ -169,6 +170,7 @@ export const TRACK_OWNERSHIP_RULES = {
     name: 'Track A (Engine/CI/Testing)',
     patterns: [
       'package.json',
+      'LICENSE',
       'assets/**',
       'index.html',
       'vite.config.js',
