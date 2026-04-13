@@ -1,5 +1,5 @@
 .sprite {
-  background-image: url('spritesheet.webp');
+  background-image: url("spritesheet.webp");
   background-repeat: no-repeat;
   display: inline-block;
 }
@@ -279,4 +279,3 @@
   height: 76px;
   background-position: -412px -1965px;
 }
-
