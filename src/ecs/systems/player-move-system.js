@@ -29,8 +29,8 @@
  */
 
 import { COMPONENT_MASK } from '../components/registry.js';
-import { isPassable } from '../resources/map-resource.js';
 import { PLAYER_BASE_SPEED, SPEED_BOOST_MULTIPLIER } from '../resources/constants.js';
+import { isPassable } from '../resources/map-resource.js';
 
 /**
  * Canonical component query for player movement.
@@ -166,7 +166,14 @@ export function canStartMove(mapResource, row, col, direction) {
  * @param {number} col - Current tile col.
  * @param {'up' | 'left' | 'down' | 'right'} direction - Chosen move direction.
  */
-export function startMoveTowardDirection(positionStore, velocityStore, entityId, row, col, direction) {
+export function startMoveTowardDirection(
+  positionStore,
+  velocityStore,
+  entityId,
+  row,
+  col,
+  direction,
+) {
   const vector = PLAYER_MOVE_DIRECTION_VECTOR[direction];
 
   // Starting from the exact tile center prevents drift accumulation across cells.
@@ -237,7 +244,7 @@ export function advanceTowardTarget(positionStore, velocityStore, entityId, dist
  *   positionResourceKey?: string,
  *   velocityResourceKey?: string,
  *   inputStateResourceKey?: string,
-  *   requiredMask?: number,
+ *   requiredMask?: number,
  * }} [options] - Optional resource key overrides for later wiring and tests.
  * @returns {{ name: string, phase: string, update: Function }} ECS system registration.
  */
