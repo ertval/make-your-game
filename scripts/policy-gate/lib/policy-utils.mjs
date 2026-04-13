@@ -169,6 +169,7 @@ export const TRACK_OWNERSHIP_RULES = {
     name: 'Track A (Engine/CI/Testing)',
     patterns: [
       'package.json',
+      'assets/**',
       'index.html',
       'vite.config.js',
       'vitest.config.js',
