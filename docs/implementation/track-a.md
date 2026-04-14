@@ -281,7 +281,7 @@ Source plan: `docs/implementation/implementation-plan.md` (Section 3)
 - [ ] Track A runs `.github/prompts/phase-deduplicate-track-audits.prompt.md` and publishes four deduplicated track reports (A/B/C/D) in `docs/audit-reports/phase-0/`.
 - [ ] Map deduplicated issues to existing or new implementation tickets.
 - [ ] Each track resolves all issues assigned in its track report.
-- [ ] Verification gate: all P0 reports + 4 deduplicated track reports merged to `docs/audit-reports/phase-0/`, and assigned issues are closed or tracked with explicit follow-up tickets.
+- [ ] Verification gate: all P0 reports + 4 deduplicated track reports merged to `docs/audit-reports/phase-0/`, and all assigned issues are resolved.
 
 ---
 
@@ -299,7 +299,7 @@ Source plan: `docs/implementation/implementation-plan.md` (Section 3)
 - [ ] Track A runs `.github/prompts/phase-deduplicate-track-audits.prompt.md` and publishes four deduplicated track reports (A/B/C/D) in `docs/audit-reports/phase-1/`.
 - [ ] Map deduplicated issues to existing or new implementation tickets.
 - [ ] Each track resolves all issues assigned in its track report.
-- [ ] Verification gate: all P1 reports + 4 deduplicated track reports merged to `docs/audit-reports/phase-1/`, and assigned issues are closed or tracked with explicit follow-up tickets.
+- [ ] Verification gate: all P1 reports + 4 deduplicated track reports merged to `docs/audit-reports/phase-1/`, and all assigned issues are resolved.
 
 ---
 
@@ -317,7 +317,7 @@ Source plan: `docs/implementation/implementation-plan.md` (Section 3)
 - [ ] Track A runs `.github/prompts/phase-deduplicate-track-audits.prompt.md` and publishes four deduplicated track reports (A/B/C/D) in `docs/audit-reports/phase-2/`.
 - [ ] Map deduplicated issues to existing or new implementation tickets.
 - [ ] Each track resolves all issues assigned in its track report.
-- [ ] Verification gate: all P2 reports + 4 deduplicated track reports merged to `docs/audit-reports/phase-2/`, and assigned issues are closed or tracked with explicit follow-up tickets.
+- [ ] Verification gate: all P2 reports + 4 deduplicated track reports merged to `docs/audit-reports/phase-2/`, and all assigned issues are resolved.
 
 ---
 
@@ -335,7 +335,7 @@ Source plan: `docs/implementation/implementation-plan.md` (Section 3)
 - [ ] Track A runs `.github/prompts/phase-deduplicate-track-audits.prompt.md` and publishes four deduplicated track reports (A/B/C/D) in `docs/audit-reports/phase-3/`.
 - [ ] Map deduplicated issues to existing or new implementation tickets.
 - [ ] Each track resolves all issues assigned in its track report.
-- [ ] Verification gate: all P3 reports + 4 deduplicated track reports merged to `docs/audit-reports/phase-3/`, and assigned issues are closed or tracked with explicit follow-up tickets.
+- [ ] Verification gate: all P3 reports + 4 deduplicated track reports merged to `docs/audit-reports/phase-3/`, and all assigned issues are resolved.
 
 ---
 
@@ -353,4 +353,4 @@ Source plan: `docs/implementation/implementation-plan.md` (Section 3)
 - [ ] Track A runs `.github/prompts/phase-deduplicate-track-audits.prompt.md` and publishes four deduplicated track reports (A/B/C/D) in `docs/audit-reports/phase-4/`.
 - [ ] Map deduplicated issues to existing or new implementation tickets.
 - [ ] Each track resolves all issues assigned in its track report.
-- [ ] Verification gate: all P4 reports + 4 deduplicated track reports merged to `docs/audit-reports/phase-4/`, and assigned issues are closed or tracked with explicit follow-up tickets.
+- [ ] Verification gate: all P4 reports + 4 deduplicated track reports merged to `docs/audit-reports/phase-4/`, and all assigned issues are resolved.

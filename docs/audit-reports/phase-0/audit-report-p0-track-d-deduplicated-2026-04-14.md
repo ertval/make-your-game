@@ -3,7 +3,7 @@
 **Date:** 2026-04-14
 **Project:** make-your-game (Ms. Ghostman — Modern JavaScript 2026 DOM + ECS Game)
 **Scope:** Consolidated deduplicated Phase-0 issues owned by Track D from 4 full audit reports
-**Total Issues Counted:** 25
+**Total Issues Counted:** 22
 
 ---
 

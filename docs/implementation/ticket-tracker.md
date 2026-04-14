@@ -12,7 +12,7 @@ Coverage mapping remains canonical in `audit-traceability-matrix.md`.
 4. Treat this tracker as the canonical source for `Depends on` and `Blocks`; track files may summarize or lag, but phase gating and policy checks must follow this tracker.
 5. Keep each line free of branch metadata.
 6. At each phase end, require all tracks to run prompt `codebase-analysis-audit` (repository prompt file: `.github/prompts/code-analysis-audit.prompt.md`), then require Track A to run `.github/prompts/phase-deduplicate-track-audits.prompt.md` and publish 4 deduplicated track reports before phase closure.
-7. A phase is not considered closed until each track has resolved or explicitly ticket-mapped every issue assigned in its deduplicated track report.
+7. A phase is not considered closed until each track has resolved every issue assigned in its deduplicated track report.
 
 ## 🗂️ Status Legend
 
