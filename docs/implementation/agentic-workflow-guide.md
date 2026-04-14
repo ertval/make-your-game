@@ -260,7 +260,11 @@ If a task stalls, stop adding scope. Either finish the slice or split it.
 ### Phase Transitions & Codebase Audits
 
 > **Important Instruction:**
-> Every time a phase of the plan tracker is finished, each dev should run the prompt `codebase-analysis-audit` against the whole codebase. Merge the resulting report to main. Then there should be created a deduplicated consolidated report with all issues found. Then each can fix the ones owned by the track they follow.
+> Every time a phase of the plan tracker is finished, all tracks MUST run `.github/prompts/code-analysis-audit.prompt.md` against the whole codebase and merge their reports.
+>
+> Then Track A MUST run `.github/prompts/phase-deduplicate-track-audits.prompt.md` to create four deduplicated issue reports (one per track: A/B/C/D) in `docs/audit-reports/<phase>/`.
+>
+> Each track MUST fix all issues assigned in its track report before closing that phase.
 
 ## 12. PR Message and Gate Workflow
 

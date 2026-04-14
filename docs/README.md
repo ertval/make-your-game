@@ -75,7 +75,11 @@ Gate command reference:
 ### 7. Phase Transitions & Codebase Audits
 
 > **Important Instruction:**
-> Every time a phase of the plan tracker is finished, each dev should run the prompt `codebase-analysis-audit` against the whole codebase. Merge the resulting report to main. Then there should be created a deduplicated consolidated report with all issues found. Then each can fix the ones owned by the track they follow.
+> Every time a phase is finished, all tracks MUST run [code-analysis-audit.prompt.md](../.github/prompts/code-analysis-audit.prompt.md) against the whole codebase and merge those reports.
+>
+> Then Track A MUST run [phase-deduplicate-track-audits.prompt.md](../.github/prompts/phase-deduplicate-track-audits.prompt.md) to produce four deduplicated fix reports (one per track A/B/C/D) under `docs/audit-reports/<phase>/`.
+>
+> After report publication, each track MUST fix all issues assigned to its report before the phase is considered closed.
 
 ## Actions Setup and Verification
 

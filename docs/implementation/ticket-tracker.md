@@ -11,6 +11,7 @@ Coverage mapping remains canonical in `audit-traceability-matrix.md`.
 3. Do not set `[x]` unless the ticket verification gate in the relevant track file is satisfied.
 4. Keep `Depends on` and `Blocks` synchronized with the owning track file when ticket definitions change.
 5. Keep each line free of branch metadata.
+6. At each phase end, require all tracks to run `.github/prompts/code-analysis-audit.prompt.md`, then require Track A to run `.github/prompts/phase-deduplicate-track-audits.prompt.md` and publish 4 deduplicated track reports before phase closure.
 
 ## 🗂️ Status Legend
 
@@ -73,7 +74,7 @@ Canonical ticket ID ranges used by policy checks:
 - [x] **D-03** P0 - Map Loading Resource (Depends on: D-01, D-02) | Blocks: D-06; A-04; A-07; B-03; B-04; B-06; B-08; C-03; C-04; A-10
 - [x] **D-04** P0 - Render Data Contracts (Depends on: A-02, B-01) | Blocks: D-06; D-07; A-10
 - [x] **A-03** P0 - Game Loop & Main Initialization (Depends on: A-02, D-01) | Blocks: A-04; A-05; A-06; B-02; C-04; A-10
-- [x] **A-10** P0 - Consolidate P0 codebase analysis report (Depends on: A-01, A-02, D-01, B-01, D-02, D-03, D-04, A-03) | Blocks: D-05; D-06; B-02; B-03; D-07; D-09; D-08
+- [x] **A-10** P0 - Consolidate P0 audits + publish 4 deduplicated track fix reports (Depends on: A-01, A-02, D-01, B-01, D-02, D-03, D-04, A-03) | Blocks: D-05; D-06; B-02; B-03; D-07; D-09; D-08
 
 ### Q1 / P1 Visual Prototype
 
@@ -84,7 +85,7 @@ Canonical ticket ID ranges used by policy checks:
 - [ ] **D-07** P1 - Render Collect System (Depends on: D-04, B-03, A-10) | Blocks: D-08; A-11
 - [ ] **D-09** P1 - Sprite Pool Adapter (Depends on: D-06, A-10) | Blocks: D-08; A-11
 - [ ] **D-08** P1 - Render DOM System (The Batcher) (Depends on: D-06, D-07, D-09, A-10) | Blocks: A-05; D-10; A-11
-- [ ] **A-11** P1 - Consolidate P1 codebase analysis report (Depends on: D-05, D-06, B-02, B-03, D-07, D-09, D-08) | Blocks: B-04; C-02; C-01; C-03; C-04; C-05; B-05; A-07; C-06
+- [ ] **A-11** P1 - Consolidate P1 audits + publish 4 deduplicated track fix reports (Depends on: D-05, D-06, B-02, B-03, D-07, D-09, D-08) | Blocks: B-04; C-02; C-01; C-03; C-04; C-05; B-05; A-07; C-06
 
 ### Q2 / P2 Playable MVP
 
@@ -97,7 +98,7 @@ Canonical ticket ID ranges used by policy checks:
 - [ ] **B-05** P2 - Core Gameplay Event Surface (Depends on: B-04, D-01, A-11) | Blocks: A-08; B-09; A-12
 - [ ] **A-07** P2 - CI, Schema Validation & Asset Gates (Depends on: A-01, D-03, A-11) | Blocks: A-09; C-10; D-11; A-12
 - [ ] **C-06** P2 - Audio Adapter Implementation (Depends on: A-01, D-01, A-11) | Blocks: C-07; C-08; C-09; A-12
-- [ ] **A-12** P2 - Consolidate P2 codebase analysis report (Depends on: B-04, C-02, C-01, C-03, C-04, C-05, B-05, A-07, C-06) | Blocks: B-06; B-07; B-08; B-09; C-07; A-04; A-05; A-06; A-08
+- [ ] **A-12** P2 - Consolidate P2 audits + publish 4 deduplicated track fix reports (Depends on: B-04, C-02, C-01, C-03, C-04, C-05, B-05, A-07, C-06) | Blocks: B-06; B-07; B-08; B-09; C-07; A-04; A-05; A-06; A-08
 
 ### Q3 / P3 Feature Complete + Hardening
 
@@ -110,7 +111,7 @@ Canonical ticket ID ranges used by policy checks:
 - [ ] **A-05** P3 - Integration Tests - Multi-System & Adapter Boundaries (Depends on: A-03, B-03, B-04, B-06, B-09, C-01, C-02, C-04, C-05, D-08, A-12) | Blocks: A-09; A-13
 - [ ] **A-06** P3 - E2E Audit Tests (Playwright) (Depends on: A-03, B-04, B-06, B-07, B-08, B-09, C-01, C-02, C-03, C-04, C-05, A-12) | Blocks: A-09; A-13
 - [ ] **A-08** P3 - Unit Tests - All Gameplay Systems (Depends on: B-01 through B-09, C-01 through C-05, C-07, A-12) | Blocks: A-09; A-13
-- [ ] **A-13** P3 - Consolidate P3 codebase analysis report (Depends on: B-06, B-07, B-08, B-09, C-07, A-04, A-05, A-06, A-08) | Blocks: C-08; C-09; C-10; D-10; D-11; A-09
+- [ ] **A-13** P3 - Consolidate P3 audits + publish 4 deduplicated track fix reports (Depends on: B-06, B-07, B-08, B-09, C-07, A-04, A-05, A-06, A-08) | Blocks: C-08; C-09; C-10; D-10; D-11; A-09
 
 ### Q4 / P4 Polish + Validation
 
@@ -120,7 +121,7 @@ Canonical ticket ID ranges used by policy checks:
 - [ ] **D-10** P4 - Visual Asset Production - Gameplay Sprites (Depends on: D-06, D-08, A-13) | Blocks: D-11; A-14
 - [ ] **D-11** P4 - Visual Assets (UI & Screens) + Visual Manifest & Validation (Depends on: C-05, D-10, A-07, A-13) | Blocks: A-09; A-14
 - [ ] **A-09** P4 - Evidence Aggregation & Final QA Polish (Depends on: A-05, A-06, A-07, A-08, C-09, D-11, A-13) | Blocks: A-14
-- [ ] **A-14** P4 - Consolidate P4 codebase analysis report (Depends on: C-08, C-09, C-10, D-10, D-11, A-09) | Blocks: None
+- [ ] **A-14** P4 - Consolidate P4 audits + publish 4 deduplicated track fix reports (Depends on: C-08, C-09, C-10, D-10, D-11, A-09) | Blocks: None
 
 ## 🔗 Cross-Document References
 
