@@ -120,7 +120,7 @@
 #### C-06: Audio Adapter Implementation
 **Priority**: ��� Critical
 **Phase**: P2 Playable MVP
-**Depends On**: `A-01` (scaffolding), `D-01` (constants resource)
+**Depends On**: `A-01` (scaffolding), `D-01` (constants resource), `A-11` (P1 consolidated audit gate)
 **Impacts**: Runtime audio boundary, fallback resilience, async decode baseline (`AUDIT-B-05`)
 **Blocks**: C-07, C-08, C-09
 

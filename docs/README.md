@@ -14,7 +14,7 @@
 | 4 | [`audit.md`](audit.md) | **Pass/fail criteria** — every question that must pass for project acceptance | Before testing and PR review |
 | 5 | [`implementation/implementation-plan.md`](implementation/implementation-plan.md) | **How** we build it — ECS architecture, directory structure, 4-track workplan, testing strategy, performance budget | Before starting any implementation task |
 | 6 | [`implementation/ticket-tracker.md`](implementation/ticket-tracker.md) | **Execution board** — live line-by-line ticket status with Depends on and Blocks mapping for Section 3 implementation tickets | Update continuously during implementation |
-| 7 | [`implementation/ticket-tracker.md`](implementation/ticket-tracker.md) | **Ticket ID index** — merged canonical ticket list consumed by automated branch policy checks | Before branch naming and PR gate runs |
+| 7 | [`implementation/ticket-tracker.md#-ticket-id-index-merged`](implementation/ticket-tracker.md#-ticket-id-index-merged) | **Ticket ID index** — merged canonical ticket list consumed by automated branch policy checks | Before branch naming and PR gate runs |
 | 8 | [`implementation/agentic-workflow-guide.md`](implementation/agentic-workflow-guide.md) | **Team workflow** — how to use agents, PR process, PR message and gate workflow, review checklist, branch rules, and the `process` marker fallback for docs/process branches | Before starting collaborative work |
 | 9 | [`implementation/pr-template.md`](implementation/pr-template.md) | **PR contract** — documentation entrypoint for required checklist labels, layer-boundary confirmations, command flow, and canonical template source | Before opening any pull request |
 | 10 | [`implementation/audit-traceability-matrix.md`](implementation/audit-traceability-matrix.md) | **Coverage source of truth** — maps requirements and audit questions to implementation tickets, e2e/manual anchors, and execution status | During planning, test implementation, and PR review |
@@ -107,14 +107,14 @@ This repository uses [`../.github/workflows/policy-gate.yml`](../.github/workflo
 When documents conflict, the following order of authority applies:
 
 ```
-docs/requirements.md + docs/game-description.md     ← normative for project requirements and gameplay intent
-  └── docs/audit.md                                 ← normative for pass/fail acceptance
-        └── AGENTS.md                               ← normative engineering constraints and quality gates applied to implementation
-              └── implementation/implementation-plan.md  ← execution guide (canonical for track/task ownership)
-                    └── implementation/ticket-tracker.md  ← live ticket execution status and dependency/block mapping board
-                    └── implementation/audit-traceability-matrix.md  ← canonical requirement/audit/ticket/test coverage mapping
-                    └── implementation/agentic-workflow-guide.md  ← process guide (references plan for ownership)
-                    └── implementation/assets-pipeline.md  ← visual/audio asset authoring and validation workflow
+AGENTS.md                                           ← canonical implementation constraints; wins implementation conflicts
+  └── docs/requirements.md + docs/game-description.md  ← canonical gameplay/feature intent
+        └── docs/audit.md                           ← canonical acceptance/pass-fail gates
+              └── implementation/implementation-plan.md  ← execution guide (track/task ownership)
+                    └── implementation/ticket-tracker.md  ← live ticket execution/dependency board
+                    └── implementation/audit-traceability-matrix.md  ← requirement/audit/ticket/test mapping
+                    └── implementation/agentic-workflow-guide.md  ← process guide
+                    └── implementation/assets-pipeline.md  ← asset workflow guidance
 ```
 
 ---

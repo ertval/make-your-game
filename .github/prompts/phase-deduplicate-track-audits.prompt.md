@@ -48,10 +48,10 @@ Each issue must appear **once only** in the final set, under the track that owns
 3. Merge duplicates by root cause.
 4. Assign primary owner track using file ownership and ticket definitions.
 5. Build four outputs:
-   - `audit-report-<phase>-track-a-deduplicated-<date>.md`
-   - `audit-report-<phase>-track-b-deduplicated-<date>.md`
-   - `audit-report-<phase>-track-c-deduplicated-<date>.md`
-   - `audit-report-<phase>-track-d-deduplicated-<date>.md`
+   - `audit-report-<phase>-track-a-deduplicated-<date>.md` (or `audit-report-p<phase>-track-a-deduplicated-<date>.md`)
+   - `audit-report-<phase>-track-b-deduplicated-<date>.md` (or `audit-report-p<phase>-track-b-deduplicated-<date>.md`)
+   - `audit-report-<phase>-track-c-deduplicated-<date>.md` (or `audit-report-p<phase>-track-c-deduplicated-<date>.md`)
+   - `audit-report-<phase>-track-d-deduplicated-<date>.md` (or `audit-report-p<phase>-track-d-deduplicated-<date>.md`)
 6. Use the same style/format as:
    - `docs/audit-reports/phase-0/audit-report-codebase-analysis-merged-deduplicated-track-ticket-2026-04-11.md`
 7. For each track report include:

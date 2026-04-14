@@ -125,5 +125,10 @@ _No Track B-primary CI gate issues were uniquely assigned in P0 deduplicated own
 1. `DEAD-04` — either wire or explicitly isolate test-only scaffolding.
 2. `ARCH-12` — harden adapter interface contract and remove field probing.
 
+## Dedup Verification Summary
+
+- Verification Agent 1: PASS after remediation (no cross-track duplication of Track B-assigned root issues).
+- Verification Agent 2: PASS after remediation (process/ticket workflow references aligned with phase-end contract).
+
 ## Final Verification
 **Verify Check:** All Track B-primary deduplicated root issues from the 4 source reports are represented exactly once in this track report.

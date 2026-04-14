@@ -12,6 +12,7 @@ Coverage mapping remains canonical in `audit-traceability-matrix.md`.
 4. Keep `Depends on` and `Blocks` synchronized with the owning track file when ticket definitions change.
 5. Keep each line free of branch metadata.
 6. At each phase end, require all tracks to run `.github/prompts/code-analysis-audit.prompt.md`, then require Track A to run `.github/prompts/phase-deduplicate-track-audits.prompt.md` and publish 4 deduplicated track reports before phase closure.
+7. A phase is not considered closed until each track has resolved or explicitly ticket-mapped every issue assigned in its deduplicated track report.
 
 ## 🗂️ Status Legend
 
@@ -31,9 +32,24 @@ Coverage mapping remains canonical in `audit-traceability-matrix.md`.
 ## 📈 Summary Snapshot
 
 - Total tickets: `44`
-- Done: `9`
+- Done: `12`
 - In Progress: `0`
-- Not Started: `35`
+- Not Started: `32`
+
+## 🧮 Phase Audit Remediation Ledger
+
+Use this ledger to keep phase-audit publication and remediation traceable.
+
+- P0 reports published:
+	- `docs/audit-reports/phase-0/audit-report-p0-track-a-deduplicated-2026-04-14.md`
+	- `docs/audit-reports/phase-0/audit-report-p0-track-b-deduplicated-2026-04-14.md`
+	- `docs/audit-reports/phase-0/audit-report-p0-track-c-deduplicated-2026-04-14.md`
+	- `docs/audit-reports/phase-0/audit-report-p0-track-d-deduplicated-2026-04-14.md`
+- P0 remediation mapping status:
+	- Track A issues: mapped to `A-03`, `A-04`, `A-05`, `A-06`, `A-07`, `A-10` (and follow-up tickets as required).
+	- Track B issues: mapped to `B-02`, `B-03`.
+	- Track C issues: mapped to `C-06` and Track C documentation/dependency updates.
+	- Track D issues: mapped to `D-01`, `D-03`, `D-04`, `D-05`, `D-06`, `D-07`, `D-08`, `D-09`.
 
 ## 🛣️ Prototype-First Claim Queue (Global)
 

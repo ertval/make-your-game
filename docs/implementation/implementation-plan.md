@@ -316,11 +316,11 @@ Live ticket progress for this section is tracked in `docs/implementation/ticket-
 
 | Phase | Goal | Primary Ticket Bands | Exit Criteria |
 |---|---|---|---|
-| P0 Foundation | Boot deterministic runtime and data contracts | A-01..A-03, B-01, D-01..D-04 | App boots, fixed-step world ticks, resources/map contracts available, render intent contracts defined |
-| P1 Visual Prototype (Fast Feedback) | Get first playable-on-screen loop as early as possible | B-02..B-03, D-05..D-08 (after P0 deps) | Board renders, player movement is visible, frame pipeline runs through render collect and DOM commit |
-| P2 Playable MVP | Deliver core gameplay loop and user-facing flow | B-04, C-01..C-05 | Start/pause/continue/restart works, score/lives/timer/HUD update, collision outcomes are visible and testable |
-| P3 Feature Complete + Hardening | Add genre depth and lock quality gates | A-04..A-08, B-05..B-09, C-06..C-07, D-09 | Bomb depth, ghost AI, power-ups, event contracts, audio runtime integration, CI and automated test hardening |
-| P4 Polish & Validation | Final production quality and asset governance | A-09, C-08..C-10, D-10..D-11 | Asset schemas/manifests, UI/audio polish, audit-ready evidence |
+| P0 Foundation | Boot deterministic runtime and data contracts | A-01..A-03, A-10, B-01, D-01..D-04 | App boots, fixed-step world ticks, resources/map contracts available, render intent contracts defined |
+| P1 Visual Prototype (Fast Feedback) | Get first playable-on-screen loop as early as possible | A-11, B-02..B-03, D-05..D-09 | Board renders, player movement is visible, frame pipeline runs through render collect and DOM commit |
+| P2 Playable MVP | Deliver core gameplay loop and user-facing flow | A-07, A-12, B-04..B-05, C-01..C-06 | Start/pause/continue/restart works, score/lives/timer/HUD update, collision outcomes are visible and testable |
+| P3 Feature Complete + Hardening | Add genre depth and lock quality gates | A-04..A-06, A-08, A-13, B-06..B-09, C-07 | Bomb depth, ghost AI, power-ups, event contracts, audio runtime integration, CI and automated test hardening |
+| P4 Polish & Validation | Final production quality and asset governance | A-09, A-14, C-08..C-10, D-10..D-11 | Asset schemas/manifests, UI/audio polish, audit-ready evidence |
 
 ### Phase Transitions & Codebase Audits
 
@@ -335,11 +335,11 @@ Live ticket progress for this section is tracked in `docs/implementation/ticket-
 
 | Track | Developer | Tickets | Scope |
 |---|---|---|---|
-| Track A | Dev 1 | 9 | World engine, game flow, scaffolding, all testing (unit/integration/e2e/audit), CI, QA and evidence. Track A can update all tests; feature tracks can update scoped tests tied to owned files |
+| Track A | Dev 1 | 14 | World engine, game flow, scaffolding, all testing (unit/integration/e2e/audit), CI, QA and evidence. Track A can update all tests; feature tracks can update scoped tests tied to owned files |
 | Track B | Dev 2 | 9 | Components, input, movement and collision, bombs/explosions, power-ups, ghost AI, gameplay event contracts |
 | Track C | Dev 3 | 10 | Scoring/timer/lives, spawn, pause/progression, HUD/screens/storage adapters, audio adapter/cues/SFX/music/manifest |
 | Track D | Dev 4 | 11 | Resources, map loading, renderer and sprite pools, CSS/layout, gameplay and UI visual assets, visual manifest governance |
-| **Total** | **4 Devs** | **39** | |
+| **Total** | **4 Devs** | **44** | |
 
 ### Critical Path By Dev
 

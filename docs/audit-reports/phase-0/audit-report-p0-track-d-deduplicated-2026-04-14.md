@@ -119,10 +119,10 @@ const maxDelta = fixedDtMs * maxStepsPerFrame;
 **Origin:** MRG `BUG-10`, ASM `BUG-06`, MED `BUG-09`
 **Files:** Ownership: Track D (`src/ecs/resources/event-queue.js`)
 
-**Problem:** Counter can grow monotonically and JSDoc contract is unmet.
+**Problem:** Counter can grow monotonically and JSDoc contract is unmet. Source detail retained: ASM also flags missing finite validation for `frame` input in `enqueue()`.
 **Impact:** Long-session ordering risk and docs/behavior drift.
 
-**Fix:** Reset per fixed-step boundary or enforce frame-drain contract explicitly.
+**Fix:** Reset per fixed-step boundary, and validate `frame` as finite numeric input (default/reject invalid frame values).
 
 ---
 
@@ -205,6 +205,12 @@ const maxDelta = fixedDtMs * maxStepsPerFrame;
 **Problem:** Event queue semantics exist but lifecycle integration in runtime phases is incomplete.
 **Impact:** Event ordering guarantees can be bypassed in practical runtime paths.
 
+**Fix detail preserved from source:** Register event queue explicitly in bootstrap runtime path.
+```js
+import { createEventQueue } from '../ecs/resources/event-queue.js';
+world.setResource('eventQueue', createEventQueue());
+```
+
 ---
 
 ### ARCH-09: Render-intent contract drift vs implementation-plan spec ⬆ Medium
@@ -218,7 +224,7 @@ const maxDelta = fixedDtMs * maxStepsPerFrame;
 
 ### ARCH-13: DOM pool release path does not ensure listener cleanup ⬆ Medium
 **Origin:** MRG `ARCH-13`
-**Files:** Ownership: Track D (`src/render/dom-pool.js`)
+**Files:** Ownership: Track D (planned runtime adapter path from source report; concrete file not present in current workspace)
 
 **Problem:** Reused pooled elements may retain listeners.
 **Impact:** Memory leaks / duplicate event dispatch risk.
@@ -244,7 +250,7 @@ const maxDelta = fixedDtMs * maxStepsPerFrame;
 
 ### SEC-11: DOM renderer HUD query results are not validated/warned ⬆ Low
 **Origin:** MRG `SEC-11`
-**Files:** Ownership: Track D (`src/render/render-ecs.js`)
+**Files:** Ownership: Track D (planned renderer adapter path from source report; concrete file not present in current workspace)
 
 ### SEC-X01: RNG constants lack provenance/explanatory docstring ⬆ Low
 **Origin:** ASM `SEC-03`
@@ -272,6 +278,11 @@ _No Track D-primary CI gate issues were uniquely assigned in P0 deduplicated own
 
 ### Phase 3 — Low
 1. `BUG-12` / `BUG-X05` / `DEAD-*` / `ARCH-15` / `SEC-11` / `SEC-X01`.
+
+## Dedup Verification Summary
+
+- Verification Agent 1: PASS after remediation (no missing or duplicate Track D root issues across track reports).
+- Verification Agent 2: PASS after remediation (planned-file references explicitly labeled where source paths are not yet present in workspace).
 
 ## Final Verification
 **Verify Check:** All Track D-primary deduplicated root issues from the 4 source reports are represented exactly once in this track report.
