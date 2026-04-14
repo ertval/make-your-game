@@ -281,6 +281,8 @@
 - [ ] Merge the generated report to main.
 - [ ] Create a deduplicated consolidated report mapping all issues to track owners.
 - [ ] Map issues to existing or new implementation tickets.
+- [ ] Organize issues by track so each dev can easily find their assigned work in the next phase.
+- [ ] Resolve all issues from the P0 audit, such that P0 codebase is clean and high-quality before starting P1 implementation.
 - [ ] Verification gate: P0 consolidated report merged to `docs/audit-reports/`.
 
 ---
