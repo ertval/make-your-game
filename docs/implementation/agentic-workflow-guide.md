@@ -260,7 +260,7 @@ If a task stalls, stop adding scope. Either finish the slice or split it.
 ### Phase Transitions & Codebase Audits
 
 > **Important Instruction:**
-> Every time a phase of the plan tracker is finished, all tracks MUST run `.github/prompts/code-analysis-audit.prompt.md` against the whole codebase and merge their reports.
+> Every time a phase of the plan tracker is finished, all tracks MUST run prompt `codebase-analysis-audit` (repository prompt file: `.github/prompts/code-analysis-audit.prompt.md`) against the whole codebase and merge their reports.
 >
 > Then Track A MUST run `.github/prompts/phase-deduplicate-track-audits.prompt.md` to create four deduplicated issue reports (one per track: A/B/C/D) in `docs/audit-reports/<phase>/`.
 >
@@ -277,7 +277,7 @@ The docs entrypoint for the PR contract lives in `docs/implementation/pr-templat
 Follow the agreed ticket order and keep branches short-lived and single-purpose.
 
 - Follow the phase-first execution order (`P0 -> P1 -> P2 -> P3 -> P4`) from `ticket-tracker.md` and claim only tickets whose dependencies are complete.
-- Typical first-ticket starts are `A-01`, `B-01`, and `D-01`; Track C starts in `P2`, where `C-03` can begin after `D-01` and `D-03`, while `C-01` and `C-02` start after `B-04` unlocks collision-driven dependencies.
+- Typical first-ticket starts are `A-01`, `B-01`, and `D-01`; Track C starts in `P2` only after `A-11`, where `C-03` can begin after `D-01` and `D-03` plus `A-11`, while `C-01` and `C-02` start after `B-04` plus `A-11`.
 - Use one branch per ticket slice.
 - Use the same branch only for the one logical change it was created for.
 - Branches must follow: `<owner-or-scope>/<TRACK>-<NN>`.

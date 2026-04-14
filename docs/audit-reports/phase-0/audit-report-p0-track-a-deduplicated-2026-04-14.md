@@ -3,7 +3,7 @@
 **Date:** 2026-04-14
 **Project:** make-your-game (Ms. Ghostman — Modern JavaScript 2026 DOM + ECS Game)
 **Scope:** Consolidated deduplicated Phase-0 issues owned by Track A from 4 full audit reports
-**Total Issues Counted:** 42
+**Total Issues Counted:** 61
 
 ---
 
@@ -24,11 +24,11 @@ Deduplication rule: when multiple reports described the same underlying issue, o
 
 | Severity | Count |
 |----------|-------|
-| 🔴 Blocking | 1 |
-| 🔴 Critical | 4 |
-| 🟠 High | 11 |
-| 🟡 Medium | 13 |
-| 🟢 Low / Info | 13 |
+| 🔴 Blocking | 2 |
+| 🔴 Critical | 5 |
+| 🟠 High | 15 |
+| 🟡 Medium | 20 |
+| 🟢 Low / Info | 16 |
 
 **Top risks:**
 1. Audit verification remains inventory-only and does not prove behavioral acceptance.
@@ -220,6 +220,8 @@ if (gameStatus.currentState === GAME_STATE.PLAYING) {
 **Files:** Ownership: Track A (`package.json`)
 
 **Problem:** Multiple near-duplicate policy script entries increase maintenance burden.
+**Impact:** Higher script maintenance cost and command-surface drift risk.
+**Fix:** Keep one canonical umbrella command per gate intent and deprecate redundant aliases.
 
 ---
 
@@ -320,6 +322,8 @@ if (gameStatus.currentState === GAME_STATE.PLAYING) {
 **Problem:** Incomplete validation on component lookups for invalid/stale handles.
 **Impact:** Silent corruption/crash risk with stale entity access.
 
+**Fix:** Add explicit bounds + generation validation in `hasComponent`/`getComponent` paths and reject stale handles by default.
+
 ---
 
 ### ARCH-08: Render path coupling and single-rAF commit invariants at risk ⬆ High
@@ -328,6 +332,8 @@ if (gameStatus.currentState === GAME_STATE.PLAYING) {
 
 **Problem:** Catch-up stepping can blur simulation/render boundaries if not enforced.
 **Impact:** DOM pressure, perf instability, and architecture drift.
+
+**Fix:** Keep simulation in fixed-step loop and enforce exactly one render collect/DOM commit pass per `requestAnimationFrame` frame.
 
 ---
 
@@ -505,6 +511,8 @@ if (gameStatus.currentState === GAME_STATE.PLAYING) {
 **Problem:** Clean environments fail `test:e2e` without explicit browser install.
 **Impact:** Browser verification effectively absent by default.
 
+**Fix:** Add explicit browser provisioning step (`npx playwright install --with-deps`) in CI and onboarding scripts/docs.
+
 ---
 
 ### CI-03: Semi/manual evidence categories not threshold-enforced ⬆ High
@@ -514,6 +522,7 @@ if (gameStatus.currentState === GAME_STATE.PLAYING) {
 **Problem:** Semi-automatable and manual categories are not strictly enforced with explicit thresholds/artifacts.
 **Scope details preserved from source:** `F-17`, `F-18`, `B-05` threshold checks; manual evidence obligations for `F-19`, `F-20`, `F-21`, `B-06`.
 **Impact:** Performance/evidence claims can pass without required measurable proof.
+**Fix:** Add threshold assertions for `F-17`, `F-18`, `B-05` and enforce artifact manifest checks for `F-19`, `F-20`, `F-21`, `B-06` in policy gates.
 
 ### CI-04: Coverage scope can be inflated by test-file inclusion / loose thresholds ⬆ High
 **Origin:** MRG `CI-04`, ASM `CI-07`, MED `CI-03`
@@ -595,13 +604,25 @@ if (gameStatus.currentState === GAME_STATE.PLAYING) {
 **Origin:** MRG `CI-11`
 **Files:** Ownership: Track A (`src/game/game-flow.js`)
 
+**Problem:** Module export style differs from predominant named-export conventions.
+**Impact:** Minor consistency and maintainability friction.
+**Fix:** Standardize on one export style (prefer named exports) across gameplay modules.
+
 ### CI-12: Bootstrap side effect auto-executes on import ⬆ Low
 **Origin:** MRG `CI-12`
 **Files:** Ownership: Track A (`src/main.ecs.js`)
 
+**Problem:** Import side effect triggers runtime bootstrap automatically.
+**Impact:** Harder test isolation and composition.
+**Fix:** Export explicit bootstrap/init function and invoke from entrypoint instead of import side effect.
+
 ### CI-13: Duplicate `advanceLevel` semantics between tests and implementation ⬆ Low
 **Origin:** MRG `CI-13`
 **Files:** Ownership: Track A (test mocks and gameplay tests)
+
+**Problem:** Test mocks duplicate progression logic and can drift from implementation behavior.
+**Impact:** False positives/negatives in gameplay tests.
+**Fix:** Reuse shared helper or assert against production implementation contract directly.
 
 ---
 

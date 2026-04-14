@@ -1,6 +1,6 @@
-# ��� Track C — Scoring, Game Flow UI, Audio & Runtime Feedback (Dev 3)
+# Track C — Scoring, Game Flow UI, Audio & Runtime Feedback (Dev 3)
 
-��� Source plan: `docs/implementation/implementation-plan.md` (Section 3)
+Source plan: `docs/implementation/implementation-plan.md` (Section 3)
 
 > **Scope**: Scoring/timer/lives systems, spawn timing, pause/progression gameplay flow systems, HUD and screen overlay adapters, storage adapter, audio adapter, audio cue mapping, SFX/music production, and audio manifest governance. Dev 3 owns the player-facing runtime feedback loop across gameplay state, UI feedback, and sound. Track C may modify tests that map to Track C-owned implementation files; Track A retains global testing ownership.
 > **Execution model**: Deliver scoring/lives/timer + gameplay flow UI for MVP, then layer audio integration and polish.
@@ -15,9 +15,9 @@
 ---
 
 #### C-01: Scoring System
-**Priority**: ��� Critical
+**Priority**: Critical
 **Phase**: P2 Playable MVP
-**Depends On**: `B-04` (collision intents), `C-02` (timer/lives), `D-01` (event-queue resource)
+**Depends On**: `B-04` (collision intents), `C-02` (timer/lives), `D-01` (event-queue resource), `A-11` (P1 consolidated audit gate)
 **Impacts**: HUD-critical score metric (`AUDIT-F-15`)
 **Blocks**: A-08, B-09
 
@@ -34,9 +34,9 @@
 ---
 
 #### C-02: Timer & Life Systems
-**Priority**: ��� Critical
+**Priority**: Critical
 **Phase**: P2 Playable MVP
-**Depends On**: `D-01` (clock/constants resources), `B-04` (collision intents for death)
+**Depends On**: `D-01` (clock/constants resources), `B-04` (collision intents for death), `A-11` (P1 consolidated audit gate)
 **Impacts**: HUD-critical timer and lives metrics (`AUDIT-F-14`, `AUDIT-F-16`)
 **Blocks**: A-05, A-08, B-09, C-04, C-05
 
@@ -51,9 +51,9 @@
 ---
 
 #### C-03: Spawn System
-**Priority**: ��� Critical
+**Priority**: Critical
 **Phase**: P2 Playable MVP
-**Depends On**: `D-01` (constants/clock), `D-03` (map resource — ghost spawn points)
+**Depends On**: `D-01` (constants/clock), `D-03` (map resource — ghost spawn points), `A-11` (P1 consolidated audit gate)
 **Impacts**: Ghost stagger timing and death-return respawn
 **Blocks**: A-08, B-08
 
@@ -68,9 +68,9 @@
 ---
 
 #### C-04: Pause & Level Progression Systems
-**Priority**: ��� Critical
+**Priority**: Critical
 **Phase**: P2 Playable MVP
-**Depends On**: `D-01` (clock/game-status), `D-03` (map resource), `C-02` (timer/lives), `A-03` (game loop)
+**Depends On**: `D-01` (clock/game-status), `D-03` (map resource), `C-02` (timer/lives), `A-03` (game loop), `A-11` (P1 consolidated audit gate)
 **Impacts**: Pause menu behavior and level/game state transitions (`AUDIT-F-07..F-10`)
 **Blocks**: A-05, A-06, A-08, C-05
 
@@ -91,9 +91,9 @@
 ---
 
 #### C-05: HUD Adapter & Screen Overlays
-**Priority**: ��� Critical
+**Priority**: Critical
 **Phase**: P2 Playable MVP
-**Depends On**: `D-05` (CSS layout), `C-02` (timer/lives data), `C-04` (pause/progression states)
+**Depends On**: `D-05` (CSS layout), `C-02` (timer/lives data), `C-04` (pause/progression states), `A-11` (P1 consolidated audit gate)
 **Impacts**: Visible gameplay metrics (`AUDIT-F-14..F-16`), pause/start/restart UX (`AUDIT-F-07..F-09`)
 **Blocks**: A-05, A-06, A-08, D-11
 
@@ -118,7 +118,7 @@
 ---
 
 #### C-06: Audio Adapter Implementation
-**Priority**: ��� Critical
+**Priority**: Critical
 **Phase**: P2 Playable MVP
 **Depends On**: `A-01` (scaffolding), `D-01` (constants resource), `A-11` (P1 consolidated audit gate)
 **Impacts**: Runtime audio boundary, fallback resilience, async decode baseline (`AUDIT-B-05`)
@@ -141,9 +141,9 @@
 ---
 
 #### C-07: Audio Cue Mapping & Runtime Integration
-**Priority**: ��� Critical
+**Priority**: Critical
 **Phase**: P3 Feature Complete + Hardening
-**Depends On**: `C-06` (audio adapter), `B-09` (event hooks)
+**Depends On**: `C-06` (audio adapter), `B-09` (event hooks), `A-12` (P2 consolidated audit gate)
 **Impacts**: Event-driven audio feedback loop across gameplay states and menus
 **Blocks**: A-08
 
@@ -172,9 +172,9 @@
 ---
 
 #### C-08: Sound Effects & Music Production
-**Priority**: ��� Critical
+**Priority**: Critical
 **Phase**: P4 Polish and Validation
-**Depends On**: `C-06` (audio adapter)
+**Depends On**: `C-06` (audio adapter), `A-13` (P3 consolidated audit gate)
 **Impacts**: Gameplay feel, action clarity, overall production quality (`AUDIT-B-06`)
 **Blocks**: C-09, C-10
 
@@ -200,9 +200,9 @@
 ---
 
 #### C-09: Audio Preloading & Performance
-**Priority**: ��� Medium
+**Priority**: Medium
 **Phase**: P4 Polish and Validation
-**Depends On**: `C-06`, `C-08`
+**Depends On**: `C-06`, `C-08`, `A-13` (P3 consolidated audit gate)
 **Impacts**: Async performance measurement and startup responsiveness (`AUDIT-B-05`)
 **Blocks**: A-09
 
@@ -222,9 +222,9 @@
 ---
 
 #### C-10: Audio Manifest Schema & Validation
-**Priority**: ��� Critical
+**Priority**: Critical
 **Phase**: P4 Polish and Validation
-**Depends On**: `C-08`, `A-07` (CI schema gates)
+**Depends On**: `C-08`, `A-07` (CI schema gates), `A-13` (P3 consolidated audit gate)
 **Impacts**: CI asset governance and contract consistency
 **Blocks**: None
 

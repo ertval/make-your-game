@@ -31,7 +31,7 @@ Welcome to the Ms. Ghostman project! If you are picking up a ticket for the firs
 - **Find your Track**: The workload is divided into 4 tracks (A, B, C, D) defined in [`implementation/implementation-plan.md`](implementation/implementation-plan.md#section-3-workflow-tracks-balanced-workload) and detailed in [`implementation/track-a.md`](implementation/track-a.md), [`implementation/track-b.md`](implementation/track-b.md), [`implementation/track-c.md`](implementation/track-c.md), and [`implementation/track-d.md`](implementation/track-d.md).
 - **Set Status and Notes**: Open [`implementation/ticket-tracker.md`](implementation/ticket-tracker.md), find an unstarted ticket in your track, and update its status symbol to `[-]` (In Progress). Keep dependency and blocker text current on the same line.
 - **Understand the Scope**: Read the ticket description carefully. Identify the bounded scope and exactly what needs to change.
-- **Follow the Prototype-First Phase Order**: Execute tickets by global phase (`P0 → P1 → P2 → P3 → P4`) using [`implementation/ticket-tracker.md`](implementation/ticket-tracker.md). Claim only tickets whose dependencies are complete. Typical first-ticket starting points are `A-01`, `B-01`, and `D-01`. Track C starts in `P2`: `C-03` can begin after `D-01` and `D-03`, while `C-01` and `C-02` begin after `B-04`.
+- **Follow the Prototype-First Phase Order**: Execute tickets by global phase (`P0 → P1 → P2 → P3 → P4`) using [`implementation/ticket-tracker.md`](implementation/ticket-tracker.md). Claim only tickets whose dependencies are complete. Typical first-ticket starting points are `A-01`, `B-01`, and `D-01`. Track C starts in `P2` only after `A-11` is complete: `C-03` begins after `D-01` and `D-03` plus `A-11`, while `C-01` and `C-02` begin after `B-04` plus `A-11`.
 
 ### 2. Read the Critical Constraints
 Before writing any code, you **MUST** consult the canonical specs:
@@ -75,7 +75,7 @@ Gate command reference:
 ### 7. Phase Transitions & Codebase Audits
 
 > **Important Instruction:**
-> Every time a phase is finished, all tracks MUST run [code-analysis-audit.prompt.md](../.github/prompts/code-analysis-audit.prompt.md) against the whole codebase and merge those reports.
+> Every time a phase is finished, all tracks MUST run prompt `codebase-analysis-audit` (repository prompt file: [code-analysis-audit.prompt.md](../.github/prompts/code-analysis-audit.prompt.md)) against the whole codebase and merge those reports.
 >
 > Then Track A MUST run [phase-deduplicate-track-audits.prompt.md](../.github/prompts/phase-deduplicate-track-audits.prompt.md) to produce four deduplicated fix reports (one per track A/B/C/D) under `docs/audit-reports/<phase>/`.
 >

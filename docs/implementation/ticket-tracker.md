@@ -9,9 +9,9 @@ Coverage mapping remains canonical in `audit-traceability-matrix.md`.
 1. Update the status symbol whenever work starts, pauses, or completes.
 2. Keep each ticket in the line format: status + ticket ID + ticket description + dependency fields.
 3. Do not set `[x]` unless the ticket verification gate in the relevant track file is satisfied.
-4. Keep `Depends on` and `Blocks` synchronized with the owning track file when ticket definitions change.
+4. Treat this tracker as the canonical source for `Depends on` and `Blocks`; track files may summarize or lag, but phase gating and policy checks must follow this tracker.
 5. Keep each line free of branch metadata.
-6. At each phase end, require all tracks to run `.github/prompts/code-analysis-audit.prompt.md`, then require Track A to run `.github/prompts/phase-deduplicate-track-audits.prompt.md` and publish 4 deduplicated track reports before phase closure.
+6. At each phase end, require all tracks to run prompt `codebase-analysis-audit` (repository prompt file: `.github/prompts/code-analysis-audit.prompt.md`), then require Track A to run `.github/prompts/phase-deduplicate-track-audits.prompt.md` and publish 4 deduplicated track reports before phase closure.
 7. A phase is not considered closed until each track has resolved or explicitly ticket-mapped every issue assigned in its deduplicated track report.
 
 ## 🗂️ Status Legend
@@ -123,7 +123,7 @@ Canonical ticket ID ranges used by policy checks:
 - [ ] **B-08** P3 - Ghost AI System (Depends on: B-03, B-04, B-07, C-03, D-01, D-03, A-12) | Blocks: A-06; A-08; B-09; A-13
 - [ ] **B-09** P3 - Cross-System Gameplay Event Hooks (Depends on: B-05, B-06, B-08, C-01, C-02, C-04, D-01, A-12) | Blocks: A-05; A-06; A-08; C-07; A-13
 - [ ] **C-07** P3 - Audio Cue Mapping & Runtime Integration (Depends on: B-09, C-06, A-12) | Blocks: A-08; A-13
-- [x] **A-04** P3 - Unit Tests - ECS Core & Resources (Depends on: A-02, A-03, D-01, D-03, A-12) | Blocks: A-13
+- [x] **A-04** P3 - Unit Tests - ECS Core & Resources (Depends on: A-02, A-03, D-01, D-03, A-12; Early pull reason: foundational regression gate landed ahead of phase gate) | Blocks: A-13
 - [ ] **A-05** P3 - Integration Tests - Multi-System & Adapter Boundaries (Depends on: A-03, B-03, B-04, B-06, B-09, C-01, C-02, C-04, C-05, D-08, A-12) | Blocks: A-09; A-13
 - [ ] **A-06** P3 - E2E Audit Tests (Playwright) (Depends on: A-03, B-04, B-06, B-07, B-08, B-09, C-01, C-02, C-03, C-04, C-05, A-12) | Blocks: A-09; A-13
 - [ ] **A-08** P3 - Unit Tests - All Gameplay Systems (Depends on: B-01 through B-09, C-01 through C-05, C-07, A-12) | Blocks: A-09; A-13

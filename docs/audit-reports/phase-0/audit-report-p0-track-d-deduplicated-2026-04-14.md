@@ -3,7 +3,7 @@
 **Date:** 2026-04-14
 **Project:** make-your-game (Ms. Ghostman — Modern JavaScript 2026 DOM + ECS Game)
 **Scope:** Consolidated deduplicated Phase-0 issues owned by Track D from 4 full audit reports
-**Total Issues Counted:** 18
+**Total Issues Counted:** 25
 
 ---
 
@@ -28,7 +28,7 @@ Primary ownership was assigned to Track D when fixes are in resources/map/render
 | 🔴 Critical | 0 |
 | 🟠 High | 4 |
 | 🟡 Medium | 7 |
-| 🟢 Low / Info | 5 |
+| 🟢 Low / Info | 9 |
 
 **Top risks:**
 1. Restart clock baseline corruption can produce NaN timing state.
@@ -151,6 +151,8 @@ const maxDelta = fixedDtMs * maxStepsPerFrame;
 **Files:** Ownership: Track D (`src/ecs/resources/clock.js`)
 
 **Problem:** Residual accumulator can cause burst step post-resync.
+**Impact:** One-frame simulation burst or jitter right after resync/resume path.
+**Fix:** Clear accumulator in resync path (set to zero) before next tick.
 
 ---
 
@@ -169,17 +171,33 @@ const maxDelta = fixedDtMs * maxStepsPerFrame;
 **Origin:** MRG `DEAD-10`, MED `DEAD-04`
 **Files:** Ownership: Track D (`src/ecs/resources/*`, `src/ecs/render-intent.js`)
 
+**Problem:** Documented function signatures and behavior claims diverge from runtime implementation.
+**Impact:** Onboarding and API usage confusion.
+**Fix:** Align JSDoc to current runtime contracts (or update implementation to match intended API).
+
 ### DEAD-X02: `peek()` export in event queue is test-only surface ⬆ Low
 **Origin:** ASM `DEAD-03`
 **Files:** Ownership: Track D (`src/ecs/resources/event-queue.js`)
+
+**Problem:** Export is not consumed by runtime path.
+**Impact:** Extra API surface with unclear production role.
+**Fix:** Keep as explicitly documented debug/test-only API or remove when no longer needed.
 
 ### DEAD-X03: `resetOrderCounter()` export currently test-only ⬆ Low
 **Origin:** ASM `DEAD-04`
 **Files:** Ownership: Track D (`src/ecs/resources/event-queue.js`)
 
+**Problem:** Runtime does not call this API while docs imply per-step usage.
+**Impact:** Docs/runtime mismatch and potential API drift.
+**Fix:** Either call/reset in runtime loop or remove/export as test-only utility with clear contract.
+
 ### DEAD-X06: `getRenderIntentView` allocation-heavy debug path exposed to runtime misuse ⬆ Low
 **Origin:** MED `DEAD-07`
 **Files:** Ownership: Track D (`src/ecs/render-intent.js`)
+
+**Problem:** Allocation-heavy helper can be mistakenly used in hot runtime path.
+**Impact:** Avoidable GC pressure and perf jitter.
+**Fix:** Mark as debug/test-only and guard against production hot-path usage.
 
 ---
 
@@ -195,6 +213,8 @@ const maxDelta = fixedDtMs * maxStepsPerFrame;
 
 **Problem:** Render-intent contract exists but full runtime render-collect/render-dom wiring is incomplete.
 **Impact:** Visual pipeline and performance contract remain partially unsatisfied.
+
+**Fix:** Implement/complete ordered phases: input snapshot -> fixed-step simulation -> render collect -> single DOM commit per rAF.
 
 ---
 
@@ -238,11 +258,17 @@ world.setResource('eventQueue', createEventQueue());
 **Problem:** Static board grid dimensions diverge from map dimensions.
 **Impact:** Render/layout correctness issues for board representation.
 
+**Fix:** Derive board dimensions from active map resource or keep CSS variables synchronized with canonical map dimensions.
+
 ---
 
 ### ARCH-15: EventQueue `drain()` internal-array exposure risk ⬆ Low
 **Origin:** MRG `ARCH-15`
 **Files:** Ownership: Track D (`src/ecs/resources/event-queue.js`)
+
+**Problem:** Drain return handling can leak mutable internal structure semantics.
+**Impact:** Encapsulation risk if consumers mutate returned structures unexpectedly.
+**Fix:** Return immutable copy/iterator contract and document mutability guarantees.
 
 ---
 
@@ -252,9 +278,17 @@ world.setResource('eventQueue', createEventQueue());
 **Origin:** MRG `SEC-11`
 **Files:** Ownership: Track D (planned renderer adapter path from source report; concrete file not present in current workspace)
 
+**Problem:** Missing query result validation can fail silently on missing HUD nodes.
+**Impact:** Hidden UI regressions.
+**Fix:** Add explicit warnings/assertions when expected HUD query targets are absent.
+
 ### SEC-X01: RNG constants lack provenance/explanatory docstring ⬆ Low
 **Origin:** ASM `SEC-03`
 **Files:** Ownership: Track D (`src/ecs/resources/rng.js`)
+
+**Problem:** Algorithm constants are undocumented for provenance/review traceability.
+**Impact:** Auditability and maintainability friction.
+**Fix:** Add concise JSDoc noting deterministic algorithm source and rationale.
 
 ---
 

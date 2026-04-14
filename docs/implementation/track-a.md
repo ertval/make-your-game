@@ -100,7 +100,7 @@ Source plan: `docs/implementation/implementation-plan.md` (Section 3)
 #### A-04: Unit Tests — ECS Core & Resources
 **Priority**: Critical
 **Phase**: P3 Feature Complete + Hardening
-**Depends On**: `A-02`, `A-03`, `D-01`, `D-03`
+**Depends On**: `A-02`, `A-03`, `D-01`, `D-03`, `A-12`
 **Impacts**: Early regression safety net for runtime foundation
 **Blocks**: None
 
@@ -125,7 +125,7 @@ Source plan: `docs/implementation/implementation-plan.md` (Section 3)
 #### A-05: Integration Tests — Multi-System & Adapter Boundaries
 **Priority**: Medium
 **Phase**: P3 Feature Complete + Hardening
-**Depends On**: `A-03`, `B-03`, `B-04`, `B-06`, `B-09`, `C-01`, `C-02`, `C-04`, `C-05`, `D-08`
+**Depends On**: `A-03`, `B-03`, `B-04`, `B-06`, `B-09`, `C-01`, `C-02`, `C-04`, `C-05`, `D-08`, `A-12`
 **Impacts**: Cross-system correctness, adapter boundary guarantees, deterministic replay confidence
 **Blocks**: A-09
 
@@ -155,7 +155,7 @@ Source plan: `docs/implementation/implementation-plan.md` (Section 3)
 #### A-06: E2E Audit Tests (Playwright)
 **Priority**: Critical
 **Phase**: P3 Feature Complete + Hardening
-**Depends On**: `A-03`, `B-04`, `B-06`, `B-07`, `B-08`, `B-09`, `C-01`, `C-02`, `C-03`, `C-04`, `C-05`
+**Depends On**: `A-03`, `B-04`, `B-06`, `B-07`, `B-08`, `B-09`, `C-01`, `C-02`, `C-03`, `C-04`, `C-05`, `A-12`
 **Impacts**: Acceptance automation coverage (`AUDIT-F-01..F-18`, `AUDIT-B-01..B-05`)
 **Blocks**: A-09
 
@@ -202,7 +202,7 @@ Source plan: `docs/implementation/implementation-plan.md` (Section 3)
 #### A-07: CI, Schema Validation & Asset Gates
 **Priority**: Medium
 **Phase**: P2 Playable MVP
-**Depends On**: `A-01`, `D-03`
+**Depends On**: `A-01`, `D-03`, `A-11`
 **Impacts**: Merge safety, schema integrity, dependency and asset governance (`AUDIT-B-02`)
 **Blocks**: A-09, C-10, D-11
 
@@ -222,7 +222,7 @@ Source plan: `docs/implementation/implementation-plan.md` (Section 3)
 #### A-08: Unit Tests — All Gameplay Systems
 **Priority**: Critical
 **Phase**: P3 Feature Complete + Hardening
-**Depends On**: `B-01` through `B-09`, `C-01` through `C-05`, `C-07`
+**Depends On**: `B-01` through `B-09`, `C-01` through `C-05`, `C-07`, `A-12`
 **Impacts**: Full simulation regression protection and deterministic behavior guarantees
 **Blocks**: A-09
 
@@ -249,7 +249,7 @@ Source plan: `docs/implementation/implementation-plan.md` (Section 3)
 #### A-09: Evidence Aggregation & Final QA Polish
 **Priority**: Medium
 **Phase**: P4 Final Acceptance
-**Depends On**: `A-05`, `A-06`, `A-07`, `A-08`, `C-09`, `D-11`
+**Depends On**: `A-05`, `A-06`, `A-07`, `A-08`, `C-09`, `D-11`, `A-13`
 **Impacts**: Final audit sign-off (`AUDIT-F-19..F-21`, `AUDIT-B-06`), release readiness
 **Blocks**: None
 
@@ -277,7 +277,7 @@ Source plan: `docs/implementation/implementation-plan.md` (Section 3)
 **Deliverables**:
 - Consolidated deduplicated codebase audit package for P0 (all-track audits + 4 track fix reports)
 
-- [ ] Each track runs `.github/prompts/code-analysis-audit.prompt.md` against the P0 codebase and merges the generated report.
+- [ ] Each track runs prompt `codebase-analysis-audit` (repository prompt file: `.github/prompts/code-analysis-audit.prompt.md`) against the P0 codebase and merges the generated report.
 - [ ] Track A runs `.github/prompts/phase-deduplicate-track-audits.prompt.md` and publishes four deduplicated track reports (A/B/C/D) in `docs/audit-reports/phase-0/`.
 - [ ] Map deduplicated issues to existing or new implementation tickets.
 - [ ] Each track resolves all issues assigned in its track report.
@@ -295,7 +295,7 @@ Source plan: `docs/implementation/implementation-plan.md` (Section 3)
 **Deliverables**:
 - Consolidated deduplicated codebase audit package for P1 (all-track audits + 4 track fix reports)
 
-- [ ] Each track runs `.github/prompts/code-analysis-audit.prompt.md` against the P1 codebase and merges the generated report.
+- [ ] Each track runs prompt `codebase-analysis-audit` (repository prompt file: `.github/prompts/code-analysis-audit.prompt.md`) against the P1 codebase and merges the generated report.
 - [ ] Track A runs `.github/prompts/phase-deduplicate-track-audits.prompt.md` and publishes four deduplicated track reports (A/B/C/D) in `docs/audit-reports/phase-1/`.
 - [ ] Map deduplicated issues to existing or new implementation tickets.
 - [ ] Each track resolves all issues assigned in its track report.
@@ -313,7 +313,7 @@ Source plan: `docs/implementation/implementation-plan.md` (Section 3)
 **Deliverables**:
 - Consolidated deduplicated codebase audit package for P2 (all-track audits + 4 track fix reports)
 
-- [ ] Each track runs `.github/prompts/code-analysis-audit.prompt.md` against the P2 codebase and merges the generated report.
+- [ ] Each track runs prompt `codebase-analysis-audit` (repository prompt file: `.github/prompts/code-analysis-audit.prompt.md`) against the P2 codebase and merges the generated report.
 - [ ] Track A runs `.github/prompts/phase-deduplicate-track-audits.prompt.md` and publishes four deduplicated track reports (A/B/C/D) in `docs/audit-reports/phase-2/`.
 - [ ] Map deduplicated issues to existing or new implementation tickets.
 - [ ] Each track resolves all issues assigned in its track report.
@@ -331,7 +331,7 @@ Source plan: `docs/implementation/implementation-plan.md` (Section 3)
 **Deliverables**:
 - Consolidated deduplicated codebase audit package for P3 (all-track audits + 4 track fix reports)
 
-- [ ] Each track runs `.github/prompts/code-analysis-audit.prompt.md` against the P3 codebase and merges the generated report.
+- [ ] Each track runs prompt `codebase-analysis-audit` (repository prompt file: `.github/prompts/code-analysis-audit.prompt.md`) against the P3 codebase and merges the generated report.
 - [ ] Track A runs `.github/prompts/phase-deduplicate-track-audits.prompt.md` and publishes four deduplicated track reports (A/B/C/D) in `docs/audit-reports/phase-3/`.
 - [ ] Map deduplicated issues to existing or new implementation tickets.
 - [ ] Each track resolves all issues assigned in its track report.
@@ -349,7 +349,7 @@ Source plan: `docs/implementation/implementation-plan.md` (Section 3)
 **Deliverables**:
 - Consolidated deduplicated codebase audit package for P4 (all-track audits + 4 track fix reports)
 
-- [ ] Each track runs `.github/prompts/code-analysis-audit.prompt.md` against the final codebase and merges the generated report.
+- [ ] Each track runs prompt `codebase-analysis-audit` (repository prompt file: `.github/prompts/code-analysis-audit.prompt.md`) against the final codebase and merges the generated report.
 - [ ] Track A runs `.github/prompts/phase-deduplicate-track-audits.prompt.md` and publishes four deduplicated track reports (A/B/C/D) in `docs/audit-reports/phase-4/`.
 - [ ] Map deduplicated issues to existing or new implementation tickets.
 - [ ] Each track resolves all issues assigned in its track report.

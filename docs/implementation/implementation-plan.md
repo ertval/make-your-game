@@ -325,7 +325,7 @@ Live ticket progress for this section is tracked in `docs/implementation/ticket-
 ### Phase Transitions & Codebase Audits
 
 > **Important Instruction:**
-> Every time a phase of the plan tracker is finished, all tracks MUST run `.github/prompts/code-analysis-audit.prompt.md` against the whole codebase and merge their generated reports.
+> Every time a phase of the plan tracker is finished, all tracks MUST run prompt `codebase-analysis-audit` (repository prompt file: `.github/prompts/code-analysis-audit.prompt.md`) against the whole codebase and merge their generated reports.
 >
 > Then Track A MUST run `.github/prompts/phase-deduplicate-track-audits.prompt.md` to produce one deduplicated fix report per track (A/B/C/D), assign ownership, and save those reports under `docs/audit-reports/<phase>/`.
 >
