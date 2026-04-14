@@ -276,10 +276,10 @@ For a free GitHub account, the repository must be public to publish a Pages site
 
 | Metric | Target |
 |---|---|
-| Frame rate | ≥ 60 FPS target with no sustained dropped-frame bursts |
+| Frame rate | 60 FPS target with no dropped frames in audited scenarios; acceptance must match docs/audit.md criteria |
 | Frame budget | p95 <= 16.7ms over representative 60s scenarios |
 | DOM elements | ≤ 500 |
-| Layer count | 3-5 composited layers |
+| Layer usage | Layers must be as few as possible but non-zero, with intentional promotion justified by audit evidence |
 | GC pauses | < 1ms (object pooling, in-place component mutation) |
 | JS heap | < 10MB |
 | Layout thrashing | Zero (batch reads → writes via `render-dom-system.js`) |
@@ -415,11 +415,16 @@ The project is split into **4 parallel workflow tracks** to enable multiple deve
 |---|---|---|---|
 | **Track A** | Dev 1 | Core Engine, CI, Schema, Testing, QA, and Evidence Wiring | `src/ecs/world/*`, `src/ecs/resources/*`, `main.ecs.js`, `tests/**/*`, `vitest.config.js`, `playwright.config.js` |
 | **Track B** | Dev 2 | Physics, Input, and Gameplay Logic & Rules | `input-system.js`, `player-move-system.js`, `ghost-ai-system.js`, `collision-system.js` |
-| **Track C** | Dev 3 | Audio Production and Integration | `audio-adapter.js`, audio manifests, cue mapping, decode/preload flow |
+| **Track C** | Dev 3 | Scoring, timer, lives, pause and progression, HUD and overlays, storage flow, and audio integration | `scoring-system.js`, `timer-system.js`, `life-system.js`, `pause-system.js`, `level-progress-system.js`, `hud-adapter.js`, `screens-adapter.js`, `audio-adapter.js` |
 | **Track D** | Dev 4 | Rendering, DOM Batching, and Visual Production and Integration | `render-collect-system.js`, `render-dom-system.js`, Adapters |
 
 > **Note**: For the full integration milestone breakdown, check `docs/implementation/implementation-plan.md`.
 > **Execution tracking**: Update `docs/implementation/ticket-tracker.md` as tickets move from `[ ]` -> `[-]` -> `[x]`.
+
+### Phase Transitions & Codebase Audits
+
+> **Important Instruction:**
+> Every time a phase of the plan tracker is finished, each dev should run the prompt `codebase-analysis-audit` against the whole codebase. Merge the resulting report to main. Then there should be created a deduplicated consolidated report with all issues found. Then each can fix the ones owned by the track they follow.
 
 ## 🧭 Documentation Flow
 
@@ -441,9 +446,9 @@ Recommended reading order for new contributors:
 
 ### 📌 Source Of Truth Policy
 
-- Implementation constraints, architecture boundaries, and audit verification categories: `AGENTS.md`
 - Requirement intent and feature scope: `docs/requirements.md` + `docs/game-description.md`
 - Final pass/fail acceptance criteria: `docs/audit.md`
+- Implementation constraints, architecture boundaries, and audit verification categories: `AGENTS.md`
 - Ticket execution progress and dependency/block mapping board: `docs/implementation/ticket-tracker.md`
 - Canonical ticket ID index for branch enforcement: `docs/implementation/ticket-tracker.md`
 - PR message and gate workflow: `docs/implementation/agentic-workflow-guide.md#12-pr-message-and-gate-workflow`
@@ -486,6 +491,7 @@ tests/
     - Semi-Automatable: `F-17`, `F-18`, `B-05`
     - Manual-With-Evidence: `F-19`, `F-20`, `F-21`, `B-06`
 - The project is complete only when all mapped automated checks pass and required manual evidence artifacts are attached.
+- See the [Phase Testing & Verification Report](file:///home/ertval/code/zone-modules/make-your-game/docs/audit-reports/phase-testing-verification-report.md) for detailed testing instructions and exit criteria for each phase.
 
 ---
 

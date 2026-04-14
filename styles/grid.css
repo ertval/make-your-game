@@ -1,0 +1,315 @@
+/**
+ * D-05: CSS Grid Layout & Board Structure
+ *
+ * Strict grid-template layouts and absolute positioning for the Ms. Ghostman game board.
+ * This file defines the canonical game grid, sprite positioning, and layer management.
+ *
+ * Public API:
+ *   - `.game-grid` — the main board container with CSS Grid layout
+ *   - `.grid-cell` — individual cells with absolute positioning support
+ *   - Sprite classes (`.sprite-player`, `.sprite-ghost-*`, etc.) with will-change policy
+ *   - HUD and overlay layout classes
+ *
+ * Implementation notes:
+ *   - Grid uses fixed tile size from variables.css (--tile-size: 32px)
+ *   - Sprites use absolute positioning within the grid for precise placement
+ *   - Transform: translate3d() is used for GPU-accelerated sprite movement
+ *   - Will-change policy is strictly enforced: only player and ghosts get layer promotion
+ *   - Target layer count: ~5 (player + 4 ghosts maximum)
+ */
+
+/* --- Game Grid Container --- */
+
+/** Main game board grid with fixed dimensions matching map layout. */
+.game-grid {
+  display: grid;
+  grid-template-columns: repeat(var(--board-columns), var(--tile-size));
+  grid-template-rows: repeat(var(--board-rows), var(--tile-size));
+  width: var(--board-width);
+  height: var(--board-height);
+  position: relative;
+  background: var(--color-bg);
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+}
+
+/* --- Grid Cells --- */
+
+/** Base grid cell for all static elements (walls, empty spaces, spawn points). */
+.grid-cell {
+  width: var(--tile-size);
+  height: var(--tile-size);
+  position: relative;
+  z-index: var(--z-grid);
+}
+
+/** Indestructible wall cell with brick pattern styling. */
+.grid-cell--indestructible {
+  background: var(--color-wall-indestructible);
+  border: 1px solid color-mix(in srgb, var(--color-wall-indestructible) 70%, #000 30%);
+  border-radius: var(--radius-xs, 2px);
+}
+
+/** Destructible wall cell with crate/box styling. */
+.grid-cell--destructible {
+  background: var(--color-wall-destructible);
+  border: 1px solid color-mix(in srgb, var(--color-wall-destructible) 70%, #000 30%);
+  border-radius: var(--radius-xs, 2px);
+}
+
+/** Ghost house cell with subtle background indicator. */
+.grid-cell--ghost-house {
+  background: color-mix(in srgb, var(--color-surface) 50%, transparent 50%);
+  border: 1px dashed color-mix(in srgb, var(--color-accent) 30%, transparent 70%);
+}
+
+/* --- Collectibles --- */
+
+/** Regular pellet (small dot). */
+.collectible--pellet {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 6px;
+  height: 6px;
+  background: var(--color-pellet);
+  border-radius: 50%;
+  z-index: var(--z-items);
+}
+
+/** Power pellet (larger, pulsing). */
+.collectible--power-pellet {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 12px;
+  height: 12px;
+  background: var(--color-power-pellet);
+  border-radius: 50%;
+  z-index: var(--z-items);
+  animation: pellet-pulse var(--anim-walk-duration) ease-in-out infinite;
+}
+
+/* --- Sprite Base Classes --- */
+
+/** Base sprite class for all dynamic game entities. */
+.sprite {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: var(--tile-size);
+  height: var(--tile-size);
+  /* Use translate3d for GPU-accelerated compositing */
+  transform: translate3d(0, 0, 0);
+  transition: none;
+}
+
+/** Player sprite with layer promotion (always moving, needs compositor layer). */
+.sprite--player {
+  z-index: var(--z-player);
+  will-change: transform;
+}
+
+/** Ghost sprites with layer promotion (always moving, need compositor layers). */
+.sprite--ghost {
+  z-index: var(--z-ghosts);
+  will-change: transform;
+}
+
+/** Ghost type-specific color classes. */
+.sprite--ghost--blinky {
+  background: var(--color-ghost-blinky);
+}
+
+.sprite--ghost--pinky {
+  background: var(--color-ghost-pinky);
+}
+
+.sprite--ghost--inky {
+  background: var(--color-ghost-inky);
+}
+
+.sprite--ghost--clyde {
+  background: var(--color-ghost-clyde);
+}
+
+/** Ghost state variants. */
+.sprite--ghost--stunned {
+  background: var(--color-ghost-stunned);
+}
+
+.sprite--ghost--dead {
+  background: var(--color-ghost-dead);
+}
+
+/** Bomb sprite WITHOUT will-change (not always active). */
+.sprite--bomb {
+  z-index: var(--z-effects);
+  background: var(--color-bomb);
+  border-radius: 50%;
+  border: 2px solid var(--color-bomb-fuse);
+  /* NO will-change: bombs are transient, not continuously moving */
+}
+
+/** Fire tile effect WITHOUT will-change (short-lived effect). */
+.sprite--fire {
+  z-index: var(--z-effects);
+  background: var(--color-fire);
+  border-radius: var(--radius-sm);
+  opacity: 0.9;
+  /* NO will-change: fire is short-lived, avoid unnecessary layer promotion */
+}
+
+/* --- Power-Up Sprites --- */
+
+/** Power-up sprite base class. */
+.sprite--powerup {
+  z-index: var(--z-items);
+  border-radius: var(--radius-md);
+}
+
+.sprite--powerup--bomb {
+  background: var(--color-powerup-bomb);
+}
+
+.sprite--powerup--fire {
+  background: var(--color-powerup-fire);
+}
+
+.sprite--powerup--speed {
+  background: var(--color-powerup-speed);
+}
+
+/* --- HUD Layout --- */
+
+/** HUD container fixed at top of viewport. */
+.hud {
+  position: fixed;
+  top: var(--space-sm);
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  gap: var(--space-lg);
+  padding: var(--space-sm) var(--space-md);
+  background: var(--color-hud-bg);
+  border: 1px solid var(--color-hud-border);
+  border-radius: var(--radius-lg);
+  z-index: var(--z-hud);
+  font-size: 14px;
+  font-weight: 600;
+}
+
+/** Individual HUD metric (score, timer, lives). */
+.hud__metric {
+  display: flex;
+  align-items: center;
+  gap: var(--space-xs);
+  color: var(--color-ink);
+}
+
+/** HUD metric label styling. */
+.hud__label {
+  color: var(--color-accent);
+  text-transform: uppercase;
+  font-size: 12px;
+  letter-spacing: 0.05em;
+}
+
+/** HUD metric value styling. */
+.hud__value {
+  font-variant-numeric: tabular-nums;
+  min-width: 3ch;
+}
+
+/* --- Overlay Layout --- */
+
+/** Overlay root for pause, game over, victory screens. */
+.overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--color-overlay-bg);
+  z-index: var(--z-overlay);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity var(--anim-overlay-fade-duration) var(--anim-easing);
+}
+
+/** Active overlay state (visible and interactive). */
+.overlay--active {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+/** Overlay panel for menu content. */
+.overlay__panel {
+  background: var(--color-surface);
+  border: 2px solid var(--color-accent);
+  border-radius: var(--radius-xl);
+  padding: var(--space-xl) var(--space-2xl);
+  max-width: 400px;
+  width: 90%;
+  text-align: center;
+}
+
+/** Overlay title styling. */
+.overlay__title {
+  font-size: 28px;
+  font-weight: 700;
+  color: var(--color-accent);
+  margin-bottom: var(--space-md);
+}
+
+/** Overlay content text. */
+.overlay__content {
+  color: var(--color-ink);
+  margin-bottom: var(--space-lg);
+  line-height: 1.6;
+}
+
+/** Button group in overlays. */
+.overlay__actions {
+  display: flex;
+  gap: var(--space-md);
+  justify-content: center;
+}
+
+/** Button styling for overlay actions. */
+.overlay__btn {
+  padding: var(--space-sm) var(--space-lg);
+  background: var(--color-accent);
+  color: var(--color-bg);
+  border: none;
+  border-radius: var(--radius-md);
+  font-size: 16px;
+  font-weight: 600;
+  cursor: pointer;
+  transition:
+    transform var(--anim-easing),
+    background var(--anim-easing);
+}
+
+.overlay__btn:hover,
+.overlay__btn:focus-visible {
+  transform: scale(1.05);
+  outline: 2px solid var(--color-ink);
+  outline-offset: 2px;
+}
+
+.overlay__btn:active {
+  transform: scale(0.98);
+}
+
+/** Secondary button variant. */
+.overlay__btn--secondary {
+  background: transparent;
+  border: 2px solid var(--color-accent);
+  color: var(--color-accent);
+}

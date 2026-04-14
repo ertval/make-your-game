@@ -322,6 +322,11 @@ Live ticket progress for this section is tracked in `docs/implementation/ticket-
 | P3 Feature Complete + Hardening | Add genre depth and lock quality gates | A-04..A-08, B-05..B-09, C-06..C-07, D-09 | Bomb depth, ghost AI, power-ups, event contracts, audio runtime integration, CI and automated test hardening |
 | P4 Polish & Validation | Final production quality and asset governance | A-09, C-08..C-10, D-10..D-11 | Asset schemas/manifests, UI/audio polish, audit-ready evidence |
 
+### Phase Transitions & Codebase Audits
+
+> **Important Instruction:**
+> Every time a phase of the plan tracker is finished, each dev should run the prompt `codebase-analysis-audit` against the whole codebase. Merge the resulting report to main. Then there should be created a deduplicated consolidated report with all issues found. Then each can fix the ones owned by the track they follow.
+
 ### Workload Summary (Balanced Ownership)
 
 | Track | Developer | Tickets | Scope |
