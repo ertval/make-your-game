@@ -10,10 +10,15 @@ import fs from 'node:fs';
 import process from 'node:process';
 import {
   describePolicyResolution,
+  extractOwnerFromBranch,
+  GATE_FAIL,
+  GATE_PASS,
   inferProcessModeFromSources,
   inferTicketIdsFromSources,
   parseArgs,
   readJson,
+  resolveOwnerTrackFromBranch,
+  resolvePrPolicyPath,
   runCommand,
   toBool,
 } from './lib/policy-utils.mjs';
@@ -66,8 +71,41 @@ function runStep(label, command, commandArgs, retryHint) {
   } catch (error) {
     const hint = retryHint ? ` Retry with: ${retryHint}.` : '';
     const detail = error instanceof Error ? error.message : String(error);
-    throw new Error(`${label} failed.${hint} Original error: ${detail}`);
+    throw new Error(`${GATE_FAIL} — ${label} failed.${hint} Original error: ${detail}`);
   }
+}
+
+// We centralize metadata parsing so PR/repo flows cannot drift in how they infer owner, tickets, or process mode.
+function resolvePolicyContext() {
+  const metadata = fs.existsSync(metaPath) ? readJson(metaPath) : {};
+  const branchName = metadata.branchName || '';
+  const branchOwner = extractOwnerFromBranch(branchName);
+  const branchOwnerTrack = resolveOwnerTrackFromBranch(branchName);
+  const branchTicketIds = inferTicketIdsFromSources(metadata.branchName || '');
+  const commitTicketIds = inferTicketIdsFromSources(metadata.commitMessages || '');
+  const hasPrMetadata = branchTicketIds.length > 0 || commitTicketIds.length > 0;
+  const hasProcessMode =
+    Boolean(metadata.processMode) ||
+    inferProcessModeFromSources(
+      metadata.branchName || '',
+      metadata.commitMessages || '',
+      metadata.body || '',
+    );
+  const ticketIds = inferTicketIdsFromSources(
+    metadata.branchName || '',
+    metadata.commitMessages || '',
+  );
+
+  return {
+    metadata,
+    branchOwner,
+    branchOwnerTrack,
+    branchTicketIds,
+    commitTicketIds,
+    hasPrMetadata,
+    hasProcessMode,
+    ticketIds,
+  };
 }
 
 let ranRepoFallback = false;
@@ -83,46 +121,38 @@ if (scope === 'pr' || scope === 'all') {
   contextPrepared = true;
 
   // We parse the extracted git metadata file to infer PR intent and verify traceability.
-  const metadata = fs.existsSync(metaPath) ? readJson(metaPath) : {};
-  const branchTicketIds = inferTicketIdsFromSources(metadata.branchName || '');
-  const commitTicketIds = inferTicketIdsFromSources(metadata.commitMessages || '');
-  const hasPrMetadata = branchTicketIds.length > 0 || commitTicketIds.length > 0;
-  const hasProcessMode =
-    Boolean(metadata.processMode) ||
-    inferProcessModeFromSources(
-      metadata.branchName || '',
-      metadata.commitMessages || '',
-      metadata.body || '',
-    );
+  const {
+    metadata,
+    branchOwner,
+    branchOwnerTrack,
+    branchTicketIds,
+    commitTicketIds,
+    hasProcessMode,
+    ticketIds,
+  } = resolvePolicyContext();
 
-  // We establish an audit mode flag based on context clues to control the rigor of subsequent gates.
-  const auditMode = hasPrMetadata
-    ? 'TICKET'
-    : hasProcessMode
-      ? 'GENERAL_DOCS_PROCESS'
-      : 'REPO_FALLBACK';
-  const selectedPath = hasPrMetadata
-    ? 'PR ticket checks'
-    : hasProcessMode
-      ? 'repo-wide fallback from process marker'
-      : 'repo-wide fallback from missing ticket metadata';
-  const ticketIds = hasPrMetadata
-    ? inferTicketIdsFromSources(metadata.branchName || '', metadata.commitMessages || '')
-    : [];
+  // Process-marker branches must still run PR checks so process-scope violations are enforced.
+  const policyPath = resolvePrPolicyPath({
+    branchTicketIds,
+    commitTicketIds,
+    hasProcessMode,
+  });
 
   console.log(
     describePolicyResolution({
-      auditMode,
+      auditMode: policyPath.auditMode,
       branchTicketIds,
       commitTicketIds,
+      owner: branchOwner,
+      ownerTrack: branchOwnerTrack,
       processMarkerDetected: hasProcessMode,
-      selectedPath,
-      ticketIds,
-      trackCode: metadata.trackCode || 'GENERAL',
+      selectedPath: policyPath.selectedPath,
+      ticketIds: policyPath.shouldRunPrChecks ? ticketIds : [],
+      trackCode: branchOwnerTrack || metadata.trackCode || 'GENERAL',
     }),
   );
 
-  if (hasPrMetadata) {
+  if (policyPath.shouldRunPrChecks) {
     runStep(
       'PR checklist and traceability checks',
       'npm',
@@ -156,17 +186,6 @@ if (scope === 'pr' || scope === 'all') {
       ],
       'npm run policy:approve',
     );
-  } else if (hasProcessMode) {
-    console.log(
-      'No ticket IDs found, but a process marker was detected. Running repo-wide policy checks instead.',
-    );
-    runStep(
-      'Repo-wide policy gate',
-      'npm',
-      ['run', 'policy:repo', '--', ...passThrough],
-      'npm run policy:repo',
-    );
-    ranRepoFallback = true;
   } else {
     console.log('No branch/commit ticket metadata found. Running repo-wide policy checks instead.');
     runStep(
@@ -189,6 +208,36 @@ if ((scope === 'repo' || scope === 'all') && !(scope === 'all' && ranRepoFallbac
     );
     contextPrepared = true;
   }
+
+  // We read the prepared metadata to report owner and mode info for repo scope runs.
+  const {
+    metadata,
+    branchOwner,
+    branchOwnerTrack,
+    branchTicketIds,
+    commitTicketIds,
+    hasProcessMode,
+    ticketIds,
+  } = resolvePolicyContext();
+  const auditMode = hasProcessMode
+    ? 'GENERAL_DOCS_PROCESS'
+    : ticketIds.length > 0
+      ? 'TICKET'
+      : 'GENERAL_DOCS_PROCESS';
+
+  console.log(
+    describePolicyResolution({
+      auditMode,
+      branchTicketIds,
+      commitTicketIds,
+      owner: branchOwner,
+      ownerTrack: branchOwnerTrack,
+      processMarkerDetected: hasProcessMode,
+      selectedPath: 'repo-wide validation',
+      ticketIds,
+      trackCode: branchOwnerTrack || metadata.trackCode || 'GENERAL',
+    }),
+  );
 
   // We execute repo-wide policies for deeper validation when specifically requested or on merge to main.
   runStep(
@@ -217,4 +266,4 @@ if ((scope === 'repo' || scope === 'all') && !(scope === 'all' && ranRepoFallbac
   }
 }
 
-console.log(`Policy gate completed in ${mode} mode for ${scope} scope.`);
+console.log(`${GATE_PASS} — Policy gate completed in ${mode} mode for ${scope} scope.`);

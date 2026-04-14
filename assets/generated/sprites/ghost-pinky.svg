@@ -1,0 +1,28 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" width="32" height="32">
+  <!--
+    Pinky Ghost (Pink)
+    Ambush ghost - tries to get ahead of player
+    Features: Pink body, coy/flirty expression, eyelashes
+  -->
+  <defs>
+    <linearGradient id="pinkyBody" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#ffc0cb"/>
+      <stop offset="100%" stop-color="#ff69b4"/>
+    </linearGradient>
+  </defs>
+  <!-- Ghost body with wavy bottom -->
+  <path d="M16 2 C8 2 2 8 2 16 L2 28 L6 26 L10 28 L14 26 L18 28 L22 26 L26 28 L30 26 L30 16 C30 8 24 2 16 2 Z" fill="url(#pinkyBody)"/>
+  <!-- Left eye -->
+  <ellipse cx="11" cy="14" rx="3.5" ry="4.5" fill="#ffffff"/>
+  <circle cx="12.5" cy="15" r="2" fill="#000033"/>
+  <circle cx="13" cy="14.5" r="0.8" fill="#ffffff"/>
+  <!-- Right eye -->
+  <ellipse cx="21" cy="14" rx="3.5" ry="4.5" fill="#ffffff"/>
+  <circle cx="22.5" cy="15" r="2" fill="#000033"/>
+  <circle cx="23" cy="14.5" r="0.8" fill="#ffffff"/>
+  <!-- Eyelashes (feminine/coy expression) -->
+  <path d="M7.5 10 Q8 8 9 9" fill="none" stroke="#000033" stroke-width="1.2" stroke-linecap="round"/>
+  <path d="M24.5 10 Q24 8 23 9" fill="none" stroke="#000033" stroke-width="1.2" stroke-linecap="round"/>
+  <!-- Small smile -->
+  <path d="M13 19 Q16 21 19 19" fill="none" stroke="#000033" stroke-width="1.2" stroke-linecap="round"/>
+</svg>

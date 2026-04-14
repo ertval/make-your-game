@@ -56,6 +56,100 @@ const IGNORED_DIRS = new Set([
 export const TICKET_ID_PATTERN = /\b([ABCD]-\d{2})\b/gi;
 export const EXPLICIT_TICKET_BRANCH_PATTERN = /^[A-Za-z0-9._-]+\/([ABCD]-\d{2})$/;
 
+// Owner-to-track mapping enforces that each developer only modifies files in their assigned track.
+// This prevents cross-track edits when a branch owner's ticket belongs to a different track.
+export const OWNER_TRACK_MAPPING = {
+  ekaramet: 'A',
+  asmyrogl: 'B',
+  chbaikas: 'C',
+  medvall: 'D',
+};
+
+/**
+ * Extract the owner (username) from a branch name.
+ * Branch format: <owner>/<TRACK>-<NN>, e.g. "ekaramet/A-03"
+ * @param {string} branchName — The full branch name.
+ * @returns {string} The owner string, or empty string if not parseable.
+ */
+export function extractOwnerFromBranch(branchName) {
+  const normalized = String(branchName || '').trim();
+  const slashIndex = normalized.indexOf('/');
+  if (slashIndex <= 0) {
+    return '';
+  }
+  return normalized.slice(0, slashIndex);
+}
+
+/**
+ * Resolve the mapped track for a branch owner, if one exists.
+ *
+ * @param {string} branchName — The full branch name (e.g. "ekaramet/A-03").
+ * @returns {string} The mapped track code (A/B/C/D) or empty string when not mapped.
+ */
+export function resolveOwnerTrackFromBranch(branchName) {
+  const owner = extractOwnerFromBranch(branchName);
+  if (!owner) {
+    return '';
+  }
+
+  return OWNER_TRACK_MAPPING[owner.toLowerCase()] || '';
+}
+
+/**
+ * Return all owners registered for a track code.
+ *
+ * @param {string} trackCode — Target track code.
+ * @returns {string[]} Sorted owner usernames.
+ */
+export function getOwnersForTrack(trackCode) {
+  const normalizedTrackCode = String(trackCode || '')
+    .trim()
+    .toUpperCase();
+  if (!normalizedTrackCode) {
+    return [];
+  }
+
+  return Object.entries(OWNER_TRACK_MAPPING)
+    .filter(([, mappedTrack]) => mappedTrack === normalizedTrackCode)
+    .map(([owner]) => owner)
+    .sort();
+}
+
+/**
+ * Validate that the branch owner's assigned track matches the ticket's track.
+ * Throws if the owner is mapped to a different track than the ticket specifies.
+ *
+ * @param {string} trackCode — The resolved track code from ticket IDs (e.g. 'A', 'B', 'C', 'D').
+ * @param {string} branchName — The full branch name (e.g. "ekaramet/A-03").
+ * @throws {Error} If owner-track mismatch detected.
+ */
+export function assertOwnerTrackMatch(trackCode, branchName) {
+  const owner = extractOwnerFromBranch(branchName);
+  if (!owner) {
+    // Cannot extract owner — skip validation (may be a shared or CI branch).
+    return;
+  }
+
+  const ownerTrack = OWNER_TRACK_MAPPING[owner.toLowerCase()];
+  if (!ownerTrack) {
+    // Owner not in mapping — skip validation (new dev or unregistered owner).
+    return;
+  }
+
+  const normalizedTrackCode = String(trackCode || '')
+    .trim()
+    .toUpperCase();
+  if (ownerTrack !== normalizedTrackCode) {
+    throw new Error(
+      [
+        `Owner-track mismatch: branch owner "${owner}" is assigned to Track ${ownerTrack},`,
+        `but the ticket resolves to Track ${normalizedTrackCode}.`,
+        `Action: Use a ticket from Track ${ownerTrack} on this branch, or use a branch owned by Track ${normalizedTrackCode}'s assigned owner.`,
+      ].join('\n'),
+    );
+  }
+}
+
 // Shared ownership paths are allowed across tracks to avoid false positives on governance/docs changes.
 export const SHARED_OWNERSHIP_PATTERNS = [
   '.gitignore',
@@ -185,7 +279,7 @@ export const TRACK_OWNERSHIP_RULES = {
       'tests/unit/components/visual.test.js',
       'tests/unit/components/renderable.test.js',
       'tests/unit/components/visual-state.test.js',
-      'tests/unit/ecs/render-intent.test.js',
+      'tests/unit/render-intent/render-intent.test.js',
       'tests/unit/systems/render-collect-system.test.js',
       'tests/unit/systems/render-dom-system.test.js',
       'tests/integration/adapters/renderer-adapter.test.js',
@@ -347,10 +441,55 @@ export function inferProcessModeFromSources(...sources) {
   return sources.some((source) => /\bprocess\b/i.test(String(source || '')));
 }
 
+/**
+ * Resolve whether PR-local checks should run, or if we must fallback to repo-wide checks.
+ *
+ * Rationale:
+ * - Process-marker branches still require `policy:checks` so process-scope violations are caught.
+ * - Repo fallback is only valid when there is neither ticket metadata nor process marker context.
+ *
+ * @param {object} options
+ * @param {string[]} [options.branchTicketIds=[]] — Ticket IDs inferred from branch name.
+ * @param {string[]} [options.commitTicketIds=[]] — Ticket IDs inferred from branch commits.
+ * @param {boolean} [options.hasProcessMode=false] — Whether process marker context is active.
+ * @returns {{hasPrMetadata: boolean, shouldRunPrChecks: boolean, auditMode: string, selectedPath: string}}
+ */
+export function resolvePrPolicyPath({
+  branchTicketIds = [],
+  commitTicketIds = [],
+  hasProcessMode = false,
+} = {}) {
+  const hasPrMetadata = branchTicketIds.length > 0 || commitTicketIds.length > 0;
+  const shouldRunPrChecks = hasPrMetadata || hasProcessMode;
+
+  if (shouldRunPrChecks) {
+    return {
+      hasPrMetadata,
+      shouldRunPrChecks,
+      auditMode: hasProcessMode ? 'GENERAL_DOCS_PROCESS' : 'TICKET',
+      selectedPath: hasProcessMode ? 'owner-scoped process checks' : 'PR ticket checks',
+    };
+  }
+
+  return {
+    hasPrMetadata,
+    shouldRunPrChecks,
+    auditMode: 'REPO_FALLBACK',
+    selectedPath: 'repo-wide fallback from missing ticket metadata',
+  };
+}
+
+// Visual markers make gate outcomes typographically scannable in CI and local logs.
+export const GATE_PASS = '✅ PASS';
+export const GATE_FAIL = '❌ FAIL';
+export const GATE_WARN = '⚠️  WARN';
+
 export function describePolicyResolution({
   auditMode,
   branchTicketIds = [],
   commitTicketIds = [],
+  owner = '',
+  ownerTrack = '',
   processMarkerDetected = false,
   selectedPath = '',
   ticketIds = [],
@@ -364,10 +503,12 @@ export function describePolicyResolution({
     'Policy checks resolved',
     `mode=${auditMode || (normalizedTicketIds.length > 0 ? 'TICKET' : 'GENERAL_DOCS_PROCESS')}`,
     `path=${selectedPath || (normalizedTicketIds.length > 0 ? 'ticketed checks' : 'fallback checks')}`,
-    `track=${normalizedTicketIds.length > 0 ? trackCode : 'GENERAL'}`,
+    `track=${trackCode || 'GENERAL'}`,
     `tickets=${normalizedTicketIds.length > 0 ? normalizedTicketIds.join(', ') : '(none)'}`,
     `branchTickets=${normalizedBranchTicketIds.length > 0 ? normalizedBranchTicketIds.join(', ') : '(none)'}`,
     `commitTickets=${normalizedCommitTicketIds.length > 0 ? normalizedCommitTicketIds.join(', ') : '(none)'}`,
+    `branchOwner=${owner || '(none)'}`,
+    `ownerTrack=${ownerTrack || '(none)'}`,
     `processMarker=${processMarkerDetected ? 'true' : 'false'}`,
   ].join('; ');
 }
@@ -458,8 +599,18 @@ export function runCommand(command, commandArgs, options = {}) {
     const spawnError = result.error ? String(result.error.message || result.error) : '';
     const stderr = (result.stderr || '').trim();
     const stdout = (result.stdout || '').trim();
-    const detail = spawnError || stderr || stdout;
-    throw new Error(`${command} ${commandArgs.join(' ')} failed${detail ? `: ${detail}` : ''}`);
+    const exitStatus = Number.isInteger(result.status) ? String(result.status) : '';
+    const inheritedOutputHint =
+      options.stdio === 'inherit' ? 'Command output was streamed above (stdio=inherit).' : '';
+    const detail = spawnError || stderr || stdout || inheritedOutputHint || 'No output';
+    throw new Error(
+      [
+        `Command execution failed: ${command} ${commandArgs.join(' ')}`,
+        `Details: ${detail}`,
+        `Exit status: ${exitStatus || 'unknown'}`,
+        'Action: Review the command details above to determine the cause of the failure.',
+      ].join('\n'),
+    );
   }
 
   return result.stdout || '';

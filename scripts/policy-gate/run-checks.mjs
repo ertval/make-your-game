@@ -8,10 +8,15 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import {
+  assertOwnerTrackMatch,
   describePolicyResolution,
   EXPLICIT_TICKET_BRANCH_PATTERN,
+  extractOwnerFromBranch,
   extractTicketIdFromBranchName,
   findOwnershipViolations,
+  GATE_PASS,
+  GATE_WARN,
+  getOwnersForTrack,
   inferProcessModeFromSources,
   inferTicketIdsFromSources,
   inferTracksFromTicketIds,
@@ -21,6 +26,7 @@ import {
   readLines,
   readText,
   readTicketIdsFromTracker,
+  resolveOwnerTrackFromBranch,
   SHARED_OWNERSHIP_PATTERNS,
   sortTicketIds,
   TRACK_OWNERSHIP_RULES,
@@ -38,24 +44,16 @@ if (!validCheckSets.has(checkSet)) {
 
 const meta = fs.existsSync(metaPath) ? readJson(metaPath) : {};
 const changedFiles = readLines(changedPath);
+const branchName = meta.branchName || '';
+const branchOwner = extractOwnerFromBranch(branchName);
+const branchOwnerTrack = resolveOwnerTrackFromBranch(branchName);
 const processMode =
   Boolean(meta.processMode) ||
-  inferProcessModeFromSources(meta.branchName || '', meta.commitMessages || '', meta.body || '');
-
-const PROCESS_SCOPE_PATTERNS = [
-  'AGENTS.md',
-  'README.md',
-  '.github/**',
-  '.gitea/**',
-  'docs/**',
-  'scripts/policy-gate/**',
-  'changed-files.txt',
-];
+  inferProcessModeFromSources(branchName, meta.commitMessages || '', meta.body || '');
 
 // Ticket context resolution prioritizes explicit CLI and branch ticket IDs to keep checks deterministic.
 function deriveTicketContext() {
   // Extract and merge ticket IDs from branch name, commit messages, CLI args, and meta JSON.
-  const branchName = meta.branchName || '';
   const requireBranchTicket = String(args['require-branch-ticket'] || 'false') === 'true';
   const explicitTicketIds = inferTicketIdsFromSources(
     args['ticket-id'] || '',
@@ -90,6 +88,7 @@ function deriveTicketContext() {
         `Branch "${branchName}" does not follow the required ticket format.`,
         'Expected: <owner-or-scope>/<TRACK>-<NN>, for example ekaramet/A-03.',
         'Allowed track prefixes: A, B, C, D.',
+        'Action: Rename your branch using the format <owner-or-scope>/<TRACK>-<NN> (e.g., git branch -m new-branch-name).',
       ].join('\n'),
     );
   }
@@ -106,6 +105,18 @@ function deriveTicketContext() {
 function assertTicketAssociation() {
   const context = deriveTicketContext();
 
+  function createProcessFallback(message, originalTicketIds = []) {
+    console.warn(`\n${GATE_WARN} — POLICY WARNING: ${message}\n`);
+    return {
+      branchTicketIds: context.branchTicketIds,
+      commitTicketIds: context.commitTicketIds,
+      ticketIds: originalTicketIds,
+      trackCode: 'GENERAL',
+      processMode: true,
+      processMarkerDetected: true,
+    };
+  }
+
   if (context.ticketIds.length === 0 && !processMode) {
     throw new Error(
       [
@@ -117,8 +128,9 @@ function assertTicketAssociation() {
   }
 
   if (context.ticketIds.length === 0 && processMode) {
-    console.warn(
-      'No ticket ID found in branch or commit metadata. Continuing because a process marker was detected.',
+    return createProcessFallback(
+      'No ticket ID found in branch or commit metadata. Continuing because a "process" marker was detected.',
+      [],
     );
   }
 
@@ -131,6 +143,23 @@ function assertTicketAssociation() {
   }
 
   if (context.trackCodes.length !== 1) {
+    if (processMode) {
+      return createProcessFallback(
+        [
+          'Track Association Conflict Detected.',
+          `The branch contains ticket IDs from multiple tracks: ${context.trackCodes.join(', ')}.`,
+          'Normally, this would require splitting the branch into track-specific PRs.',
+          '',
+          'PROCEEDING IN OWNER-SCOPED PROCESS MODE:',
+          'A "process" marker was detected, so the gate will allow this ticket-track conflict but will still',
+          'enforce changed-file ownership against the branch owner track.',
+          '',
+          `Detected ticket IDs: ${context.ticketIds.join(', ')}`,
+        ].join('\n'),
+        context.ticketIds,
+      );
+    }
+
     throw new Error(
       [
         `Ticket IDs resolve to ${context.trackCodes.length} tracks: ${context.trackCodes.join(', ') || '(none)'}.`,
@@ -149,6 +178,16 @@ function assertTicketAssociation() {
     const knownSet = new Set(resolvedTicketIds);
     const unknownTicketIds = context.ticketIds.filter((ticketId) => !knownSet.has(ticketId));
     if (unknownTicketIds.length > 0) {
+      if (processMode) {
+        return createProcessFallback(
+          [
+            'Process marker detected with non-resolvable ticket IDs; continuing in GENERAL_DOCS_PROCESS mode.',
+            `Unknown ticket IDs in tracker: ${unknownTicketIds.join(', ')}.`,
+            `Detected ticket IDs: ${context.ticketIds.join(', ')}.`,
+          ].join('\n'),
+        );
+      }
+
       throw new Error(
         [
           `Detected ticket IDs are not present in ${trackerPath}: ${unknownTicketIds.join(', ')}.`,
@@ -158,7 +197,7 @@ function assertTicketAssociation() {
       );
     }
   } else {
-    console.warn(`Ticket list has no discoverable ticket IDs in ${trackerPath}.`);
+    console.warn(`${GATE_WARN} — Ticket list has no discoverable ticket IDs in ${trackerPath}.`);
   }
 
   return {
@@ -171,70 +210,104 @@ function assertTicketAssociation() {
   };
 }
 
-// Process branches are intentionally constrained to governance/doc surfaces to protect product-code integrity.
-function assertProcessScope() {
-  // Filter changed files against the allowed docs/process/governance path patterns.
-  const violations = changedFiles.filter((file) => !matchesOwnership(file, PROCESS_SCOPE_PATTERNS));
-
-  if (violations.length === 0) {
-    console.log(`Process-scope check passed (${changedFiles.length} changed file(s)).`);
-    return;
+function describeFileOwnership(file) {
+  const actualTracks = [];
+  if (matchesOwnership(file, SHARED_OWNERSHIP_PATTERNS)) {
+    actualTracks.push('Shared');
+  } else {
+    for (const [key, rule] of Object.entries(TRACK_OWNERSHIP_RULES)) {
+      const rules = [...(rule.patterns || []), ...(rule.testPatterns || [])];
+      if (matchesOwnership(file, rules)) {
+        const owners = getOwnersForTrack(key);
+        const ownerLabel = owners.length > 0 ? owners.join(', ') : 'unassigned';
+        actualTracks.push(`Track ${key} (owner: ${ownerLabel})`);
+      }
+    }
   }
 
-  throw new Error(
-    [
-      'GENERAL_DOCS_PROCESS scope violation.',
-      'The following changed files are outside allowed docs/process/governance areas:',
-      ...violations.map((file) => `- ${file}`),
-      `Allowed path patterns: ${PROCESS_SCOPE_PATTERNS.join(', ')}`,
-      'Action: remove product/runtime changes from the process branch or move them to a ticketed branch.',
-    ].join('\n'),
-  );
+  return actualTracks.length > 0 ? actualTracks.join(', ') : 'Unknown Track';
+}
+
+function formatOwnershipViolations(violations) {
+  return violations.map((file) => `- ${file} (Belongs to: ${describeFileOwnership(file)})`);
 }
 
 // Ownership enforcement uses path patterns instead of AST analysis to keep policy checks lightweight.
 function assertTrackOwnership(trackCode, ticketIds) {
   if (changedFiles.length === 0) {
     console.warn(
-      'No changed files found in changed-files context. Skipping ownership path validation.',
+      `${GATE_WARN} — No changed files found in changed-files context. Skipping ownership path validation.`,
     );
     return;
   }
 
+  // Validate that the branch owner is authorized for this track.
+  const branchName = meta.branchName || '';
+  assertOwnerTrackMatch(trackCode, branchName);
+
   const result = findOwnershipViolations(trackCode, changedFiles);
   if (result.violations.length === 0) {
     console.log(
-      `Ownership check passed for track ${trackCode} from tickets ${ticketIds.join(', ')} (${changedFiles.length} changed file(s)).`,
+      `${GATE_PASS} — Ownership check for track ${trackCode} from tickets ${ticketIds.join(', ')} (${changedFiles.length} changed file(s)).`,
     );
     return;
   }
 
   const allowedSummary = result.allowedPatterns.join(', ');
 
-  const formattedViolations = result.violations.map((file) => {
-    const actualTracks = [];
-    if (matchesOwnership(file, SHARED_OWNERSHIP_PATTERNS)) {
-      actualTracks.push('Shared');
-    } else {
-      for (const [key, rule] of Object.entries(TRACK_OWNERSHIP_RULES)) {
-        const rules = [...(rule.patterns || []), ...(rule.testPatterns || [])];
-        if (matchesOwnership(file, rules)) {
-          actualTracks.push(`Track ${key}`);
-        }
-      }
-    }
-    const ownershipInfo = actualTracks.length > 0 ? actualTracks.join(', ') : 'Unknown Track';
-    return `- ${file} (Belongs to: ${ownershipInfo})`;
-  });
-
   throw new Error(
     [
       `Ownership violation for ${result.trackName || `Track ${trackCode}`}.`,
       `Tickets: ${ticketIds.join(', ')}.`,
       'The following changed files are outside allowed ownership patterns for the current track:',
-      ...formattedViolations,
+      ...formatOwnershipViolations(result.violations),
       `Allowed path patterns for this track: ${allowedSummary}`,
       'Action: move out-of-scope file changes to the correct track branch, or use a ticket that matches the modified ownership area.',
+    ].join('\n'),
+  );
+}
+
+function assertOwnerScopedOwnership(ticketIds) {
+  if (!branchOwner) {
+    throw new Error(
+      [
+        'GENERAL_DOCS_PROCESS ownership validation failed: unable to infer branch owner.',
+        `Branch name: "${branchName || '(empty)'}"`,
+        'Expected branch format: <owner>/<slug-or-ticket>.',
+        'Action: rename the branch so the owner prefix is present (for example: ekaramet/process-audit-fixes).',
+      ].join('\n'),
+    );
+  }
+
+  if (!branchOwnerTrack) {
+    throw new Error(
+      [
+        'GENERAL_DOCS_PROCESS ownership validation failed: branch owner is not registered.',
+        `Branch owner: "${branchOwner}"`,
+        'Action: add the owner to OWNER_TRACK_MAPPING in scripts/policy-gate/lib/policy-utils.mjs so ownership checks can resolve a track.',
+      ].join('\n'),
+    );
+  }
+
+  const result = findOwnershipViolations(branchOwnerTrack, changedFiles);
+  if (result.violations.length === 0) {
+    console.log(
+      `${GATE_PASS} — Owner-scoped ownership check for ${branchOwner} (Track ${branchOwnerTrack}) with ${changedFiles.length} changed file(s).`,
+    );
+    return;
+  }
+
+  const owners = getOwnersForTrack(branchOwnerTrack);
+  const ownerList = owners.length > 0 ? owners.join(', ') : branchOwner;
+  throw new Error(
+    [
+      `GENERAL_DOCS_PROCESS ownership violation for branch owner "${branchOwner}" (Track ${branchOwnerTrack}).`,
+      `Owner track maintainers: ${ownerList}.`,
+      `Context ticket IDs (informational): ${ticketIds.length > 0 ? ticketIds.join(', ') : '(none)'}.`,
+      'The following changed files are outside allowed ownership patterns for this owner track:',
+      ...formatOwnershipViolations(result.violations),
+      `Allowed path patterns for Track ${branchOwnerTrack}: ${result.allowedPatterns.join(', ')}`,
+      `Action: keep changes within Track ${branchOwnerTrack} ownership, or use a branch owned by the matching track owner.`,
     ].join('\n'),
   );
 }
@@ -242,7 +315,12 @@ function assertTrackOwnership(trackCode, ticketIds) {
 // Canonical ranges guard against matrix drift when requirement/audit IDs are edited manually.
 function buildIdRange(prefix, start, end) {
   if (!Number.isFinite(start) || !Number.isFinite(end) || start <= 0 || end <= 0 || end < start) {
-    throw new Error(`Invalid ID range for ${prefix}: ${start}..${end}`);
+    throw new Error(
+      [
+        `Invalid ID range for ${prefix}: ${start}..${end}.`,
+        'Action: Check the numeric bounds provided to buildIdRange.',
+      ].join('\n'),
+    );
   }
 
   return Array.from({ length: end - start + 1 }, (_, offset) => {
@@ -258,7 +336,10 @@ function collectExpectedRequirementIds(matrixText) {
   const { requirementIds } = collectMatrixTraceabilityIds(matrixText);
   if (requirementIds.length === 0) {
     throw new Error(
-      'Unable to derive requirement IDs from docs/implementation/audit-traceability-matrix.md. Add explicit REQ-xx rows there.',
+      [
+        'Unable to derive requirement IDs from docs/implementation/audit-traceability-matrix.md.',
+        'Action: Add explicit REQ-xx rows to the traceability matrix table.',
+      ].join('\n'),
     );
   }
 
@@ -269,14 +350,22 @@ function collectExpectedRequirementIds(matrixText) {
 
   if (requirementIds.length !== contiguousIds.length) {
     throw new Error(
-      'Requirement IDs in docs/implementation/audit-traceability-matrix.md must be contiguous REQ-xx rows without gaps.',
+      [
+        'Requirement IDs in docs/implementation/audit-traceability-matrix.md must be contiguous REQ-xx rows without gaps.',
+        `Detected gap in range from ${min} to ${max}.`,
+        'Action: Review the bounds and ensure every REQ-xx id is present in the document sequentially.',
+      ].join('\n'),
     );
   }
 
   for (let index = 0; index < requirementIds.length; index += 1) {
     if (requirementIds[index] !== contiguousIds[index]) {
       throw new Error(
-        'Requirement IDs in docs/implementation/audit-traceability-matrix.md must be ordered and gap-free.',
+        [
+          'Requirement IDs in docs/implementation/audit-traceability-matrix.md must be ordered and gap-free.',
+          `Mismatched sequence at position ${index}: expected ${contiguousIds[index]}, found ${requirementIds[index]}.`,
+          'Action: Sort the requirement IDs in ascending order without gaps.',
+        ].join('\n'),
       );
     }
   }
@@ -317,7 +406,10 @@ function collectExpectedAuditIds(auditText) {
 
   if (functionalCount === 0 && bonusCount === 0) {
     throw new Error(
-      'Unable to derive audit IDs from docs/audit.md. Add explicit AUDIT IDs or keep canonical functional/bonus question headings.',
+      [
+        'Unable to derive audit IDs from docs/audit.md.',
+        'Action: Add explicit AUDIT IDs or keep canonical functional/bonus question headings.',
+      ].join('\n'),
     );
   }
 
@@ -394,7 +486,13 @@ function verifyTraceabilityCoverage() {
   }
 
   if (mismatches.length > 0) {
-    throw new Error(mismatches.join('\n'));
+    throw new Error(
+      [
+        'Traceability matrix coverage violation:',
+        ...mismatches,
+        'Action: Synchronize docs/implementation/audit-traceability-matrix.md with docs/audit.md to ensure all requirements and audits are mapped correctly.',
+      ].join('\n'),
+    );
   }
 }
 
@@ -426,12 +524,22 @@ function enforceAuditAndDependencyPairing() {
   const packageJsonChanged = has('package.json');
   const packageLockChanged = has('package-lock.json');
   if (!packageJsonChanged && packageLockChanged) {
-    throw new Error('package.json and package-lock.json must change together.');
+    throw new Error(
+      [
+        'package.json and package-lock.json must change together.',
+        'Action: If you updated package-lock.json manually, ensure package.json reflects the matching changes or revert it.',
+      ].join('\n'),
+    );
   }
 
   if (packageJsonChanged && !packageLockChanged) {
     if (!fs.existsSync('package-lock.json')) {
-      throw new Error('package-lock.json is required when package.json is present.');
+      throw new Error(
+        [
+          'package-lock.json is required when package.json is present.',
+          'Action: Run `npm install` and commit the generated package-lock.json.',
+        ].join('\n'),
+      );
     }
 
     const packageJson = readJson('package.json');
@@ -449,7 +557,11 @@ function enforceAuditAndDependencyPairing() {
 
     if (dependencyMismatch) {
       throw new Error(
-        'Dependency manifest changed without synchronized package-lock.json updates.',
+        [
+          'Dependency manifest drift detected.',
+          'File package.json changed without synchronized package-lock.json updates.',
+          'Action: Run `npm install` to update package-lock.json and commit the result.',
+        ].join('\n'),
       );
     }
   }
@@ -472,7 +584,11 @@ function enforceAuditAndDependencyPairing() {
     }
     if (required.length) {
       throw new Error(
-        `Audit-related changes must update the following paths in the same PR: ${required.join(', ')}`,
+        [
+          'Audit-related doc or test drift violation.',
+          `The active branch changed audit docs/tests, which requires coordinated updates on the following paths: ${required.join(', ')}`,
+          'Action: Include changes to all required audit or traceability files in the same branch to keep validation synchronized.',
+        ].join('\n'),
       );
     }
   }
@@ -487,7 +603,11 @@ function enforceAuditAndDependencyPairing() {
 
   if (auditCount !== auditIds || auditIds !== uniqueAuditIds) {
     throw new Error(
-      `Audit inventory mismatch: docs/audit.md has ${auditCount} questions, audit map has ${auditIds} IDs, unique IDs ${uniqueAuditIds}.`,
+      [
+        'Audit inventory mismatch between docs/audit.md and tests/e2e/audit/audit-question-map.js.',
+        `Details: docs/audit.md has ${auditCount} questions. audit-question-map.js has ${auditIds} IDs (unique: ${uniqueAuditIds}).`,
+        'Action: Ensure every question in docs/audit.md has an entry in tests/e2e/audit/audit-question-map.js and IDs are unique.',
+      ].join('\n'),
     );
   }
 }
@@ -552,7 +672,12 @@ function scanSecurityAndArchitectureBoundaries() {
         'jquery',
       ]) {
         if (deps[banned]) {
-          throw new Error(`Banned framework dependency detected in package.json: ${banned}`);
+          throw new Error(
+            [
+              `Banned framework dependency detected in package.json: ${banned}.`,
+              'Action: Remove the framework dependency to comply with project constraints (Vanilla DOM/ECS).',
+            ].join('\n'),
+          );
         }
       }
 
@@ -579,20 +704,38 @@ function scanSecurityAndArchitectureBoundaries() {
     // Reject any unsafe sinks unconditionally across all source files.
     for (const pattern of unsafeSinks) {
       if (pattern.test(content)) {
-        throw new Error(`Unsafe sink or forbidden API found in ${file}: ${pattern}`);
+        throw new Error(
+          [
+            `Unsafe sink or forbidden API found in file: ${file}`,
+            `Matched pattern: ${pattern}`,
+            'Action: Use safe DOM APIs (e.g., textContent, classList) or predefined abstractions instead of innerHTML/eval.',
+          ].join('\n'),
+        );
       }
     }
 
     for (const pattern of frameworkImports) {
       if (pattern.test(content)) {
-        throw new Error(`Framework or CommonJS import found in ${file}: ${pattern}`);
+        throw new Error(
+          [
+            `Framework or CommonJS import found in file: ${file}`,
+            `Matched pattern: ${pattern}`,
+            'Action: Use Vanilla ESM imports syntax only. Frameworks are forbidden.',
+          ].join('\n'),
+        );
       }
     }
 
     if (isSystemFile && !isRenderSystem) {
       for (const pattern of domAPIs) {
         if (pattern.test(content)) {
-          throw new Error(`DOM boundary violation in ECS system file ${file}: ${pattern}`);
+          throw new Error(
+            [
+              `DOM boundary violation in ECS system file: ${file}`,
+              `Matched pattern: ${pattern}`,
+              'Action: DO NOT mutate DOM in simulation systems. Move DOM logic to an adapter or src/ecs/systems/render-dom-system.js.',
+            ].join('\n'),
+          );
         }
       }
     }
@@ -607,25 +750,30 @@ if (checkSet === 'repo' || checkSet === 'all') {
 
 if (checkSet === 'pr' || checkSet === 'all') {
   const ticketContext = assertTicketAssociation();
+  const effectiveTrack = ticketContext.processMode
+    ? branchOwnerTrack || ticketContext.trackCode
+    : ticketContext.trackCode;
   console.log(
     describePolicyResolution({
       auditMode: ticketContext.processMode ? 'GENERAL_DOCS_PROCESS' : 'TICKET',
       branchTicketIds: ticketContext.branchTicketIds,
       commitTicketIds: ticketContext.commitTicketIds,
+      owner: branchOwner,
+      ownerTrack: branchOwnerTrack,
       processMarkerDetected: ticketContext.processMarkerDetected,
       selectedPath: ticketContext.processMode
-        ? 'process-marker fallback'
+        ? 'owner-scoped process checks'
         : 'ticketed ownership checks',
       ticketIds: ticketContext.ticketIds,
-      trackCode: ticketContext.trackCode,
+      trackCode: effectiveTrack,
     }),
   );
   if (ticketContext.processMode) {
-    assertProcessScope();
+    assertOwnerScopedOwnership(ticketContext.ticketIds);
   } else {
     assertTrackOwnership(ticketContext.trackCode, ticketContext.ticketIds);
   }
   scanSecurityAndArchitectureBoundaries();
 }
 
-console.log(`Policy checks completed successfully for ${checkSet} checks.`);
+console.log(`${GATE_PASS} — Policy checks completed for ${checkSet} checks.`);
