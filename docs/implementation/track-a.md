@@ -2,7 +2,7 @@
 
 Source plan: `docs/implementation/implementation-plan.md` (Section 3)
 
-> **Scope**: Project scaffolding, ECS internals (World, Entity Store, Queries), game flow orchestration (`game/` folder, including `level-loader.js` orchestration), game loop, CI/schema wiring, **ALL testing** (unit, integration, e2e, audit), QA, polish, and evidence aggregation. Track A has global ownership of `tests/**`; Tracks B/C/D may also modify scoped tests that map to files they own. **Does NOT own** resource definitions (`constants`, `clock`, `rng`, `event-queue`, `game-status`) or map schemas/raw map assets — those are owned by Track D.
+> **Scope**: Project scaffolding, ECS internals (World, Entity Store, Queries), game flow orchestration (`game/` folder, including `level-loader.js` orchestration), game loop, CI/schema wiring, **ALL testing** (unit, integration, e2e, audit), QA, polish, and evidence aggregation. Track A has global ownership of `tests/**` and QA gates. Tracks B/C/D also own scoped tests for their owned implementation files and may modify those tests. **Does NOT own** resource definitions (`constants`, `clock`, `rng`, `event-queue`, `game-status`) or map schemas/raw map assets — those are owned by Track D.
 > **Execution model**: Prototype-first delivery for fastest visual feedback, then playable MVP, feature depth, and hardening.
 
 ## Phase Order (Prototype-First)

@@ -66,7 +66,7 @@ export const FORBIDDEN_TECH_RULES = Object.freeze([
   { name: 'canvas createElement', pattern: /createElement\s*\(\s*['"]canvas['"]\s*\)/i },
   {
     name: 'framework import',
-    pattern: /from\s+['"](?:react|vue|angular|svelte|phaser|pixi\.js|three|jquery)['"]/, 
+    pattern: /from\s+['"](?:react|vue|angular|svelte|phaser|pixi\.js|three|jquery)['"]/,
   },
   {
     name: 'framework require',
@@ -220,13 +220,15 @@ export const SHARED_OWNERSHIP_PATTERNS = [
   'README.md',
   'LICENSE',
   '.github/**',
-  '.gitea/**',
   'docs/**',
   'styles/base.css',
   'package-lock.json',
   '**/.gitkeep',
 ];
 
+// Track ownership is dual-layer for tests:
+// - Track A has global QA ownership over tests/**.
+// - Tracks B/C/D own scoped tests that validate their owned implementation files.
 export const TRACK_OWNERSHIP_RULES = {
   A: {
     name: 'Track A (Engine/CI/Testing)',
@@ -258,6 +260,12 @@ export const TRACK_OWNERSHIP_RULES = {
       'src/ecs/components/visual.js',
       'src/adapters/io/input-adapter.js',
       'src/ecs/systems/input-system.js',
+      'src/ecs/systems/player-move-*.js',
+      'src/ecs/systems/collision-*.js',
+      'src/ecs/systems/bomb-*.js',
+      'src/ecs/systems/explosion-*.js',
+      'src/ecs/systems/power-up-*.js',
+      'src/ecs/systems/ghost-ai-*.js',
     ],
     testPatterns: [
       'tests/unit/components/registry.test.js',
@@ -267,12 +275,29 @@ export const TRACK_OWNERSHIP_RULES = {
       'tests/unit/components/stats.test.js',
       'tests/unit/components/visual.test.js',
       'tests/unit/systems/input-system.test.js',
+      'tests/unit/systems/player-*.test.js',
+      'tests/unit/systems/collision-*.test.js',
+      'tests/unit/systems/bomb-*.test.js',
+      'tests/unit/systems/explosion-*.test.js',
+      'tests/unit/systems/power-up-*.test.js',
+      'tests/unit/systems/ghost-ai-*.test.js',
       'tests/integration/adapters/input-adapter.test.js',
+      'tests/integration/gameplay/b-*.test.js',
     ],
   },
   C: {
     name: 'Track C (Gameplay Feedback + Audio)',
     patterns: [
+      'src/ecs/systems/scoring-*.js',
+      'src/ecs/systems/timer-*.js',
+      'src/ecs/systems/life-*.js',
+      'src/ecs/systems/spawn-*.js',
+      'src/ecs/systems/pause-*.js',
+      'src/ecs/systems/level-progress-*.js',
+      'src/adapters/dom/hud-*.js',
+      'src/adapters/dom/screens-*.js',
+      'src/adapters/io/storage-*.js',
+      'src/adapters/io/audio-*.js',
       'src/adapters/dom/**',
       'assets/generated/sfx/**',
       'assets/generated/music/**',
@@ -281,7 +306,18 @@ export const TRACK_OWNERSHIP_RULES = {
       'docs/schemas/audio-manifest.schema.json',
     ],
     testPatterns: [
+      'tests/unit/systems/scoring-*.test.js',
+      'tests/unit/systems/timer-*.test.js',
+      'tests/unit/systems/life-*.test.js',
+      'tests/unit/systems/spawn-*.test.js',
+      'tests/unit/systems/pause-*.test.js',
+      'tests/unit/systems/level-progress-*.test.js',
+      'tests/integration/adapters/hud-*.test.js',
+      'tests/integration/adapters/screens-*.test.js',
+      'tests/integration/adapters/storage-*.test.js',
+      'tests/integration/adapters/audio-*.test.js',
       'tests/integration/gameplay/c-*.test.js',
+      'tests/e2e/c-*.spec.js',
     ],
   },
   D: {
@@ -290,6 +326,9 @@ export const TRACK_OWNERSHIP_RULES = {
       'src/ecs/resources/**',
       'src/ecs/components/visual.js',
       'src/ecs/render-intent.js',
+      'src/ecs/systems/render-*.js',
+      'src/adapters/dom/renderer-*.js',
+      'src/adapters/dom/sprite-pool-*.js',
       'styles/**',
       'assets/maps/**',
       'assets/generated/sprites/**',
@@ -304,6 +343,9 @@ export const TRACK_OWNERSHIP_RULES = {
       'tests/unit/schema/map-schema.test.js',
       'tests/unit/components/visual.test.js',
       'tests/unit/render-intent/render-intent.test.js',
+      'tests/unit/systems/render-*.test.js',
+      'tests/integration/adapters/renderer-*.test.js',
+      'tests/integration/adapters/sprite-pool-*.test.js',
       'tests/integration/gameplay/d-*.test.js',
     ],
   },

@@ -15,7 +15,7 @@ This directory contains scripts used to enforce project policies via `npm run po
   - Traceability mapping, lockfile syncs, audit-map consistency, and documentation coverage constraints.
 - **`check-forbidden.mjs`**: Scans the codebase or specifically the changed files for forbidden imports (frameworks) or APIs (HTML5 canvas elements inside JS context constraints) based on the AGENTS.md rules.
 - **`check-source-headers.mjs`**: Ensures that critical source files contain a top-of-file block comment for documentation and ownership clarity.
-- **`require-approval.mjs`**: Enforces human review by reaching out to the remote platform API (e.g. GitHub/Gitea) using available tokens. Fails if independent approval is required but lacking. Falls back to letting the platform's branch protection logic handle approvals if no token exists.
+- **`require-approval.mjs`**: Enforces human review by reaching out to the GitHub PR review API when approval enforcement is enabled. Fails if independent approval is required but lacking. Falls back to letting branch protection handle approvals when approval enforcement is disabled.
 
 ## Libraries
 

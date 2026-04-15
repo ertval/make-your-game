@@ -5,9 +5,9 @@
  * Implementation Notes: Employs strict string checks and regex heuristics for DOM and Framework boundaries.
  */
 
+import { spawnSync } from 'node:child_process';
 import fs from 'node:fs';
 import path from 'node:path';
-import { spawnSync } from 'node:child_process';
 import { pathToFileURL } from 'node:url';
 import {
   assertOwnerTrackMatch,
@@ -18,8 +18,8 @@ import {
   EXPLICIT_TICKET_BRANCH_PATTERN,
   extractOwnerFromBranch,
   extractTicketIdFromBranchName,
-  findOwnershipViolations,
   FORBIDDEN_TECH_RULES,
+  findOwnershipViolations,
   GATE_PASS,
   GATE_WARN,
   getOwnersForTrack,
@@ -52,6 +52,7 @@ if (!validCheckSets.has(checkSet)) {
 
 const meta = fs.existsSync(metaPath) ? readJson(metaPath) : {};
 const changedFiles = readLines(changedPath);
+const existingChangedFiles = changedFiles.filter((file) => fs.existsSync(file));
 const branchName = meta.branchName || '';
 const branchOwner = extractOwnerFromBranch(branchName);
 const branchOwnerTrack = resolveOwnerTrackFromBranch(branchName);
@@ -234,7 +235,7 @@ function formatOwnershipViolations(violations) {
 
 // Ownership enforcement uses path patterns instead of AST analysis to keep policy checks lightweight.
 function assertTrackOwnership(trackCode, ticketIds) {
-  if (changedFiles.length === 0) {
+  if (existingChangedFiles.length === 0) {
     console.warn(
       `${GATE_WARN} — No changed files found in changed-files context. Skipping ownership path validation.`,
     );
@@ -245,10 +246,10 @@ function assertTrackOwnership(trackCode, ticketIds) {
   const branchName = meta.branchName || '';
   assertOwnerTrackMatch(trackCode, branchName);
 
-  const result = findOwnershipViolations(trackCode, changedFiles);
+  const result = findOwnershipViolations(trackCode, existingChangedFiles);
   if (result.violations.length === 0) {
     console.log(
-      `${GATE_PASS} — Ownership check for track ${trackCode} from tickets ${ticketIds.join(', ')} (${changedFiles.length} changed file(s)).`,
+      `${GATE_PASS} — Ownership check for track ${trackCode} from tickets ${ticketIds.join(', ')} (${existingChangedFiles.length} existing changed file(s)).`,
     );
     return;
   }
@@ -289,10 +290,10 @@ function assertOwnerScopedOwnership(ticketIds) {
     );
   }
 
-  const result = findOwnershipViolations(branchOwnerTrack, changedFiles);
+  const result = findOwnershipViolations(branchOwnerTrack, existingChangedFiles);
   if (result.violations.length === 0) {
     console.log(
-      `${GATE_PASS} — Owner-scoped ownership check for ${branchOwner} (Track ${branchOwnerTrack}) with ${changedFiles.length} changed file(s).`,
+      `${GATE_PASS} — Owner-scoped ownership check for ${branchOwner} (Track ${branchOwnerTrack}) with ${existingChangedFiles.length} existing changed file(s).`,
     );
     return;
   }

@@ -27,7 +27,6 @@ jobs:
     env:
       EVENT_PATH: ${{ github.event_path }}
       CI_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      GITEA_TOKEN: ${{ secrets.GITEA_TOKEN }}
       POLICY_HEADER_MODE: fail
     steps:
       - name: Checkout repository
@@ -66,7 +65,7 @@ jobs:
           set -euo pipefail
           node scripts/policy-gate/check-forbidden.mjs --scope=repo
 
-      - name: Run Policy Gate (CI Fail-Closed)
+      - name: Run Policy Gate (CI)
         run: |
           set -euo pipefail
           npm run policy -- --mode=ci --scope=all --require-approval=false

@@ -29,7 +29,9 @@ const forbiddenPatterns = [...FORBIDDEN_TECH_RULES, ...SECURITY_SINK_RULES];
 const files =
   scope === 'changed'
     ? // We conditionally filter out deleted files by checking `existsSync` so we don't try to read paths that no longer exist.
-      readLines(changedPath).filter((file) => SECURITY_SOURCE_PATTERN.test(file) && fs.existsSync(file))
+      readLines(changedPath).filter(
+        (file) => SECURITY_SOURCE_PATTERN.test(file) && fs.existsSync(file),
+      )
     : walkFiles(process.cwd(), (file) => SECURITY_SOURCE_PATTERN.test(file));
 
 const violations = [];

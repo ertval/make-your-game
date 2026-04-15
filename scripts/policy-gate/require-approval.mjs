@@ -15,13 +15,7 @@ const ciMode = toBool(args['ci-mode'], toBool(process.env.CI, false));
 
 function failOrSkip(reason, action) {
   if (requireApproval && ciMode) {
-    throw new Error(
-      [
-        'Approval verification failed closed in CI.',
-        reason,
-        action,
-      ].join('\n'),
-    );
+    throw new Error(['Approval verification failed closed in CI.', reason, action].join('\n'));
   }
 
   console.log(reason);

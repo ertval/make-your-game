@@ -251,7 +251,12 @@ if ((scope === 'repo' || scope === 'all') && !(scope === 'all' && ranRepoFallbac
   runStep(
     'Repo-wide source-header scan',
     'node',
-    ['scripts/policy-gate/check-source-headers.mjs', '--scope=repo', ...headerModeArgs, ...passThrough],
+    [
+      'scripts/policy-gate/check-source-headers.mjs',
+      '--scope=repo',
+      ...headerModeArgs,
+      ...passThrough,
+    ],
     'node scripts/policy-gate/check-source-headers.mjs --scope=repo',
   );
 
