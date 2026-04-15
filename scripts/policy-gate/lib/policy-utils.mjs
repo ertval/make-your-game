@@ -54,7 +54,8 @@ const IGNORED_DIRS = new Set([
 ]);
 
 export const TICKET_ID_PATTERN = /\b([ABCD]-\d{2})\b/gi;
-export const EXPLICIT_TICKET_BRANCH_PATTERN = /^[A-Za-z0-9._-]+\/([ABCD]-\d{2})$/;
+export const EXPLICIT_TICKET_BRANCH_PATTERN =
+  /^[A-Za-z0-9._-]+\/([ABCD]-\d{2})(?:-[A-Za-z0-9._-]+)?$/;
 
 // Owner-to-track mapping enforces that each developer only modifies files in their assigned track.
 // This prevents cross-track edits when a branch owner's ticket belongs to a different track.
@@ -67,7 +68,7 @@ export const OWNER_TRACK_MAPPING = {
 
 /**
  * Extract the owner (username) from a branch name.
- * Branch format: <owner>/<TRACK>-<NN>, e.g. "ekaramet/A-03"
+ * Branch format: <owner>/<TRACK>-<NN>[-<COMMENT>], e.g. "ekaramet/A-03" or "asmyrogl/B-03-runtime-integration"
  * @param {string} branchName — The full branch name.
  * @returns {string} The owner string, or empty string if not parseable.
  */

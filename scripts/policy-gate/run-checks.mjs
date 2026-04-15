@@ -59,7 +59,7 @@ function deriveTicketContext() {
     args['ticket-id'] || '',
     args['ticket-ids'] || '',
   );
-  // Try the strict <owner>/<TRACK>-<NN> pattern first, then fall back to general extraction.
+  // Try the strict <owner>/<TRACK>-<NN>[-<COMMENT>] pattern first, then fall back to general extraction.
   const explicitBranchTicketId = extractTicketIdFromBranchName(branchName);
   const branchTicketIds = explicitBranchTicketId
     ? [explicitBranchTicketId]
@@ -86,9 +86,9 @@ function deriveTicketContext() {
     throw new Error(
       [
         `Branch "${branchName}" does not follow the required ticket format.`,
-        'Expected: <owner-or-scope>/<TRACK>-<NN>, for example ekaramet/A-03.',
+        'Expected: <owner-or-scope>/<TRACK>-<NN>[-<COMMENT>], for example ekaramet/A-03 or asmyrogl/B-03-runtime-integration.',
         'Allowed track prefixes: A, B, C, D.',
-        'Action: Rename your branch using the format <owner-or-scope>/<TRACK>-<NN> (e.g., git branch -m new-branch-name).',
+        'Action: Rename your branch using the format <owner-or-scope>/<TRACK>-<NN>[-<COMMENT>] (e.g., git branch -m new-branch-name).',
       ].join('\n'),
     );
   }
