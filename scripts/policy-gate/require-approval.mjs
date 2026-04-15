@@ -11,6 +11,22 @@ import { GATE_PASS, parseArgs, readJson, toBool } from './lib/policy-utils.mjs';
 const args = parseArgs(process.argv.slice(2));
 const metaPath = args['meta-file'] || '.policy-pr-meta.json';
 const requireApproval = toBool(args['require-approval'], true);
+const ciMode = toBool(args['ci-mode'], toBool(process.env.CI, false));
+
+function failOrSkip(reason, action) {
+  if (requireApproval && ciMode) {
+    throw new Error(
+      [
+        'Approval verification failed closed in CI.',
+        reason,
+        action,
+      ].join('\n'),
+    );
+  }
+
+  console.log(reason);
+  process.exit(0);
+}
 
 if (!requireApproval) {
   console.log('Approval check skipped by configuration.');
@@ -24,35 +40,56 @@ const token = process.env.CI_TOKEN || process.env.GITHUB_TOKEN || process.env.GI
 
 // Do not enforce approval if the review URL is absent (e.g. non-PR workflows)
 if (!reviewsUrl) {
-  console.log('No review endpoint found. Skipping approval API check.');
-  process.exit(0);
+  failOrSkip(
+    'No review endpoint found. Cannot verify approvals.',
+    'Action: ensure policy context includes pull_request metadata with reviewsUrl before running CI approval checks.',
+  );
 }
 
 if (!token) {
-  console.log(
-    'No CI token provided. Skipping approval API check; enforce approvals in branch protection.',
+  failOrSkip(
+    'No CI token provided. Cannot verify approvals.',
+    'Action: provide CI_TOKEN/GITHUB_TOKEN/GITEA_TOKEN so approval checks can query the review API.',
   );
-  process.exit(0);
 }
 
-const response = await fetch(reviewsUrl, {
-  headers: {
-    Accept: 'application/json',
-    Authorization: `token ${token}`,
-  },
-});
+let response;
+try {
+  response = await fetch(reviewsUrl, {
+    headers: {
+      Accept: 'application/json',
+      Authorization: `token ${token}`,
+    },
+  });
+} catch (error) {
+  failOrSkip(
+    `Review API request failed (${error instanceof Error ? error.message : String(error)}).`,
+    'Action: ensure CI can reach the review API and retry.',
+  );
+}
 
 if (!response.ok) {
-  console.log(
-    `Review API check skipped (HTTP ${response.status}). Enforce approvals in branch protection.`,
+  failOrSkip(
+    `Review API request returned HTTP ${response.status}.`,
+    'Action: verify token permissions and review API availability.',
   );
-  process.exit(0);
 }
 
-const reviews = await response.json();
+let reviews;
+try {
+  reviews = await response.json();
+} catch (error) {
+  failOrSkip(
+    `Unable to parse review API response JSON (${error instanceof Error ? error.message : String(error)}).`,
+    'Action: verify the review API response format and retry.',
+  );
+}
+
 if (!Array.isArray(reviews)) {
-  console.log('Review API response was not an array. Skipping approval API check.');
-  process.exit(0);
+  failOrSkip(
+    'Review API response was not an array.',
+    'Action: verify review API endpoint compatibility for this CI provider.',
+  );
 }
 
 const approvals = reviews.filter((review) => {

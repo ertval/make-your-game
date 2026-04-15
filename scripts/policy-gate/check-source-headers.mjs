@@ -9,6 +9,7 @@
 import fs from 'node:fs';
 import process from 'node:process';
 import {
+  DEFAULT_CHANGED_FILES_PATH,
   GATE_FAIL,
   GATE_PASS,
   GATE_WARN,
@@ -33,7 +34,7 @@ if (!['warn', 'error', 'fail'].includes(mode)) {
   throw new Error(`Invalid --mode value "${mode}". Expected one of: warn, error, fail.`);
 }
 
-const changedPath = args['changed-file'] || 'changed-files.txt';
+const changedPath = args['changed-file'] || DEFAULT_CHANGED_FILES_PATH;
 const includePrefixes = String(args['include-prefixes'] || 'src/,scripts/')
   .split(',')
   .map((value) => value.trim().replaceAll('\\', '/'))

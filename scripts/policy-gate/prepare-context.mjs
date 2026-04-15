@@ -10,6 +10,7 @@ import process from 'node:process';
 import {
   collectBranchCommitMessages,
   collectChangedFiles,
+  DEFAULT_CHANGED_FILES_PATH,
   GATE_PASS,
   getCurrentBranchName,
   getEventPath,
@@ -27,7 +28,7 @@ import {
 const args = parseArgs(process.argv.slice(2));
 const eventPath = getEventPath(args);
 const metaPath = args['meta-file'] || '.policy-pr-meta.json';
-const changedPath = args['changed-file'] || 'changed-files.txt';
+const changedPath = args['changed-file'] || DEFAULT_CHANGED_FILES_PATH;
 
 function parsePullRequestPayload(filePath) {
   const event = JSON.parse(readText(filePath));
