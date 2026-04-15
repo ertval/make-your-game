@@ -42,5 +42,5 @@ temp/
 
 # CI runtime artifacts
 .policy-pr-meta.json
-changed-files.txt
+.policy-runtime/
 reviews.json

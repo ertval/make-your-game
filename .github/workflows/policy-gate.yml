@@ -28,7 +28,7 @@ jobs:
       EVENT_PATH: ${{ github.event_path }}
       CI_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       GITEA_TOKEN: ${{ secrets.GITEA_TOKEN }}
-      POLICY_HEADER_MODE: warn
+      POLICY_HEADER_MODE: fail
     steps:
       - name: Checkout repository
         uses: actions/checkout@v6
@@ -56,7 +56,27 @@ jobs:
             npm install
           fi
 
-      - name: Run all policy checks
+      - name: Install Playwright browsers
         run: |
           set -euo pipefail
-          npm run policy -- --require-approval=false
+          npx playwright install --with-deps chromium
+
+      - name: Run Full-Repo Security Scan
+        run: |
+          set -euo pipefail
+          node scripts/policy-gate/check-forbidden.mjs --scope=repo
+
+      - name: Run Policy Gate (CI Fail-Closed)
+        run: |
+          set -euo pipefail
+          npm run policy -- --mode=ci --scope=all --require-approval=false
+
+      - name: Regenerate SBOM
+        run: |
+          set -euo pipefail
+          npm run sbom
+
+      - name: Verify SBOM Is Up To Date
+        run: |
+          set -euo pipefail
+          git diff --exit-code -- sbom.json
