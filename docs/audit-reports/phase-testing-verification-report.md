@@ -15,7 +15,7 @@ Every task must pass the appropriate testing level before phase verification can
 | **Unit Tests** | Mocks system ticks against component pools to ensure pure functions mutate data predictably. No DOM required. | `npm run test:unit` |
 | **Integration Tests** | Verifies ECS world ordering, cross-system events, and adapter boundaries (using `jsdom`). | `npm run test:integration` |
 | **E2E / Browser Tests** | Mandated via **Playwright** for verifying rendering pipelines, pause invariants, input behaviors, and the game loop. | `npm run test:e2e` |
-| **Audit Tests** | Verifies asset mappings, `audit.md` references, and data structures. | `npm run test:audit` |
+| **Audit Tests** | Executes non-browser audit obligations (inventory/category parity, threshold declarations, manual evidence manifest checks) and browser audit thresholds (`F-17`, `F-18`, `B-05`). | `npm run test:audit` |
 | **Schema Checks** | Ensures JSON maps and manifests comply with 2020-12 schema standards. | `npm run validate:schema` |
 | **Policy Gates** | Asserts formatting, system isolation (DOM safety), and project-wide integrity. | `npm run policy` |
 
@@ -98,6 +98,11 @@ Completion is mathematically verified through script-driven enforcers to ensure 
     - **Memory reuse**: No GC jank after warm-up — allocation timeline flat (**AUDIT-B-03**).
 *   **Proof**: Final audit report and PR messages archived in `docs/audit-reports/` and `docs/pr-messages/`.
 
+### Manual Evidence Manifest Contract
+
+All Manual-With-Evidence audit IDs are tracked in `docs/audit-reports/manual-evidence.manifest.json`.
+Policy checks and audit tests fail if any required manual audit ID is missing, if required artifacts are empty, or if artifact paths do not exist.
+
 ---
 
 ## 5. Manual Evidence Artifacts to Collect
@@ -108,6 +113,9 @@ Completion is mathematically verified through script-driven enforcers to ensure 
 | **AUDIT-F-20** | Layer count screenshot (minimal layers) | DevTools → Rendering → Layer borders → screenshot |
 | **AUDIT-F-21** | Layer promotion verification | DevTools → Rendering → confirm only player/ghost sprites have `will-change: transform` |
 | **AUDIT-B-06** | Overall quality sign-off | Review of all evidence + code quality + review sign-off |
+
+Manifest reference for required artifact templates:
+`docs/audit-reports/manual-evidence.manifest.json`
 
 ---
 

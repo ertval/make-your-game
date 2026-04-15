@@ -89,6 +89,13 @@ Recommended baseline formats:
 4. Pool visual instances for high-churn entities (bombs, fire, effects).
 5. Keep decode/start timing constraints explicit for latency-sensitive SFX.
 
+Bootstrap contract:
+
+1. `createBootstrap({ assetPipeline })` registers a World resource named `assetPipeline`.
+2. `assetPipeline` includes immutable `visualManifest` and `audioManifest` objects.
+3. Runtime lookups use `assetPipeline.getAssetById(id)` and `assetPipeline.hasAsset(id)`.
+4. Duplicate IDs across manifests are rejected during bootstrap to fail fast.
+
 ## 9. CI Validation Rules
 
 CI should fail if any of the following occurs:
