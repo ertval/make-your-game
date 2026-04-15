@@ -16,6 +16,7 @@ import { describe, expect, it } from 'vitest';
 
 import { CELL_TYPE } from '../../../src/ecs/resources/constants.js';
 import {
+  assertValidMapResource,
   cloneMap,
   countPellets,
   countPowerPellets,
@@ -30,7 +31,8 @@ import {
   setCell,
   validateMapSemantic,
 } from '../../../src/ecs/resources/map-resource.js';
-import { createSyncMapLoader } from '../../../src/game/level-loader.js';
+import { World } from '../../../src/ecs/world/world.js';
+import { createLevelLoader, createSyncMapLoader } from '../../../src/game/level-loader.js';
 
 const root = path.resolve(import.meta.dirname, '../../..');
 
@@ -482,15 +484,15 @@ describe('map-resource — createSyncMapLoader integration', () => {
     expect(result.level).toBe(1);
   });
 
-  it('returns cloned map on restart', () => {
+  it('returns a fresh clone on repeated loads', () => {
     const maps = [loadLevelMap(1)];
     const loader = createSyncMapLoader(maps);
     const first = loader(0, {});
-    const restarted = loader(0, { restart: true, cachedMapResource: first });
-    expect(restarted).not.toBe(first);
-    expect(restarted.level).toBe(first.level);
+    const repeatedLoad = loader(0);
+    expect(repeatedLoad).not.toBe(first);
+    expect(repeatedLoad.level).toBe(first.level);
     // Mutating the clone should not affect the original.
-    setCell(restarted, 1, 1, CELL_TYPE.EMPTY);
+    setCell(repeatedLoad, 1, 1, CELL_TYPE.EMPTY);
     expect(getCell(first, 1, 1)).not.toBe(CELL_TYPE.EMPTY);
   });
 
@@ -505,5 +507,31 @@ describe('map-resource — createSyncMapLoader integration', () => {
     const maps = [loadLevelMap(1)];
     const loader = createSyncMapLoader(maps);
     expect(loader(NaN, {})).toBeNull();
+  });
+});
+
+describe('map-resource — runtime trust boundary guards', () => {
+  it('assertValidMapResource throws on malformed runtime resource objects', () => {
+    expect(() =>
+      assertValidMapResource({
+        cols: 10,
+        rows: 10,
+      }),
+    ).toThrow('Map resource validation failed');
+  });
+
+  it('rejects malformed loader output before world resource injection', () => {
+    const world = new World();
+    const levelLoader = createLevelLoader({
+      world,
+      totalLevels: 1,
+      loadMapForLevel: () => ({
+        rows: 5,
+        cols: 5,
+      }),
+    });
+
+    expect(() => levelLoader.loadLevel(0)).toThrow('Map resource validation failed');
+    expect(world.hasResource('mapResource')).toBe(false);
   });
 });

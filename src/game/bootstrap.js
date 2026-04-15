@@ -10,12 +10,86 @@
  * - registerSystemsByPhase(world, systemsByPhase)
  */
 
+import level1Map from '../../assets/maps/level-1.json';
+import level2Map from '../../assets/maps/level-2.json';
+import level3Map from '../../assets/maps/level-3.json';
 import { advanceSimTime, createClock, resetClock, tickClock } from '../ecs/resources/clock.js';
 import { FIXED_DT_MS, MAX_STEPS_PER_FRAME, TOTAL_LEVELS } from '../ecs/resources/constants.js';
 import { createGameStatus } from '../ecs/resources/game-status.js';
 import { DEFAULT_PHASE_ORDER, World } from '../ecs/world/world.js';
 import { createGameFlow } from './game-flow.js';
-import { createLevelLoader } from './level-loader.js';
+import { createLevelLoader, createSyncMapLoader } from './level-loader.js';
+
+const DEFAULT_LEVEL_MAPS = Object.freeze([level1Map, level2Map, level3Map]);
+const DEFAULT_LOAD_MAP_FOR_LEVEL = createSyncMapLoader(DEFAULT_LEVEL_MAPS);
+
+function normalizeManifest(manifest) {
+  const version =
+    manifest && typeof manifest.version === 'string' && manifest.version.trim().length > 0
+      ? manifest.version
+      : 'v0';
+  const assets = Array.isArray(manifest?.assets) ? manifest.assets : [];
+
+  return Object.freeze({
+    version,
+    assets: Object.freeze(
+      assets.map((asset) =>
+        Object.freeze({
+          ...asset,
+        }),
+      ),
+    ),
+  });
+}
+
+function createAssetPipelineResource(options = {}) {
+  const visualManifest = normalizeManifest(options.visualManifest);
+  const audioManifest = normalizeManifest(options.audioManifest);
+  const byId = new Map();
+
+  const insertAssets = (assets, kind) => {
+    for (const asset of assets) {
+      if (!asset || typeof asset.id !== 'string' || asset.id.trim().length === 0) {
+        continue;
+      }
+
+      const normalizedId = asset.id.trim();
+      if (byId.has(normalizedId)) {
+        throw new Error(`Duplicate asset id in manifests: ${normalizedId}`);
+      }
+
+      byId.set(
+        normalizedId,
+        Object.freeze({
+          ...asset,
+          manifestKind: kind,
+        }),
+      );
+    }
+  };
+
+  insertAssets(visualManifest.assets, 'visual');
+  insertAssets(audioManifest.assets, 'audio');
+
+  return Object.freeze({
+    audioManifest,
+    getAssetById(assetId) {
+      if (typeof assetId !== 'string') {
+        return null;
+      }
+
+      return byId.get(assetId) || null;
+    },
+    hasAsset(assetId) {
+      if (typeof assetId !== 'string') {
+        return false;
+      }
+
+      return byId.has(assetId);
+    },
+    visualManifest,
+  });
+}
 
 function toFiniteTimestamp(nowMs) {
   if (!Number.isFinite(nowMs)) {
@@ -40,6 +114,10 @@ function normalizeSystemRegistration(phase, registration, index) {
       throw new Error(
         `System "${registration.name || 'unnamed'}" declares phase "${registration.phase}" but is registered under "${phase}".`,
       );
+    }
+
+    if (registration.phase) {
+      return registration;
     }
 
     return {
@@ -67,7 +145,7 @@ export function createBootstrap(options = {}) {
   const clock = createClock(nowMs);
   const gameStatus = createGameStatus();
   const levelLoader = createLevelLoader({
-    loadMapForLevel: options.loadMapForLevel,
+    loadMapForLevel: options.loadMapForLevel || DEFAULT_LOAD_MAP_FOR_LEVEL,
     mapResourceKey: options.mapResourceKey || 'mapResource',
     totalLevels: TOTAL_LEVELS,
     world,
@@ -82,7 +160,9 @@ export function createBootstrap(options = {}) {
     },
     world,
   });
+  const assetPipeline = createAssetPipelineResource(options.assetPipeline || {});
 
+  world.setResource('assetPipeline', assetPipeline);
   world.setResource('clock', clock);
   world.setResource('gameFlow', gameFlow);
   world.setResource('gameStatus', gameStatus);
@@ -108,10 +188,19 @@ export function createBootstrap(options = {}) {
       });
     }
 
+    world.runRenderCommit({
+      alpha: clock.alpha,
+      dtMs: fixedDtMs,
+      isPaused: clock.isPaused,
+      simTimeMs: clock.simTimeMs,
+      stepsThisFrame: steps,
+    });
+
     return {
       alpha: clock.alpha,
       frame: world.frame,
       isPaused: clock.isPaused,
+      renderFrame: world.renderFrame,
       simTimeMs: clock.simTimeMs,
       steps,
     };

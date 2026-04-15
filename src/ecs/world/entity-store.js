@@ -16,6 +16,29 @@ export class EntityStore {
     this.activeCount = 0;
   }
 
+  isValidId(id) {
+    return Number.isInteger(id) && id >= 0 && id < this.generations.length;
+  }
+
+  getGeneration(id) {
+    if (!this.isValidId(id)) {
+      return null;
+    }
+
+    return this.generations[id];
+  }
+
+  getHandleForId(id) {
+    if (!this.isValidId(id) || this.activeFlags[id] !== true) {
+      return null;
+    }
+
+    return {
+      id,
+      generation: this.generations[id],
+    };
+  }
+
   create() {
     let id;
 
@@ -47,10 +70,7 @@ export class EntityStore {
 
     const { id, generation } = handle;
     return (
-      id >= 0 &&
-      id < this.generations.length &&
-      this.activeFlags[id] === true &&
-      this.generations[id] === generation
+      this.isValidId(id) && this.activeFlags[id] === true && this.generations[id] === generation
     );
   }
 
@@ -78,5 +98,22 @@ export class EntityStore {
     }
 
     return activeIds;
+  }
+
+  getActiveHandles() {
+    const activeHandles = [];
+
+    for (let id = 0; id < this.activeFlags.length; id += 1) {
+      if (this.activeFlags[id] !== true) {
+        continue;
+      }
+
+      activeHandles.push({
+        id,
+        generation: this.generations[id],
+      });
+    }
+
+    return activeHandles;
   }
 }

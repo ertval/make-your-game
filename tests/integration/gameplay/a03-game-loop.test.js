@@ -9,6 +9,7 @@ import { describe, expect, it, vi } from 'vitest';
 
 import { FIXED_DT_MS, MAX_STEPS_PER_FRAME } from '../../../src/ecs/resources/constants.js';
 import { GAME_STATE } from '../../../src/ecs/resources/game-status.js';
+import { World } from '../../../src/ecs/world/world.js';
 import { createBootstrap } from '../../../src/game/bootstrap.js';
 import { createGameRuntime } from '../../../src/main.ecs.js';
 
@@ -51,16 +52,207 @@ function createWindowStub() {
   };
 }
 
+function createMapResourceFixture(level = 1) {
+  const rows = 3;
+  const cols = 3;
+  const grid2D = [
+    [1, 1, 1],
+    [1, 0, 1],
+    [1, 1, 1],
+  ];
+
+  return {
+    activeGhostTypes: ['blinky'],
+    cols,
+    ghostHouseBottomRow: 1,
+    ghostHouseLeftCol: 1,
+    ghostHouseRightCol: 1,
+    ghostHouseTopRow: 1,
+    ghostSpawnCol: 1,
+    ghostSpawnRow: 1,
+    grid: new Uint8Array(grid2D.flat()),
+    grid2D: grid2D.map((row) => [...row]),
+    initialPelletCount: 0,
+    initialPowerPelletCount: 0,
+    level,
+    maxGhosts: 1,
+    name: `fixture-level-${level}`,
+    playerSpawnCol: 1,
+    playerSpawnRow: 1,
+    rows,
+    timerSeconds: 120,
+  };
+}
+
+function createBootstrapWithMaps(options = {}) {
+  const { loadMapForLevel, ...bootstrapOptions } = options;
+
+  return createBootstrap({
+    ...bootstrapOptions,
+    loadMapForLevel:
+      loadMapForLevel ||
+      ((levelIndex) => {
+        return createMapResourceFixture(levelIndex + 1);
+      }),
+  });
+}
+
 describe('A-03 game loop and runtime', () => {
+  it('treats runtime startGame as idempotent while already PLAYING', () => {
+    const bootstrap = createBootstrapWithMaps({ now: 0 });
+    const documentStub = createDocumentStub();
+    const windowStub = createWindowStub();
+    let nowMs = 100;
+
+    const runtime = createGameRuntime({
+      bootstrap,
+      documentRef: documentStub,
+      nowProvider: () => nowMs,
+      requestFrame: vi.fn(() => 1),
+      windowRef: windowStub,
+    });
+
+    expect(runtime.controls.startGame()).toBe(true);
+    expect(bootstrap.clock.lastFrameTime).toBe(100);
+
+    nowMs = 240;
+    expect(runtime.controls.startGame()).toBe(false);
+    expect(bootstrap.clock.lastFrameTime).toBe(100);
+  });
+
+  it('records latest frame time independently from sorted percentile samples', () => {
+    const bootstrap = createBootstrapWithMaps({ now: 0 });
+    const documentStub = createDocumentStub();
+    const windowStub = createWindowStub();
+    const scheduledFrames = [];
+    const requestFrame = vi.fn((callback) => {
+      scheduledFrames.push(callback);
+      return scheduledFrames.length;
+    });
+
+    const runtime = createGameRuntime({
+      bootstrap,
+      documentRef: documentStub,
+      nowProvider: () => 0,
+      requestFrame,
+      windowRef: windowStub,
+    });
+
+    bootstrap.gameFlow.startGame();
+    runtime.start();
+
+    const frameOne = scheduledFrames.shift();
+    frameOne(10);
+    const frameTwo = scheduledFrames.shift();
+    frameTwo(26);
+    const frameThree = scheduledFrames.shift();
+    frameThree(44);
+    const frameFour = scheduledFrames.shift();
+    frameFour(61);
+
+    const stats = windowStub.__MS_GHOSTMAN_FRAME_PROBE__.getStats();
+    expect(stats.sampleCount).toBe(3);
+    expect(stats.latestFrameTime).toBeCloseTo(17, 5);
+    expect(stats.p95FrameTime).toBeCloseTo(17, 5);
+    expect(stats.p99FrameTime).toBeCloseTo(17, 5);
+
+    runtime.stop();
+  });
+
+  it('uses a finite nowProvider fallback when frame timestamps are invalid', () => {
+    const bootstrap = createBootstrapWithMaps({ now: 50 });
+    const documentStub = createDocumentStub();
+    const windowStub = createWindowStub();
+    const scheduledFrames = [];
+    const nowMs = 120;
+
+    const runtime = createGameRuntime({
+      bootstrap,
+      documentRef: documentStub,
+      nowProvider: () => nowMs,
+      requestFrame: vi.fn((callback) => {
+        scheduledFrames.push(callback);
+        return scheduledFrames.length;
+      }),
+      windowRef: windowStub,
+    });
+
+    bootstrap.gameFlow.startGame();
+    runtime.start();
+
+    const firstFrame = scheduledFrames.shift();
+    firstFrame(Number.NaN);
+
+    expect(bootstrap.clock.lastFrameTime).toBe(120);
+
+    runtime.stop();
+  });
+
+  it('quarantines simulation updates after repeated frame faults within the configured budget window', () => {
+    const bootstrap = createBootstrapWithMaps({ now: 0 });
+    const documentStub = createDocumentStub();
+    const windowStub = createWindowStub();
+    const scheduledFrames = [];
+    const logger = {
+      error: vi.fn(),
+    };
+
+    const runtime = createGameRuntime({
+      bootstrap,
+      documentRef: documentStub,
+      logger,
+      nowProvider: () => 0,
+      requestFrame: vi.fn((callback) => {
+        scheduledFrames.push(callback);
+        return scheduledFrames.length;
+      }),
+      runtimeFaultBudget: 3,
+      runtimeFaultCooldownMs: 1_500,
+      runtimeFaultWindowMs: 2_000,
+      windowRef: windowStub,
+    });
+
+    const originalStepFrame = bootstrap.stepFrame;
+    const throwingStepFrame = vi.fn(() => {
+      throw new Error('simulated frame failure');
+    });
+    bootstrap.stepFrame = throwingStepFrame;
+
+    try {
+      bootstrap.gameFlow.startGame();
+      runtime.start();
+
+      scheduledFrames.shift()(16);
+      scheduledFrames.shift()(32);
+      scheduledFrames.shift()(48);
+
+      expect(throwingStepFrame).toHaveBeenCalledTimes(3);
+      expect(logger.error).toHaveBeenCalledWith('Game frame error.', expect.any(Error));
+      expect(logger.error).toHaveBeenCalledWith(
+        'Game runtime fault budget exceeded. Quarantining simulation updates for 1500ms.',
+      );
+
+      // During quarantine the frame still schedules, but simulation updates are skipped.
+      scheduledFrames.shift()(64);
+      expect(throwingStepFrame).toHaveBeenCalledTimes(3);
+
+      // After cooldown, simulation attempts resume.
+      scheduledFrames.shift()(1_700);
+      expect(throwingStepFrame).toHaveBeenCalledTimes(4);
+    } finally {
+      bootstrap.stepFrame = originalStepFrame;
+      runtime.stop();
+    }
+  });
+
   it('loads the next level when continuing from LEVEL_COMPLETE', () => {
     const loadedMaps = [];
-    const bootstrap = createBootstrap({
+    const bootstrap = createBootstrapWithMaps({
       loadMapForLevel: (levelIndex, options) => {
-        const map = {
-          levelIndex,
-          options,
-        };
+        const map = createMapResourceFixture(levelIndex + 1);
         loadedMaps.push(map);
+        map.options = options;
+        map.levelIndex = levelIndex;
         return map;
       },
       now: 0,
@@ -75,12 +267,11 @@ describe('A-03 game loop and runtime', () => {
     expect(loadedMaps).toHaveLength(2);
     expect(loadedMaps[1].levelIndex).toBe(1);
     expect(loadedMaps[1].options.reason).toBe('level-complete');
-    expect(loadedMaps[1].options.advance).toBe(true);
     expect(bootstrap.gameStatus.currentState).toBe(GAME_STATE.PLAYING);
   });
 
   it('freezes simulation while paused and resumes without burst catch-up', () => {
-    const bootstrap = createBootstrap({ now: 0 });
+    const bootstrap = createBootstrapWithMaps({ now: 0 });
 
     bootstrap.gameFlow.startGame();
     const firstStep = bootstrap.stepFrame(FIXED_DT_MS);
@@ -108,7 +299,7 @@ describe('A-03 game loop and runtime', () => {
   });
 
   it('clamps catch-up work per frame to prevent spiral-of-death bursts', () => {
-    const bootstrap = createBootstrap({ now: 0 });
+    const bootstrap = createBootstrapWithMaps({ now: 0 });
 
     bootstrap.gameFlow.startGame();
 
@@ -117,7 +308,7 @@ describe('A-03 game loop and runtime', () => {
   });
 
   it('keeps requestAnimationFrame scheduling active while simulation is paused', () => {
-    const bootstrap = createBootstrap({ now: 0 });
+    const bootstrap = createBootstrapWithMaps({ now: 0 });
     const scheduledFrames = [];
     const requestFrame = vi.fn((callback) => {
       scheduledFrames.push(callback);
@@ -155,7 +346,7 @@ describe('A-03 game loop and runtime', () => {
   });
 
   it('resynchronizes baseline timing on blur, focus, and visibility restore', () => {
-    const bootstrap = createBootstrap({ now: 0 });
+    const bootstrap = createBootstrapWithMaps({ now: 0 });
     const documentStub = createDocumentStub();
     const windowStub = createWindowStub();
     let nowMs = 0;
@@ -198,7 +389,7 @@ describe('A-03 game loop and runtime', () => {
   });
 
   it('prevents large catch-up bursts after blur by resetting the timing baseline', () => {
-    const bootstrap = createBootstrap({ now: 0 });
+    const bootstrap = createBootstrapWithMaps({ now: 0 });
     const documentStub = createDocumentStub();
     const windowStub = createWindowStub();
     const scheduledFrames = [];
@@ -233,5 +424,42 @@ describe('A-03 game loop and runtime', () => {
     expect(bootstrap.world.frame - frameBeforeGap).toBeLessThan(MAX_STEPS_PER_FRAME);
 
     runtime.stop();
+  });
+
+  it('enforces dispatch mutation discipline and preserves deferred structural mutation path', () => {
+    const world = new World();
+    const immediateMutationErrors = [];
+
+    const bootstrap = createBootstrapWithMaps({
+      now: 0,
+      systemsByPhase: {
+        logic: [
+          {
+            name: 'dispatch-mutation-discipline',
+            phase: 'logic',
+            update: (context) => {
+              expect(context.world.createEntity).toBeUndefined();
+
+              try {
+                world.createEntity(0b0001);
+              } catch (error) {
+                immediateMutationErrors.push(error.message);
+              }
+
+              context.world.deferCreateEntity(0b0010);
+            },
+          },
+        ],
+      },
+      world,
+    });
+
+    bootstrap.gameFlow.startGame();
+    bootstrap.stepFrame(FIXED_DT_MS);
+
+    expect(immediateMutationErrors).toHaveLength(1);
+    expect(immediateMutationErrors[0]).toContain('cannot be called during system dispatch');
+    expect(world.getEntityCount()).toBe(1);
+    expect(world.query(0b0010)).toEqual([0]);
   });
 });

@@ -13,22 +13,50 @@
  * - createLevelLoader({ world, mapResourceKey, loadMapForLevel })
  * - loadLevel(levelIndex, options)
  * - restartCurrentLevel()
- * - advanceLevel(options)
+ * - advanceLevel(reason)
  * - getCurrentLevelIndex()
  */
 
-import { cloneMap } from '../ecs/resources/map-resource.js';
+import {
+  assertValidMapResource,
+  cloneMap,
+  createMapResource,
+} from '../ecs/resources/map-resource.js';
+import { isRecord } from '../shared/type-guards.js';
+
+function isRawMapPayload(candidate) {
+  return (
+    isRecord(candidate) &&
+    isRecord(candidate.dimensions) &&
+    Array.isArray(candidate.grid) &&
+    isRecord(candidate.spawn)
+  );
+}
+
+function normalizeLoadedMapPayload(payload) {
+  if (!payload) {
+    return null;
+  }
+
+  if (isRawMapPayload(payload)) {
+    return createMapResource(payload);
+  }
+
+  assertValidMapResource(payload);
+  return cloneMap(payload);
+}
 
 function clampLevelIndex(levelIndex, maxLevel) {
-  if (!Number.isFinite(levelIndex) || levelIndex < 0) {
+  if (!Number.isFinite(levelIndex)) {
     return 0;
   }
 
-  if (maxLevel !== undefined && levelIndex > maxLevel) {
-    return maxLevel;
+  const boundedLevelIndex = Math.max(0, Math.floor(levelIndex));
+  if (!Number.isFinite(maxLevel)) {
+    return boundedLevelIndex;
   }
 
-  return Math.floor(levelIndex);
+  return Math.max(0, Math.min(boundedLevelIndex, Math.floor(maxLevel)));
 }
 
 /**
@@ -39,14 +67,14 @@ function clampLevelIndex(levelIndex, maxLevel) {
  * array to this factory to get a sync loader for the level-loader.
  *
  * @param {MapResource[]} preloadMaps — Array of pre-parsed map resources, indexed by levelIndex.
- * @returns {function} Sync loadMapForLevel(levelIndex, options) -> MapResource|null
+ * @returns {function} Sync loadMapForLevel(levelIndex) -> MapResource|null
  */
 export function createSyncMapLoader(preloadMaps) {
   const canonicalMaps = Array.isArray(preloadMaps)
-    ? preloadMaps.map((mapResource) => (mapResource ? cloneMap(mapResource) : mapResource))
+    ? preloadMaps.map((mapResource) => normalizeLoadedMapPayload(mapResource))
     : [];
 
-  return function loadMapForLevel(levelIndex, options = {}) {
+  return function loadMapForLevel(levelIndex) {
     if (!Number.isFinite(levelIndex) || levelIndex < 0 || levelIndex >= canonicalMaps.length) {
       return null;
     }
@@ -57,10 +85,6 @@ export function createSyncMapLoader(preloadMaps) {
     }
 
     // Always return a fresh clone so runtime mutations never taint canonical maps.
-    if (options.restart) {
-      return cloneMap(baseMap);
-    }
-
     return cloneMap(baseMap);
   };
 }
@@ -73,31 +97,27 @@ export function createLevelLoader({
 } = {}) {
   const maxLevelIndex = totalLevels - 1;
   let currentLevelIndex = 0;
-  // Cache the last successfully loaded map for restart cloning.
-  let cachedMapResource = null;
 
-  function resolveMapForLevel(levelIndex, options = {}) {
+  function resolveMapForLevel(levelIndex, loadOptions = {}) {
     if (typeof loadMapForLevel !== 'function') {
       return null;
     }
 
-    return loadMapForLevel(levelIndex, {
-      ...options,
-      cachedMapResource,
-    });
+    return loadMapForLevel(levelIndex, loadOptions);
   }
 
   function loadLevel(levelIndex, options = {}) {
-    currentLevelIndex = clampLevelIndex(levelIndex, maxLevelIndex);
-    const mapResource = resolveMapForLevel(currentLevelIndex, options);
+    const nextLevelIndex = clampLevelIndex(levelIndex, maxLevelIndex);
+    const mapResource = normalizeLoadedMapPayload(resolveMapForLevel(nextLevelIndex, options));
+
+    if (!mapResource) {
+      return null;
+    }
+
+    currentLevelIndex = nextLevelIndex;
 
     if (world && typeof world.setResource === 'function') {
       world.setResource(mapResourceKey, mapResource);
-    }
-
-    // Cache the loaded map for future restart cloning.
-    if (mapResource) {
-      cachedMapResource = mapResource;
     }
 
     return mapResource;
@@ -110,15 +130,22 @@ export function createLevelLoader({
     });
   }
 
-  function advanceLevel(options = {}) {
+  function advanceLevel(reason = 'level-advance') {
     if (currentLevelIndex >= maxLevelIndex) {
       return null;
     }
 
-    return loadLevel(currentLevelIndex + 1, {
-      ...options,
-      advance: true,
+    const nextReason = typeof reason === 'string' ? reason : 'level-advance';
+
+    const nextLevel = loadLevel(currentLevelIndex + 1, {
+      reason: nextReason,
     });
+
+    if (!nextLevel) {
+      return false;
+    }
+
+    return nextLevel;
   }
 
   function getCurrentLevelIndex() {

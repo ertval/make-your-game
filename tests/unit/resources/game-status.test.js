@@ -42,6 +42,15 @@ describe('game-status', () => {
     expect(status.currentState).toBe(GAME_STATE.PLAYING);
   });
 
+  it('allows PLAYING → PLAYING self transition for restart semantics', () => {
+    const status = createGameStatus(GAME_STATE.PLAYING);
+    expect(canTransition(status, GAME_STATE.PLAYING)).toBe(true);
+
+    transitionTo(status, GAME_STATE.PLAYING);
+    expect(status.currentState).toBe(GAME_STATE.PLAYING);
+    expect(status.previousState).toBe(GAME_STATE.PLAYING);
+  });
+
   it('allows PLAYING → LEVEL_COMPLETE → PLAYING', () => {
     const status = createGameStatus(GAME_STATE.PLAYING);
     transitionTo(status, GAME_STATE.LEVEL_COMPLETE);

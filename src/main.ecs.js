@@ -26,15 +26,20 @@
  * - createGameRuntime(options)
  * - installUnhandledRejectionHandler(options)
  * - renderCriticalError(overlayRoot, error)
+ * - startBrowserApplication(options)
  */
 
+import { percentileFromSorted, toSortedNumericArray } from './debug/frame-stats.js';
 import { FIXED_DT_MS, MAX_STEPS_PER_FRAME } from './ecs/resources/constants.js';
 import { createBootstrap } from './game/bootstrap.js';
 
 const DEFAULT_FRAME_SAMPLE_SIZE = 600;
 const FRAME_PROBE_KEY = '__MS_GHOSTMAN_FRAME_PROBE__';
 const RUNTIME_HOOK_KEY = '__MS_GHOSTMAN_RUNTIME__';
-const UNHANDLED_REJECTION_HOOK_KEY = '__MS_GHOSTMAN_UNHANDLED_REJECTION_HOOK__';
+const UNHANDLED_REJECTION_HOOK_KEY = Symbol.for('ms.ghostman.unhandledRejectionHook');
+const DEFAULT_RUNTIME_FAULT_BUDGET = 3;
+const DEFAULT_RUNTIME_FAULT_WINDOW_MS = 2_000;
+const DEFAULT_RUNTIME_FAULT_COOLDOWN_MS = 1_500;
 
 function toMessage(error) {
   if (error instanceof Error) {
@@ -49,6 +54,7 @@ function createFrameProbe(sampleSize = DEFAULT_FRAME_SAMPLE_SIZE) {
   let count = 0;
   let cursor = 0;
   let lastTimestamp = 0;
+  let latestDelta = 0;
 
   function recordFrame(nowMs) {
     if (!Number.isFinite(nowMs)) {
@@ -56,7 +62,8 @@ function createFrameProbe(sampleSize = DEFAULT_FRAME_SAMPLE_SIZE) {
     }
 
     if (lastTimestamp > 0) {
-      deltas[cursor] = nowMs - lastTimestamp;
+      latestDelta = nowMs - lastTimestamp;
+      deltas[cursor] = latestDelta;
       cursor = (cursor + 1) % sampleSize;
       if (count < sampleSize) {
         count += 1;
@@ -66,36 +73,15 @@ function createFrameProbe(sampleSize = DEFAULT_FRAME_SAMPLE_SIZE) {
     lastTimestamp = nowMs;
   }
 
-  function toSortedArray() {
-    const values = [];
-
-    for (let index = 0; index < count; index += 1) {
-      values.push(deltas[index]);
-    }
-
-    values.sort((left, right) => left - right);
-    return values;
-  }
-
-  function percentile(sortedValues, percentileValue) {
-    if (sortedValues.length === 0) {
-      return 0;
-    }
-
-    const rawIndex = Math.ceil((percentileValue / 100) * sortedValues.length) - 1;
-    const index = Math.max(0, Math.min(rawIndex, sortedValues.length - 1));
-    return sortedValues[index];
-  }
-
   function getStats() {
-    const values = toSortedArray();
-    const p95FrameTime = percentile(values, 95);
-    const p99FrameTime = percentile(values, 99);
+    const values = toSortedNumericArray(deltas, count);
+    const p95FrameTime = percentileFromSorted(values, 95);
+    const p99FrameTime = percentileFromSorted(values, 99);
 
     return {
       averageFrameTime:
         values.length > 0 ? values.reduce((sum, value) => sum + value, 0) / values.length : 0,
-      latestFrameTime: values.length > 0 ? values[values.length - 1] : 0,
+      latestFrameTime: values.length > 0 ? latestDelta : 0,
       p95Fps: p95FrameTime > 0 ? 1000 / p95FrameTime : 0,
       p95FrameTime,
       p99FrameTime,
@@ -130,9 +116,16 @@ export function renderCriticalError(overlayRoot, error) {
     return;
   }
 
+  const nextMessage = `Critical error: ${toMessage(error)}`;
+  const previous = String(overlayRoot.textContent || '').trim();
+
   overlayRoot.setAttribute('aria-live', 'assertive');
   overlayRoot.setAttribute('role', 'alert');
-  overlayRoot.textContent = `Critical error: ${toMessage(error)}`;
+  // Keep one plain-text line per error so multiple faults remain readable without unsafe HTML sinks.
+  overlayRoot.textContent =
+    previous.length > 0 && !previous.includes(nextMessage)
+      ? `${previous}\n${nextMessage}`
+      : nextMessage;
 }
 
 export function installUnhandledRejectionHandler({
@@ -158,8 +151,12 @@ export function createGameRuntime({
   bootstrap,
   cancelFrame,
   documentRef,
+  logger = console,
   nowProvider,
   requestFrame,
+  runtimeFaultBudget = DEFAULT_RUNTIME_FAULT_BUDGET,
+  runtimeFaultCooldownMs = DEFAULT_RUNTIME_FAULT_COOLDOWN_MS,
+  runtimeFaultWindowMs = DEFAULT_RUNTIME_FAULT_WINDOW_MS,
   windowRef,
 } = {}) {
   const targetWindow = windowRef || (typeof window !== 'undefined' ? window : null);
@@ -177,8 +174,38 @@ export function createGameRuntime({
     throw new Error('createGameRuntime requires requestAnimationFrame support.');
   }
 
+  const boundedRuntimeFaultBudget = Math.max(1, Math.floor(runtimeFaultBudget));
+  const boundedRuntimeFaultWindowMs = Math.max(1, Math.floor(runtimeFaultWindowMs));
+  const boundedRuntimeFaultCooldownMs = Math.max(1, Math.floor(runtimeFaultCooldownMs));
+
   let isRunning = false;
   let frameHandle = 0;
+  let quarantinedUntilMs = -1;
+  const runtimeFaultTimestamps = [];
+
+  function normalizeNow(value, fallbackNowMs = bootstrap.clock.lastFrameTime) {
+    if (Number.isFinite(value)) {
+      return value;
+    }
+
+    const providerNow = getNow();
+    if (Number.isFinite(providerNow)) {
+      return providerNow;
+    }
+
+    if (Number.isFinite(fallbackNowMs)) {
+      return fallbackNowMs;
+    }
+
+    return 0;
+  }
+
+  function pruneRuntimeFaultWindow(nowMs) {
+    const oldestAllowed = nowMs - boundedRuntimeFaultWindowMs;
+    while (runtimeFaultTimestamps.length > 0 && runtimeFaultTimestamps[0] < oldestAllowed) {
+      runtimeFaultTimestamps.shift();
+    }
+  }
 
   const controls = {
     getSnapshot: () => ({
@@ -187,19 +214,21 @@ export function createGameRuntime({
       simTimeMs: bootstrap.clock.simTimeMs,
       state: bootstrap.gameStatus.currentState,
     }),
+    getLevelIndex: () => bootstrap.levelLoader.getCurrentLevelIndex(),
     pause: () => bootstrap.gameFlow.pauseGame(),
     restart: () => bootstrap.gameFlow.restartLevel(),
     resume: () => {
       const resumed = bootstrap.gameFlow.resumeGame();
       if (resumed) {
-        bootstrap.resyncTime(getNow());
+        bootstrap.resyncTime(normalizeNow(getNow()));
       }
       return resumed;
     },
-    startGame: () => {
-      const started = bootstrap.gameFlow.startGame();
+    setState: (nextState) => bootstrap.gameFlow.setState(nextState),
+    startGame: (options = {}) => {
+      const started = bootstrap.gameFlow.startGame(options);
       if (started) {
-        bootstrap.resyncTime(getNow());
+        bootstrap.resyncTime(normalizeNow(getNow()));
       }
       return started;
     },
@@ -210,16 +239,33 @@ export function createGameRuntime({
       return;
     }
 
+    const safeNowMs = normalizeNow(frameNowMs);
+
     try {
-      frameProbe.recordFrame(frameNowMs);
-      bootstrap.stepFrame(frameNowMs, {
+      frameProbe.recordFrame(safeNowMs);
+
+      if (quarantinedUntilMs > safeNowMs) {
+        return;
+      }
+
+      bootstrap.stepFrame(safeNowMs, {
         fixedDtMs: FIXED_DT_MS,
         maxStepsPerFrame: MAX_STEPS_PER_FRAME,
       });
     } catch (error) {
       // Catch unexpected errors outside the system-dispatch boundary
       // (e.g., tickClock, applyDeferredMutations) so the loop survives.
-      console.error('Game frame error.', error);
+      logger.error('Game frame error.', error);
+      runtimeFaultTimestamps.push(safeNowMs);
+      pruneRuntimeFaultWindow(safeNowMs);
+
+      if (runtimeFaultTimestamps.length >= boundedRuntimeFaultBudget) {
+        quarantinedUntilMs = safeNowMs + boundedRuntimeFaultCooldownMs;
+        runtimeFaultTimestamps.length = 0;
+        logger.error(
+          `Game runtime fault budget exceeded. Quarantining simulation updates for ${boundedRuntimeFaultCooldownMs}ms.`,
+        );
+      }
     } finally {
       // Always schedule the next frame, even if this one threw.
       frameHandle = scheduleFrame(onAnimationFrame);
@@ -236,16 +282,16 @@ export function createGameRuntime({
       return;
     }
 
-    bootstrap.resyncTime(getNow());
+    bootstrap.resyncTime(normalizeNow(getNow()));
   }
 
   function onBlur() {
     clearHeldInputState(bootstrap);
-    bootstrap.resyncTime(getNow());
+    bootstrap.resyncTime(normalizeNow(getNow()));
   }
 
   function onFocus() {
-    bootstrap.resyncTime(getNow());
+    bootstrap.resyncTime(normalizeNow(getNow()));
   }
 
   function start() {
@@ -346,6 +392,14 @@ export function bootstrapApplication({
   }
 }
 
-if (typeof window !== 'undefined' && typeof document !== 'undefined') {
-  bootstrapApplication();
+export function startBrowserApplication(options = {}) {
+  if (typeof window === 'undefined' || typeof document === 'undefined') {
+    return null;
+  }
+
+  return bootstrapApplication({
+    ...options,
+    documentRef: options.documentRef || document,
+    windowRef: options.windowRef || window,
+  });
 }

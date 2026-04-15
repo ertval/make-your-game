@@ -46,25 +46,42 @@ export function createGameFlow({ gameStatus, clock, levelLoader, world, onRestar
 
   applyPauseFromState(clock, gameStatus);
 
-  function destroyAllEntities() {
-    if (!world || typeof world.entityStore !== 'object') {
+  function destroyAllEntitiesDeferred() {
+    if (!world) {
       return;
     }
 
-    const activeIds = world.entityStore.getActiveIds();
-    for (const id of activeIds) {
-      const generation = world.entityStore.generations[id];
-      const handle = {
-        generation,
-        id,
-      };
-      world.destroyEntity(handle);
+    if (typeof world.deferDestroyAllEntities === 'function') {
+      world.deferDestroyAllEntities();
+      if (typeof world.flushDeferredMutations === 'function') {
+        world.flushDeferredMutations();
+      }
+      return;
+    }
+
+    // Legacy fallback keeps restart deterministic without reaching into world internals.
+    if (typeof world.getActiveEntityHandles === 'function') {
+      const handles = world.getActiveEntityHandles();
+      for (const handle of handles) {
+        if (typeof world.deferDestroyEntity === 'function') {
+          world.deferDestroyEntity(handle);
+        }
+      }
+
+      if (typeof world.flushDeferredMutations === 'function') {
+        world.flushDeferredMutations();
+      }
     }
   }
 
   function startGame(options = {}) {
     const levelIndex = Number.isFinite(options.levelIndex) ? options.levelIndex : 0;
     const state = gameStatus.currentState;
+
+    if (state === GAME_STATE.PLAYING) {
+      applyPauseFromState(clock, gameStatus);
+      return false;
+    }
 
     if (state === GAME_STATE.PAUSED) {
       const resumed = safeTransition(gameStatus, GAME_STATE.PLAYING);
@@ -79,14 +96,21 @@ export function createGameFlow({ gameStatus, clock, levelLoader, world, onRestar
     }
 
     if (gameStatus.currentState === GAME_STATE.MENU) {
-      if (!safeTransition(gameStatus, GAME_STATE.PLAYING)) {
+      let loadedLevel = true;
+      if (levelLoader && typeof levelLoader.loadLevel === 'function') {
+        loadedLevel = levelLoader.loadLevel(levelIndex, {
+          reason: 'start-game',
+        });
+      }
+
+      if (!loadedLevel) {
+        applyPauseFromState(clock, gameStatus);
         return false;
       }
 
-      if (levelLoader && typeof levelLoader.loadLevel === 'function') {
-        levelLoader.loadLevel(levelIndex, {
-          reason: 'start-game',
-        });
+      if (!safeTransition(gameStatus, GAME_STATE.PLAYING)) {
+        applyPauseFromState(clock, gameStatus);
+        return false;
       }
 
       applyPauseFromState(clock, gameStatus);
@@ -94,10 +118,20 @@ export function createGameFlow({ gameStatus, clock, levelLoader, world, onRestar
     }
 
     if (gameStatus.currentState === GAME_STATE.LEVEL_COMPLETE) {
+      let nextLevel = true;
       if (levelLoader && typeof levelLoader.advanceLevel === 'function') {
-        levelLoader.advanceLevel({
-          reason: 'level-complete',
-        });
+        nextLevel = levelLoader.advanceLevel('level-complete');
+      }
+
+      if (nextLevel === null) {
+        const movedToVictory = safeTransition(gameStatus, GAME_STATE.VICTORY);
+        applyPauseFromState(clock, gameStatus);
+        return movedToVictory;
+      }
+
+      if (!nextLevel) {
+        applyPauseFromState(clock, gameStatus);
+        return false;
       }
 
       const movedToPlaying = safeTransition(gameStatus, GAME_STATE.PLAYING);
@@ -122,19 +156,22 @@ export function createGameFlow({ gameStatus, clock, levelLoader, world, onRestar
   }
 
   function restartLevel(options = {}) {
-    if (gameStatus.currentState === GAME_STATE.PAUSED) {
+    const state = gameStatus.currentState;
+
+    // Restart can be requested directly from PLAYING without forcing a pause cycle.
+    if (state === GAME_STATE.PLAYING) {
+      // no-op: keep PLAYING and continue with restart teardown.
+    } else if (state === GAME_STATE.PAUSED) {
       if (!safeTransition(gameStatus, GAME_STATE.PLAYING)) {
         return false;
       }
-    }
-
-    if (gameStatus.currentState !== GAME_STATE.PLAYING) {
+    } else {
       applyPauseFromState(clock, gameStatus);
       return false;
     }
 
-    // Tear down existing entities so restart doesn't accumulate stale data.
-    destroyAllEntities();
+    // Schedule a full teardown through world deferral APIs to preserve ECS mutation discipline.
+    destroyAllEntitiesDeferred();
 
     if (levelLoader && typeof levelLoader.restartCurrentLevel === 'function') {
       levelLoader.restartCurrentLevel({
