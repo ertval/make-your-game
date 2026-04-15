@@ -280,7 +280,7 @@ Follow the agreed ticket order and keep branches short-lived and single-purpose.
 - Typical first-ticket starts are `A-01`, `B-01`, and `D-01`; Track C starts in `P2` only after `A-11`, where `C-03` can begin after `D-01` and `D-03` plus `A-11`, while `C-01` and `C-02` start after `B-04` plus `A-11`.
 - Use one branch per ticket slice.
 - Use the same branch only for the one logical change it was created for.
-- Branches must follow: `<owner-or-scope>/<TRACK>-<NN>`.
+- Branches must follow: `<owner-or-scope>/<TRACK>-<NN>[-<COMMENT>]`.
 - Example branch sequence (Track A): `ekaramet/A-01`, `ekaramet/A-02`, `ekaramet/A-03`.
 - If you intentionally work without a ticket ID on a docs/process branch, include `process` in the PR body so policy can classify it as GENERAL_DOCS_PROCESS.
 
@@ -290,7 +290,7 @@ Before opening a PR, confirm the description and checklist cover all required it
 
 - [ ] I read AGENTS.md and the agentic workflow guide.
 - [ ] I ran `npm run policy` locally.
-- [ ] I verified my branch name follows `<owner-or-scope>/<TRACK>-<NN>` (for example `ekaramet/A-03`), or I marked the PR body with `process` for a GENERAL_DOCS_PROCESS branch.
+- [ ] I verified my branch name follows `<owner-or-scope>/<TRACK>-<NN>[-<COMMENT>]` (for example `ekaramet/A-03` or `asmyrogl/B-03-runtime-integration`), or I marked the PR body with `process` for a GENERAL_DOCS_PROCESS branch.
 - [ ] I confirmed changed files stay within the declared ticket track ownership scope.
 - [ ] I ran the applicable local checks for this change.
 - [ ] I listed each affected audit ID with execution type (Fully Automatable, Semi-Automatable, or Manual-With-Evidence) and linked the test output or evidence artifact.

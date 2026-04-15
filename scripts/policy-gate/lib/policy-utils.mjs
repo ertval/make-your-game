@@ -25,7 +25,7 @@ export const REQUIRED_SECTIONS = [
 export const REQUIRED_CHECKBOXES = [
   'I read AGENTS.md and the agentic workflow guide',
   'I ran `npm run policy` locally',
-  'I verified my branch name follows <owner-or-scope>/<TRACK>-<NN> (for example ekaramet/A-03), or I marked the PR body with process for a GENERAL_DOCS_PROCESS branch',
+  'I verified my branch name follows <owner-or-scope>/<TRACK>-<NN>[-<COMMENT>] (for example ekaramet/A-03 or asmyrogl/B-03-runtime-integration), or I marked the PR body with process for a GENERAL_DOCS_PROCESS branch',
   'I confirmed changed files stay within the declared ticket track ownership scope',
   'I ran the applicable local checks',
   'I listed the audit IDs affected by this change',

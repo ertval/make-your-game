@@ -15,7 +15,7 @@ Local test command reference (run what applies to your change and list what you 
 
 - [x] I read AGENTS.md and the agentic workflow guide.
 - [x] I ran `npm run policy` locally.
-- [x] I verified my branch name follows `<owner-or-scope>/<TRACK>-<NN>` (for example `ekaramet/A-03`), or I marked the PR body with `process` for a GENERAL_DOCS_PROCESS branch.
+- [x] I verified my branch name follows `<owner-or-scope>/<TRACK>-<NN>[-<COMMENT>]` (for example `ekaramet/A-03` or `asmyrogl/B-03-runtime-integration`), or I marked the PR body with `process` for a GENERAL_DOCS_PROCESS branch.
 - [x] I confirmed changed files stay within the declared ticket ownership scope.
 - [x] I ran the applicable local checks for this change.
 - [x] I listed the audit IDs affected by this change.
