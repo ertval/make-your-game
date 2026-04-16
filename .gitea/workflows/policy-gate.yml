@@ -26,15 +26,21 @@ jobs:
       POLICY_HEADER_MODE: warn
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           fetch-depth: 0
 
       - name: Setup Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v6
         with:
-          node-version: 20
+          node-version: 24
           cache: npm
+
+      - name: Pin npm version
+        run: |
+          set -euo pipefail
+          npm install --global npm@11.6.1
+          npm --version
 
       - name: Install dependencies
         run: |

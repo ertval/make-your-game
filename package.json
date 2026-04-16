@@ -1,10 +1,11 @@
 {
   "name": "make-your-game",
   "version": "0.1.0",
-  "private": true,
+  "license": "GPL-3.0",
+  "private": false,
   "type": "module",
   "engines": {
-    "node": ">=20.0.0",
+    "node": ">=24.0.0",
     "npm": ">=10.0.0"
   },
   "scripts": {
@@ -37,7 +38,7 @@
     "policy:headerrepo": "node scripts/policy-gate/check-source-headers.mjs --scope=repo --mode=fail",
     "policy:approve": "node scripts/policy-gate/require-approval.mjs",
     "policy:prep": "node scripts/policy-gate/prepare-context.mjs",
-    "sbom": "npm ls --all --json --package-lock-only --omit=optional > sbom.json"
+    "sbom": "npm sbom --sbom-format spdx --package-lock-only --omit=optional > sbom.json"
   },
   "devDependencies": {
     "@biomejs/biome": "^2.4.10",
@@ -45,6 +46,8 @@
     "@vitest/coverage-v8": "^4.1.2",
     "ajv": "^8.18.0",
     "ajv-formats": "^3.0.1",
+    "maxrects-packer": "^2.7.3",
+    "sharp": "^0.34.5",
     "vite": "^8.0.3",
     "vitest": "^4.1.2"
   }
