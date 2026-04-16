@@ -77,14 +77,17 @@ Source plan: `docs/implementation/implementation-plan.md` (Section 3)
 **Blocks**: A-04, A-05, A-06, B-02, C-04
 
 **Deliverables**:
-- `src/main.ecs.js` — app entry, boots World, binds rAF
+- `src/main.js` — Browser entrypoint (side-effectful bootstrap)
+- `src/main.ecs.js` — App engine logic (pure bootstrap)
+- `src/shared/type-guards.js` — Runtime type validation utilities
 - `src/game/bootstrap.js` — World assembly + system registration order
 - `src/game/game-flow.js` — FSM driver (MENU → PLAYING ↔ PAUSED → GAMEOVER/VICTORY)
 - `src/game/level-loader.js` — level transition orchestration (stub, data from D-03)
 - Global `unhandledrejection` handler with error overlay
 
-- [x] Implement `main.ecs.js`: Boots World, binds `window.requestAnimationFrame`.
+- [x] Implement `main.ecs.js` (logic) and `src/main.js` (side effects): Split entrypoints to ensure safety for unit/integration tests and browser bootstrap.
 - [x] Connect `rAF` pipeline into World's internal accumulator update.
+- [x] Implement `src/shared/type-guards.js` for runtime type validation and deterministic safety.
 - [x] Implement basic state-transition flow (playing, paused) handled by checking `clock.isPaused` to freeze simulation while keeping rAF active.
 - [x] Add resume safety and lifecycle handling: baseline reset (`lastFrameTime = now`) and accumulator clamp/clear on unpause and tab restore.
 - [x] Clamp catch-up using `MAX_STEPS_PER_FRAME` and resync clock baselines on `blur` and `visibilitychange` recovery.
