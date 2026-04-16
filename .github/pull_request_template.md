@@ -2,7 +2,7 @@
 
 Local test command reference (run what applies to your change and list what you ran in the `## Tests` section below):
 
-- Baseline for every change: `npm run check`, `npm run test`, `npm run policy`
+- Baseline for every change: `npm run check`, `npm run fix`, `npm run test`, `npm run policy`
 - Unit-only slices: `npm run test:unit`
 - Cross-system or adapter changes: `npm run test:integration`
 - Browser/runtime behavior changes (pause, input, HUD, rendering, gameplay): `npm run test:e2e`

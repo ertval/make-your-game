@@ -23,17 +23,17 @@ Source plan: `docs/implementation/implementation-plan.md` (Section 3)
 **Blocks**: A-02, A-03, A-07, C-06, D-05
 
 **Deliverables**:
-- `package.json` with all scripts (`dev`, `build`, `preview`, `lint`, `format`, `check`, `test`, `test:watch`, `test:unit`, `test:integration`, `test:e2e`, `test:audit`, `coverage`, `ci`, `validate:schema`, `sbom`)
+- `package.json` with all scripts (`dev`, `build`, `preview`, `check`, `fix`, `test`, `test:watch`, `test:unit`, `test:integration`, `test:e2e`, `test:audit`, `coverage`, `ci`, `validate:schema`, `sbom`)
 - `vite.config.js`, `biome.json`, `vitest.config.js`, `playwright.config.js`
 - `index.html` with core `<div>` mount points (game-board, hud, overlay containers)
 - Basic CSS reset and variable stubs
-- CI workflow configuration with merge gates (lint, tests, coverage)
+- CI workflow configuration with merge gates (check, tests, coverage)
 - Static CI scan failing on `<canvas>` usage and banned frameworks
 
 - [x] Initialize `package.json` with ES modules, configure Vite and Biome.
 - [x] Setup Vitest for pure system/component testing.
 - [x] Setup Playwright for e2e/audit testing.
-- [x] Configure CI merge gates (lint, tests, coverage minimums, protected branch checks).
+- [x] Configure CI merge gates (check, tests, coverage minimums, protected branch checks).
 - [x] Implement dependency governance (strict lockfile policy and SBOM generation).
 - [x] Create `index.html` structure with core `<div>` mount points (game-board, hud, overlay containers).
 - [x] Commit basic CSS reset and variable stubs.

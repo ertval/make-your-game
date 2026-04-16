@@ -2,7 +2,7 @@
 
 > **Architecture**: Entity-Component-System (ECS)  
 > **Stack**: Vanilla JS (ES2026) · HTML · CSS Grid · DOM API only  
-> **Tooling**: Biome (lint + format) · Vite (dev server + bundler) · Vitest (unit tests) · Playwright (e2e)  
+> **Tooling**: Biome (check + fix) · Vite (dev server + bundler) · Vitest (unit tests) · Playwright (e2e)  
 > **Target**: 60 FPS via `requestAnimationFrame` · No canvas · No frameworks
 
 ---

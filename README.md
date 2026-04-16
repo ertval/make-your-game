@@ -172,7 +172,7 @@ make-your-game/
 │   └── source/                     # ✏️ Hand-authored source art and audio
 │       ├── audio/
 │       └── visual/
-├── biome.json                      # 🧹 Biome linter/formatter config
+├── biome.json                      # 🧹 Biome check/fix configuration
 ├── docs/                           # 📚 Documentation and implementation plans
 │   ├── README.md                   # Documentation map and workflow guide
 │   ├── audit.md                    # Audit checklist for grading
@@ -399,9 +399,8 @@ Use the broadest command first, then drop to the narrower command below if you n
 | `npm run test:e2e` | Run Playwright browser tests |
 | `npm run test:audit` | Run the audit inventory suite |
 | `npm run test:coverage` | Generate test coverage report |
-| `npm run lint` | Run Biome linter |
-| `npm run format` | Run Biome formatter |
-| `npm run check` | Run Biome lint + format check |
+| `npm run check` | Run all Biome checks (lint, format, and import sorting) |
+| `npm run fix` | Run all Biome checks and apply safe fixes automatically |
 | `npm run validate:schema` | Run JSON Schema 2020-12 validation for maps |
 | `npm run sbom` | Generate SPDX SBOM for dependency auditing |
 
@@ -507,7 +506,7 @@ tests/
 | **HTML5** | Semantic page structure |
 | **CSS3** | Grid layout, animations, styling |
 | **Vite** | Dev server, bundler |
-| **Biome** | Linting + formatting |
+| **Biome** | Check + fix (linting + formatting) |
 | **Vitest** | Unit testing |
 | **SVG** | Sprites and visual assets |
 | **Web Workers (profiling-gated)** | Optional offload for heavy computations only when profiling shows > 4 ms/frame main-thread impact |

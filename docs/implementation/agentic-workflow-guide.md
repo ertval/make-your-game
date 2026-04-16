@@ -106,7 +106,7 @@ A PR is not ready until the following are true.
 
 ### Required checks
 
-- Formatting and linting pass for the changed scope.
+- Biome check passes for the changed scope.
 - Relevant unit tests pass.
 - Relevant integration tests pass.
 - For each affected audit ID, verification is listed by execution category: Fully Automatable, Semi-Automatable, or Manual-With-Evidence.
@@ -363,7 +363,7 @@ npm run policy:trace
 6. If you changed HTML/JS tech stack boundaries, run explicit static scan:
 
 ```bash
-npm run check:forbidden
+npm run policy:forbid
 ```
 
 ### PR message template
