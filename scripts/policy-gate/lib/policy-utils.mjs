@@ -25,12 +25,11 @@ export const REQUIRED_SECTIONS = [
 export const REQUIRED_CHECKBOXES = [
   'I read AGENTS.md and the agentic workflow guide',
   'I ran `npm run policy` locally',
-  'I verified my branch name follows <owner-or-scope>/<TRACK>-<NN> (for example ekaramet/A-03), or I marked the PR body with process for a GENERAL_DOCS_PROCESS branch',
+  'I verified my branch name follows <owner-or-scope>/<TRACK>-<NN>[-<COMMENT>] (for example ekaramet/A-03 or asmyrogl/B-03-runtime-integration), or I marked the PR body with process for a GENERAL_DOCS_PROCESS branch',
   'I confirmed changed files stay within the declared ticket track ownership scope',
   'I ran the applicable local checks',
   'I listed the audit IDs affected by this change',
   'I checked security sinks and trust boundaries',
-  'I checked architecture boundaries',
   'I checked dependency and lockfile impact',
   'I requested human review',
 ];
@@ -43,6 +42,68 @@ export const REQUIRED_LAYER_CHECKBOXES = [
   'No framework imports or canvas APIs were introduced in this change',
 ];
 
+// Generated changed-file context is written under a policy runtime folder to avoid repo-root artifact drift.
+export const DEFAULT_CHANGED_FILES_PATH = '.policy-runtime/changed-files.txt';
+
+// Security policy scanning uses a shared source-file extension set to keep changed/repo checks aligned.
+export const SECURITY_SOURCE_PATTERN = /\.(js|mjs|cjs|ts|tsx|jsx|html)$/;
+
+// Framework dependencies are forbidden because the project is constrained to Vanilla DOM + ECS.
+export const BANNED_FRAMEWORK_DEPENDENCIES = Object.freeze([
+  'react',
+  'vue',
+  'angular',
+  'svelte',
+  'phaser',
+  'pixi.js',
+  'three',
+  'jquery',
+]);
+
+// Canonical forbidden-technology rules reused by changed-file and repo-wide scans.
+export const FORBIDDEN_TECH_RULES = Object.freeze([
+  { name: 'canvas element', pattern: /<\s*canvas\b/i },
+  { name: 'canvas createElement', pattern: /createElement\s*\(\s*['"]canvas['"]\s*\)/i },
+  {
+    name: 'framework import',
+    pattern: /from\s+['"](?:react|vue|angular|svelte|phaser|pixi\.js|three|jquery)['"]/,
+  },
+  {
+    name: 'framework require',
+    pattern:
+      /require\s*\(\s*['"](?:react|vue|angular|svelte|phaser|pixi\.js|three|jquery)['"]\s*\)/,
+  },
+]);
+
+// Unsafe sinks and dynamic execution APIs are banned for secure DOM boundaries.
+export const SECURITY_SINK_RULES = Object.freeze([
+  { name: 'innerHTML sink', pattern: /\.\s*innerHTML\s*=/ },
+  { name: 'outerHTML sink', pattern: /\.\s*outerHTML\s*=/ },
+  { name: 'insertAdjacentHTML sink', pattern: /\.\s*insertAdjacentHTML\s*\(/ },
+  { name: 'document.write sink', pattern: /\bdocument\.write\s*\(/ },
+  { name: 'eval call', pattern: /\beval\s*\(/ },
+  { name: 'Function constructor', pattern: /\bnew\s+Function\s*\(/ },
+  { name: 'CommonJS require', pattern: /\brequire\s*\(/ },
+  { name: 'var declaration', pattern: /^\s*var\s+[A-Za-z_$][\w$]*/m },
+  { name: 'XMLHttpRequest API', pattern: /\bnew\s+XMLHttpRequest\s*\(/ },
+  { name: 'string setTimeout', pattern: /setTimeout\s*\(\s*['"]/ },
+  { name: 'string setInterval', pattern: /setInterval\s*\(\s*['"]/ },
+]);
+
+// DOM APIs are blocked in simulation systems; only the render DOM system can use them.
+export const ECS_DOM_API_RULES = Object.freeze([
+  /\bdocument\./,
+  /\bwindow\./,
+  /\bquerySelector(All)?\b/,
+  /\bcreateElement(NS)?\b/,
+  /\bappendChild\b/,
+  /\binsertBefore\b/,
+  /\baddEventListener\b/,
+  /\binnerHTML\b/,
+  /\bouterHTML\b/,
+  /\binsertAdjacentHTML\b/,
+]);
+
 // Policy scans ignore generated and dependency folders to keep repository checks deterministic and fast.
 const IGNORED_DIRS = new Set([
   '.git',
@@ -54,7 +115,8 @@ const IGNORED_DIRS = new Set([
 ]);
 
 export const TICKET_ID_PATTERN = /\b([ABCD]-\d{2})\b/gi;
-export const EXPLICIT_TICKET_BRANCH_PATTERN = /^[A-Za-z0-9._-]+\/([ABCD]-\d{2})$/;
+export const EXPLICIT_TICKET_BRANCH_PATTERN =
+  /^[A-Za-z0-9._-]+\/([ABCD]-\d{2})(?:-[A-Za-z0-9._-]+)?$/;
 
 // Owner-to-track mapping enforces that each developer only modifies files in their assigned track.
 // This prevents cross-track edits when a branch owner's ticket belongs to a different track.
@@ -67,7 +129,7 @@ export const OWNER_TRACK_MAPPING = {
 
 /**
  * Extract the owner (username) from a branch name.
- * Branch format: <owner>/<TRACK>-<NN>, e.g. "ekaramet/A-03"
+ * Branch format: <owner>/<TRACK>-<NN>[-<COMMENT>], e.g. "ekaramet/A-03" or "asmyrogl/B-03-runtime-integration"
  * @param {string} branchName — The full branch name.
  * @returns {string} The owner string, or empty string if not parseable.
  */
@@ -165,24 +227,36 @@ export const SHARED_OWNERSHIP_PATTERNS = [
   '**/.gitkeep',
 ];
 
+// Track ownership is dual-layer for tests:
+// - Track A has global QA ownership over tests/**.
+// - Tracks B/C/D own scoped tests that validate their owned implementation files.
 export const TRACK_OWNERSHIP_RULES = {
   A: {
     name: 'Track A (Engine/CI/Testing)',
     patterns: [
       'package.json',
       'LICENSE',
-      'assets/**',
+      'assets/generated/alternatives/**',
+      'assets/generated/sprites/**',
+      'assets/generated/ui/**',
+      'assets/generated/visuals/**',
+      'assets/source/visual/**',
+      'assets/maps/**',
+      'assets/manifests/visual-manifest.json',
+      'docs/schemas/map.schema.json',
+      'docs/schemas/visual-manifest.schema.json',
       'index.html',
       'vite.config.js',
       'vitest.config.js',
       'playwright.config.js',
       'biome.json',
       'scripts/**',
+      'src/main.js',
       'src/main.ecs.js',
+      'src/shared/**',
       'src/game/**',
       'src/debug/**',
       'src/ecs/world/**',
-      'styles/reset.css',
       'tests/**',
     ],
   },
@@ -197,12 +271,12 @@ export const TRACK_OWNERSHIP_RULES = {
       'src/ecs/components/visual.js',
       'src/adapters/io/input-adapter.js',
       'src/ecs/systems/input-system.js',
-      'src/ecs/systems/player-move-system.js',
-      'src/ecs/systems/collision-system.js',
-      'src/ecs/systems/bomb-tick-system.js',
-      'src/ecs/systems/explosion-system.js',
-      'src/ecs/systems/power-up-system.js',
-      'src/ecs/systems/ghost-ai-system.js',
+      'src/ecs/systems/player-move-*.js',
+      'src/ecs/systems/collision-*.js',
+      'src/ecs/systems/bomb-*.js',
+      'src/ecs/systems/explosion-*.js',
+      'src/ecs/systems/power-up-*.js',
+      'src/ecs/systems/ghost-ai-*.js',
     ],
     testPatterns: [
       'tests/unit/components/registry.test.js',
@@ -212,12 +286,12 @@ export const TRACK_OWNERSHIP_RULES = {
       'tests/unit/components/stats.test.js',
       'tests/unit/components/visual.test.js',
       'tests/unit/systems/input-system.test.js',
-      'tests/unit/systems/player-move-system.test.js',
-      'tests/unit/systems/collision-system.test.js',
-      'tests/unit/systems/bomb-tick-system.test.js',
-      'tests/unit/systems/explosion-system.test.js',
-      'tests/unit/systems/power-up-system.test.js',
-      'tests/unit/systems/ghost-ai-system.test.js',
+      'tests/unit/systems/player-*.test.js',
+      'tests/unit/systems/collision-*.test.js',
+      'tests/unit/systems/bomb-*.test.js',
+      'tests/unit/systems/explosion-*.test.js',
+      'tests/unit/systems/power-up-*.test.js',
+      'tests/unit/systems/ghost-ai-*.test.js',
       'tests/integration/adapters/input-adapter.test.js',
       'tests/integration/gameplay/b-*.test.js',
     ],
@@ -225,16 +299,16 @@ export const TRACK_OWNERSHIP_RULES = {
   C: {
     name: 'Track C (Gameplay Feedback + Audio)',
     patterns: [
-      'src/ecs/systems/scoring-system.js',
-      'src/ecs/systems/timer-system.js',
-      'src/ecs/systems/life-system.js',
-      'src/ecs/systems/spawn-system.js',
-      'src/ecs/systems/pause-system.js',
-      'src/ecs/systems/level-progress-system.js',
-      'src/adapters/dom/hud-adapter.js',
-      'src/adapters/dom/screens-adapter.js',
-      'src/adapters/io/storage-adapter.js',
-      'src/adapters/io/audio-adapter.js',
+      'src/ecs/systems/scoring-*.js',
+      'src/ecs/systems/timer-*.js',
+      'src/ecs/systems/life-*.js',
+      'src/ecs/systems/spawn-*.js',
+      'src/ecs/systems/pause-*.js',
+      'src/ecs/systems/level-progress-*.js',
+      'src/adapters/dom/hud-*.js',
+      'src/adapters/dom/screens-*.js',
+      'src/adapters/io/storage-*.js',
+      'src/adapters/io/audio-*.js',
       'assets/generated/sfx/**',
       'assets/generated/music/**',
       'assets/source/audio/**',
@@ -242,17 +316,18 @@ export const TRACK_OWNERSHIP_RULES = {
       'docs/schemas/audio-manifest.schema.json',
     ],
     testPatterns: [
-      'tests/unit/systems/scoring-system.test.js',
-      'tests/unit/systems/timer-system.test.js',
-      'tests/unit/systems/life-system.test.js',
-      'tests/unit/systems/spawn-system.test.js',
-      'tests/unit/systems/pause-system.test.js',
-      'tests/unit/systems/level-progress-system.test.js',
-      'tests/integration/adapters/hud-adapter.test.js',
-      'tests/integration/adapters/screens-adapter.test.js',
-      'tests/integration/adapters/storage-adapter.test.js',
-      'tests/integration/adapters/audio-adapter.test.js',
+      'tests/unit/systems/scoring-*.test.js',
+      'tests/unit/systems/timer-*.test.js',
+      'tests/unit/systems/life-*.test.js',
+      'tests/unit/systems/spawn-*.test.js',
+      'tests/unit/systems/pause-*.test.js',
+      'tests/unit/systems/level-progress-*.test.js',
+      'tests/integration/adapters/hud-*.test.js',
+      'tests/integration/adapters/screens-*.test.js',
+      'tests/integration/adapters/storage-*.test.js',
+      'tests/integration/adapters/audio-*.test.js',
       'tests/integration/gameplay/c-*.test.js',
+      'tests/e2e/c-*.spec.js',
     ],
   },
   D: {
@@ -260,17 +335,15 @@ export const TRACK_OWNERSHIP_RULES = {
     patterns: [
       'src/ecs/resources/**',
       'src/ecs/components/visual.js',
-      'src/ecs/components/renderable.js',
-      'src/ecs/components/visual-state.js',
       'src/ecs/render-intent.js',
-      'src/ecs/systems/render-collect-system.js',
-      'src/ecs/systems/render-dom-system.js',
-      'src/adapters/dom/renderer-adapter.js',
-      'src/adapters/dom/sprite-pool-adapter.js',
+      'src/ecs/systems/render-*.js',
+      'src/adapters/dom/renderer-*.js',
+      'src/adapters/dom/sprite-pool-*.js',
       'styles/**',
       'assets/maps/**',
       'assets/generated/sprites/**',
       'assets/generated/ui/**',
+      'assets/generated/visuals/**',
       'assets/source/visual/**',
       'assets/manifests/visual-manifest.json',
       'docs/schemas/map.schema.json',
@@ -280,13 +353,10 @@ export const TRACK_OWNERSHIP_RULES = {
       'tests/unit/resources/**',
       'tests/unit/schema/map-schema.test.js',
       'tests/unit/components/visual.test.js',
-      'tests/unit/components/renderable.test.js',
-      'tests/unit/components/visual-state.test.js',
       'tests/unit/render-intent/render-intent.test.js',
-      'tests/unit/systems/render-collect-system.test.js',
-      'tests/unit/systems/render-dom-system.test.js',
-      'tests/integration/adapters/renderer-adapter.test.js',
-      'tests/integration/adapters/sprite-pool-adapter.test.js',
+      'tests/unit/systems/render-*.test.js',
+      'tests/integration/adapters/renderer-*.test.js',
+      'tests/integration/adapters/sprite-pool-*.test.js',
       'tests/integration/gameplay/d-*.test.js',
     ],
   },
@@ -338,6 +408,10 @@ export function readJson(filePath) {
 }
 
 export function writeJson(filePath, data) {
+  const dirPath = path.dirname(filePath);
+  if (dirPath && dirPath !== '.') {
+    fs.mkdirSync(dirPath, { recursive: true });
+  }
   fs.writeFileSync(filePath, `${JSON.stringify(data, null, 2)}\n`, 'utf8');
 }
 
@@ -346,6 +420,10 @@ export function readText(filePath) {
 }
 
 export function writeLines(filePath, lines) {
+  const dirPath = path.dirname(filePath);
+  if (dirPath && dirPath !== '.') {
+    fs.mkdirSync(dirPath, { recursive: true });
+  }
   fs.writeFileSync(filePath, `${lines.join('\n')}\n`, 'utf8');
 }
 
