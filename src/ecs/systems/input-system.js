@@ -41,10 +41,6 @@ export function createInputSystem(options = {}) {
   return {
     name: 'input-system',
     phase: 'input',
-    resourceCapabilities: {
-      read: [adapterResourceKey, inputStateResourceKey],
-      write: [],
-    },
     update(context) {
       const adapter = context.world.getResource(adapterResourceKey);
       const inputState = context.world.getResource(inputStateResourceKey);

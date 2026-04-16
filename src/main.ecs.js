@@ -25,7 +25,7 @@
  *   - This file (main.ecs.js) contains pure bootstrap logic and engine functions.
  *   - It intentionally does NOT execute any side effects upon import.
  *   - This allows unit and integration tests to import this module safely in Node/JSDOM.
- *   - The actual side-effectful execution is triggered by src/main.js, which is the 
+ *   - The actual side-effectful execution is triggered by src/main.js, which is the
  *     entrypoint for the browser.
  *
  * Public API:
