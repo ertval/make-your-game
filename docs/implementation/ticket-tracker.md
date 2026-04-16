@@ -97,7 +97,7 @@ Canonical ticket ID ranges used by policy checks:
 - [x] **D-05** P1 - CSS Layout & Grid Structure (Depends on: A-01, A-10) | Blocks: C-05; D-06; A-11
 - [ ] **D-06** P1 - Renderer Adapter & Board Generation (Depends on: D-04, D-05, D-03, A-10) | Blocks: D-08; D-09; D-10; A-11
 - [x] **B-02** P1 - Input Adapter & Input System (Depends on: B-01, A-03, D-01, A-10) | Blocks: A-08; B-03; A-11
-- [ ] **B-03** P1 - Movement & Grid Collision System (Depends on: B-01, B-02, D-03, A-10) | Blocks: A-05; A-08; B-04; B-06; B-08; D-07; A-11
+- [x] **B-03** P1 - Movement & Grid Collision System (Depends on: B-01, B-02, D-03, A-10) | Blocks: A-05; A-08; B-04; B-06; B-08; D-07; A-11
 - [ ] **D-07** P1 - Render Collect System (Depends on: D-04, B-03, A-10) | Blocks: D-08; A-11
 - [ ] **D-09** P1 - Sprite Pool Adapter (Depends on: D-06, A-10) | Blocks: D-08; A-11
 - [ ] **D-08** P1 - Render DOM System (The Batcher) (Depends on: D-06, D-07, D-09, A-10) | Blocks: A-05; D-10; A-11
