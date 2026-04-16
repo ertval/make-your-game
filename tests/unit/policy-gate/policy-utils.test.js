@@ -359,12 +359,18 @@ describe('policy-utils PR path resolution', () => {
 
 describe('policy-utils branch resolution', () => {
   it('uses CI head ref when preferred branch value is detached HEAD', () => {
+    vi.stubEnv('BRANCH_NAME', '');
+    vi.stubEnv('EVENT_PATH', '');
+    vi.stubEnv('GITHUB_EVENT_PATH', '');
     vi.stubEnv('GITHUB_HEAD_REF', 'ekaramet/process-audit-fixes');
 
     expect(resolveBranchName('HEAD')).toBe('ekaramet/process-audit-fixes');
   });
 
   it('uses refs/heads branch fallback when head ref is absent', () => {
+    vi.stubEnv('BRANCH_NAME', '');
+    vi.stubEnv('EVENT_PATH', '');
+    vi.stubEnv('GITHUB_EVENT_PATH', '');
     vi.stubEnv('GITHUB_HEAD_REF', '');
     vi.stubEnv('HEAD_REF', '');
     vi.stubEnv('GITHUB_REF', 'refs/heads/asmyrogl/B-03-runtime-integration');
