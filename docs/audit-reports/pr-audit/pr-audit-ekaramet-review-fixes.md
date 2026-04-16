@@ -84,7 +84,7 @@ Date: 2026-04-09
 - PASS: Unsafe DOM sinks absent (innerHTML/outerHTML/insertAdjacentHTML/document.write) (no unsafe sinks found in diff)
 - PASS: Code execution sinks absent (eval/new Function/string timers) (no execution sinks found in diff)
 - PASS: Lockfile pairing valid when package.json changed (both package.json and package-lock.json changed together; npm ci succeeded)
-- **FAIL**: PR checklist/template contract satisfied (PR body/commit messages do not include required PR template sections; no "process" marker for GENERAL_DOCS_PROCESS mode; branch naming violates checklist item "I verified my branch name follows <owner-or-scope>/<TRACK>-<NN>")
+- **FAIL**: PR checklist/template contract satisfied (PR body/commit messages do not include required PR template sections; no "process" marker for GENERAL_DOCS_PROCESS mode; branch naming violates checklist item "I verified my branch name follows <owner-or-scope>/<TRACK>-<NN>[-<COMMENT>]")
 - **FAIL**: Workflow guide contract satisfied (checks do not all run -- policy:checks and policy:header fail; no audit IDs listed in commit messages; no evidence of human review requested)
 - PASS: Audit matrix mapping resolved for affected behavior (traceability matrix exists; affected audit IDs covered by existing test infrastructure)
 - N/A: Manual evidence present when F-19/F-20/F-21/B-06 are impacted (no gameplay-critical rendering changes in this branch; manual evidence not required)

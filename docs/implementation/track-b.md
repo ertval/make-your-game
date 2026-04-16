@@ -2,7 +2,7 @@
 
 ��� Source plan: `docs/implementation/implementation-plan.md` (Section 3)
 
-> **Scope**: All ECS component data definitions, input adapter/system, movement & grid collision, entity collision, bomb/explosion simulation, power-up effects, ghost AI behavior, and deterministic gameplay event emission from simulation systems. Pure ECS simulation — no DOM, no audio playback, no visual asset work. Track B may modify tests that map to Track B-owned implementation files; Track A retains global testing ownership. **Does NOT own** scoring/timer/lives, pause/progression UX, HUD/screens adapters, or visual rendering infrastructure.
+> **Scope**: All ECS component data definitions, input adapter/system, movement & grid collision, entity collision, bomb/explosion simulation, power-up effects, ghost AI behavior, and deterministic gameplay event emission from simulation systems. Pure ECS simulation — no DOM, no audio playback, no visual asset work. Track B owns scoped tests that validate Track B-owned implementation files. Track A remains the global owner for `tests/**` and QA gates. **Does NOT own** scoring/timer/lives, pause/progression UX, HUD/screens adapters, or visual rendering infrastructure.
 > **Execution model**: Deliver the core physics pipeline first, then add combat depth, AI behavior, and final event-contract consolidation.
 
 ## Phase Order (Prototype-First)

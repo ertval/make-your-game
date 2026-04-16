@@ -25,9 +25,10 @@ This document is the single source of truth for requirement-to-audit-to-ticket-t
 
 ## Current Automation Reality
 
-- `tests/e2e/audit/audit-question-map.js` includes all 27 audit IDs.
-- `tests/e2e/audit/audit.e2e.test.js` generates one test per audit ID.
-- `runAuditAssertion(question)` currently throws a placeholder error, so executable automation is pending.
+- `tests/e2e/audit/audit-question-map.js` includes all 27 audit IDs plus execution metadata, threshold definitions, and manual-evidence manifest linkage.
+- `tests/e2e/audit/audit.e2e.test.js` enforces executable non-browser obligations: inventory/category parity, threshold declaration checks, and manual evidence manifest/artifact existence.
+- `tests/e2e/audit/audit.browser.spec.js` executes browser runtime/performance assertions, including explicit thresholds for `AUDIT-F-17`, `AUDIT-F-18`, and `AUDIT-B-05`.
+- Manual evidence obligations for `AUDIT-F-19`, `AUDIT-F-20`, `AUDIT-F-21`, and `AUDIT-B-06` are tracked through `docs/audit-reports/manual-evidence.manifest.json`.
 
 ## Alignment Verification Summary
 
@@ -99,7 +100,7 @@ This document is the single source of truth for requirement-to-audit-to-ticket-t
 2. Every audit row must map to ticket owners and a concrete execution type.
 3. Every `Pending` audit row must become `Executable` only after passing artifacts exist.
 4. CI must fail if any audit ID is missing from `tests/e2e/audit/audit-question-map.js`.
-5. CI must fail if `runAuditAssertion(question)` remains placeholder logic.
+5. CI must fail if semi-automatable thresholds or manual-evidence manifest obligations are missing for required audit IDs.
 
 ## Maintenance Rules
 

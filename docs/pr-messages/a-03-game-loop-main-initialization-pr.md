@@ -4,8 +4,9 @@
 
 - [x] I read AGENTS.md and the agentic workflow guide.
 - [x] I ran `npm run policy` locally.
-- [x] I verified my branch name follows `<owner-or-scope>/<TRACK>-<NN>` (for example `ekaramet/A-03`), or I marked the PR body with `process` for a GENERAL_DOCS_PROCESS branch.
+- [x] I verified my branch name follows `<owner-or-scope>/<TRACK>-<NN>[-<COMMENT>]` (for example `ekaramet/A-03` or `asmyrogl/B-03-runtime-integration`), or I marked the PR body with `process` for a GENERAL_DOCS_PROCESS branch.
 - [x] I confirmed changed files stay within the declared ticket ownership scope.
+
 - [x] I ran the applicable local checks for this change.
 - [x] I listed the audit IDs affected by this change.
 - [x] I checked security sinks and trust boundaries.
@@ -92,7 +93,7 @@
 
 ## Architecture / dependency notes
 - Runtime orchestration is kept in src/main.ecs.js and src/game/* and does not add DOM side effects to ECS systems.
-- Branch naming policy now requires <owner-or-scope>/<TRACK>-<NN>.
+ - Branch naming policy now requires <owner-or-scope>/<TRACK>-<NN>[-<COMMENT>].
 - policy:checks:local now guarantees metadata prep before checks.
 - LEVEL_COMPLETE progression now consumes `levelLoader.advanceLevel()` from game-flow without violating ECS/adapter boundaries.
 - Runtime lifecycle handling now explicitly covers blur/focus/visibility resync points to keep fixed-step baseline deterministic after focus transitions.

@@ -42,6 +42,12 @@ describe('game-status', () => {
     expect(status.currentState).toBe(GAME_STATE.PLAYING);
   });
 
+  it('rejects PLAYING → PLAYING self transition in current FSM contract', () => {
+    const status = createGameStatus(GAME_STATE.PLAYING);
+    expect(canTransition(status, GAME_STATE.PLAYING)).toBe(false);
+    expect(() => transitionTo(status, GAME_STATE.PLAYING)).toThrow();
+  });
+
   it('allows PLAYING → LEVEL_COMPLETE → PLAYING', () => {
     const status = createGameStatus(GAME_STATE.PLAYING);
     transitionTo(status, GAME_STATE.LEVEL_COMPLETE);

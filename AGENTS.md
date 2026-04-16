@@ -146,9 +146,9 @@ Follow this sequence for every reported issue:
 
 ## Security and Code Quality
 
-- **Tooling**: MUST use Biome for linting and formatting.
+- **Tooling**: MUST use Biome for check and fix workflows (linting and formatting).
 - **Comments**: MUST include single-line comments for non-obvious logic — branching decisions, performance trade-offs, workaround rationale, and domain-specific calculations. Comments SHOULD explain the "why" and "how", not the "what". Each file MUST begin with a comment block that explains the file's purpose, its public API (if applicable), and any important implementation notes or constraints.
-- **CI Governance**: MUST enforce merge gates (linting and tests). When `package.json` and corresponding scripts are present, CI MUST also enforce coverage and dependency lockfile policies (with SBOM).
+- **CI Governance**: MUST enforce merge gates (check and tests). When `package.json` and corresponding scripts are present, CI MUST also enforce coverage and dependency lockfile policies (with SBOM).
 - **Data Validation**: MUST validate JSON maps against JSON Schema 2020-12 in CI.
 - **Sinks and Policies**: MUST use safe DOM sinks (`textContent`, explicit attribute APIs), and strictly enforce Content Security Policy (CSP) and Trusted Types.
 - **Injection**: MUST avoid unsafe HTML injection for untrusted content.
@@ -230,7 +230,7 @@ For gameplay-critical changes, evidence MUST include:
 
 A task is complete only when:
 
-1. **Linter**: Biome passes for changed scope.
+1. **Linter**: Biome check passes for changed scope.
 2. **Tests**: Relevant tests pass (including new repro/regression tests for bug fixes).
 3. **Architecture**: ECS boundaries remain intact (no forbidden DOM calls in simulation systems).
 4. **Functional**: Functional coverage remains intact (single-player, pause Continue/Restart, HUD timer/score/lives).

@@ -37,7 +37,7 @@
 ## Checklist
 - [x] I read AGENTS.md and the agentic workflow guide.
 - [x] I ran `npm run policy` locally.
-- [x] Branch name follows `<owner-or-scope>/<TRACK>-<NN>` (`ekaramet/A-04`).
+- [x] Branch name follows `<owner-or-scope>/<TRACK>-<NN>[-<COMMENT>]` (`ekaramet/A-04`).
 - [x] Changed files remain inside declared ticket scope.
 - [x] I ran the applicable local checks for this change.
 - [x] I listed audit IDs affected (A-04; includes prior A-03).

@@ -79,4 +79,32 @@ describe('A-03 runtime critical error handling', () => {
 
     expect(windowStub.addEventListener).toHaveBeenCalledTimes(1);
   });
+
+  it('appends additional critical errors as plain-text lines for readability', () => {
+    const overlayRoot = {
+      setAttribute: vi.fn(),
+      textContent: '',
+    };
+    const logger = {
+      error: vi.fn(),
+    };
+    const windowStub = createWindowStub();
+
+    installUnhandledRejectionHandler({
+      logger,
+      overlayRoot,
+      windowRef: windowStub,
+    });
+
+    windowStub.dispatch('unhandledrejection', {
+      reason: new Error('first'),
+    });
+    windowStub.dispatch('unhandledrejection', {
+      reason: 'second',
+    });
+
+    expect(overlayRoot.textContent).toContain('Critical error: first');
+    expect(overlayRoot.textContent).toContain('Critical error: second');
+    expect(overlayRoot.textContent).toContain('\n');
+  });
 });

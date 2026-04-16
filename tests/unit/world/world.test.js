@@ -3,7 +3,7 @@ import { describe, expect, it, vi } from 'vitest';
 import { World } from '../../../src/ecs/world/world.js';
 
 describe('World', () => {
-  it('runs systems in deterministic phase+registration order', () => {
+  it('runs simulation phases in deterministic registration order and render in explicit commit order', () => {
     const world = new World();
     const order = [];
 
@@ -17,8 +17,26 @@ describe('World', () => {
     });
 
     world.runFixedStep();
+    world.runRenderCommit();
 
     expect(order).toEqual(['input-1', 'logic-1', 'logic-2', 'render-1']);
+  });
+
+  it('does not execute render systems during fixed-step simulation dispatch', () => {
+    const world = new World();
+    const marker = [];
+
+    world.registerSystem({
+      phase: 'render',
+      name: 'render-only',
+      update: () => marker.push('render'),
+    });
+
+    world.runFixedStep();
+    expect(marker).toEqual([]);
+
+    world.runRenderCommit();
+    expect(marker).toEqual(['render']);
   });
 
   it('applies deferred mutations at a single sync point after system execution', () => {
@@ -103,7 +121,9 @@ describe('World', () => {
     expect(recycled.id).toBe(first.id);
     expect(recycled.generation).toBe(first.generation + 1);
     expect(world.setEntityMask(first, 0b0010)).toBe(false);
+    expect(world.getEntityMask(first)).toBeNull();
     expect(world.setEntityMask(recycled, 0b0010)).toBe(true);
+    expect(world.getEntityMask(recycled)).toBe(0b0010);
     expect(world.query(0b0010)).toEqual([recycled.id]);
   });
 
@@ -158,5 +178,61 @@ describe('World', () => {
     expect(consoleErrorSpy).toHaveBeenCalledOnce();
 
     consoleErrorSpy.mockRestore();
+  });
+
+  it('rejects immediate structural mutations during dispatch and requires deferred APIs', () => {
+    const world = new World();
+
+    world.registerSystem({
+      phase: 'logic',
+      name: 'guard-check',
+      update: () => {
+        expect(() => world.createEntity(0b0001)).toThrow('cannot be called during system dispatch');
+        world.deferCreateEntity(0b0001);
+      },
+    });
+
+    world.runFixedStep();
+
+    expect(world.getEntityCount()).toBe(1);
+    expect(world.query(0b0001)).toEqual([0]);
+  });
+
+  it('provides systems a safe world view without internal stores', () => {
+    const world = new World();
+
+    world.registerSystem({
+      phase: 'logic',
+      name: 'safe-view',
+      update: (context) => {
+        expect(context.world.entityStore).toBeUndefined();
+        expect(context.world.pendingStructuralOps).toBeUndefined();
+      },
+    });
+
+    world.runFixedStep();
+  });
+
+  it('enforces explicit resource capability declarations for systems', () => {
+    const world = new World();
+    const unauthorizedReads = [];
+
+    world.setResource('clock', { nowMs: 0 });
+    world.registerSystem({
+      phase: 'logic',
+      name: 'no-resource-capability',
+      update: (context) => {
+        try {
+          context.world.getResource('clock');
+        } catch (error) {
+          unauthorizedReads.push(error.message);
+        }
+      },
+    });
+
+    world.runFixedStep();
+
+    expect(unauthorizedReads).toHaveLength(1);
+    expect(unauthorizedReads[0]).toContain('cannot read resource');
   });
 });
