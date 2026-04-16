@@ -148,7 +148,7 @@ ffmpeg -i assets/source/audio/music-level-01.wav -c:a libopus -b:a 128k assets/g
 
 Asset implementation tasks are integrated into the canonical implementation tracks. Follow the verification gates in each track file:
 
-### [Track D — Resources, Map, Rendering & Visual Assets](track-d.md) (Dev 4)
+### [Track D — Resources, Map, Rendering & Visual Assets](track-d.md) (Dev 4) (Visual assets co-owned with Track A)
 
 - **D-04 (Render Data Contracts)**: Includes `V-01 (Visual Schema Contract)`.
 - **D-10 (Visual Asset Production — Gameplay Sprites)**: Includes `V-02 (Character Set)` and `V-03 (Gameplay Props)`.

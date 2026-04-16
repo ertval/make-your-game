@@ -8,4 +8,4 @@ Final ticket redistribution and track renaming to align with the finalized imple
 | Track A | Erti | World engine, game flow, scaffolding, all testing (unit/integration/e2e/audit), CI, QA and evidence |
 | Track B | Alex | Components, input, movement and collision, bombs/explosions, power-ups, ghost AI, gameplay event contracts |
 | Track C | Chris | Scoring/timer/lives, spawn, pause/progression, HUD/screens/storage adapters, audio adapter/cues/SFX/music/manifest |
-| Track D | Magnus | Resources, map loading, renderer and sprite pools, CSS/layout, gameplay and UI visual assets, visual manifest governance |
+| Track D | Magnus | Resources, map loading, renderer and sprite pools, CSS/layout, gameplay and UI visual assets (co-owned with Track A), visual manifest governance |

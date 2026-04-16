@@ -335,10 +335,10 @@ Live ticket progress for this section is tracked in `docs/implementation/ticket-
 
 | Track | Developer | Tickets | Scope |
 |---|---|---|---|
-| Track A | Dev 1 | 14 | World engine, game flow, scaffolding, all testing (unit/integration/e2e/audit), CI, QA and evidence. Track A can update all tests; feature tracks can update scoped tests tied to owned files |
+| Track A | Dev 1 | 14 | World engine, game flow, scaffolding, all testing (unit/integration/e2e/audit), CI, QA and evidence. Track A can update all tests; feature tracks can update scoped tests tied to owned files. All visual assets are co-owned by Track A and Track D |
 | Track B | Dev 2 | 9 | Components, input, movement and collision, bombs/explosions, power-ups, ghost AI, gameplay event contracts |
 | Track C | Dev 3 | 10 | Scoring/timer/lives, spawn, pause/progression, HUD/screens/storage adapters, audio adapter/cues/SFX/music/manifest |
-| Track D | Dev 4 | 11 | Resources, map loading, renderer and sprite pools, CSS/layout, gameplay and UI visual assets, visual manifest governance |
+| Track D | Dev 4 | 11 | Resources, map loading, renderer and sprite pools, CSS/layout, gameplay and UI visual assets (co-owned with Track A), visual manifest governance |
 | **Total** | **4 Devs** | **44** | |
 
 ### Critical Path By Dev
@@ -646,7 +646,7 @@ This section is mandatory for delivery readiness and complements Track C (Audio)
 
 ### 9.1 Scope and Ownership
 
-1. Track D owns visual asset authoring, rendering, and optimization.
+1. Track D owns visual asset authoring, rendering, and optimization (co-owned with Track A).
 2. Track C owns audio asset authoring, decoding, and playback.
 3. Asset authoring, optimization, and validation standards are defined in `assets-pipeline.md`.
 4. Asset changes should be reviewed with gameplay and performance in the same PR when behavior is affected.

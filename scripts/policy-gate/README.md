@@ -23,11 +23,18 @@ This directory contains scripts used to enforce project policies via `npm run po
 
 ## Ownership Model Notes
 
+- Track ownership scope is defined by `docs/implementation/track-*.md`; `scripts/policy-gate/lib/policy-utils.mjs` is the enforcement mirror and must stay synchronized with those docs.
 - Track ownership patterns are intentionally ticket-track level, not per-ticket granularity.
 - Shared governance and docs paths are represented by `SHARED_OWNERSHIP_PATTERNS`.
 - `styles/base.css` is shared ownership and can be modified by any track.
 - Track A owns all test paths in policy enforcement (`tests/**`).
 - Tracks B, C, and D can modify scoped tests that correspond to their owned implementation files via `testPatterns`.
+
+## GENERAL_DOCS_PROCESS Semantics
+
+- Process mode can be detected from branch name, commit metadata, or PR body markers.
+- Process mode may relax ticket-association conflicts (for docs/process workflows).
+- Process mode does **not** bypass ownership boundaries; changed files are still validated against the branch owner's mapped track.
 
 ## Repo Trace Behavior
 
