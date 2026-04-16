@@ -90,6 +90,20 @@ describe('policy-utils ticket and process detection', () => {
     expect(result.violations).toEqual([]);
   });
 
+  it('keeps Track A out of Track B and D implementation ownership', () => {
+    const result = findOwnershipViolations('A', [
+      'src/ecs/resources/game-status.js',
+      'src/ecs/systems/input-system.js',
+      'src/ecs/components/registry.js',
+    ]);
+
+    expect(result.violations).toEqual([
+      'src/ecs/resources/game-status.js',
+      'src/ecs/systems/input-system.js',
+      'src/ecs/components/registry.js',
+    ]);
+  });
+
   it('allows shared styles/base.css for any track', () => {
     expect(findOwnershipViolations('A', ['styles/base.css']).violations).toEqual([]);
     expect(findOwnershipViolations('B', ['styles/base.css']).violations).toEqual([]);
