@@ -76,8 +76,11 @@ const preferredBaseRef =
 const baseRef = resolveBaseRef(preferredBaseRef);
 const headRef = metadata.headSha || args['head-ref'] || 'HEAD';
 const mergeBase = getMergeBase(baseRef, headRef);
-const branchName =
-  resolveBranchName(args['branch-name'], process.env.BRANCH_NAME, metadata.branchName);
+const branchName = resolveBranchName(
+  args['branch-name'],
+  process.env.BRANCH_NAME,
+  metadata.branchName,
+);
 const commitMessages = collectBranchCommitMessages({ baseRef, mergeBase, headRef });
 const ticketIds = inferTicketIdsFromSources(
   args['ticket-id'] || '',
