@@ -39,6 +39,7 @@ pnpm-debug.log*
 tmp/
 temp/
 .audit*
+changed-files.txt
 
 # CI runtime artifacts
 .policy-pr-meta.json
