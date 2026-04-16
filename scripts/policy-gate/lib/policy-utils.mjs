@@ -708,7 +708,8 @@ export function commandSucceeded(command, commandArgs) {
 }
 
 export function getCurrentBranchName() {
-  const fromEnv = process.env.GITHUB_HEAD_REF || process.env.HEAD_REF || '';
+  const fromEnv =
+    process.env.GITHUB_HEAD_REF || process.env.HEAD_REF || process.env.GITHUB_REF_NAME || '';
   if (fromEnv) {
     return String(fromEnv).trim();
   }

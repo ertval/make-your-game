@@ -44,17 +44,20 @@ function parsePullRequestPayload(filePath) {
     author: pr.user?.login ?? '',
     baseSha: pr.base?.sha ?? '',
     headSha: pr.head?.sha ?? '',
+    branchName: pr.head?.ref ?? '',
     reviewsUrl: pr.url ? `${pr.url}/reviews` : (pr.reviews_url ?? ''),
   };
 }
 
 function buildManualMetadata() {
+  const headRef = process.env.GITHUB_HEAD_REF || process.env.HEAD_REF || '';
   return {
     number: Number(args['pr-number'] || process.env.PR_NUMBER || 0),
     author: args.author || process.env.PR_AUTHOR || '',
     body: args.body || process.env.PR_BODY || '',
     baseSha: args['base-sha'] || process.env.BASE_SHA || '',
     headSha: args['head-sha'] || process.env.HEAD_SHA || '',
+    branchName: args['branch-name'] || process.env.BRANCH_NAME || headRef || getCurrentBranchName(),
     reviewsUrl: args['reviews-url'] || process.env.REVIEWS_URL || '',
   };
 }
@@ -73,7 +76,12 @@ const preferredBaseRef =
 const baseRef = resolveBaseRef(preferredBaseRef);
 const headRef = metadata.headSha || args['head-ref'] || 'HEAD';
 const mergeBase = getMergeBase(baseRef, headRef);
-const branchName = args['branch-name'] || process.env.BRANCH_NAME || getCurrentBranchName();
+const branchName =
+  args['branch-name'] ||
+  process.env.BRANCH_NAME ||
+  metadata.branchName ||
+  process.env.GITHUB_HEAD_REF ||
+  getCurrentBranchName();
 const commitMessages = collectBranchCommitMessages({ baseRef, mergeBase, headRef });
 const ticketIds = inferTicketIdsFromSources(
   args['ticket-id'] || '',
