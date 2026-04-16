@@ -77,11 +77,45 @@ function createWindowStub() {
 }
 
 describe('runtime adapter boundaries', () => {
-  it('bootstraps through explicit entrypoint and exposes runtime hooks on window', () => {
+  it('bootstraps through explicit entrypoint and exposes runtime hooks on window', async () => {
     const documentStub = createDocumentStub();
     const windowStub = createWindowStub();
 
-    const runtime = bootstrapApplication({
+    windowStub.fetch = vi.fn(async () => ({
+      json: async () => ({
+        level: 1,
+        metadata: {
+          activeGhostTypes: [0, 1],
+          ghostSpeed: 4.0,
+          maxGhosts: 2,
+          name: 'test-map',
+          timerSeconds: 120,
+        },
+        dimensions: { rows: 7, columns: 7 },
+        grid: [
+          [1, 1, 1, 1, 1, 1, 1],
+          [1, 3, 3, 3, 3, 3, 1],
+          [1, 3, 3, 3, 3, 3, 1],
+          [1, 3, 3, 6, 3, 3, 1],
+          [1, 3, 5, 5, 5, 3, 1],
+          [1, 3, 5, 5, 5, 3, 1],
+          [1, 1, 1, 1, 1, 1, 1],
+        ],
+        spawn: {
+          player: { row: 3, col: 3 },
+          ghostHouse: {
+            topRow: 4,
+            bottomRow: 5,
+            leftCol: 2,
+            rightCol: 4,
+          },
+          ghostSpawnPoint: { row: 4, col: 3 },
+        },
+      }),
+      ok: true,
+    }));
+
+    const runtime = await bootstrapApplication({
       documentRef: documentStub,
       nowProvider: () => 0,
       windowRef: windowStub,
@@ -95,7 +129,7 @@ describe('runtime adapter boundaries', () => {
     runtime.stop();
   });
 
-  it('clears held input through the input adapter boundary when blur occurs', () => {
+  it('clears held input through the input adapter boundary when blur occurs', async () => {
     const bootstrap = createBootstrap({ now: 0 });
     const inputAdapter = {
       clearHeldKeys: vi.fn(),

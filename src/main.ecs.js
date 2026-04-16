@@ -36,9 +36,12 @@
  * - startBrowserApplication(options)
  */
 
+import { createInputAdapter } from './adapters/io/input-adapter.js';
 import { percentileFromSorted, toSortedNumericArray } from './debug/frame-stats.js';
-import { FIXED_DT_MS, MAX_STEPS_PER_FRAME } from './ecs/resources/constants.js';
+import { FIXED_DT_MS, MAX_STEPS_PER_FRAME, TOTAL_LEVELS } from './ecs/resources/constants.js';
+import { createMapResource } from './ecs/resources/map-resource.js';
 import { createBootstrap } from './game/bootstrap.js';
+import { createSyncMapLoader } from './game/level-loader.js';
 
 const DEFAULT_FRAME_SAMPLE_SIZE = 600;
 const FRAME_PROBE_KEY = '__MS_GHOSTMAN_FRAME_PROBE__';
@@ -116,6 +119,37 @@ function clearHeldInputState(bootstrap) {
   if (adapter.heldKeys instanceof Set) {
     adapter.heldKeys.clear();
   }
+}
+
+/**
+ * Preload the shipped map JSON files and convert them into canonical map resources.
+ *
+ * @param {{ fetchImpl?: Function }} [options] - Optional fetch override for tests.
+ * @returns {Promise<Array<MapResource>>} Parsed map resources in level order.
+ */
+async function loadDefaultMaps({ fetchImpl } = {}) {
+  if (typeof fetchImpl !== 'function') {
+    throw new Error('bootstrapApplication requires fetch support to preload maps.');
+  }
+
+  const preloadTasks = [];
+
+  for (let levelNumber = 1; levelNumber <= TOTAL_LEVELS; levelNumber += 1) {
+    preloadTasks.push(
+      (async () => {
+        const response = await fetchImpl(`/assets/maps/level-${levelNumber}.json`);
+        if (!response || response.ok !== true) {
+          const status = Number.isFinite(response?.status) ? response.status : 'unknown';
+          throw new Error(`Failed to load map asset for level ${levelNumber} (status: ${status}).`);
+        }
+
+        const rawMap = await response.json();
+        return createMapResource(rawMap);
+      })(),
+    );
+  }
+
+  return Promise.all(preloadTasks);
 }
 
 export function renderCriticalError(overlayRoot, error) {
@@ -347,9 +381,22 @@ export function createGameRuntime({
   };
 }
 
-export function bootstrapApplication({
+/**
+ * Bootstrap the browser-facing ECS runtime.
+ *
+ * @param {{
+ *   documentRef?: Document | null,
+ *   logger?: Console,
+ *   loadMapForLevel?: Function,
+ *   nowProvider?: Function,
+ *   windowRef?: Window | null,
+ * }} [options] - Optional DOM, timing, and map-loading overrides for tests.
+ * @returns {Promise<{ controls: object, start: Function, stop: Function } | null>} Running runtime or null without a document.
+ */
+export async function bootstrapApplication({
   documentRef,
   logger = console,
+  loadMapForLevel,
   nowProvider,
   windowRef,
 } = {}) {
@@ -368,11 +415,29 @@ export function bootstrapApplication({
   }
 
   const getNow = nowProvider || (() => targetWindow?.performance?.now?.() ?? Date.now());
+  let inputAdapter = null;
 
   try {
+    // Browser input is captured at the app boundary and injected as a resource
+    // so simulation systems stay DOM-free.
+    inputAdapter = createInputAdapter({
+      documentTarget: targetDocument,
+      eventTarget: targetWindow,
+      windowTarget: targetWindow,
+    });
+
+    const resolvedLoadMapForLevel =
+      loadMapForLevel ||
+      createSyncMapLoader(
+        await loadDefaultMaps({
+          fetchImpl: targetWindow?.fetch?.bind(targetWindow) || globalThis.fetch?.bind(globalThis),
+        }),
+      );
     const bootstrap = createBootstrap({
+      loadMapForLevel: resolvedLoadMapForLevel,
       now: getNow(),
     });
+    bootstrap.world.setResource('inputAdapter', inputAdapter);
 
     installUnhandledRejectionHandler({
       logger,
@@ -393,20 +458,17 @@ export function bootstrapApplication({
     runtime.start();
     return runtime;
   } catch (error) {
+    if (inputAdapter && typeof inputAdapter.destroy === 'function') {
+      inputAdapter.destroy();
+    }
     logger.error('World initialization failed.', error);
     renderCriticalError(overlayRoot, error);
     throw error;
   }
 }
 
-export function startBrowserApplication(options = {}) {
-  if (typeof window === 'undefined' || typeof document === 'undefined') {
-    return null;
-  }
+export const startBrowserApplication = bootstrapApplication;
 
-  return bootstrapApplication({
-    ...options,
-    documentRef: options.documentRef || document,
-    windowRef: options.windowRef || window,
-  });
+if (typeof window !== 'undefined' && typeof document !== 'undefined') {
+  void bootstrapApplication();
 }

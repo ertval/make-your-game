@@ -212,6 +212,14 @@ export class World {
     this.#resources.set(key, value);
   }
 
+  get entityStore() {
+    return this.#entityStore;
+  }
+
+  get systemsByPhase() {
+    return this.#systemsByPhase;
+  }
+
   getResource(key) {
     return this.#resources.get(key);
   }
