@@ -15,9 +15,9 @@ Every task must pass the appropriate testing level before phase verification can
 | **Unit Tests** | Mocks system ticks against component pools to ensure pure functions mutate data predictably. No DOM required. | `npm run test:unit` |
 | **Integration Tests** | Verifies ECS world ordering, cross-system events, and adapter boundaries (using `jsdom`). | `npm run test:integration` |
 | **E2E / Browser Tests** | Mandated via **Playwright** for verifying rendering pipelines, pause invariants, input behaviors, and the game loop. | `npm run test:e2e` |
-| **Audit Tests** | Verifies asset mappings, `audit.md` references, and data structures. | `npm run test:audit` |
+| **Audit Tests** | Executes non-browser audit obligations (inventory/category parity, threshold declarations, manual evidence manifest checks) and browser audit thresholds (`F-17`, `F-18`, `B-05`). | `npm run test:audit` |
 | **Schema Checks** | Ensures JSON maps and manifests comply with 2020-12 schema standards. | `npm run validate:schema` |
-| **Policy Gates** | Asserts formatting, system isolation (DOM safety), and project-wide integrity. | `npm run policy` |
+| **Policy Gates** | Asserts check (Biome), system isolation (DOM safety), and project-wide integrity. | `npm run policy` |
 
 ---
 
@@ -35,7 +35,7 @@ Every phase milestone must satisfy three distinct audit categories as defined in
 
 Completion is mathematically verified through script-driven enforcers to ensure repo-wide compliance:
 
-*   **Local Policy Gate (`npm run policy`)**: Asserts formatting (Biome), system isolation (DOM safety), and test status for changed files.
+*   **Local Policy Gate (`npm run policy`)**: Asserts check (Biome), system isolation (DOM safety), and test status for changed files.
 *   **Repository Gate (`npm run policy:repo`)**: Ensures no forbidden APIs (canvas, eval, frameworks) were introduced and that lockfiles/traceability matrices are correctly paired.
 
 ---
@@ -84,7 +84,7 @@ Completion is mathematically verified through script-driven enforcers to ensure 
     - **Bomb mechanics**: Drop bomb (`Space`) → 3s fuse → cross-pattern explosion. Triggers chain reactions and destroys walls.
     - **Ghost AI**: Verify 4 distinct behaviors (Blinky, Pinky, Inky, Clyde) (**AUDIT-F-13**).
     - **Audio**: SFX/music plays via `decodeAudioData()` preloading — no lag on first playback.
-    - **CI gates**: `npm run policy` must pass all gates (lint, test, coverage, SBOM).
+    - **CI gates**: `npm run policy` must pass all gates (check, test, coverage, SBOM).
 *   **Proof**: Performance traces show sustained 60 FPS under full load with all systems active.
 
 ### P4 — Polish & Validation
@@ -98,6 +98,11 @@ Completion is mathematically verified through script-driven enforcers to ensure 
     - **Memory reuse**: No GC jank after warm-up — allocation timeline flat (**AUDIT-B-03**).
 *   **Proof**: Final audit report and PR messages archived in `docs/audit-reports/` and `docs/pr-messages/`.
 
+### Manual Evidence Manifest Contract
+
+All Manual-With-Evidence audit IDs are tracked in `docs/audit-reports/manual-evidence.manifest.json`.
+Policy checks and audit tests fail if any required manual audit ID is missing, if required artifacts are empty, or if artifact paths do not exist.
+
 ---
 
 ## 5. Manual Evidence Artifacts to Collect
@@ -108,6 +113,9 @@ Completion is mathematically verified through script-driven enforcers to ensure 
 | **AUDIT-F-20** | Layer count screenshot (minimal layers) | DevTools → Rendering → Layer borders → screenshot |
 | **AUDIT-F-21** | Layer promotion verification | DevTools → Rendering → confirm only player/ghost sprites have `will-change: transform` |
 | **AUDIT-B-06** | Overall quality sign-off | Review of all evidence + code quality + review sign-off |
+
+Manifest reference for required artifact templates:
+`docs/audit-reports/manual-evidence.manifest.json`
 
 ---
 
@@ -120,7 +128,7 @@ Completion is mathematically verified through script-driven enforcers to ensure 
 | `npm run test:integration` | Cross-system interaction + adapter boundary tests |
 | `npm run test:e2e` | Playwright browser tests (pause, input, HUD, loop) |
 | `npm run test:audit` | Validation of all audit questions |
-| `npm run policy` | PR merge gate (lint + test + coverage + schema + SBOM) |
+| `npm run policy` | PR merge gate (check + test + coverage + schema + SBOM) |
 | `npm run policy:repo` | Repo-wide integrity and traceability check |
 | `npm run ci` | Full local quality gate suite |
 

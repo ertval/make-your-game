@@ -1,0 +1,66 @@
+{
+  "schemaVersion": "1.0.0",
+  "updatedAt": "2026-04-15",
+  "entries": [
+    {
+      "auditId": "AUDIT-F-19",
+      "executionType": "Manual-With-Evidence",
+      "requiredArtifacts": [
+        {
+          "path": "docs/audit-reports/evidence/AUDIT-F-19.paint.md",
+          "description": "Paint flashing capture notes and screenshot references."
+        }
+      ],
+      "signOff": {
+        "reviewer": "",
+        "date": "",
+        "notes": "Attach DevTools paint flashing evidence before final phase closure."
+      }
+    },
+    {
+      "auditId": "AUDIT-F-20",
+      "executionType": "Manual-With-Evidence",
+      "requiredArtifacts": [
+        {
+          "path": "docs/audit-reports/evidence/AUDIT-F-20.layers.md",
+          "description": "Layer borders capture notes and screenshot references."
+        }
+      ],
+      "signOff": {
+        "reviewer": "",
+        "date": "",
+        "notes": "Attach layer-count evidence before final phase closure."
+      }
+    },
+    {
+      "auditId": "AUDIT-F-21",
+      "executionType": "Manual-With-Evidence",
+      "requiredArtifacts": [
+        {
+          "path": "docs/audit-reports/evidence/AUDIT-F-21.promotion.md",
+          "description": "Layer promotion evidence and rationale for promoted elements."
+        }
+      ],
+      "signOff": {
+        "reviewer": "",
+        "date": "",
+        "notes": "Attach compositor-layer promotion evidence before final phase closure."
+      }
+    },
+    {
+      "auditId": "AUDIT-B-06",
+      "executionType": "Manual-With-Evidence",
+      "requiredArtifacts": [
+        {
+          "path": "docs/audit-reports/evidence/AUDIT-B-06.overall.md",
+          "description": "Overall quality sign-off summary covering all audit evidence."
+        }
+      ],
+      "signOff": {
+        "reviewer": "",
+        "date": "",
+        "notes": "Attach final quality review sign-off before release."
+      }
+    }
+  ]
+}

@@ -2,7 +2,7 @@
 
 Source plan: `docs/implementation/implementation-plan.md` (Section 3)
 
-> **Scope**: Project scaffolding, ECS internals (World, Entity Store, Queries), game flow orchestration (`game/` folder), game loop, CI/schema wiring, **ALL testing** (unit, integration, e2e, audit), QA, polish, and evidence aggregation. Track A has global ownership of `tests/**`; Tracks B/C/D may also modify scoped tests that map to files they own. **Does NOT own** resources (`constants`, `clock`, `rng`, `event-queue`, `game-status`) or map loading — those are owned by Track D.
+> **Scope**: Project scaffolding, ECS internals (World, Entity Store, Queries), game flow orchestration (`game/` folder, including `level-loader.js` orchestration), game loop, CI/schema wiring, **ALL testing** (unit, integration, e2e, audit), QA, polish, and evidence aggregation. Track A has global ownership of `tests/**` and QA gates. Tracks B/C/D also own scoped tests for their owned implementation files and may modify those tests. All visual assets (including map schemas/raw map assets) are co-owned by Track A and Track D. **Does NOT own** resource definitions (`constants`, `clock`, `rng`, `event-queue`, `game-status`) — those are owned by Track D.
 > **Execution model**: Prototype-first delivery for fastest visual feedback, then playable MVP, feature depth, and hardening.
 
 ## Phase Order (Prototype-First)
@@ -23,17 +23,17 @@ Source plan: `docs/implementation/implementation-plan.md` (Section 3)
 **Blocks**: A-02, A-03, A-07, C-06, D-05
 
 **Deliverables**:
-- `package.json` with all scripts (`dev`, `build`, `preview`, `lint`, `format`, `check`, `test`, `test:watch`, `test:unit`, `test:integration`, `test:e2e`, `test:audit`, `coverage`, `ci`, `validate:schema`, `sbom`)
+- `package.json` with all scripts (`dev`, `build`, `preview`, `check`, `fix`, `test`, `test:watch`, `test:unit`, `test:integration`, `test:e2e`, `test:audit`, `coverage`, `ci`, `validate:schema`, `sbom`)
 - `vite.config.js`, `biome.json`, `vitest.config.js`, `playwright.config.js`
 - `index.html` with core `<div>` mount points (game-board, hud, overlay containers)
 - Basic CSS reset and variable stubs
-- CI workflow configuration with merge gates (lint, tests, coverage)
+- CI workflow configuration with merge gates (check, tests, coverage)
 - Static CI scan failing on `<canvas>` usage and banned frameworks
 
 - [x] Initialize `package.json` with ES modules, configure Vite and Biome.
 - [x] Setup Vitest for pure system/component testing.
 - [x] Setup Playwright for e2e/audit testing.
-- [x] Configure CI merge gates (lint, tests, coverage minimums, protected branch checks).
+- [x] Configure CI merge gates (check, tests, coverage minimums, protected branch checks).
 - [x] Implement dependency governance (strict lockfile policy and SBOM generation).
 - [x] Create `index.html` structure with core `<div>` mount points (game-board, hud, overlay containers).
 - [x] Commit basic CSS reset and variable stubs.
@@ -77,14 +77,17 @@ Source plan: `docs/implementation/implementation-plan.md` (Section 3)
 **Blocks**: A-04, A-05, A-06, B-02, C-04
 
 **Deliverables**:
-- `src/main.ecs.js` — app entry, boots World, binds rAF
+- `src/main.js` — Browser entrypoint (side-effectful bootstrap)
+- `src/main.ecs.js` — App engine logic (pure bootstrap)
+- `src/shared/type-guards.js` — Runtime type validation utilities
 - `src/game/bootstrap.js` — World assembly + system registration order
 - `src/game/game-flow.js` — FSM driver (MENU → PLAYING ↔ PAUSED → GAMEOVER/VICTORY)
 - `src/game/level-loader.js` — level transition orchestration (stub, data from D-03)
 - Global `unhandledrejection` handler with error overlay
 
-- [x] Implement `main.ecs.js`: Boots World, binds `window.requestAnimationFrame`.
+- [x] Implement `main.ecs.js` (logic) and `src/main.js` (side effects): Split entrypoints to ensure safety for unit/integration tests and browser bootstrap.
 - [x] Connect `rAF` pipeline into World's internal accumulator update.
+- [x] Implement `src/shared/type-guards.js` for runtime type validation and deterministic safety.
 - [x] Implement basic state-transition flow (playing, paused) handled by checking `clock.isPaused` to freeze simulation while keeping rAF active.
 - [x] Add resume safety and lifecycle handling: baseline reset (`lastFrameTime = now`) and accumulator clamp/clear on unpause and tab restore.
 - [x] Clamp catch-up using `MAX_STEPS_PER_FRAME` and resync clock baselines on `blur` and `visibilitychange` recovery.

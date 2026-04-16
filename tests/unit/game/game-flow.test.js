@@ -16,11 +16,11 @@ import { World } from '../../../src/ecs/world/world.js';
 import { createGameFlow } from '../../../src/game/game-flow.js';
 
 describe('game-flow', () => {
-  it('advances and loads next level when starting from LEVEL_COMPLETE', () => {
+  it('transitions to VICTORY when LEVEL_COMPLETE has no next level', () => {
     const gameStatus = createGameStatus(GAME_STATE.LEVEL_COMPLETE);
     const clock = createClock(0);
     const levelLoader = {
-      advanceLevel: vi.fn(),
+      advanceLevel: vi.fn(() => null),
     };
 
     const gameFlow = createGameFlow({
@@ -31,9 +31,64 @@ describe('game-flow', () => {
 
     expect(gameFlow.startGame()).toBe(true);
     expect(levelLoader.advanceLevel).toHaveBeenCalledTimes(1);
-    expect(levelLoader.advanceLevel).toHaveBeenCalledWith({
-      reason: 'level-complete',
+    expect(gameStatus.currentState).toBe(GAME_STATE.VICTORY);
+    expect(clock.isPaused).toBe(true);
+  });
+
+  it('advances and loads next level when starting from LEVEL_COMPLETE', () => {
+    const gameStatus = createGameStatus(GAME_STATE.LEVEL_COMPLETE);
+    const clock = createClock(0);
+    const levelLoader = {
+      advanceLevel: vi.fn(() => ({ level: 2 })),
+    };
+
+    const gameFlow = createGameFlow({
+      clock,
+      gameStatus,
+      levelLoader,
     });
+
+    expect(gameFlow.startGame()).toBe(true);
+    expect(levelLoader.advanceLevel).toHaveBeenCalledTimes(1);
+    expect(levelLoader.advanceLevel).toHaveBeenCalledWith('level-complete');
+    expect(gameStatus.currentState).toBe(GAME_STATE.PLAYING);
+    expect(clock.isPaused).toBe(false);
+  });
+
+  it('fails closed when MENU start cannot load a map', () => {
+    const gameStatus = createGameStatus(GAME_STATE.MENU);
+    const clock = createClock(0);
+    const levelLoader = {
+      loadLevel: vi.fn(() => null),
+    };
+
+    const gameFlow = createGameFlow({
+      clock,
+      gameStatus,
+      levelLoader,
+    });
+
+    expect(gameFlow.startGame({ levelIndex: 0 })).toBe(false);
+    expect(levelLoader.loadLevel).toHaveBeenCalledTimes(1);
+    expect(gameStatus.currentState).toBe(GAME_STATE.MENU);
+    expect(clock.isPaused).toBe(true);
+  });
+
+  it('returns false when startGame is called while already PLAYING', () => {
+    const gameStatus = createGameStatus(GAME_STATE.PLAYING);
+    const clock = createClock(0);
+    const levelLoader = {
+      loadLevel: vi.fn(),
+    };
+
+    const gameFlow = createGameFlow({
+      clock,
+      gameStatus,
+      levelLoader,
+    });
+
+    expect(gameFlow.startGame()).toBe(false);
+    expect(levelLoader.loadLevel).not.toHaveBeenCalled();
     expect(gameStatus.currentState).toBe(GAME_STATE.PLAYING);
     expect(clock.isPaused).toBe(false);
   });
@@ -42,7 +97,7 @@ describe('game-flow', () => {
     const gameStatus = createGameStatus(GAME_STATE.MENU);
     const clock = createClock(0);
     const levelLoader = {
-      loadLevel: vi.fn(),
+      loadLevel: vi.fn(() => ({ level: 3 })),
     };
 
     const gameFlow = createGameFlow({
@@ -121,7 +176,7 @@ describe('game-flow', () => {
 
     expect(levelLoader.restartCurrentLevel).toHaveBeenCalledTimes(1);
     expect(world.getEntityCount()).toBe(0);
-    expect(world.entityStore.isAlive(firstEntity)).toBe(false);
-    expect(world.entityStore.isAlive(secondEntity)).toBe(false);
+    expect(world.isEntityAlive(firstEntity)).toBe(false);
+    expect(world.isEntityAlive(secondEntity)).toBe(false);
   });
 });

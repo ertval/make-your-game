@@ -17,6 +17,7 @@ import {
   inferTicketIdsFromSources,
   parseArgs,
   readJson,
+  resolveBranchName,
   resolveOwnerTrackFromBranch,
   resolvePrPolicyPath,
   runCommand,
@@ -78,7 +79,11 @@ function runStep(label, command, commandArgs, retryHint) {
 // We centralize metadata parsing so PR/repo flows cannot drift in how they infer owner, tickets, or process mode.
 function resolvePolicyContext() {
   const metadata = fs.existsSync(metaPath) ? readJson(metaPath) : {};
-  const branchName = metadata.branchName || '';
+  const branchName = resolveBranchName(
+    metadata.branchName,
+    args['branch-name'] || '',
+    process.env.BRANCH_NAME || '',
+  );
   const branchOwner = extractOwnerFromBranch(branchName);
   const branchOwnerTrack = resolveOwnerTrackFromBranch(branchName);
   const branchTicketIds = inferTicketIdsFromSources(metadata.branchName || '');
@@ -183,6 +188,7 @@ if (scope === 'pr' || scope === 'all') {
         '--',
         ...passThrough,
         `--require-approval=${requireApproval ? 'true' : 'false'}`,
+        `--ci-mode=${mode === 'ci' ? 'true' : 'false'}`,
       ],
       'npm run policy:approve',
     );
@@ -242,16 +248,21 @@ if ((scope === 'repo' || scope === 'all') && !(scope === 'all' && ranRepoFallbac
   // We execute repo-wide policies for deeper validation when specifically requested or on merge to main.
   runStep(
     'Repo-wide forbidden-tech scan',
-    'npm',
-    ['run', 'policy:forbidrepo', '--', ...passThrough],
-    'npm run policy:forbidrepo',
+    'node',
+    ['scripts/policy-gate/check-forbidden.mjs', '--scope=repo', ...passThrough],
+    'node scripts/policy-gate/check-forbidden.mjs --scope=repo',
   );
 
   runStep(
     'Repo-wide source-header scan',
-    'npm',
-    ['run', 'policy:headerrepo', '--', ...headerModeArgs, ...passThrough],
-    'npm run policy:headerrepo',
+    'node',
+    [
+      'scripts/policy-gate/check-source-headers.mjs',
+      '--scope=repo',
+      ...headerModeArgs,
+      ...passThrough,
+    ],
+    'node scripts/policy-gate/check-source-headers.mjs --scope=repo',
   );
 
   if (runIntegrityChecks) {

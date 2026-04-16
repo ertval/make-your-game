@@ -15,7 +15,7 @@ This directory contains scripts used to enforce project policies via `npm run po
   - Traceability mapping, lockfile syncs, audit-map consistency, and documentation coverage constraints.
 - **`check-forbidden.mjs`**: Scans the codebase or specifically the changed files for forbidden imports (frameworks) or APIs (HTML5 canvas elements inside JS context constraints) based on the AGENTS.md rules.
 - **`check-source-headers.mjs`**: Ensures that critical source files contain a top-of-file block comment for documentation and ownership clarity.
-- **`require-approval.mjs`**: Enforces human review by reaching out to the remote platform API (e.g. GitHub/Gitea) using available tokens. Fails if independent approval is required but lacking. Falls back to letting the platform's branch protection logic handle approvals if no token exists.
+- **`require-approval.mjs`**: Enforces human review by reaching out to the GitHub PR review API when approval enforcement is enabled. Fails if independent approval is required but lacking. Falls back to letting branch protection handle approvals when approval enforcement is disabled.
 
 ## Libraries
 
@@ -23,11 +23,18 @@ This directory contains scripts used to enforce project policies via `npm run po
 
 ## Ownership Model Notes
 
+- Track ownership scope is defined by `docs/implementation/track-*.md`; `scripts/policy-gate/lib/policy-utils.mjs` is the enforcement mirror and must stay synchronized with those docs.
 - Track ownership patterns are intentionally ticket-track level, not per-ticket granularity.
 - Shared governance and docs paths are represented by `SHARED_OWNERSHIP_PATTERNS`.
 - `styles/base.css` is shared ownership and can be modified by any track.
 - Track A owns all test paths in policy enforcement (`tests/**`).
 - Tracks B, C, and D can modify scoped tests that correspond to their owned implementation files via `testPatterns`.
+
+## GENERAL_DOCS_PROCESS Semantics
+
+- Process mode can be detected from branch name, commit metadata, or PR body markers.
+- Process mode may relax ticket-association conflicts (for docs/process workflows).
+- Process mode does **not** bypass ownership boundaries; changed files are still validated against the branch owner's mapped track.
 
 ## Repo Trace Behavior
 

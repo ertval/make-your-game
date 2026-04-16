@@ -15,27 +15,45 @@ const root = process.cwd();
 
 /**
  * Collect all map JSON files from assets/maps/ and pair them with the map schema.
- * Falls back to a single file if the directory does not exist yet.
+ * Fails closed when the directory is missing or empty.
  */
 function collectMapPairs() {
   const mapsDir = path.join(root, 'assets', 'maps');
   const schemaPath = 'docs/schemas/map.schema.json';
   const pairs = [];
+  const failures = [];
 
-  // We guard against missing map directories so the project doesn't crash on absolute first-time setup or clean checkout.
-  if (fs.existsSync(mapsDir)) {
-    for (const entry of fs.readdirSync(mapsDir)) {
-      if (entry.endsWith('.json')) {
-        pairs.push({
-          data: path.join('assets', 'maps', entry),
-          schema: schemaPath,
-        });
-      }
-    }
+  if (!fs.existsSync(mapsDir)) {
+    failures.push(`Required maps directory is missing: ${path.relative(root, mapsDir)}`);
+    return {
+      failures,
+      pairs,
+    };
   }
 
-  return pairs;
+  const mapEntries = fs.readdirSync(mapsDir).filter((entry) => entry.endsWith('.json'));
+  if (mapEntries.length === 0) {
+    failures.push('No level map JSON files found in assets/maps/.');
+    return {
+      failures,
+      pairs,
+    };
+  }
+
+  for (const entry of mapEntries) {
+    pairs.push({
+      data: path.join('assets', 'maps', entry),
+      schema: schemaPath,
+    });
+  }
+
+  return {
+    failures,
+    pairs,
+  };
 }
+
+const mapPairs = collectMapPairs();
 
 const pairs = [
   {
@@ -46,7 +64,7 @@ const pairs = [
     data: 'assets/manifests/visual-manifest.json',
     schema: 'docs/schemas/visual-manifest.schema.json',
   },
-  ...collectMapPairs(),
+  ...mapPairs.pairs,
 ];
 
 const ajv = new Ajv2020({ allErrors: true, strict: false });
@@ -55,12 +73,20 @@ addFormats(ajv);
 let hasFailure = false;
 const compiledSchemas = new Map();
 
+for (const failure of mapPairs.failures) {
+  hasFailure = true;
+  console.error(`Schema validation setup failed: ${failure}`);
+}
+
 for (const pair of pairs) {
   const dataPath = path.join(root, pair.data);
   const schemaPath = path.join(root, pair.schema);
 
   if (!fs.existsSync(dataPath) || !fs.existsSync(schemaPath)) {
-    console.warn(`Skipping validation for ${pair.data} because file is missing.`);
+    hasFailure = true;
+    console.error(
+      `Schema validation failed: required file is missing (data=${pair.data}, schema=${pair.schema}).`,
+    );
     continue;
   }
 
@@ -70,13 +96,27 @@ for (const pair of pairs) {
   if (compiledSchemas.has(pair.schema)) {
     validate = compiledSchemas.get(pair.schema);
   } else {
-    const schema = JSON.parse(fs.readFileSync(schemaPath, 'utf8'));
-    validate = ajv.compile(schema);
-    compiledSchemas.set(pair.schema, validate);
+    try {
+      const schema = JSON.parse(fs.readFileSync(schemaPath, 'utf8'));
+      validate = ajv.compile(schema);
+      compiledSchemas.set(pair.schema, validate);
+    } catch (error) {
+      hasFailure = true;
+      console.error(`Schema compilation failed for ${pair.schema}: ${error.message}`);
+      continue;
+    }
   }
 
   // We parse synchronously here assuming asset data files are bounded and schema validation sits outside hot-paths.
-  const data = JSON.parse(fs.readFileSync(dataPath, 'utf8'));
+  let data;
+  try {
+    data = JSON.parse(fs.readFileSync(dataPath, 'utf8'));
+  } catch (error) {
+    hasFailure = true;
+    console.error(`Schema validation failed: ${pair.data} is not valid JSON (${error.message}).`);
+    continue;
+  }
+
   const valid = validate(data);
 
   if (!valid) {

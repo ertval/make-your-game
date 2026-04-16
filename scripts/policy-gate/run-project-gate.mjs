@@ -17,6 +17,14 @@ const pkg = JSON.parse(fs.readFileSync('package.json', 'utf8'));
 const scripts = pkg.scripts ?? {};
 
 const commands = ['check', 'test'];
+if (scripts['test:e2e']) {
+  commands.push('test:e2e');
+}
+
+if (scripts['test:audit']) {
+  commands.push('test:audit');
+}
+
 if (scripts['test:coverage']) {
   commands.push('test:coverage');
 } else if (scripts.coverage) {

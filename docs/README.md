@@ -89,13 +89,13 @@ This repository uses [`../.github/workflows/policy-gate.yml`](../.github/workflo
 
 1. Enable Actions for the repository and make sure a runner is registered for Linux jobs.
 2. Keep the workflow file on the default branch so PR events can trigger it.
-3. Open PRs with the required sections from [`../.github/pull_request_template.md`](../.github/pull_request_template.md) in the body. If your Gitea instance does not auto-apply that template, paste it manually.
-4. Add a repo secret named `GITEA_TOKEN` if you want the approval API check to run. If the secret is missing, the workflow will skip that step and you should enforce approvals with branch protection instead.
+3. Open PRs with the required sections from [`../.github/pull_request_template.md`](../.github/pull_request_template.md) in the body.
+4. The repository workflow currently runs `npm run policy -- --mode=ci --scope=all --require-approval=false`; approval enforcement is delegated to repository branch-protection settings.
 5. The npm quality gate runs when `package.json` is present and currently enforces `npm run policy:quality` (`check`, `test`, coverage, schema validation, and SBOM when configured). Use `npm run ci` for the broader local wrapper.
 
 ### Test It
 
-1. Push a small branch change, open a PR in Gitea, and confirm the workflow starts on the PR event.
+1. Push a small branch change, open a PR on GitHub, and confirm the workflow starts on the PR event.
 2. Verify a valid PR passes the checklist, traceability, and boundary scans.
 3. Remove one required checklist item or introduce an audit traceability mismatch, then confirm the workflow fails at the expected step.
 4. Verify the PR gate and repo gate run as expected (`npm run policy` and `npm run policy:repo`) by checking workflow logs.
