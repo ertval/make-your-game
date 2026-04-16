@@ -6,7 +6,7 @@
  */
 
 import fs from 'node:fs';
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import {
   assertOwnerTrackMatch,
@@ -17,10 +17,15 @@ import {
   getOwnersForTrack,
   inferProcessModeFromSources,
   inferTicketIdsFromSources,
+  resolveBranchName,
   resolveOwnerTrackFromBranch,
   resolvePrPolicyPath,
   TRACK_OWNERSHIP_RULES,
 } from '../../../scripts/policy-gate/lib/policy-utils.mjs';
+
+afterEach(() => {
+  vi.unstubAllEnvs();
+});
 
 describe('policy-utils ticket and process detection', () => {
   it('detects ticket ids from branch names and commit messages', () => {
@@ -349,5 +354,21 @@ describe('policy-utils PR path resolution', () => {
 
     expect(result.shouldRunPrChecks).toBe(false);
     expect(result.auditMode).toBe('REPO_FALLBACK');
+  });
+});
+
+describe('policy-utils branch resolution', () => {
+  it('uses CI head ref when preferred branch value is detached HEAD', () => {
+    vi.stubEnv('GITHUB_HEAD_REF', 'ekaramet/process-audit-fixes');
+
+    expect(resolveBranchName('HEAD')).toBe('ekaramet/process-audit-fixes');
+  });
+
+  it('uses refs/heads branch fallback when head ref is absent', () => {
+    vi.stubEnv('GITHUB_HEAD_REF', '');
+    vi.stubEnv('HEAD_REF', '');
+    vi.stubEnv('GITHUB_REF', 'refs/heads/asmyrogl/B-03-runtime-integration');
+
+    expect(resolveBranchName('HEAD')).toBe('asmyrogl/B-03-runtime-integration');
   });
 });

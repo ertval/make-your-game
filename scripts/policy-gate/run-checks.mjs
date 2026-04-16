@@ -33,6 +33,7 @@ import {
   readText,
   readTicketIdsFromTracker,
   resolveOwnerTrackFromBranch,
+  resolveBranchName,
   SECURITY_SINK_RULES,
   SECURITY_SOURCE_PATTERN,
   SHARED_OWNERSHIP_PATTERNS,
@@ -53,7 +54,7 @@ if (!validCheckSets.has(checkSet)) {
 const meta = fs.existsSync(metaPath) ? readJson(metaPath) : {};
 const changedFiles = readLines(changedPath);
 const existingChangedFiles = changedFiles.filter((file) => fs.existsSync(file));
-const branchName = meta.branchName || '';
+const branchName = resolveBranchName(meta.branchName, args['branch-name'], process.env.BRANCH_NAME);
 const branchOwner = extractOwnerFromBranch(branchName);
 const branchOwnerTrack = resolveOwnerTrackFromBranch(branchName);
 const processMode =
@@ -243,7 +244,6 @@ function assertTrackOwnership(trackCode, ticketIds) {
   }
 
   // Validate that the branch owner is authorized for this track.
-  const branchName = meta.branchName || '';
   assertOwnerTrackMatch(trackCode, branchName);
 
   const result = findOwnershipViolations(trackCode, existingChangedFiles);

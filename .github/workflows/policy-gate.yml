@@ -26,6 +26,7 @@ jobs:
     runs-on: ubuntu-latest
     env:
       EVENT_PATH: ${{ github.event_path }}
+      BRANCH_NAME: ${{ github.event.pull_request.head.ref || github.head_ref || github.ref_name }}
       CI_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       POLICY_HEADER_MODE: fail
     steps:

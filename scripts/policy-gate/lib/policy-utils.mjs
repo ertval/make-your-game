@@ -446,6 +446,79 @@ export function getEventPath(args) {
   return args['event-path'] || process.env.EVENT_PATH || process.env.GITHUB_EVENT_PATH || '';
 }
 
+function normalizeBranchNameCandidate(value) {
+  const normalized = String(value || '')
+    .trim()
+    .replace(/^refs\/heads\//, '');
+  if (!normalized || normalized.toUpperCase() === 'HEAD') {
+    return '';
+  }
+  return normalized;
+}
+
+function readBranchNameFromEventPayload() {
+  const eventPath = getEventPath({});
+  if (!eventPath || !fs.existsSync(eventPath)) {
+    return '';
+  }
+
+  try {
+    const event = readJson(eventPath);
+    return normalizeBranchNameCandidate(event?.pull_request?.head?.ref);
+  } catch {
+    return '';
+  }
+}
+
+function readBranchNameFromGithubRef() {
+  const githubRef = String(process.env.GITHUB_REF || '').trim();
+  if (!githubRef.startsWith('refs/heads/')) {
+    return '';
+  }
+  return normalizeBranchNameCandidate(githubRef.slice('refs/heads/'.length));
+}
+
+export function resolveBranchName(...preferredCandidates) {
+  for (const candidate of preferredCandidates) {
+    const normalized = normalizeBranchNameCandidate(candidate);
+    if (normalized) {
+      return normalized;
+    }
+  }
+
+  const ciCandidates = [
+    process.env.BRANCH_NAME,
+    process.env.GITHUB_HEAD_REF,
+    process.env.HEAD_REF,
+    readBranchNameFromEventPayload(),
+    readBranchNameFromGithubRef(),
+  ];
+
+  for (const candidate of ciCandidates) {
+    const normalized = normalizeBranchNameCandidate(candidate);
+    if (normalized) {
+      return normalized;
+    }
+  }
+
+  // GITHUB_REF_NAME can point to synthetic refs like "123/merge" in PR contexts.
+  if (String(process.env.GITHUB_REF_TYPE || '').trim() === 'branch') {
+    const fromRefName = normalizeBranchNameCandidate(process.env.GITHUB_REF_NAME);
+    if (fromRefName) {
+      return fromRefName;
+    }
+  }
+
+  if (!commandSucceeded('git', ['rev-parse', '--verify', 'HEAD'])) {
+    return '';
+  }
+
+  const fromGit = normalizeBranchNameCandidate(
+    runCommand('git', ['rev-parse', '--abbrev-ref', 'HEAD']).trim(),
+  );
+  return fromGit;
+}
+
 export function normalizePolicyPath(filePath) {
   return String(filePath || '')
     .trim()
@@ -708,17 +781,7 @@ export function commandSucceeded(command, commandArgs) {
 }
 
 export function getCurrentBranchName() {
-  const fromEnv =
-    process.env.GITHUB_HEAD_REF || process.env.HEAD_REF || process.env.GITHUB_REF_NAME || '';
-  if (fromEnv) {
-    return String(fromEnv).trim();
-  }
-
-  if (!commandSucceeded('git', ['rev-parse', '--verify', 'HEAD'])) {
-    return '';
-  }
-
-  return runCommand('git', ['rev-parse', '--abbrev-ref', 'HEAD']).trim();
+  return resolveBranchName();
 }
 
 function expandBaseRefCandidate(candidate) {

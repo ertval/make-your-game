@@ -17,6 +17,7 @@ import {
   inferTicketIdsFromSources,
   parseArgs,
   readJson,
+  resolveBranchName,
   resolveOwnerTrackFromBranch,
   resolvePrPolicyPath,
   runCommand,
@@ -78,7 +79,11 @@ function runStep(label, command, commandArgs, retryHint) {
 // We centralize metadata parsing so PR/repo flows cannot drift in how they infer owner, tickets, or process mode.
 function resolvePolicyContext() {
   const metadata = fs.existsSync(metaPath) ? readJson(metaPath) : {};
-  const branchName = metadata.branchName || '';
+  const branchName = resolveBranchName(
+    metadata.branchName,
+    args['branch-name'] || '',
+    process.env.BRANCH_NAME || '',
+  );
   const branchOwner = extractOwnerFromBranch(branchName);
   const branchOwnerTrack = resolveOwnerTrackFromBranch(branchName);
   const branchTicketIds = inferTicketIdsFromSources(metadata.branchName || '');

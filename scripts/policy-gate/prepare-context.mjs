@@ -12,7 +12,6 @@ import {
   collectChangedFiles,
   DEFAULT_CHANGED_FILES_PATH,
   GATE_PASS,
-  getCurrentBranchName,
   getEventPath,
   getMergeBase,
   inferProcessModeFromSources,
@@ -21,6 +20,7 @@ import {
   parseArgs,
   readText,
   resolveBaseRef,
+  resolveBranchName,
   writeJson,
   writeLines,
 } from './lib/policy-utils.mjs';
@@ -57,7 +57,7 @@ function buildManualMetadata() {
     body: args.body || process.env.PR_BODY || '',
     baseSha: args['base-sha'] || process.env.BASE_SHA || '',
     headSha: args['head-sha'] || process.env.HEAD_SHA || '',
-    branchName: args['branch-name'] || process.env.BRANCH_NAME || headRef || getCurrentBranchName(),
+    branchName: resolveBranchName(args['branch-name'], process.env.BRANCH_NAME, headRef),
     reviewsUrl: args['reviews-url'] || process.env.REVIEWS_URL || '',
   };
 }
@@ -77,11 +77,7 @@ const baseRef = resolveBaseRef(preferredBaseRef);
 const headRef = metadata.headSha || args['head-ref'] || 'HEAD';
 const mergeBase = getMergeBase(baseRef, headRef);
 const branchName =
-  args['branch-name'] ||
-  process.env.BRANCH_NAME ||
-  metadata.branchName ||
-  process.env.GITHUB_HEAD_REF ||
-  getCurrentBranchName();
+  resolveBranchName(args['branch-name'], process.env.BRANCH_NAME, metadata.branchName);
 const commitMessages = collectBranchCommitMessages({ baseRef, mergeBase, headRef });
 const ticketIds = inferTicketIdsFromSources(
   args['ticket-id'] || '',
