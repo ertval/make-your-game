@@ -17,14 +17,12 @@
  * - getCurrentLevelIndex()
  */
 
-import * as mapResourceModule from '../ecs/resources/map-resource.js';
+import {
+  assertValidMapResource,
+  cloneMap,
+  createMapResource,
+} from '../ecs/resources/map-resource.js';
 import { isRecord } from '../shared/type-guards.js';
-
-const { cloneMap, createMapResource } = mapResourceModule;
-const assertValidMapResource =
-  typeof mapResourceModule.assertValidMapResource === 'function'
-    ? mapResourceModule.assertValidMapResource
-    : null;
 
 function isRawMapPayload(candidate) {
   return (
@@ -44,10 +42,7 @@ function normalizeLoadedMapPayload(payload) {
     return createMapResource(payload);
   }
 
-  // Keep loader compatibility while Track D map-resource guard export is integrating.
-  if (assertValidMapResource) {
-    assertValidMapResource(payload);
-  }
+  assertValidMapResource(payload);
 
   return cloneMap(payload);
 }

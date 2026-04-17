@@ -61,7 +61,7 @@ This document is the single source of truth for requirement-to-audit-to-ticket-t
 
 | ID | Audit Question | Requirement IDs | Execution Type | Owning Tickets (`docs/implementation/track-*.md`) | Test/Evidence Anchor | Status |
 |---|---|---|---|---|---|---|
-| AUDIT-F-01 | Does the game run without crashing? | REQ-01, REQ-14 | Fully Automatable | A-06, B-06 | `tests/e2e/audit/audit-question-map.js` + `tests/e2e/audit/audit.e2e.test.js` | Mapped, Planned, Pending |
+| AUDIT-F-01 | Does the game run without crashing? | REQ-01, REQ-14 | Fully Automatable | A-06, B-06 | `tests/e2e/audit/audit-question-map.js` + `tests/e2e/audit/audit.e2e.test.js` | Mapped, Planned, Executable |
 | AUDIT-F-02 | Does animation run using `requestAnimationFrame`? | REQ-02 | Fully Automatable | A-03, A-06 | Same as above | Mapped, Planned, Pending |
 | AUDIT-F-03 | Is the game single player? | REQ-13 | Fully Automatable | B-02, C-04 | Same as above | Mapped, Planned, Pending |
 | AUDIT-F-04 | Does the game avoid the use of canvas? | REQ-11 | Fully Automatable | A-01, D-06 | Same as above + static scan gate | Mapped, Planned, Pending |
@@ -69,7 +69,7 @@ This document is the single source of truth for requirement-to-audit-to-ticket-t
 | AUDIT-F-06 | Is the game chosen from the pre-approved list? | REQ-14 | Fully Automatable | B-03, B-06, B-08 | Same as above | Mapped, Planned, Pending |
 | AUDIT-F-07 | Does pause menu show continue and restart? | REQ-03, REQ-09 | Fully Automatable | C-04, C-05 | Same as above | Mapped, Planned, Pending |
 | AUDIT-F-08 | Does continue resume gameplay from pause? | REQ-03, REQ-09 | Fully Automatable | C-04, A-03 | Same as above | Mapped, Planned, Pending |
-| AUDIT-F-09 | Does restart reset correctly from pause? | REQ-03, REQ-09 | Fully Automatable | C-04, A-05 | Same as above | Mapped, Planned, Pending |
+| AUDIT-F-09 | Does restart reset correctly from pause? | REQ-03, REQ-09 | Fully Automatable | C-04, A-05 | Same as above | Mapped, Planned, Executable |
 | AUDIT-F-10 | While paused, no dropped frames and rAF unaffected? | REQ-02, REQ-09 | Fully Automatable | A-03, C-04, D-05, A-06 | Same as above + pause trace evidence | Mapped, Planned, Pending |
 | AUDIT-F-11 | Does player obey movement commands? | REQ-07 | Fully Automatable | B-02, B-03 | Same as above | Mapped, Planned, Pending |
 | AUDIT-F-12 | Does player move without spamming keys? | REQ-07, REQ-08 | Fully Automatable | B-02, B-03 | Same as above | Mapped, Planned, Pending |
@@ -88,7 +88,7 @@ This document is the single source of truth for requirement-to-audit-to-ticket-t
 | ID | Audit Question | Requirement IDs | Execution Type | Owning Tickets (`docs/implementation/track-*.md`) | Test/Evidence Anchor | Status |
 |---|---|---|---|---|---|---|
 | AUDIT-B-01 | Does project run quickly and effectively? | REQ-01 | Fully Automatable | A-06, D-08, A-09 | `tests/e2e/audit/audit.e2e.test.js` + performance checks | Mapped, Planned, Pending |
-| AUDIT-B-02 | Does code obey good practices? | REQ-12 | Fully Automatable | A-01, A-09 | CI policy gate + lint/test/security check outputs | Mapped, Planned, Pending |
+| AUDIT-B-02 | Does code obey good practices? | REQ-12 | Fully Automatable | A-01, A-09 | CI policy gate + lint/test/security check outputs | Mapped, Planned, Executable |
 | AUDIT-B-03 | Does program reuse memory to avoid jank? | REQ-01 | Fully Automatable | A-02, B-06, D-09, D-08 | `tests/e2e/audit/audit.e2e.test.js` + allocation evidence | Mapped, Planned, Pending |
 | AUDIT-B-04 | Does game use SVG? | REQ-14 | Fully Automatable | D-09, D-11 | Static SVG scan + runtime DOM/assertion checks | Mapped, Planned, Pending |
 | AUDIT-B-05 | Is code using asynchronicity for performance? | REQ-01 | Semi-Automatable | C-06, C-09, A-09 | Playwright `page.evaluate()` + Performance API threshold checks | Mapped, Planned, Pending |
