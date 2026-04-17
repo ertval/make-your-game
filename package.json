@@ -32,8 +32,10 @@
     "policy:checks": "node scripts/policy-gate/run-checks.mjs --check-set=pr --require-branch-ticket=true",
     "policy:checks:local": "npm run policy:prep && npm run policy:checks",
     "policy:trace": "node scripts/policy-gate/run-checks.mjs --check-set=repo",
-    "policy:forbid": "node scripts/policy-gate/check-forbidden.mjs --scope=changed",
+    "policy:forbidden": "node scripts/policy-gate/check-forbidden.mjs --scope=changed",
+    "policy:forbiddenrepo": "node scripts/policy-gate/check-forbidden.mjs --scope=repo",
     "policy:header": "node scripts/policy-gate/check-source-headers.mjs --scope=changed --mode=fail",
+    "policy:headerrepo": "node scripts/policy-gate/check-source-headers.mjs --scope=repo --mode=fail",
     "policy:approve": "node scripts/policy-gate/require-approval.mjs",
     "policy:prep": "node scripts/policy-gate/prepare-context.mjs",
     "sbom": "npm sbom --sbom-format spdx --package-lock-only --omit=optional > sbom.json"

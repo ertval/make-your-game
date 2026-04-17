@@ -27,15 +27,15 @@ Date: 2026-04-02
 - npm run test:integration
 - npm run test:e2e
 - npm run test:audit
-- npm run check:forbidden
+- npm run policy:forbidden
 - npm run policy -- --require-approval=false
 - npm run policy:repo
 - npm run policy:quality
 - npm run policy:checks
-- npm run policy:forbid
+- npm run policy:forbidden
 - npm run policy:header
 - npm run policy:approve -- --require-approval=false
-- npm run policy:forbidrepo
+- npm run policy:forbiddenrepo
 - npm run policy:headerrepo
 - npm run policy:trace
 
@@ -51,15 +51,15 @@ Date: 2026-04-02
 - npm run test:integration: PASS (exit=0, duration=1s) - No integration test files found; passWithNoTests path.
 - npm run test:e2e: PASS (exit=0, duration=3s) - Playwright completed with pass-with-no-tests behavior.
 - npm run test:audit: PASS (exit=0, duration=1s) - Audit inventory test passed (1/1).
-- npm run check:forbidden: PASS (exit=0, duration=0s) - Forbidden-pattern gate passed.
+- npm run policy:forbidden: PASS (exit=0, duration=0s) - Forbidden-pattern gate passed.
 - npm run policy -- --require-approval=false: PASS (exit=0, duration=0s) - Umbrella policy gate passed.
 - npm run policy:repo: PASS (exit=0, duration=2s) - Repo policy gate passed.
 - npm run policy:quality: PASS (exit=0, duration=1s) - Project quality gate passed after formatting.
 - npm run policy:checks: PASS (exit=0, duration=0s) - PR policy checks passed with the approved branch-ticket waiver.
-- npm run policy:forbid: PASS (exit=0, duration=0s) - PR forbidden-pattern gate passed.
+- npm run policy:forbidden: PASS (exit=0, duration=0s) - PR forbidden-pattern gate passed.
 - npm run policy:header: PASS (exit=0, duration=1s) - PR source-header policy passed.
 - npm run policy:approve -- --require-approval=false: PASS (exit=0, duration=0s) - Approval gate passed with override flag.
-- npm run policy:forbidrepo: PASS (exit=0, duration=1s) - Repo forbidden-pattern gate passed.
+- npm run policy:forbiddenrepo: PASS (exit=0, duration=1s) - Repo forbidden-pattern gate passed.
 - npm run policy:headerrepo: PASS (exit=0, duration=1s) - Repo source-header policy passed.
 - npm run policy:trace: PASS (exit=0, duration=0s) - Traceability gate passed.
 

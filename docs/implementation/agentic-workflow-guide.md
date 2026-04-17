@@ -341,7 +341,7 @@ npm run policy
 ```bash
 npm run policy:quality
 npm run policy:checks:local
-npm run policy:forbid
+npm run policy:forbidden
 npm run policy:header
 npm run policy:approve
 ```
@@ -355,7 +355,7 @@ npm run policy:repo
 5. If the isolated repo rerun fails, run the narrower command that matches the failure:
 
 ```bash
-npm run policy:forbidrepo
+npm run policy:forbiddenrepo
 npm run policy:headerrepo
 npm run policy:trace
 ```
@@ -363,7 +363,7 @@ npm run policy:trace
 6. If you changed HTML/JS tech stack boundaries, run explicit static scan:
 
 ```bash
-npm run policy:forbid
+npm run policy:forbidden
 ```
 
 ### PR message template
@@ -405,7 +405,7 @@ After a ticket is merged, update the matching ticket entry in `ticket-tracker.md
 - `npm run policy:quality` is the narrow quality-only rerun.
 - `npm run policy:checks:local` is the preferred local rerun for checks because it runs `policy:prep` before `policy:checks`.
 - `npm run policy:checks` is the direct rerun for branch-ticket format validation, ticket list membership, single-track ownership checks, and the GENERAL_DOCS_PROCESS process-marker fallback (owner-scoped ownership enforcement still applies).
-- `npm run policy:forbid` and `npm run policy:forbidrepo` isolate forbidden-tech failures.
+- `npm run policy:forbidden` and `npm run policy:forbiddenrepo` isolate forbidden-tech failures.
 - `npm run policy:header` and `npm run policy:headerrepo` isolate source-header failures.
 - `npm run policy:trace` isolates repo traceability and dependency pairing failures.
 - `npm run policy:approve` isolates approval failures.

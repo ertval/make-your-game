@@ -70,7 +70,7 @@ Local test command reference (run what applies to your change and list what you 
 - `npm run test:integration`
 - `npm run test:e2e`
 - `npm run test:audit`
-- `npm run check:forbidden`
+- `npm run policy:forbidden`
 - `npm run policy -- --require-approval=false`
 - `npm run policy:repo`
 - `npm run policy:checks`
