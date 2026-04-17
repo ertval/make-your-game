@@ -40,6 +40,7 @@ tmp/
 temp/
 .audit*
 changed-files.txt
+*.diff
 
 # CI runtime artifacts
 .policy-pr-meta.json
