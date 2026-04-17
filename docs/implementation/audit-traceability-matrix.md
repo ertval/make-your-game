@@ -88,7 +88,7 @@ This document is the single source of truth for requirement-to-audit-to-ticket-t
 | ID | Audit Question | Requirement IDs | Execution Type | Owning Tickets (`docs/implementation/track-*.md`) | Test/Evidence Anchor | Status |
 |---|---|---|---|---|---|---|
 | AUDIT-B-01 | Does project run quickly and effectively? | REQ-01 | Fully Automatable | A-06, D-08, A-09 | `tests/e2e/audit/audit.e2e.test.js` + performance checks | Mapped, Planned, Pending |
-| AUDIT-B-02 | Does code obey good practices? | REQ-12 | Fully Automatable | A-01, A-09 | CI policy gate + lint/test/security check outputs | Mapped, Planned, Executable |
+| AUDIT-B-02 | Does code obey good practices? | REQ-12 | Fully Automatable | A-01, A-07, A-09 | CI policy gate + `npm run validate:schema` fail-closed asset gates (`scripts/validate-schema.mjs`, `tests/unit/policy-gate/validate-schema-asset-gates.test.js`) + lint/test/security check outputs | Mapped, Planned, Executable |
 | AUDIT-B-03 | Does program reuse memory to avoid jank? | REQ-01 | Fully Automatable | A-02, B-06, D-09, D-08 | `tests/e2e/audit/audit.e2e.test.js` + allocation evidence | Mapped, Planned, Pending |
 | AUDIT-B-04 | Does game use SVG? | REQ-14 | Fully Automatable | D-09, D-11 | Static SVG scan + runtime DOM/assertion checks | Mapped, Planned, Pending |
 | AUDIT-B-05 | Is code using asynchronicity for performance? | REQ-01 | Semi-Automatable | C-06, C-09, A-09 | Playwright `page.evaluate()` + Performance API threshold checks | Mapped, Planned, Pending |
