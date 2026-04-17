@@ -5,7 +5,7 @@
  * leaves JSON Schema 2020-12 validation as a follow-up integration step.
  */
 
-export function safeRead(key, schema, defaultValue) {
+export function safeRead(key, _schema, defaultValue) {
   try {
     const rawValue = localStorage.getItem(key);
 
@@ -15,11 +15,7 @@ export function safeRead(key, schema, defaultValue) {
 
     const parsedValue = JSON.parse(rawValue);
 
-    if (
-      parsedValue === null ||
-      typeof parsedValue !== "object" ||
-      Array.isArray(parsedValue)
-    ) {
+    if (parsedValue === null || typeof parsedValue !== 'object' || Array.isArray(parsedValue)) {
       console.warn(`[storage] Invalid JSON shape for key "${key}".`);
       return defaultValue;
     }

@@ -45,3 +45,5 @@ changed-files.txt
 .policy-pr-meta.json
 .policy-runtime/
 reviews.json
+
+.codex
