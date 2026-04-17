@@ -41,6 +41,12 @@ export function createInputSystem(options = {}) {
   return {
     name: 'input-system',
     phase: 'input',
+    // Resource capabilities document the adapter and snapshot stores this
+    // system reads so policy and tooling can inspect its world dependencies.
+    resourceCapabilities: {
+      read: [adapterResourceKey, inputStateResourceKey],
+      write: [],
+    },
     update(context) {
       const adapter = context.world.getResource(adapterResourceKey);
       const inputState = context.world.getResource(inputStateResourceKey);

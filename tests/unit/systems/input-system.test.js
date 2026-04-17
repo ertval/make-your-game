@@ -28,6 +28,18 @@ function createAdapterStub({ heldKeys = [], pressedKeys = [] } = {}) {
 }
 
 describe('input-system', () => {
+  it('declares the adapter and input snapshot resources it reads', () => {
+    const inputSystem = createInputSystem({
+      adapterResourceKey: 'customAdapter',
+      inputStateResourceKey: 'customInputState',
+    });
+
+    expect(inputSystem.resourceCapabilities).toEqual({
+      read: ['customAdapter', 'customInputState'],
+      write: [],
+    });
+  });
+
   it('writes held movement keys and one-shot intents into the player snapshot', () => {
     const world = new World();
     const inputSystem = createInputSystem();
