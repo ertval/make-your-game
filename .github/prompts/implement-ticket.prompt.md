@@ -1,5 +1,5 @@
 ---
-name: Implement-ticket
+name: implement-ticket
 description: Orchestrate the implementation of a specific ticket for the Ms. Ghostman ECS Engine.
 agent: agent
 tools: [execute, read, edit, search, web, agent, todo]

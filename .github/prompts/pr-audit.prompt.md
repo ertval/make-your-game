@@ -1,5 +1,5 @@
 ---
-name: pr-audit-verification
+name: pr-audit
 description: This prompt is used to audit a PR branch end-to-end against this repository ruleset and determine if it is ready to merge into main.
 ---
 
