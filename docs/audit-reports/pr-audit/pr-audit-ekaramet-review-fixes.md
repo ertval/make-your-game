@@ -34,15 +34,15 @@ Date: 2026-04-09
 - npm run test:integration
 - npm run test:e2e
 - npm run test:audit
-- npm run check:forbidden
+- npm run policy:forbidden
 - npm run policy -- --require-approval=false
 - npm run policy:repo
 - npm run policy:quality
 - npm run policy:checks
-- npm run policy:forbid
+- npm run policy:forbidden
 - npm run policy:header
 - npm run policy:approve -- --require-approval=false
-- npm run policy:forbidrepo
+- npm run policy:forbiddenrepo
 - npm run policy:headerrepo
 - npm run policy:trace
 
@@ -58,15 +58,15 @@ Date: 2026-04-09
 - PASS: npm run test:integration (exit=0, duration=0.7s, 1 test file, 2 tests passed)
 - PASS: npm run test:e2e (exit=0, duration=4.1s, 1 Playwright test passed)
 - PASS: npm run test:audit (exit=0, duration=0.7s, 1 test passed)
-- PASS: npm run check:forbidden (exit=0, duration=0.2s, 51 files scanned)
+- PASS: npm run policy:forbidden (exit=0, duration=0.2s, 51 files scanned)
 - **FAIL**: npm run policy -- --require-approval=false (exit=1, duration=4.2s, branch "ekaramet/review-fixes" does not follow required ticket format)
 - **FAIL**: npm run policy:repo (exit=1, duration=0.5s, source header check failed for policy-utils.mjs and run-checks.mjs)
 - PASS: npm run policy:quality (exit=0, duration=3.6s, project gate checks completed)
 - **FAIL**: npm run policy:checks (exit=1, duration=0.2s, branch does not follow required ticket format)
-- PASS: npm run policy:forbid (exit=0, duration=0.2s, 19 changed files scanned)
+- PASS: npm run policy:forbidden (exit=0, duration=0.2s, 19 changed files scanned)
 - **FAIL**: npm run policy:header (exit=1, duration=0.2s, source files below minimum comment ratio: policy-utils.mjs 1.1%, run-checks.mjs 1.2%)
 - PASS: npm run policy:approve -- --require-approval=false (exit=0, duration=0.2s, approval check skipped by configuration)
-- PASS: npm run policy:forbidrepo (exit=0, duration=0.2s, 51 files scanned)
+- PASS: npm run policy:forbiddenrepo (exit=0, duration=0.2s, 51 files scanned)
 - **FAIL**: npm run policy:headerrepo (exit=1, duration=0.2s, source files below minimum comment ratio: policy-utils.mjs 1.1%, run-checks.mjs 1.2%)
 - PASS: npm run policy:trace (exit=0, duration=0.2s, repo checks completed)
 

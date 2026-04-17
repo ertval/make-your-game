@@ -168,8 +168,8 @@ if (scope === 'pr' || scope === 'all') {
     runStep(
       'Changed-file forbidden-tech scan',
       'npm',
-      ['run', 'policy:forbid', '--', ...passThrough],
-      'npm run policy:forbid',
+      ['run', 'policy:forbidden', '--', ...passThrough],
+      'npm run policy:forbidden',
     );
 
     runStep(

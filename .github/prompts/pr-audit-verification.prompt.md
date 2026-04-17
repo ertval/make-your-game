@@ -125,17 +125,17 @@ Capture exit code, duration, and key failure lines for each.
 4. `npm run test:integration`
 5. `npm run test:e2e`
 6. `npm run test:audit`
-7. `npm run check:forbidden`
-8. `npm run policy -- --require-approval=false` — PR umbrella gate: runs `policy:quality`, then `policy:checks`/`policy:forbid`/`policy:header`/`policy:approve` when ticket metadata is resolvable, or falls back to `npm run policy:repo`
-9. `npm run policy:repo` — repo umbrella gate: runs `policy:forbidrepo`, `policy:headerrepo`, `policy:trace`
+7. `npm run policy:forbidden` — changed-file forbidden-tech gate
+8. `npm run policy -- --require-approval=false` — Full policy umbrella gate (runs `policy:quality`, `policy:prep`, then PR-specific and Repo-wide checks)
+9. `npm run policy:repo` — Repo-only policy umbrella gate: runs `policy:prep`, then repo-wide forbidden, header, and trace scans
 
 **Phase C — Narrow reruns (run ONLY when a Phase B command fails, to isolate the specific failure):**
 - `npm run policy:quality` — isolates Biome/test/coverage/schema/SBOM failures from `npm run policy`
 - `npm run policy:checks` — isolates ticket-association/ownership failures
-- `npm run policy:forbid` — isolates forbidden-tech failures in changed files
+- `npm run policy:forbidden` — isolates forbidden-tech failures in changed files
 - `npm run policy:header` — isolates source-header failures in changed files
 - `npm run policy:approve -- --require-approval=false` — isolates approval failures
-- `npm run policy:forbidrepo` — isolates repo-wide forbidden-tech failures
+- `npm run policy:forbiddenrepo` — isolates repo-wide forbidden-tech failures
 - `npm run policy:headerrepo` — isolates repo-wide source-header failures
 - `npm run policy:trace` — isolates traceability/dependency-pairing failures
 
