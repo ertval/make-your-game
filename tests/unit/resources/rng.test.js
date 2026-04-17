@@ -91,4 +91,22 @@ describe('rng', () => {
     expect(typeof beforeReseed).toBe('number');
     expect(typeof afterReseed).toBe('number');
   });
+
+  it('maintains 32-bit unsigned integrity for seeds and state (SEC-X01)', () => {
+    // Large positive seed
+    const rng1 = createRNG(0xffffffff);
+    expect(rng1.state).toBe(4294967295);
+
+    // Negative seed (should be converted to 32-bit unsigned via >>> 0)
+    const rng2 = createRNG(-1);
+    expect(rng2.state).toBe(4294967295);
+
+    // Test bitwise wrap-around behavior over many steps
+    const rng3 = createRNG(1);
+    for (let i = 0; i < 1000; i++) {
+      nextFloat(rng3);
+      expect(rng3.state).toBeGreaterThanOrEqual(0);
+      expect(rng3.state).toBeLessThan(4294967296);
+    }
+  });
 });
