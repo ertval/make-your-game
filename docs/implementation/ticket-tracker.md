@@ -75,10 +75,10 @@ Definition of done for Q1 Visual Prototype:
 
 Canonical ticket ID ranges used by policy checks:
 
-- Track A: `A-01` through `A-14`
-- Track B: `B-01` through `B-09`
-- Track C: `C-01` through `C-10`
-- Track D: `D-01` through `D-11`
+- Track A: `A-01` through `A-14` -> **Ownership**: `ekaramet`
+- Track B: `B-01` through `B-09` -> **Ownership**: `asmyrogl`
+- Track C: `C-01` through `C-10` -> **Ownership**: `chbaikas`
+- Track D: `D-01` through `D-11` -> **Ownership**: `medvall`
 
 ## 📋 Ordered Tickets (Authoritative Claim Order)
 
