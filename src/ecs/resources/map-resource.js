@@ -253,8 +253,37 @@ function validatePlayerSpawnCellType(rawMap) {
  * @returns {{ ok: boolean, errors: string[] }}
  */
 export function validateMapSemantic(rawMap) {
-  const allErrors = [];
+  if (!rawMap || typeof rawMap !== 'object') {
+    return { ok: false, errors: ['Map payload is not an object'] };
+  }
 
+  // Structural preflight to avoid TypeError during semantic traversal (BUG-07).
+  const structuralErrors = [];
+  if (!rawMap.dimensions || typeof rawMap.dimensions !== 'object') {
+    structuralErrors.push('Missing map dimensions');
+  }
+  if (!Array.isArray(rawMap.grid)) {
+    structuralErrors.push('Missing map grid array');
+  }
+  if (!rawMap.spawn || typeof rawMap.spawn !== 'object') {
+    structuralErrors.push('Missing map spawn definitions');
+  } else {
+    if (!rawMap.spawn.player || typeof rawMap.spawn.player !== 'object') {
+      structuralErrors.push('Missing spawn.player');
+    }
+    if (!rawMap.spawn.ghostHouse || typeof rawMap.spawn.ghostHouse !== 'object') {
+      structuralErrors.push('Missing spawn.ghostHouse');
+    }
+    if (!rawMap.spawn.ghostSpawnPoint || typeof rawMap.spawn.ghostSpawnPoint !== 'object') {
+      structuralErrors.push('Missing spawn.ghostSpawnPoint');
+    }
+  }
+
+  if (structuralErrors.length > 0) {
+    return { ok: false, errors: structuralErrors };
+  }
+
+  const allErrors = [];
   const checks = [
     validateDimensionsConsistency,
     validateBorderIntegrity,
@@ -265,9 +294,13 @@ export function validateMapSemantic(rawMap) {
   ];
 
   for (const check of checks) {
-    const result = check(rawMap);
-    if (!result.ok) {
-      allErrors.push(...result.errors);
+    try {
+      const result = check(rawMap);
+      if (!result.ok) {
+        allErrors.push(...result.errors);
+      }
+    } catch (e) {
+      allErrors.push(`Validation crash in ${check.name}: ${e.message}`);
     }
   }
 
@@ -391,6 +424,11 @@ export function createMapResource(rawMap) {
  * @returns {number} Cell type ID.
  */
 export function getCell(map, row, col) {
+  // Missing bounds checks can lead to nondeterministic traversal (BUG-05).
+  // Return INDESTRUCTIBLE as a safe impassable default for OOB access.
+  if (row < 0 || row >= map.rows || col < 0 || col >= map.cols) {
+    return CELL_TYPE.INDESTRUCTIBLE;
+  }
   return map.grid[row * map.cols + col];
 }
 
@@ -403,9 +441,14 @@ export function getCell(map, row, col) {
  * @param {number} type — New cell type ID.
  */
 export function setCell(map, row, col, type) {
+  if (row < 0 || row >= map.rows || col < 0 || col >= map.cols) {
+    return;
+  }
   map.grid[row * map.cols + col] = type;
   // Keep 2D grid in sync for systems that iterate rows.
-  map.grid2D[row][col] = type;
+  if (map.grid2D[row]) {
+    map.grid2D[row][col] = type;
+  }
 }
 
 /**
@@ -458,7 +501,7 @@ export function isPassable(map, row, col) {
 
 /**
  * Check if (row, col) is passable for ghosts.
- * Ghosts CAN enter ghost house cells but cannot enter indestructible walls.
+ * Ghosts CAN enter ghost house cells but cannot enter walls.
  *
  * @param {MapResource} map — Map resource.
  * @param {number} row
@@ -467,7 +510,8 @@ export function isPassable(map, row, col) {
  */
 export function isPassableForGhost(map, row, col) {
   const cell = getCell(map, row, col);
-  return cell !== CELL_TYPE.INDESTRUCTIBLE;
+  // Ghosts should not pass through destructible walls (BUG-X01).
+  return cell !== CELL_TYPE.INDESTRUCTIBLE && cell !== CELL_TYPE.DESTRUCTIBLE;
 }
 
 /**

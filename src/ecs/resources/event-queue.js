@@ -47,9 +47,12 @@ export function createEventQueue() {
  * @param {number} frame — Fixed-step frame index for temporal ordering.
  */
 export function enqueue(queue, type, payload, frame) {
+  // Validate frame is a finite number (BUG-10).
+  const validFrame = Number.isFinite(frame) ? frame : 0;
+
   queue.events.push({
     type,
-    frame,
+    frame: validFrame,
     order: queue.orderCounter,
     payload,
   });
@@ -65,26 +68,36 @@ export function enqueue(queue, type, payload, frame) {
  * @returns {GameEvent[]} Sorted array of events, queue is cleared.
  */
 export function drain(queue) {
+  if (queue.events.length === 0) {
+    queue.orderCounter = 0;
+    return [];
+  }
+
   // Sort by frame first, then by insertion order within the same frame.
   // This ensures deterministic processing even if systems enqueued
   // events in different orders during the same simulation step.
-  const sorted = queue.events.slice().sort((a, b) => {
+  // Optimization: Sort in place to avoid slice() allocation (BUG-X05).
+  queue.events.sort((a, b) => {
     if (a.frame !== b.frame) {
       return a.frame - b.frame;
     }
     return a.order - b.order;
   });
 
-  // Clear the internal buffer for the next frame.
-  queue.events.length = 0;
+  // ARCH-15: Return a shallow copy to prevent external mutation of internal buffer.
+  const result = [...queue.events];
+  queue.events = [];
+  // Auto-reset counter on drain (BUG-10).
+  queue.orderCounter = 0;
 
-  return sorted;
+  return result;
 }
 
 /**
  * Return all events sorted by (frame, order) without clearing the queue.
  * Used for read-only inspection (e.g., debug replay systems).
  *
+ * @internal Used for tests and debug inspection.
  * @param {EventQueue} queue — Mutable event queue record.
  * @returns {GameEvent[]} Sorted array of events, queue is NOT cleared.
  */
@@ -114,6 +127,7 @@ export function clear(queue) {
  * Called once per fixed simulation step to prevent the counter
  * from growing unbounded over long play sessions.
  *
+ * @internal Used by the runtime bootstrap at fixed-step boundaries.
  * @param {EventQueue} queue — Mutable event queue record.
  */
 export function resetOrderCounter(queue) {
