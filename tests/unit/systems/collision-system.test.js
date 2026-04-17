@@ -9,7 +9,7 @@
 
 import { describe, expect, it } from 'vitest';
 
-import { createPlayerStore } from '../../../src/ecs/components/actors.js';
+import { createGhostStore, createPlayerStore } from '../../../src/ecs/components/actors.js';
 import { COMPONENT_MASK } from '../../../src/ecs/components/registry.js';
 import {
   COLLIDER_TYPE,
@@ -17,7 +17,7 @@ import {
   createPositionStore,
 } from '../../../src/ecs/components/spatial.js';
 import { createHealthStore } from '../../../src/ecs/components/stats.js';
-import { CELL_TYPE } from '../../../src/ecs/resources/constants.js';
+import { CELL_TYPE, GHOST_STATE } from '../../../src/ecs/resources/constants.js';
 import { createMapResource, getCell } from '../../../src/ecs/resources/map-resource.js';
 import {
   appendCollisionIntent,
@@ -86,6 +86,7 @@ function createCollisionRawMap(overrides = []) {
  * @returns {{
  *   colliderStore: ColliderStore,
  *   collisionIntents: Array<object>,
+ *   ghostStore: GhostStore,
  *   healthStore: HealthStore,
  *   mapResource: MapResource,
  *   player: { id: number, generation: number },
@@ -102,6 +103,7 @@ function createCollisionHarness(mapOverrides = []) {
   const positionStore = createPositionStore(8);
   const colliderStore = createColliderStore(8);
   const playerStore = createPlayerStore(8);
+  const ghostStore = createGhostStore(8);
   const healthStore = createHealthStore(8);
   const collisionIntents = [{ type: 'stale-intent' }];
   const player = world.createEntity(COLLISION_ENTITY_REQUIRED_MASK);
@@ -117,12 +119,14 @@ function createCollisionHarness(mapOverrides = []) {
   world.setResource('position', positionStore);
   world.setResource('collider', colliderStore);
   world.setResource('player', playerStore);
+  world.setResource('ghost', ghostStore);
   world.setResource('health', healthStore);
   world.setResource('collisionIntents', collisionIntents);
 
   return {
     colliderStore,
     collisionIntents,
+    ghostStore,
     healthStore,
     mapResource,
     player,
@@ -146,6 +150,26 @@ function setEntityTile(positionStore, entityId, row, col) {
   positionStore.col[entityId] = col;
   positionStore.targetRow[entityId] = row;
   positionStore.targetCol[entityId] = col;
+}
+
+/**
+ * Create one extra collision entity and place it on a chosen tile.
+ *
+ * @param {World} world - ECS world receiving the entity.
+ * @param {PositionStore} positionStore - Mutable position store.
+ * @param {ColliderStore} colliderStore - Mutable collider store.
+ * @param {number} colliderType - Canonical collider type to assign.
+ * @param {number} row - Tile row to occupy.
+ * @param {number} col - Tile col to occupy.
+ * @returns {{ id: number, generation: number }} Created entity handle.
+ */
+function addCollisionEntity(world, positionStore, colliderStore, colliderType, row, col) {
+  const entity = world.createEntity(COLLISION_ENTITY_REQUIRED_MASK);
+
+  colliderStore.type[entity.id] = colliderType;
+  setEntityTile(positionStore, entity.id, row, col);
+
+  return entity;
 }
 
 describe('collision-system scaffold contract', () => {
@@ -477,6 +501,321 @@ describe('collision-system update shell', () => {
 
     expect(collisionIntents).toEqual([]);
     expect(getCell(mapResource, 1, 1)).toBe(CELL_TYPE.PELLET);
+  });
+
+  it('records a player-death intent when fire occupies the player tile', () => {
+    const { colliderStore, collisionIntents, player, positionStore, system, world } =
+      createCollisionHarness();
+
+    setEntityTile(positionStore, player.id, 1, 1);
+    addCollisionEntity(world, positionStore, colliderStore, COLLIDER_TYPE.FIRE, 1, 1);
+
+    system.update({
+      dtMs: 16.6667,
+      frame: 0,
+      world,
+    });
+
+    expect(collisionIntents).toEqual([
+      {
+        order: 0,
+        type: 'pellet-collected',
+        entityId: player.id,
+        row: 1,
+        col: 1,
+      },
+      {
+        order: 1,
+        type: 'player-death',
+        entityId: player.id,
+        row: 1,
+        col: 1,
+        cause: 'fire',
+        sourceEntityId: 1,
+      },
+    ]);
+  });
+
+  it('suppresses fire damage when the player is invincible through the player timer', () => {
+    const { colliderStore, collisionIntents, player, playerStore, positionStore, system, world } =
+      createCollisionHarness();
+
+    playerStore.invincibilityMs[player.id] = 1500;
+    setEntityTile(positionStore, player.id, 1, 2);
+    addCollisionEntity(world, positionStore, colliderStore, COLLIDER_TYPE.FIRE, 1, 2);
+
+    system.update({
+      dtMs: 16.6667,
+      frame: 0,
+      world,
+    });
+
+    expect(collisionIntents).toEqual([
+      {
+        order: 0,
+        type: 'pellet-collected',
+        entityId: player.id,
+        row: 1,
+        col: 2,
+      },
+    ]);
+  });
+
+  it('suppresses fire damage when the player is invincible through the health flag', () => {
+    const { colliderStore, collisionIntents, healthStore, player, positionStore, system, world } =
+      createCollisionHarness();
+
+    healthStore.isInvincible[player.id] = 1;
+    setEntityTile(positionStore, player.id, 1, 3);
+    addCollisionEntity(world, positionStore, colliderStore, COLLIDER_TYPE.FIRE, 1, 3);
+
+    system.update({
+      dtMs: 16.6667,
+      frame: 0,
+      world,
+    });
+
+    expect(collisionIntents).toEqual([
+      {
+        order: 0,
+        type: 'pellet-collected',
+        entityId: player.id,
+        row: 1,
+        col: 3,
+      },
+    ]);
+  });
+
+  it('records a ghost-death intent when fire occupies a normal ghost tile', () => {
+    const { colliderStore, collisionIntents, ghostStore, positionStore, system, world } =
+      createCollisionHarness([[1, 1, CELL_TYPE.EMPTY]]);
+
+    const ghost = addCollisionEntity(
+      world,
+      positionStore,
+      colliderStore,
+      COLLIDER_TYPE.GHOST,
+      1,
+      1,
+    );
+    addCollisionEntity(world, positionStore, colliderStore, COLLIDER_TYPE.FIRE, 1, 1);
+
+    system.update({
+      dtMs: 16.6667,
+      frame: 0,
+      world,
+    });
+
+    expect(collisionIntents).toEqual([
+      {
+        order: 0,
+        type: 'ghost-death',
+        entityId: ghost.id,
+        row: 1,
+        col: 1,
+        cause: 'fire',
+        sourceEntityId: 2,
+        ghostState: GHOST_STATE.NORMAL,
+      },
+    ]);
+    expect(ghostStore.state[ghost.id]).toBe(GHOST_STATE.DEAD);
+  });
+
+  it('records a ghost-death intent for a stunned ghost and preserves the prior state in the intent', () => {
+    const { colliderStore, collisionIntents, ghostStore, positionStore, system, world } =
+      createCollisionHarness([[1, 2, CELL_TYPE.EMPTY]]);
+
+    const ghost = addCollisionEntity(
+      world,
+      positionStore,
+      colliderStore,
+      COLLIDER_TYPE.GHOST,
+      1,
+      2,
+    );
+    ghostStore.state[ghost.id] = GHOST_STATE.STUNNED;
+    addCollisionEntity(world, positionStore, colliderStore, COLLIDER_TYPE.FIRE, 1, 2);
+
+    system.update({
+      dtMs: 16.6667,
+      frame: 0,
+      world,
+    });
+
+    expect(collisionIntents).toEqual([
+      {
+        order: 0,
+        type: 'ghost-death',
+        entityId: ghost.id,
+        row: 1,
+        col: 2,
+        cause: 'fire',
+        sourceEntityId: 2,
+        ghostState: GHOST_STATE.STUNNED,
+      },
+    ]);
+    expect(ghostStore.state[ghost.id]).toBe(GHOST_STATE.DEAD);
+  });
+
+  it('ignores dead ghosts when fire occupies the same tile', () => {
+    const { colliderStore, collisionIntents, ghostStore, positionStore, system, world } =
+      createCollisionHarness([[1, 3, CELL_TYPE.EMPTY]]);
+
+    const ghost = addCollisionEntity(
+      world,
+      positionStore,
+      colliderStore,
+      COLLIDER_TYPE.GHOST,
+      1,
+      3,
+    );
+    ghostStore.state[ghost.id] = GHOST_STATE.DEAD;
+    addCollisionEntity(world, positionStore, colliderStore, COLLIDER_TYPE.FIRE, 1, 3);
+
+    system.update({
+      dtMs: 16.6667,
+      frame: 0,
+      world,
+    });
+
+    expect(collisionIntents).toEqual([]);
+    expect(ghostStore.state[ghost.id]).toBe(GHOST_STATE.DEAD);
+  });
+
+  it('records a player-death intent for contact with a normal ghost when no fire is present', () => {
+    const { colliderStore, collisionIntents, player, positionStore, system, world } =
+      createCollisionHarness();
+
+    setEntityTile(positionStore, player.id, 1, 2);
+    addCollisionEntity(world, positionStore, colliderStore, COLLIDER_TYPE.GHOST, 1, 2);
+
+    system.update({
+      dtMs: 16.6667,
+      frame: 0,
+      world,
+    });
+
+    expect(collisionIntents).toEqual([
+      {
+        order: 0,
+        type: 'pellet-collected',
+        entityId: player.id,
+        row: 1,
+        col: 2,
+      },
+      {
+        order: 1,
+        type: 'player-death',
+        entityId: player.id,
+        row: 1,
+        col: 2,
+        cause: 'ghost',
+        sourceEntityId: 1,
+        ghostState: GHOST_STATE.NORMAL,
+      },
+    ]);
+  });
+
+  it('does not record player death for contact with a stunned ghost', () => {
+    const { colliderStore, collisionIntents, ghostStore, player, positionStore, system, world } =
+      createCollisionHarness();
+
+    setEntityTile(positionStore, player.id, 1, 3);
+    const ghost = addCollisionEntity(
+      world,
+      positionStore,
+      colliderStore,
+      COLLIDER_TYPE.GHOST,
+      1,
+      3,
+    );
+    ghostStore.state[ghost.id] = GHOST_STATE.STUNNED;
+
+    system.update({
+      dtMs: 16.6667,
+      frame: 0,
+      world,
+    });
+
+    expect(collisionIntents).toEqual([
+      {
+        order: 0,
+        type: 'pellet-collected',
+        entityId: player.id,
+        row: 1,
+        col: 3,
+      },
+    ]);
+  });
+
+  it('suppresses ghost-contact death when the player is invincible', () => {
+    const { colliderStore, collisionIntents, healthStore, player, positionStore, system, world } =
+      createCollisionHarness();
+
+    healthStore.isInvincible[player.id] = 1;
+    setEntityTile(positionStore, player.id, 1, 2);
+    addCollisionEntity(world, positionStore, colliderStore, COLLIDER_TYPE.GHOST, 1, 2);
+
+    system.update({
+      dtMs: 16.6667,
+      frame: 0,
+      world,
+    });
+
+    expect(collisionIntents).toEqual([
+      {
+        order: 0,
+        type: 'pellet-collected',
+        entityId: player.id,
+        row: 1,
+        col: 2,
+      },
+    ]);
+  });
+
+  it('prioritizes fire over ghost contact when both occupy the player tile', () => {
+    const { colliderStore, collisionIntents, ghostStore, player, positionStore, system, world } =
+      createCollisionHarness([[1, 1, CELL_TYPE.EMPTY]]);
+
+    setEntityTile(positionStore, player.id, 1, 1);
+    const ghost = addCollisionEntity(
+      world,
+      positionStore,
+      colliderStore,
+      COLLIDER_TYPE.GHOST,
+      1,
+      1,
+    );
+    addCollisionEntity(world, positionStore, colliderStore, COLLIDER_TYPE.FIRE, 1, 1);
+
+    system.update({
+      dtMs: 16.6667,
+      frame: 0,
+      world,
+    });
+
+    expect(collisionIntents).toEqual([
+      {
+        order: 0,
+        type: 'player-death',
+        entityId: player.id,
+        row: 1,
+        col: 1,
+        cause: 'fire',
+        sourceEntityId: 2,
+      },
+      {
+        order: 1,
+        type: 'ghost-death',
+        entityId: ghost.id,
+        row: 1,
+        col: 1,
+        cause: 'fire',
+        sourceEntityId: 2,
+        ghostState: GHOST_STATE.NORMAL,
+      },
+    ]);
+    expect(ghostStore.state[ghost.id]).toBe(GHOST_STATE.DEAD);
   });
 
   it('uses a real map resource fixture so the harness stays aligned with D-03 semantics', () => {

@@ -32,7 +32,7 @@
 
 import { COMPONENT_MASK } from '../components/registry.js';
 import { COLLIDER_TYPE } from '../components/spatial.js';
-import { CELL_TYPE } from '../resources/constants.js';
+import { CELL_TYPE, GHOST_STATE } from '../resources/constants.js';
 import { getCell, setCell } from '../resources/map-resource.js';
 
 /**
@@ -197,6 +197,84 @@ function ensureCollisionScratch(scratch, cellCount, maxGhostsPerCell) {
 }
 
 /**
+ * Add one ghost entity to the occupancy lanes for a cell.
+ *
+ * @param {CollisionScratch} scratch - Reusable occupancy scratch buffer.
+ * @param {number} cellIndex - Flat cell index receiving the ghost.
+ * @param {number} entityId - Ghost entity occupying the cell.
+ */
+function pushGhostOccupancy(scratch, cellIndex, entityId) {
+  const ghostCount = scratch.ghostCounts[cellIndex];
+  if (ghostCount >= scratch.maxGhostsPerCell) {
+    return;
+  }
+
+  scratch.ghostIds[cellIndex * scratch.maxGhostsPerCell + ghostCount] = entityId;
+  scratch.ghostCounts[cellIndex] = ghostCount + 1;
+}
+
+/**
+ * Convert one flat cell index back into tile coordinates.
+ *
+ * @param {MapResource} mapResource - Map dimensions source.
+ * @param {number} cellIndex - Flat cell index to decode.
+ * @param {{ row: number, col: number }} outTile - Reusable tile object.
+ * @returns {{ row: number, col: number }} The populated tile object.
+ */
+function readTileFromCellIndex(mapResource, cellIndex, outTile) {
+  outTile.row = Math.floor(cellIndex / mapResource.cols);
+  outTile.col = cellIndex % mapResource.cols;
+  return outTile;
+}
+
+/**
+ * Build the per-cell occupancy data needed for deterministic collision checks.
+ *
+ * @param {number[]} entityIds - Queried dynamic entity IDs for this step.
+ * @param {MapResource} mapResource - Map resource providing bounds.
+ * @param {PositionStore} positionStore - Position component store.
+ * @param {ColliderStore} colliderStore - Collider component store.
+ * @param {CollisionScratch} scratch - Reusable occupancy scratch buffer.
+ * @param {{ row: number, col: number }} reusableTile - Shared temporary tile object.
+ */
+function buildDynamicOccupancy(
+  entityIds,
+  mapResource,
+  positionStore,
+  colliderStore,
+  scratch,
+  reusableTile,
+) {
+  for (const entityId of entityIds) {
+    const tile = readEntityTile(positionStore, entityId, reusableTile);
+    const cellIndex = tileToCellIndex(mapResource, tile.row, tile.col);
+    if (cellIndex < 0) {
+      continue;
+    }
+
+    const colliderType = colliderStore.type[entityId];
+    if (colliderType === COLLIDER_TYPE.PLAYER) {
+      scratch.playerByCell[cellIndex] = entityId;
+      continue;
+    }
+
+    if (colliderType === COLLIDER_TYPE.FIRE) {
+      scratch.fireByCell[cellIndex] = entityId;
+      continue;
+    }
+
+    if (colliderType === COLLIDER_TYPE.BOMB) {
+      scratch.bombByCell[cellIndex] = entityId;
+      continue;
+    }
+
+    if (colliderType === COLLIDER_TYPE.GHOST) {
+      pushGhostOccupancy(scratch, cellIndex, entityId);
+    }
+  }
+}
+
+/**
  * Translate one static map power-up cell into the canonical gameplay type name.
  *
  * @param {number} cellType - Static map cell type at the player's tile.
@@ -270,6 +348,103 @@ export function collectStaticPickup(mapResource, collisionIntents, entityId, row
 }
 
 /**
+ * Resolve dynamic fire and ghost-contact collisions for one occupied cell.
+ *
+ * Collision priority is enforced here as:
+ * 1. Invincibility
+ * 2. Fire
+ * 3. Ghost contact
+ *
+ * @param {MapResource} mapResource - Map dimensions source.
+ * @param {CollisionScratch} scratch - Built occupancy data for this step.
+ * @param {number} cellIndex - Flat cell index being resolved.
+ * @param {Array<object> | null | undefined} collisionIntents - Shared intent buffer.
+ * @param {PlayerStore | null | undefined} playerStore - Player gameplay store.
+ * @param {HealthStore | null | undefined} healthStore - Health gameplay store.
+ * @param {GhostStore | null | undefined} ghostStore - Ghost gameplay store.
+ * @param {{ row: number, col: number }} reusableTile - Shared temporary tile object.
+ */
+function resolveDynamicCellCollisions(
+  mapResource,
+  scratch,
+  cellIndex,
+  collisionIntents,
+  playerStore,
+  healthStore,
+  ghostStore,
+  reusableTile,
+) {
+  const playerId = scratch.playerByCell[cellIndex];
+  const fireId = scratch.fireByCell[cellIndex];
+  const ghostCount = scratch.ghostCounts[cellIndex];
+  const tile = readTileFromCellIndex(mapResource, cellIndex, reusableTile);
+  const playerIsInvincible =
+    playerId !== -1 && isPlayerInvincible(playerStore, healthStore, playerId);
+
+  if (fireId !== -1) {
+    if (playerId !== -1 && !playerIsInvincible) {
+      appendCollisionIntent(collisionIntents, {
+        type: 'player-death',
+        entityId: playerId,
+        row: tile.row,
+        col: tile.col,
+        cause: 'fire',
+        sourceEntityId: fireId,
+      });
+    }
+
+    for (let ghostIndex = 0; ghostIndex < ghostCount; ghostIndex += 1) {
+      const ghostId = scratch.ghostIds[cellIndex * scratch.maxGhostsPerCell + ghostIndex];
+      const ghostState = ghostStore?.state?.[ghostId] ?? GHOST_STATE.NORMAL;
+      if (ghostState === GHOST_STATE.DEAD) {
+        continue;
+      }
+
+      appendCollisionIntent(collisionIntents, {
+        type: 'ghost-death',
+        entityId: ghostId,
+        row: tile.row,
+        col: tile.col,
+        cause: 'fire',
+        sourceEntityId: fireId,
+        ghostState,
+      });
+
+      // Marking the ghost dead immediately prevents the same lingering fire
+      // tile from emitting duplicate death intents on subsequent fixed steps.
+      if (ghostStore?.state) {
+        ghostStore.state[ghostId] = GHOST_STATE.DEAD;
+      }
+    }
+
+    return;
+  }
+
+  if (playerId === -1 || playerIsInvincible) {
+    return;
+  }
+
+  for (let ghostIndex = 0; ghostIndex < ghostCount; ghostIndex += 1) {
+    const ghostId = scratch.ghostIds[cellIndex * scratch.maxGhostsPerCell + ghostIndex];
+    const ghostState = ghostStore?.state?.[ghostId] ?? GHOST_STATE.NORMAL;
+    if (ghostState !== GHOST_STATE.NORMAL) {
+      continue;
+    }
+
+    appendCollisionIntent(collisionIntents, {
+      type: 'player-death',
+      entityId: playerId,
+      row: tile.row,
+      col: tile.col,
+      cause: 'ghost',
+      sourceEntityId: ghostId,
+      ghostState,
+    });
+    return;
+  }
+}
+
+/**
  * Create the collision system shell.
  *
  * @param {{
@@ -278,6 +453,7 @@ export function collectStaticPickup(mapResource, collisionIntents, entityId, row
  *   colliderResourceKey?: string,
  *   playerResourceKey?: string,
  *   healthResourceKey?: string,
+ *   ghostResourceKey?: string,
  *   collisionIntentsResourceKey?: string,
  *   requiredMask?: number,
  *   maxGhostsPerCell?: number,
@@ -290,11 +466,13 @@ export function createCollisionSystem(options = {}) {
   const colliderResourceKey = options.colliderResourceKey || 'collider';
   const playerResourceKey = options.playerResourceKey || 'player';
   const healthResourceKey = options.healthResourceKey || 'health';
+  const ghostResourceKey = options.ghostResourceKey || 'ghost';
   const collisionIntentsResourceKey = options.collisionIntentsResourceKey || 'collisionIntents';
   const requiredMask = options.requiredMask ?? COLLISION_ENTITY_REQUIRED_MASK;
   const maxGhostsPerCell = options.maxGhostsPerCell ?? DEFAULT_GHOST_SLOTS_PER_CELL;
   let scratch = null;
   const reusableTile = { row: 0, col: 0 };
+  const reusableCellTile = { row: 0, col: 0 };
 
   return {
     name: 'collision-system',
@@ -306,6 +484,7 @@ export function createCollisionSystem(options = {}) {
         colliderResourceKey,
         playerResourceKey,
         healthResourceKey,
+        ghostResourceKey,
       ],
       write: [collisionIntentsResourceKey],
     },
@@ -314,6 +493,9 @@ export function createCollisionSystem(options = {}) {
       const mapResource = world.getResource(mapResourceKey);
       const positionStore = world.getResource(positionResourceKey);
       const colliderStore = world.getResource(colliderResourceKey);
+      const playerStore = world.getResource(playerResourceKey);
+      const healthStore = world.getResource(healthResourceKey);
+      const ghostStore = world.getResource(ghostResourceKey);
       const collisionIntents = world.getResource(collisionIntentsResourceKey);
 
       // The shell is intentionally tolerant during early integration so tests
@@ -333,6 +515,14 @@ export function createCollisionSystem(options = {}) {
       );
 
       const entityIds = world.query(requiredMask);
+      buildDynamicOccupancy(
+        entityIds,
+        mapResource,
+        positionStore,
+        colliderStore,
+        scratch,
+        reusableTile,
+      );
 
       for (const entityId of entityIds) {
         // Only the player can collect static map pickups.
@@ -346,10 +536,26 @@ export function createCollisionSystem(options = {}) {
           continue;
         }
 
-        // Recording the player occupancy now keeps the scratch buffer aligned
-        // with the later dynamic-collision passes that will reuse this map.
-        scratch.playerByCell[cellIndex] = entityId;
         collectStaticPickup(mapResource, collisionIntents, entityId, tile.row, tile.col);
+      }
+
+      for (let cellIndex = 0; cellIndex < scratch.cellCount; cellIndex += 1) {
+        if (scratch.playerByCell[cellIndex] === -1 && scratch.fireByCell[cellIndex] === -1) {
+          if (scratch.ghostCounts[cellIndex] === 0) {
+            continue;
+          }
+        }
+
+        resolveDynamicCellCollisions(
+          mapResource,
+          scratch,
+          cellIndex,
+          collisionIntents,
+          playerStore,
+          healthStore,
+          ghostStore,
+          reusableCellTile,
+        );
       }
     },
   };
