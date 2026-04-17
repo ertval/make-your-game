@@ -224,6 +224,7 @@ export const SHARED_OWNERSHIP_PATTERNS = [
   'styles/base.css',
   'package-lock.json',
   '**/.gitkeep',
+  '.agents/**',
 ];
 
 // Track ownership is dual-layer for tests:
