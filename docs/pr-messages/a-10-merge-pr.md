@@ -32,7 +32,7 @@ I executed the project's audit and policy gate commands and captured logs under 
 - `npm run test:integration`
 - `npm run test:e2e`
 - `npm run test:audit`
-- `npm run check:forbidden`
+- `npm run policy:forbidden`
 - `npm run policy -- --require-approval=false`
 - `npm run policy:repo`
 

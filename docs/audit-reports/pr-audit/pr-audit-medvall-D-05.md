@@ -37,9 +37,9 @@ Date: 2026-04-11
 - PASS: `npm run policy:repo` (exit=0, duration=~15s, repo gate passed)
 - PASS: `npm run policy:quality` (exit=0, duration=~25s, quality gate passed)
 - PASS: `npm run policy:checks` (exit=0, duration=~5s, ticket checks passed)
-- PASS: `npm run policy:forbid` (exit=0, duration=<1s, 0 files scanned)
+- PASS: `npm run policy:forbidden` (exit=0, duration=<1s, 0 files scanned)
 - PASS: `npm run policy:header` (exit=0, duration=<1s, 0 files scanned)
-- PASS: `npm run policy:forbidrepo` (exit=0, duration=~5s, 63 files passed)
+- PASS: `npm run policy:forbiddenrepo` (exit=0, duration=~5s, 63 files passed)
 - PASS: `npm run policy:headerrepo` (exit=0, duration=~5s, 31 files passed)
 - PASS: `npm run policy:trace` (exit=0, duration=<1s, repo trace passed)
 

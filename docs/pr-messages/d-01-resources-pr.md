@@ -40,14 +40,14 @@
 - `npm run policy:repo` (passed)
 - `npm run policy:quality` (passed)
 - `npm run policy:checks -- --pr-body-file docs/pr-messages/d-01-resources-pr.md` (passed)
-- `npm run policy:forbid -- --pr-body-file docs/pr-messages/d-01-resources-pr.md` (passed)
+- `npm run policy:forbidden -- --pr-body-file docs/pr-messages/d-01-resources-pr.md` (passed)
 - `npm run policy:header -- --pr-body-file docs/pr-messages/d-01-resources-pr.md` (passed)
 - `npm run policy:approve -- --pr-body-file docs/pr-messages/d-01-resources-pr.md` (passed; approval API check skipped in local mode)
-- `npm run policy:forbidrepo -- --pr-body-file docs/pr-messages/d-01-resources-pr.md` (passed)
+- `npm run policy:forbiddenrepo -- --pr-body-file docs/pr-messages/d-01-resources-pr.md` (passed)
 - `npm run policy:headerrepo -- --pr-body-file docs/pr-messages/d-01-resources-pr.md` (passed)
 - `npm run policy:trace -- --pr-body-file docs/pr-messages/d-01-resources-pr.md` (passed)
 - `npm run test:unit` (passed — 56 tests: 45 new + 11 existing)
-- `npm run check:forbidden` (passed)
+- `npm run policy:forbidden` (passed)
 
 ## Audit questions affected
 - AUDIT-B-03 (memory reuse — pool size constants and deterministic RNG foundation).

@@ -54,7 +54,7 @@ Gate command reference:
 
 - `npm run policy` for the default all-in-one gate.
 - `npm run policy:repo` for repo-only troubleshooting reruns.
-- `npm run policy:quality`, `npm run policy:checks:local`, `npm run policy:checks`, `npm run policy:forbid`, `npm run policy:header`, `npm run policy:forbidrepo`, `npm run policy:headerrepo`, `npm run policy:trace`, and `npm run policy:approve` when you need a narrower rerun.
+- `npm run policy:quality`, `npm run policy:checks:local`, `npm run policy:checks`, `npm run policy:forbidden`, `npm run policy:header`, `npm run policy:forbiddenrepo`, `npm run policy:headerrepo`, `npm run policy:trace`, and `npm run policy:approve` when you need a narrower rerun.
 
 ### 4. Run Pre-PR Gates
 - **Commit changes**: Commit your changes using the branch's ticket ID in the commit message before running local checks (as the policy scripts analyze commit metadata).
