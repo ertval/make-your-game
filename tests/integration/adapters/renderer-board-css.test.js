@@ -6,7 +6,7 @@
  */
 
 import { describe, expect, it } from 'vitest';
-import { updateBoardCss } from '../../../src/adapters/dom/board-css-adapter.js';
+import { updateBoardCss } from '../../../src/adapters/dom/renderer-board-css.js';
 
 describe('board-css-adapter', () => {
   it('sets CSS variables on the target element', () => {

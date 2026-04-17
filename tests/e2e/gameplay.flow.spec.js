@@ -52,6 +52,10 @@ test('supports pause, continue, and restart flow transitions', async ({ page }) 
     .poll(async () => page.evaluate(() => window.__MS_GHOSTMAN_RUNTIME__.getSnapshot().state))
     .toBe('PLAYING');
 
+  await expect
+    .poll(async () => page.evaluate(() => window.__MS_GHOSTMAN_RUNTIME__.getSnapshot().simTimeMs))
+    .toBeGreaterThan(50);
+
   const simBeforeRestart = await page.evaluate(
     () => window.__MS_GHOSTMAN_RUNTIME__.getSnapshot().simTimeMs,
   );
@@ -64,7 +68,9 @@ test('supports pause, continue, and restart flow transitions', async ({ page }) 
 
   const afterRestart = await page.evaluate(() => window.__MS_GHOSTMAN_RUNTIME__.getSnapshot());
   expect(afterRestart.state).toBe('PLAYING');
-  expect(afterRestart.simTimeMs).toBeLessThanOrEqual(simBeforeRestart);
+  // Since restart resets to 0, it should be less than what we had before,
+  // even if one or two frames have already fired after the restart unpause.
+  expect(afterRestart.simTimeMs).toBeLessThan(simBeforeRestart);
 });
 
 test('advances through levels and reaches VICTORY on final completion', async ({ page }) => {

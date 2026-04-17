@@ -8,7 +8,7 @@
  */
 
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { createDomRenderer } from '../../../src/adapters/dom/dom-renderer.js';
+import { createDomRenderer } from '../../../src/adapters/dom/renderer-dom.js';
 
 function createMockElement(_kind = 'div') {
   return {
