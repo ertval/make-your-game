@@ -153,6 +153,25 @@ function setEntityTile(positionStore, entityId, row, col) {
 }
 
 /**
+ * Set both the previous and current tile for one entity.
+ *
+ * This is useful for rules that depend on whether the entity entered a tile
+ * this step versus already occupying it on the prior step.
+ *
+ * @param {PositionStore} positionStore - Mutable position store.
+ * @param {number} entityId - Entity slot to update.
+ * @param {number} prevRow - Previous tile row.
+ * @param {number} prevCol - Previous tile col.
+ * @param {number} row - Current tile row.
+ * @param {number} col - Current tile col.
+ */
+function setEntityPath(positionStore, entityId, prevRow, prevCol, row, col) {
+  positionStore.prevRow[entityId] = prevRow;
+  positionStore.prevCol[entityId] = prevCol;
+  setEntityTile(positionStore, entityId, row, col);
+}
+
+/**
  * Create one extra collision entity and place it on a chosen tile.
  *
  * @param {World} world - ECS world receiving the entity.
@@ -816,6 +835,174 @@ describe('collision-system update shell', () => {
       },
     ]);
     expect(ghostStore.state[ghost.id]).toBe(GHOST_STATE.DEAD);
+  });
+
+  it('reverts the player to the previous tile when the player occupies a ghost-house tile', () => {
+    const { collisionIntents, player, positionStore, system, world } = createCollisionHarness([
+      [1, 1, CELL_TYPE.EMPTY],
+    ]);
+
+    setEntityPath(positionStore, player.id, 2, 2, 3, 2);
+
+    system.update({
+      dtMs: 16.6667,
+      frame: 0,
+      world,
+    });
+
+    expect(positionStore.row[player.id]).toBe(2);
+    expect(positionStore.col[player.id]).toBe(2);
+    expect(positionStore.targetRow[player.id]).toBe(2);
+    expect(positionStore.targetCol[player.id]).toBe(2);
+    expect(collisionIntents).toEqual([]);
+  });
+
+  it('allows a dead ghost to enter the ghost house from outside', () => {
+    const { colliderStore, collisionIntents, ghostStore, player, positionStore, system, world } =
+      createCollisionHarness([[1, 1, CELL_TYPE.EMPTY]]);
+
+    setEntityTile(positionStore, player.id, 1, 1);
+    const ghost = addCollisionEntity(
+      world,
+      positionStore,
+      colliderStore,
+      COLLIDER_TYPE.GHOST,
+      3,
+      2,
+    );
+    setEntityPath(positionStore, ghost.id, 2, 2, 3, 2);
+    ghostStore.state[ghost.id] = GHOST_STATE.DEAD;
+
+    system.update({
+      dtMs: 16.6667,
+      frame: 0,
+      world,
+    });
+
+    expect(positionStore.row[ghost.id]).toBe(3);
+    expect(positionStore.col[ghost.id]).toBe(2);
+    expect(collisionIntents).toEqual([]);
+  });
+
+  it('reverts a non-dead ghost that tries to enter the ghost house from outside', () => {
+    const { colliderStore, collisionIntents, player, positionStore, system, world } =
+      createCollisionHarness([[1, 1, CELL_TYPE.EMPTY]]);
+
+    setEntityTile(positionStore, player.id, 1, 1);
+    const ghost = addCollisionEntity(
+      world,
+      positionStore,
+      colliderStore,
+      COLLIDER_TYPE.GHOST,
+      3,
+      2,
+    );
+    setEntityPath(positionStore, ghost.id, 2, 2, 3, 2);
+
+    system.update({
+      dtMs: 16.6667,
+      frame: 0,
+      world,
+    });
+
+    expect(positionStore.row[ghost.id]).toBe(2);
+    expect(positionStore.col[ghost.id]).toBe(2);
+    expect(positionStore.targetRow[ghost.id]).toBe(2);
+    expect(positionStore.targetCol[ghost.id]).toBe(2);
+    expect(collisionIntents).toEqual([]);
+  });
+
+  it('allows a ghost to exit the ghost house', () => {
+    const { colliderStore, collisionIntents, player, positionStore, system, world } =
+      createCollisionHarness([
+        [1, 1, CELL_TYPE.EMPTY],
+        [2, 2, CELL_TYPE.EMPTY],
+      ]);
+
+    setEntityTile(positionStore, player.id, 1, 1);
+    const ghost = addCollisionEntity(
+      world,
+      positionStore,
+      colliderStore,
+      COLLIDER_TYPE.GHOST,
+      2,
+      2,
+    );
+    setEntityPath(positionStore, ghost.id, 3, 2, 2, 2);
+
+    system.update({
+      dtMs: 16.6667,
+      frame: 0,
+      world,
+    });
+
+    expect(positionStore.row[ghost.id]).toBe(2);
+    expect(positionStore.col[ghost.id]).toBe(2);
+    expect(collisionIntents).toEqual([]);
+  });
+
+  it('reverts a ghost that enters a bomb cell from another tile', () => {
+    const { colliderStore, collisionIntents, player, positionStore, system, world } =
+      createCollisionHarness([
+        [1, 2, CELL_TYPE.EMPTY],
+        [1, 3, CELL_TYPE.EMPTY],
+      ]);
+
+    setEntityTile(positionStore, player.id, 1, 3);
+    const ghost = addCollisionEntity(
+      world,
+      positionStore,
+      colliderStore,
+      COLLIDER_TYPE.GHOST,
+      1,
+      2,
+    );
+    setEntityPath(positionStore, ghost.id, 1, 1, 1, 2);
+    addCollisionEntity(world, positionStore, colliderStore, COLLIDER_TYPE.BOMB, 1, 2);
+
+    system.update({
+      dtMs: 16.6667,
+      frame: 0,
+      world,
+    });
+
+    expect(positionStore.row[ghost.id]).toBe(1);
+    expect(positionStore.col[ghost.id]).toBe(1);
+    expect(positionStore.targetRow[ghost.id]).toBe(1);
+    expect(positionStore.targetCol[ghost.id]).toBe(1);
+    expect(collisionIntents).toEqual([]);
+  });
+
+  it('allows a ghost to remain on the same bomb cell when the previous tile matches the current tile', () => {
+    const { colliderStore, collisionIntents, player, positionStore, system, world } =
+      createCollisionHarness([
+        [1, 2, CELL_TYPE.EMPTY],
+        [1, 3, CELL_TYPE.EMPTY],
+      ]);
+
+    setEntityTile(positionStore, player.id, 1, 3);
+    const ghost = addCollisionEntity(
+      world,
+      positionStore,
+      colliderStore,
+      COLLIDER_TYPE.GHOST,
+      1,
+      2,
+    );
+    setEntityPath(positionStore, ghost.id, 1, 2, 1, 2);
+    addCollisionEntity(world, positionStore, colliderStore, COLLIDER_TYPE.BOMB, 1, 2);
+
+    system.update({
+      dtMs: 16.6667,
+      frame: 0,
+      world,
+    });
+
+    expect(positionStore.row[ghost.id]).toBe(1);
+    expect(positionStore.col[ghost.id]).toBe(2);
+    expect(positionStore.targetRow[ghost.id]).toBe(1);
+    expect(positionStore.targetCol[ghost.id]).toBe(2);
+    expect(collisionIntents).toEqual([]);
   });
 
   it('uses a real map resource fixture so the harness stays aligned with D-03 semantics', () => {

@@ -33,7 +33,7 @@
 import { COMPONENT_MASK } from '../components/registry.js';
 import { COLLIDER_TYPE } from '../components/spatial.js';
 import { CELL_TYPE, GHOST_STATE } from '../resources/constants.js';
-import { getCell, setCell } from '../resources/map-resource.js';
+import { getCell, isGhostHouseCell, setCell } from '../resources/map-resource.js';
 
 /**
  * Dynamic entities with tile positions are queried through position + collider.
@@ -87,6 +87,39 @@ export function readEntityTile(positionStore, entityId, outTile = { row: 0, col:
   outTile.row = Math.round(positionStore.row[entityId]);
   outTile.col = Math.round(positionStore.col[entityId]);
   return outTile;
+}
+
+/**
+ * Copy one entity's previous tile into a reusable output object.
+ *
+ * @param {PositionStore | null | undefined} positionStore - Position component store.
+ * @param {number} entityId - Entity slot to read.
+ * @param {{ row: number, col: number }} [outTile] - Reusable target object.
+ * @returns {{ row: number, col: number } | null} The populated tile object, or null when missing.
+ */
+function readPreviousEntityTile(positionStore, entityId, outTile = { row: 0, col: 0 }) {
+  if (!positionStore) {
+    return null;
+  }
+
+  outTile.row = Math.round(positionStore.prevRow[entityId]);
+  outTile.col = Math.round(positionStore.prevCol[entityId]);
+  return outTile;
+}
+
+/**
+ * Snap one entity back onto a specific tile.
+ *
+ * @param {PositionStore} positionStore - Mutable position store.
+ * @param {number} entityId - Entity slot to mutate.
+ * @param {number} row - Tile row to occupy.
+ * @param {number} col - Tile col to occupy.
+ */
+function setEntityTile(positionStore, entityId, row, col) {
+  positionStore.row[entityId] = row;
+  positionStore.col[entityId] = col;
+  positionStore.targetRow[entityId] = row;
+  positionStore.targetCol[entityId] = col;
 }
 
 /**
@@ -228,7 +261,10 @@ function readTileFromCellIndex(mapResource, cellIndex, outTile) {
 }
 
 /**
- * Build the per-cell occupancy data needed for deterministic collision checks.
+ * Populate occupancy lanes for bombs and fire only.
+ *
+ * These colliders are the inputs for later actor constraint checks, so they
+ * must be recorded before player and ghost occupancy is finalized.
  *
  * @param {number[]} entityIds - Queried dynamic entity IDs for this step.
  * @param {MapResource} mapResource - Map resource providing bounds.
@@ -237,7 +273,7 @@ function readTileFromCellIndex(mapResource, cellIndex, outTile) {
  * @param {CollisionScratch} scratch - Reusable occupancy scratch buffer.
  * @param {{ row: number, col: number }} reusableTile - Shared temporary tile object.
  */
-function buildDynamicOccupancy(
+function buildHazardOccupancy(
   entityIds,
   mapResource,
   positionStore,
@@ -253,11 +289,6 @@ function buildDynamicOccupancy(
     }
 
     const colliderType = colliderStore.type[entityId];
-    if (colliderType === COLLIDER_TYPE.PLAYER) {
-      scratch.playerByCell[cellIndex] = entityId;
-      continue;
-    }
-
     if (colliderType === COLLIDER_TYPE.FIRE) {
       scratch.fireByCell[cellIndex] = entityId;
       continue;
@@ -265,11 +296,105 @@ function buildDynamicOccupancy(
 
     if (colliderType === COLLIDER_TYPE.BOMB) {
       scratch.bombByCell[cellIndex] = entityId;
+    }
+  }
+}
+
+/**
+ * Check whether a ghost may legally occupy a ghost-house tile this step.
+ *
+ * Ghosts may always remain inside or exit the house, but only dead ghosts may
+ * enter it from outside.
+ *
+ * @param {MapResource} mapResource - Map resource with ghost-house geometry.
+ * @param {GhostStore | null | undefined} ghostStore - Ghost gameplay store.
+ * @param {number} entityId - Ghost entity slot to inspect.
+ * @param {{ row: number, col: number }} currentTile - Current ghost tile.
+ * @param {{ row: number, col: number }} previousTile - Previous ghost tile.
+ * @returns {boolean} True when the current ghost-house occupancy is legal.
+ */
+function canGhostOccupyGhostHouse(mapResource, ghostStore, entityId, currentTile, previousTile) {
+  if (!isGhostHouseCell(mapResource, currentTile.row, currentTile.col)) {
+    return true;
+  }
+
+  if (isGhostHouseCell(mapResource, previousTile.row, previousTile.col)) {
+    return true;
+  }
+
+  return (ghostStore?.state?.[entityId] ?? GHOST_STATE.NORMAL) === GHOST_STATE.DEAD;
+}
+
+/**
+ * Check whether a ghost should be blocked from entering a bomb cell this step.
+ *
+ * Staying on the same bomb cell is tolerated here because the one-time
+ * bomb-drop push-back rule is handled separately from this occupancy check.
+ *
+ * @param {CollisionScratch} scratch - Reusable occupancy scratch buffer.
+ * @param {number} currentCellIndex - Ghost's current flat cell index.
+ * @param {number} previousCellIndex - Ghost's previous flat cell index.
+ * @returns {boolean} True when the ghost attempted to enter an occupied bomb cell.
+ */
+function shouldBlockGhostFromBombCell(scratch, currentCellIndex, previousCellIndex) {
+  if (scratch.bombByCell[currentCellIndex] === -1) {
+    return false;
+  }
+
+  return currentCellIndex !== previousCellIndex;
+}
+
+/**
+ * Enforce ghost-house and bomb-cell occupancy rules by reverting illegal moves.
+ *
+ * @param {number[]} entityIds - Queried dynamic entity IDs for this step.
+ * @param {MapResource} mapResource - Map resource with ghost-house geometry.
+ * @param {PositionStore} positionStore - Mutable position store.
+ * @param {ColliderStore} colliderStore - Collider component store.
+ * @param {GhostStore | null | undefined} ghostStore - Ghost gameplay store.
+ * @param {CollisionScratch} scratch - Reusable occupancy scratch buffer.
+ * @param {{ row: number, col: number }} currentTile - Shared current-tile object.
+ * @param {{ row: number, col: number }} previousTile - Shared previous-tile object.
+ */
+function enforceOccupancyConstraints(
+  entityIds,
+  mapResource,
+  positionStore,
+  colliderStore,
+  ghostStore,
+  scratch,
+  currentTile,
+  previousTile,
+) {
+  for (const entityId of entityIds) {
+    const colliderType = colliderStore.type[entityId];
+    if (colliderType !== COLLIDER_TYPE.PLAYER && colliderType !== COLLIDER_TYPE.GHOST) {
       continue;
     }
 
-    if (colliderType === COLLIDER_TYPE.GHOST) {
-      pushGhostOccupancy(scratch, cellIndex, entityId);
+    const current = readEntityTile(positionStore, entityId, currentTile);
+    const previous = readPreviousEntityTile(positionStore, entityId, previousTile);
+    const currentCellIndex = tileToCellIndex(mapResource, current.row, current.col);
+    const previousCellIndex = tileToCellIndex(mapResource, previous.row, previous.col);
+
+    if (colliderType === COLLIDER_TYPE.PLAYER) {
+      if (isGhostHouseCell(mapResource, current.row, current.col)) {
+        setEntityTile(positionStore, entityId, previous.row, previous.col);
+      }
+      continue;
+    }
+
+    if (!canGhostOccupyGhostHouse(mapResource, ghostStore, entityId, current, previous)) {
+      setEntityTile(positionStore, entityId, previous.row, previous.col);
+      continue;
+    }
+
+    if (
+      currentCellIndex >= 0 &&
+      previousCellIndex >= 0 &&
+      shouldBlockGhostFromBombCell(scratch, currentCellIndex, previousCellIndex)
+    ) {
+      setEntityTile(positionStore, entityId, previous.row, previous.col);
     }
   }
 }
@@ -345,6 +470,43 @@ export function collectStaticPickup(mapResource, collisionIntents, entityId, row
     col,
     powerUpType,
   });
+}
+
+/**
+ * Record final player and ghost occupancy after constraints have been enforced.
+ *
+ * @param {number[]} entityIds - Queried dynamic entity IDs for this step.
+ * @param {MapResource} mapResource - Map resource providing bounds.
+ * @param {PositionStore} positionStore - Position component store.
+ * @param {ColliderStore} colliderStore - Collider component store.
+ * @param {CollisionScratch} scratch - Reusable occupancy scratch buffer.
+ * @param {{ row: number, col: number }} reusableTile - Shared temporary tile object.
+ */
+function buildActorOccupancy(
+  entityIds,
+  mapResource,
+  positionStore,
+  colliderStore,
+  scratch,
+  reusableTile,
+) {
+  for (const entityId of entityIds) {
+    const tile = readEntityTile(positionStore, entityId, reusableTile);
+    const cellIndex = tileToCellIndex(mapResource, tile.row, tile.col);
+    if (cellIndex < 0) {
+      continue;
+    }
+
+    const colliderType = colliderStore.type[entityId];
+    if (colliderType === COLLIDER_TYPE.PLAYER) {
+      scratch.playerByCell[cellIndex] = entityId;
+      continue;
+    }
+
+    if (colliderType === COLLIDER_TYPE.GHOST) {
+      pushGhostOccupancy(scratch, cellIndex, entityId);
+    }
+  }
 }
 
 /**
@@ -473,6 +635,7 @@ export function createCollisionSystem(options = {}) {
   let scratch = null;
   const reusableTile = { row: 0, col: 0 };
   const reusableCellTile = { row: 0, col: 0 };
+  const reusablePreviousTile = { row: 0, col: 0 };
 
   return {
     name: 'collision-system',
@@ -515,7 +678,25 @@ export function createCollisionSystem(options = {}) {
       );
 
       const entityIds = world.query(requiredMask);
-      buildDynamicOccupancy(
+      buildHazardOccupancy(
+        entityIds,
+        mapResource,
+        positionStore,
+        colliderStore,
+        scratch,
+        reusableTile,
+      );
+      enforceOccupancyConstraints(
+        entityIds,
+        mapResource,
+        positionStore,
+        colliderStore,
+        ghostStore,
+        scratch,
+        reusableTile,
+        reusablePreviousTile,
+      );
+      buildActorOccupancy(
         entityIds,
         mapResource,
         positionStore,
