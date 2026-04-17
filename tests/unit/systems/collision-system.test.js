@@ -1,10 +1,9 @@
 /**
- * Unit tests for the B-04 collision-system scaffold.
+ * Unit tests for the B-04 collision system.
  *
- * These tests prove the helper and system-shell contract: logic-phase
- * registration, deterministic helper behavior, reusable scratch buffers, and
- * the ability to inject a plain collision intent array without requiring a
- * dedicated resource module yet.
+ * These tests cover the helper layer, the logic-phase system contract, pickup
+ * collection, fire and ghost contact, and occupancy-rule enforcement without
+ * depending on runtime wiring in out-of-scope files.
  */
 
 import { describe, expect, it } from 'vitest';
@@ -191,7 +190,7 @@ function addCollisionEntity(world, positionStore, colliderStore, colliderType, r
   return entity;
 }
 
-describe('collision-system scaffold contract', () => {
+describe('collision-system contract', () => {
   it('registers as a logic-phase system so it can run after movement', () => {
     const system = createCollisionSystem();
 
@@ -204,6 +203,17 @@ describe('collision-system scaffold contract', () => {
 
   it('uses the canonical default ghost lane count for one-cell occupancy buffers', () => {
     expect(DEFAULT_GHOST_SLOTS_PER_CELL).toBe(4);
+  });
+
+  it('declares writes for every resource the system mutates during collision resolution', () => {
+    const system = createCollisionSystem();
+
+    expect(system.resourceCapabilities.write).toEqual([
+      'mapResource',
+      'position',
+      'ghost',
+      'collisionIntents',
+    ]);
   });
 });
 

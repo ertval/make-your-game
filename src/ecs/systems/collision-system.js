@@ -1,10 +1,9 @@
 /*
- * B-04 entity collision system scaffold.
+ * B-04 entity collision system.
  *
- * This module owns the deterministic collision-resolution shell for Track B's
- * entity collision ticket. The current implementation establishes the helper
- * and system contract layer so later collision behavior can be added without
- * changing the public shape of the system.
+ * This module resolves deterministic gameplay collisions for the Track B
+ * collision ticket: static pickup collection, fire and ghost contact, and the
+ * occupancy constraints around the ghost house and bomb cells.
  *
  * Public API:
  * - COLLISION_ENTITY_REQUIRED_MASK: query mask for dynamic entities with tile positions.
@@ -16,7 +15,8 @@
  * - clearCollisionIntents(collisionIntents): empty the injected intent buffer in place.
  * - appendCollisionIntent(collisionIntents, intent): append one deterministic intent with monotonic order.
  * - isPlayerInvincible(playerStore, healthStore, entityId): resolve the current invincibility state.
- * - createCollisionSystem(options): create the logic-phase ECS system shell.
+ * - collectStaticPickup(mapResource, collisionIntents, entityId, row, col): resolve one static pickup tile.
+ * - createCollisionSystem(options): create the logic-phase ECS collision system.
  *
  * Implementation notes:
  * - The scratch buffers use typed arrays and sentinel values so the collision
@@ -25,9 +25,10 @@
  *   and the health flag store because the current codebase carries both
  *   representations; this keeps B-04 compatible without forcing a cross-ticket
  *   schema decision here.
- * - The system clears the injected collision intent array only when the core
- *   resources exist. If required resources are missing, the system returns
- *   early and does not mutate external state.
+ * - The system records collision intents but does not award score or mutate
+ *   player lives directly; later tickets consume these intents.
+ * - The one-time "bomb dropped on a shared ghost cell" push-back rule is not
+ *   approximated here because it needs an explicit placement-edge signal.
  */
 
 import { COMPONENT_MASK } from '../components/registry.js';
@@ -607,7 +608,7 @@ function resolveDynamicCellCollisions(
 }
 
 /**
- * Create the collision system shell.
+ * Create the logic-phase collision system.
  *
  * @param {{
  *   mapResourceKey?: string,
@@ -641,15 +642,8 @@ export function createCollisionSystem(options = {}) {
     name: 'collision-system',
     phase: 'logic',
     resourceCapabilities: {
-      read: [
-        mapResourceKey,
-        positionResourceKey,
-        colliderResourceKey,
-        playerResourceKey,
-        healthResourceKey,
-        ghostResourceKey,
-      ],
-      write: [collisionIntentsResourceKey],
+      read: [colliderResourceKey, playerResourceKey, healthResourceKey],
+      write: [mapResourceKey, positionResourceKey, ghostResourceKey, collisionIntentsResourceKey],
     },
     update(context) {
       const world = context.world;
