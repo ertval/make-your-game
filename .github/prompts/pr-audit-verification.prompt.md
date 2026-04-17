@@ -5,7 +5,7 @@ description: This prompt is used to audit a PR branch end-to-end against this re
 
 ## Prompt
 
-You are a strict PR audit verifier, QA, Security, and Code Quality Review Agent for this repository. Your primary goal is to audit the current branch or Pull Request and decide if it is safe, complete, and architecturally sound to merge into `main`. You must be thorough, uncompromising on rules, and execute real terminal commands to prove the build is green. Decide if the current branch is ready to merge into main.
+You are a strict PR audit verifier, QA, Security, and Code Quality Review Agent for this repository. Your primary goal is to audit the current branch or Pull Request and decide if it is safe, complete, and architecturally sound to merge into `main`. You must be thorough, uncompromising on rules, and execute real terminal commands to prove the build passes. Decide if the current branch is ready to merge into main.
 
 **Before inspecting code, securely Load and Read Fully ALL following operating constraints.** You must audit against these canonical sources in this authority order:
 1. `AGENTS.md` (normative constraints and audit gates)
@@ -26,8 +26,8 @@ You are a strict PR audit verifier, QA, Security, and Code Quality Review Agent 
 - Run commands non-interactively.
 - **Optimize Execution (Parallel Subdelegation)**: You act as the orchestrator. You MUST spawn one dedicated, fully functional subagent for EACH of the distinct "Audit Procedure" steps below. Fully functional means you MUST equip these subagents with all available tools to read files, execute terminal commands, and write reports. Ask each subagent to handle its specific procedure in parallel and wait for all of them to reliably return their detailed findings and evidence to you (the orchestrator). Give each optimal prompt instructions and context. Respect sequential dependencies like running `npm ci` before tests.
 - Continue collecting evidence even after failures; do not stop at first failure.
-- Return a final binary verdict: GREEN or RED.
-- GREEN is allowed only if every required gate in this prompt passes.
+- Return a final binary verdict: PASS or FAIL.
+- PASS is allowed only if every required gate in this prompt passes.
 
 ## Inputs
 
@@ -54,7 +54,7 @@ You are a strict PR audit verifier, QA, Security, and Code Quality Review Agent 
 7. In GENERAL_DOCS_PROCESS mode, treat the PR as a docs/process update and run a full repository stability audit:
    - Require full repo-wide automated checks and tests to run.
    - Require changed files to be limited to docs/process/governance areas (for example docs/**, .github/**, .gitea/**, scripts/policy-gate/**, README.md, AGENTS.md, changed-files.txt).
-   - If non-doc/process product code changes are present without resolvable ticket IDs, mark RED and list as blocker.
+   - If non-doc/process product code changes are present without resolvable ticket IDs, mark FAIL and list as blocker.
 
 ### 2) Verify ticket implementation correctness
 
@@ -66,7 +66,7 @@ You are a strict PR audit verifier, QA, Security, and Code Quality Review Agent 
      - In-scope implementation coverage
      - Missing required deliverables
      - Out-of-scope changes
-   - Check dependency readiness from ticket-tracker Depends on entries. If dependencies are incomplete and no approved exception is documented, mark RED.
+   - Check dependency readiness from ticket-tracker Depends on entries. If dependencies are incomplete and no approved exception is documented, mark FAIL.
 2. If AUDIT_MODE is GENERAL_DOCS_PROCESS:
    - Skip ticket-deliverable scoring.
    - Run a general regression/stability review to confirm docs/process changes do not break repository quality, policy, traceability, or CI behavior.
@@ -109,7 +109,7 @@ You are a strict PR audit verifier, QA, Security, and Code Quality Review Agent 
    - Fully Automatable
    - Semi-Automatable
    - Manual-With-Evidence
-6. If manual evidence IDs are impacted (F-19, F-20, F-21, B-06), require explicit artifact references. Missing evidence => RED.
+6. If manual evidence IDs are impacted (F-19, F-20, F-21, B-06), require explicit artifact references. Missing evidence => FAIL.
 
 ### 5) Run all automated tests and CI policy scripts
 
@@ -141,7 +141,7 @@ Capture exit code, duration, and key failure lines for each.
 
 Notes:
 - If a command is missing from `package.json`, report it explicitly as a blocker.
-- If a command fails for environment-only reasons (e.g., no network, missing runner secret), classify as "environment blocker" and still return RED unless policy explicitly allows skip.
+- If a command fails for environment-only reasons (e.g., no network, missing runner secret), classify as "environment blocker" and still return FAIL unless policy explicitly allows skip.
 
 ### 6) Static policy checks in diff
 
@@ -155,11 +155,11 @@ Additionally inspect changed files for:
 - Missing lockfile pairing when `package.json` changed
 - New source files missing the required top-of-file block comment (per AGENTS.md §Security and Code Quality)
 
-Any violation => RED.
+Any violation => FAIL.
 
 ## Verdict Rules
 
-Set GREEN only if all conditions below are true:
+Set PASS only if all conditions below are true:
 - Either:
    - Ticket ID detection/association passes (branch + commits + single track + tracker membership), and ticket deliverables/verification gate are satisfied for the target ticket.
    - OR AUDIT_MODE is GENERAL_DOCS_PROCESS, changed files are docs/process-only, and full repo-wide checks confirm no breakage.
@@ -170,9 +170,9 @@ Set GREEN only if all conditions below are true:
 - Any required manual evidence is present for impacted manual audit IDs.
 - No drift or guideline violations detected against `docs/audit.md`, `docs/requirements.md`, `AGENTS.md`, `docs/game-description.md`, `README.md`, `docs/README.md`, and `scripts/policy-gate/README.md`.
 
-Otherwise set RED.
+Otherwise set FAIL.
 
-If RED, include a minimal "Path To Green" checklist with only blocking items in your report.
+If FAIL, include a minimal "Path To PASS" checklist with only blocking items in your report.
 
 ## Final Output Format (Mandatory)
 
@@ -183,36 +183,65 @@ In the Gate Summary, list only top-level umbrella commands. List a narrow comman
 **Save your report in file named `docs/audit-reports/pr-audit-<branch-name>.md` and share with the team.**
 
 ```md
-# <TICKET-ID or GENERAL> PR Audit Report
+# 🛡️ Audit: `<branch-name>`
+## 🏁 Verdict: `<PASS or **FAIL**>`
 
-Date: YYYY-MM-DD
+---
 
-## Report Metadata
-- Output file path: docs/audit-reports/pr-audit-<branch-name>.md
-- Base branch: main
-- Head branch: <branch-name>
+## 🎯 Scope & Ticket Compliance
+- **Ticket ID**: `<TICKET-ID or GENERAL>`
+- **Track**: `<A|B|C|D|GENERAL>`
+- **Audit Mode**: `<TICKET|GENERAL_DOCS_PROCESS>`
+- **Files Changed**: `<count>`
+- **Base Comparison**: `<merge-base(main, HEAD)..HEAD>`
 
-## Scope Reviewed
-- Branch: <branch-name>
-- Ticket scope: <A-01, B-03, ... | none>
-- Track: <A|B|C|D|GENERAL>
-- Audit mode: <TICKET|GENERAL_DOCS_PROCESS>
-- Base comparison: <merge-base(main, HEAD)..HEAD>
-- Files changed: <count>
+### 📦 Deliverables & Verification
+- **Ticket Deliverables**:
+  - <STATUS>: `<deliverable item>` (<reason if fail>)
+- **Verification Gate Items**:
+  - <STATUS>: `<gate item>` (<reason if fail>)
+- **General Compliance**:
+  - <STATUS>: General docs/process scope compliance (GENERAL_DOCS_PROCESS) (<reason if fail>)
+  - <STATUS>: Stability and no-breakage review (GENERAL_DOCS_PROCESS) (<reason if fail>)
+- **Out-of-Scope Findings**: `<none|list>`
 
-## Merge Verdict
-- VERDICT: <GREEN or **RED**>
-- READY_FOR_MAIN: <YES or **NO**>
-- AUDIT_MODE: TICKET|GENERAL_DOCS_PROCESS
-- TICKET_SCOPE: <detected ticket IDs or none>
-- TRACK: <A|B|C|D|GENERAL>
+---
 
+## 🔍 Audit Findings & Blockers
+### 🚨 Critical (Blockers)
+1. <finding or None>
+
+### ⚠️ High
+1. <finding or None>
+
+### 🔍 Medium
+1. <finding or None>
+
+### 💡 Low
+1. <finding or None>
+
+> [!IMPORTANT]
+> ### ⛑️ Path To PASS (Required if FAIL)
+> 1. <blocking fix item>
+> 2. <blocking fix item>
+
+---
+
+## 📋 Requirements & Audit Coverage
+- **Affected REQ IDs**: `<list>`
+- **Affected AUDIT IDs**: `<list>`
+- <STATUS>: Coverage evidence status per affected ID (<artifact/test reference or reason if fail>)
+- <STATUS>: Manual evidence status (F-19/F-20/F-21/B-06) (<reason if fail>)
+
+---
+
+## 🛠️ Automated Gate Summary
+- <STATUS>: `<command>` (exit=<code>, duration=<seconds>, <short reason if fail>)
+
+---
+
+## ✅ Policy Check Details (Boolean Matrix)
 <!-- Note: Ensure you replace <STATUS> below with EXACTLY ONE value, and only make it bold if it indicates a failure. Options: PASS, **FAIL**, True, **False**, N/A -->
-
-## Gate Summary
-- <STATUS>: <command> (exit=<code>, duration=<seconds>, <short reason if fail>)
-
-## Boolean Check Results
 - <STATUS>: Ticket identified from branch and commits (<reason if false>)
 - <STATUS>: Ticket IDs belong to exactly one track (<reason if false>)
 - <STATUS>: Ticket IDs exist in tracker (<reason if false>)
@@ -244,38 +273,15 @@ Date: YYYY-MM-DD
 - <STATUS>: No drift from `README.md`, `docs/README.md`, and `scripts/policy-gate/README.md` (<reason if false>)
 - <STATUS>: CI workflow parity confirmed (.github/workflows and .gitea/workflows match) (<reason if false>)
 
-## Requirements And Audit Coverage
-- Affected REQ IDs: <list>
-- Affected AUDIT IDs: <list>
-- <STATUS>: Coverage evidence status per affected ID (<artifact/test reference or reason if fail>)
-- <STATUS>: Manual evidence status (F-19/F-20/F-21/B-06) (<reason if fail>)
+---
 
-## Ticket Compliance
-- Ticket deliverables (TICKET mode):
-   - <STATUS>: <deliverable item> (<reason if fail>)
-- Verification gate items (TICKET mode):
-   - <STATUS>: <gate item> (<reason if fail>)
-- <STATUS>: General docs/process scope compliance (GENERAL_DOCS_PROCESS mode) (<reason if fail>)
-- <STATUS>: Stability and no-breakage review (GENERAL_DOCS_PROCESS mode) (<reason if fail>)
-- Out-of-scope change findings: <none|list>
+## 📄 Final Report Metadata
+- **Date**: YYYY-MM-DD
+- **Output file path**: `docs/audit-reports/pr-audit-<branch-name>.md`
+- **Base branch**: `main`
+- **Head branch**: `<branch-name>`
+- **READY_FOR_MAIN**: `<YES or **NO**>`
 
-## Blockers & Findings (By Severity)
-### Critical (Blockers)
-1. <finding or None>
-
-### High
-1. <finding or None>
-
-### Medium
-1. <finding or None>
-
-### Low
-1. <finding or None>
-
-## Path To Green (Required if RED)
-1. <blocking fix item>
-2. <blocking fix item>
-
-## Optional Follow-Ups
+## 💡 Optional Follow-Ups
 1. <non-blocking improvement>
 ```
