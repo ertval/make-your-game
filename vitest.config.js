@@ -8,8 +8,15 @@ export default defineConfig({
     coverage: {
       provider: 'v8',
       reporter: ['text', 'html'],
-      include: ['src/**/*.js', 'tests/**/*.js'],
+      all: true,
+      include: ['src/**/*.js'],
       exclude: ['tests/e2e/**'],
+      thresholds: {
+        branches: 60,
+        functions: 70,
+        lines: 70,
+        statements: 70,
+      },
     },
   },
 });

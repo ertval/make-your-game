@@ -5,14 +5,20 @@
  * Implementation Notes: Employs strict string checks and regex heuristics for DOM and Framework boundaries.
  */
 
+import { spawnSync } from 'node:child_process';
 import fs from 'node:fs';
 import path from 'node:path';
+import { pathToFileURL } from 'node:url';
 import {
   assertOwnerTrackMatch,
+  BANNED_FRAMEWORK_DEPENDENCIES,
+  DEFAULT_CHANGED_FILES_PATH,
   describePolicyResolution,
+  ECS_DOM_API_RULES,
   EXPLICIT_TICKET_BRANCH_PATTERN,
   extractOwnerFromBranch,
   extractTicketIdFromBranchName,
+  FORBIDDEN_TECH_RULES,
   findOwnershipViolations,
   GATE_PASS,
   GATE_WARN,
@@ -26,7 +32,10 @@ import {
   readLines,
   readText,
   readTicketIdsFromTracker,
+  resolveBranchName,
   resolveOwnerTrackFromBranch,
+  SECURITY_SINK_RULES,
+  SECURITY_SOURCE_PATTERN,
   SHARED_OWNERSHIP_PATTERNS,
   sortTicketIds,
   TRACK_OWNERSHIP_RULES,
@@ -35,7 +44,7 @@ import {
 const args = parseArgs(process.argv.slice(2));
 // Resolve input metadata from CLI arguments or the generated PR meta JSON.
 const metaPath = args['meta-file'] || '.policy-pr-meta.json';
-const changedPath = args['changed-file'] || 'changed-files.txt';
+const changedPath = args['changed-file'] || DEFAULT_CHANGED_FILES_PATH;
 const checkSet = args['check-set'] || 'pr';
 const validCheckSets = new Set(['pr', 'repo', 'all']);
 if (!validCheckSets.has(checkSet)) {
@@ -44,7 +53,8 @@ if (!validCheckSets.has(checkSet)) {
 
 const meta = fs.existsSync(metaPath) ? readJson(metaPath) : {};
 const changedFiles = readLines(changedPath);
-const branchName = meta.branchName || '';
+const existingChangedFiles = changedFiles.filter((file) => fs.existsSync(file));
+const branchName = resolveBranchName(meta.branchName, args['branch-name'], process.env.BRANCH_NAME);
 const branchOwner = extractOwnerFromBranch(branchName);
 const branchOwnerTrack = resolveOwnerTrackFromBranch(branchName);
 const processMode =
@@ -59,7 +69,7 @@ function deriveTicketContext() {
     args['ticket-id'] || '',
     args['ticket-ids'] || '',
   );
-  // Try the strict <owner>/<TRACK>-<NN> pattern first, then fall back to general extraction.
+  // Try the strict <owner>/<TRACK>-<NN>[-<COMMENT>] pattern first, then fall back to general extraction.
   const explicitBranchTicketId = extractTicketIdFromBranchName(branchName);
   const branchTicketIds = explicitBranchTicketId
     ? [explicitBranchTicketId]
@@ -86,9 +96,9 @@ function deriveTicketContext() {
     throw new Error(
       [
         `Branch "${branchName}" does not follow the required ticket format.`,
-        'Expected: <owner-or-scope>/<TRACK>-<NN>, for example ekaramet/A-03.',
+        'Expected: <owner-or-scope>/<TRACK>-<NN>[-<COMMENT>], for example ekaramet/A-03 or asmyrogl/B-03-runtime-integration.',
         'Allowed track prefixes: A, B, C, D.',
-        'Action: Rename your branch using the format <owner-or-scope>/<TRACK>-<NN> (e.g., git branch -m new-branch-name).',
+        'Action: Rename your branch using the format <owner-or-scope>/<TRACK>-<NN>[-<COMMENT>] (e.g., git branch -m new-branch-name).',
       ].join('\n'),
     );
   }
@@ -132,14 +142,6 @@ function assertTicketAssociation() {
       'No ticket ID found in branch or commit metadata. Continuing because a "process" marker was detected.',
       [],
     );
-  }
-
-  if (context.ticketIds.length === 0) {
-    return {
-      ticketIds: [],
-      trackCode: 'GENERAL',
-      processMode: true,
-    };
   }
 
   if (context.trackCodes.length !== 1) {
@@ -234,7 +236,7 @@ function formatOwnershipViolations(violations) {
 
 // Ownership enforcement uses path patterns instead of AST analysis to keep policy checks lightweight.
 function assertTrackOwnership(trackCode, ticketIds) {
-  if (changedFiles.length === 0) {
+  if (existingChangedFiles.length === 0) {
     console.warn(
       `${GATE_WARN} — No changed files found in changed-files context. Skipping ownership path validation.`,
     );
@@ -242,13 +244,12 @@ function assertTrackOwnership(trackCode, ticketIds) {
   }
 
   // Validate that the branch owner is authorized for this track.
-  const branchName = meta.branchName || '';
   assertOwnerTrackMatch(trackCode, branchName);
 
-  const result = findOwnershipViolations(trackCode, changedFiles);
+  const result = findOwnershipViolations(trackCode, existingChangedFiles);
   if (result.violations.length === 0) {
     console.log(
-      `${GATE_PASS} — Ownership check for track ${trackCode} from tickets ${ticketIds.join(', ')} (${changedFiles.length} changed file(s)).`,
+      `${GATE_PASS} — Ownership check for track ${trackCode} from tickets ${ticketIds.join(', ')} (${existingChangedFiles.length} existing changed file(s)).`,
     );
     return;
   }
@@ -289,10 +290,10 @@ function assertOwnerScopedOwnership(ticketIds) {
     );
   }
 
-  const result = findOwnershipViolations(branchOwnerTrack, changedFiles);
+  const result = findOwnershipViolations(branchOwnerTrack, existingChangedFiles);
   if (result.violations.length === 0) {
     console.log(
-      `${GATE_PASS} — Owner-scoped ownership check for ${branchOwner} (Track ${branchOwnerTrack}) with ${changedFiles.length} changed file(s).`,
+      `${GATE_PASS} — Owner-scoped ownership check for ${branchOwner} (Track ${branchOwnerTrack}) with ${existingChangedFiles.length} existing changed file(s).`,
     );
     return;
   }
@@ -496,6 +497,214 @@ function verifyTraceabilityCoverage() {
   }
 }
 
+async function loadAuditQuestionMapModule() {
+  const modulePath = path.resolve('tests/e2e/audit/audit-question-map.js');
+  if (!fs.existsSync(modulePath)) {
+    throw new Error(
+      [
+        'Missing tests/e2e/audit/audit-question-map.js.',
+        'Action: Restore the canonical audit question map used by audit tests and policy gates.',
+      ].join('\n'),
+    );
+  }
+
+  return import(pathToFileURL(modulePath).href);
+}
+
+function assertNumericThreshold(value, label) {
+  if (!Number.isFinite(value)) {
+    throw new Error(
+      [
+        `Invalid threshold value for ${label}: ${String(value)}.`,
+        'Action: Set an explicit finite numeric threshold in tests/e2e/audit/audit-question-map.js.',
+      ].join('\n'),
+    );
+  }
+}
+
+async function verifyAuditExecutionObligations() {
+  const module = await loadAuditQuestionMapModule();
+  const questions = Array.isArray(module.AUDIT_QUESTIONS) ? module.AUDIT_QUESTIONS : [];
+  const executionSplit = module.AUDIT_EXECUTION_SPLIT || {};
+  const semiThresholds = module.SEMI_AUTOMATABLE_THRESHOLDS || {};
+  const manualEvidenceIds = Array.isArray(module.MANUAL_EVIDENCE_AUDIT_IDS)
+    ? module.MANUAL_EVIDENCE_AUDIT_IDS
+    : [];
+  const manifestPath =
+    typeof module.MANUAL_EVIDENCE_MANIFEST_PATH === 'string'
+      ? module.MANUAL_EVIDENCE_MANIFEST_PATH
+      : 'docs/audit-reports/manual-evidence.manifest.json';
+
+  const fullyAutomatableCount = questions.filter(
+    (question) => question.executionType === 'Fully Automatable',
+  ).length;
+  const semiAutomatableCount = questions.filter(
+    (question) => question.executionType === 'Semi-Automatable',
+  ).length;
+  const manualWithEvidenceCount = questions.filter(
+    (question) => question.executionType === 'Manual-With-Evidence',
+  ).length;
+
+  if (questions.length !== executionSplit.total) {
+    throw new Error(
+      [
+        'Audit question inventory mismatch in tests/e2e/audit/audit-question-map.js.',
+        `Expected total ${executionSplit.total}, found ${questions.length}.`,
+        'Action: Keep audit-question-map.js aligned with docs/audit.md and the declared execution split.',
+      ].join('\n'),
+    );
+  }
+
+  if (fullyAutomatableCount !== executionSplit.fullyAutomatable) {
+    throw new Error(
+      [
+        'Fully automatable audit category mismatch.',
+        `Expected ${executionSplit.fullyAutomatable}, found ${fullyAutomatableCount}.`,
+        'Action: Correct executionType assignments in tests/e2e/audit/audit-question-map.js.',
+      ].join('\n'),
+    );
+  }
+
+  if (semiAutomatableCount !== executionSplit.semiAutomatable) {
+    throw new Error(
+      [
+        'Semi-automatable audit category mismatch.',
+        `Expected ${executionSplit.semiAutomatable}, found ${semiAutomatableCount}.`,
+        'Action: Correct executionType assignments in tests/e2e/audit/audit-question-map.js.',
+      ].join('\n'),
+    );
+  }
+
+  if (manualWithEvidenceCount !== executionSplit.manualWithEvidence) {
+    throw new Error(
+      [
+        'Manual-with-evidence audit category mismatch.',
+        `Expected ${executionSplit.manualWithEvidence}, found ${manualWithEvidenceCount}.`,
+        'Action: Correct executionType assignments in tests/e2e/audit/audit-question-map.js.',
+      ].join('\n'),
+    );
+  }
+
+  for (const requiredSemiId of ['AUDIT-F-17', 'AUDIT-F-18', 'AUDIT-B-05']) {
+    const question = questions.find((candidate) => candidate.id === requiredSemiId);
+    if (!question) {
+      throw new Error(
+        [
+          `Missing semi-automatable audit ID: ${requiredSemiId}.`,
+          'Action: Add the missing audit question entry to tests/e2e/audit/audit-question-map.js.',
+        ].join('\n'),
+      );
+    }
+
+    const thresholds = semiThresholds[requiredSemiId] || question.thresholds;
+    if (!thresholds || typeof thresholds !== 'object') {
+      throw new Error(
+        [
+          `Missing threshold definition for ${requiredSemiId}.`,
+          'Action: Provide explicit thresholds in SEMI_AUTOMATABLE_THRESHOLDS and reference them from the audit question entry.',
+        ].join('\n'),
+      );
+    }
+
+    if (requiredSemiId === 'AUDIT-F-17') {
+      assertNumericThreshold(thresholds.minFrameSamples, 'AUDIT-F-17.minFrameSamples');
+      assertNumericThreshold(thresholds.maxP95FrameTimeMs, 'AUDIT-F-17.maxP95FrameTimeMs');
+      assertNumericThreshold(thresholds.maxP99FrameTimeMs, 'AUDIT-F-17.maxP99FrameTimeMs');
+    } else if (requiredSemiId === 'AUDIT-F-18') {
+      assertNumericThreshold(thresholds.minFrameSamples, 'AUDIT-F-18.minFrameSamples');
+      assertNumericThreshold(thresholds.minP95Fps, 'AUDIT-F-18.minP95Fps');
+    } else if (requiredSemiId === 'AUDIT-B-05') {
+      assertNumericThreshold(thresholds.maxLongTaskCount, 'AUDIT-B-05.maxLongTaskCount');
+      assertNumericThreshold(thresholds.maxLongTaskMs, 'AUDIT-B-05.maxLongTaskMs');
+      assertNumericThreshold(thresholds.sampleWindowMs, 'AUDIT-B-05.sampleWindowMs');
+    }
+  }
+
+  const manifestAbsolutePath = path.resolve(manifestPath);
+  if (!fs.existsSync(manifestAbsolutePath)) {
+    throw new Error(
+      [
+        `Missing manual evidence manifest: ${manifestPath}.`,
+        'Action: Add docs/audit-reports/manual-evidence.manifest.json and include entries for manual audit IDs.',
+      ].join('\n'),
+    );
+  }
+
+  const manifest = readJson(manifestAbsolutePath);
+  const entries = Array.isArray(manifest.entries) ? manifest.entries : [];
+
+  for (const auditId of manualEvidenceIds) {
+    const entry = entries.find((candidate) => candidate.auditId === auditId);
+    if (!entry) {
+      throw new Error(
+        [
+          `Missing manual evidence entry for ${auditId} in ${manifestPath}.`,
+          'Action: Add an entry with executionType and requiredArtifacts for this audit ID.',
+        ].join('\n'),
+      );
+    }
+
+    if (entry.executionType !== 'Manual-With-Evidence') {
+      throw new Error(
+        [
+          `Invalid executionType for ${auditId} in ${manifestPath}.`,
+          'Action: Set executionType to "Manual-With-Evidence".',
+        ].join('\n'),
+      );
+    }
+
+    if (!Array.isArray(entry.requiredArtifacts) || entry.requiredArtifacts.length === 0) {
+      throw new Error(
+        [
+          `Missing requiredArtifacts for ${auditId} in ${manifestPath}.`,
+          'Action: Add at least one artifact path for the manual evidence obligation.',
+        ].join('\n'),
+      );
+    }
+
+    for (const artifact of entry.requiredArtifacts) {
+      const artifactPath = typeof artifact?.path === 'string' ? artifact.path : '';
+      if (!artifactPath) {
+        throw new Error(
+          [
+            `Invalid artifact path for ${auditId} in ${manifestPath}.`,
+            'Action: Every requiredArtifacts entry must include a non-empty path string.',
+          ].join('\n'),
+        );
+      }
+
+      if (!fs.existsSync(path.resolve(artifactPath))) {
+        throw new Error(
+          [
+            `Missing manual evidence artifact for ${auditId}: ${artifactPath}.`,
+            'Action: Add the referenced artifact file or fix the artifact path.',
+          ].join('\n'),
+        );
+      }
+    }
+  }
+
+  const phaseReport = readText('docs/audit-reports/phase-testing-verification-report.md');
+  if (!phaseReport.includes('docs/audit-reports/manual-evidence.manifest.json')) {
+    throw new Error(
+      [
+        'Phase testing report is missing manual evidence manifest guidance.',
+        'Action: Reference docs/audit-reports/manual-evidence.manifest.json in docs/audit-reports/phase-testing-verification-report.md.',
+      ].join('\n'),
+    );
+  }
+
+  const traceabilityMatrix = readText('docs/implementation/audit-traceability-matrix.md');
+  if (/placeholder/i.test(traceabilityMatrix)) {
+    throw new Error(
+      [
+        'Traceability matrix still references placeholder audit execution.',
+        'Action: Update docs/implementation/audit-traceability-matrix.md to describe executable audit checks.',
+      ].join('\n'),
+    );
+  }
+}
+
 function mapsEqual(left, right) {
   const leftEntries = Object.entries(left || {}).sort(([a], [b]) => a.localeCompare(b));
   const rightEntries = Object.entries(right || {}).sort(([a], [b]) => a.localeCompare(b));
@@ -613,42 +822,7 @@ function enforceAuditAndDependencyPairing() {
 }
 
 function scanSecurityAndArchitectureBoundaries() {
-  const sourcePattern = /\.(js|mjs|cjs|ts|tsx|jsx|html)$/;
-  // Scan for dangerous DOM sinks, code execution, forbidden APIs, and ECS boundary violations.
-  const unsafeSinks = [
-    /\binnerHTML\b/,
-    /\bouterHTML\b/,
-    /\binsertAdjacentHTML\b/,
-    /\bdocument\.write\b/,
-    /\beval\s*\(/,
-    /\bnew\s+Function\s*\(/,
-    /\brequire\s*\(/,
-    /\bvar\b/,
-    /\bXMLHttpRequest\b/,
-    /setTimeout\s*\(\s*['"]/,
-    /setInterval\s*\(\s*['"]/,
-    /<\s*canvas\b/i,
-    /createElement\s*\(\s*['"]canvas['"]\s*\)/i,
-  ];
-
-  const frameworkImports = [
-    /from\s+['"](?:react|vue|angular|svelte|phaser|pixi\.js|three|jquery)['"]/,
-    /require\s*\(\s*['"](?:react|vue|angular|svelte|phaser|pixi\.js|three|jquery)['"]\s*\)/,
-  ];
-
-  // DOM APIs are only permitted in `src/ecs/systems/render-dom-system.js`.
-  const domAPIs = [
-    /\bdocument\./,
-    /\bwindow\./,
-    /\bquerySelector(All)?\b/,
-    /\bcreateElement(NS)?\b/,
-    /\bappendChild\b/,
-    /\binsertBefore\b/,
-    /\baddEventListener\b/,
-    /\binnerHTML\b/,
-    /\bouterHTML\b/,
-    /\binsertAdjacentHTML\b/,
-  ];
+  const forbiddenPatterns = [...FORBIDDEN_TECH_RULES, ...SECURITY_SINK_RULES];
 
   for (const file of changedFiles) {
     if (path.basename(file) === 'package.json') {
@@ -661,16 +835,7 @@ function scanSecurityAndArchitectureBoundaries() {
         ...(packageJson.dependencies ?? {}),
         ...(packageJson.devDependencies ?? {}),
       };
-      for (const banned of [
-        'react',
-        'vue',
-        'angular',
-        'svelte',
-        'phaser',
-        'pixi.js',
-        'three',
-        'jquery',
-      ]) {
+      for (const banned of BANNED_FRAMEWORK_DEPENDENCIES) {
         if (deps[banned]) {
           throw new Error(
             [
@@ -684,7 +849,7 @@ function scanSecurityAndArchitectureBoundaries() {
       continue;
     }
 
-    if (!sourcePattern.test(file)) {
+    if (!SECURITY_SOURCE_PATTERN.test(file)) {
       continue;
     }
 
@@ -694,40 +859,26 @@ function scanSecurityAndArchitectureBoundaries() {
 
     const content = fs.readFileSync(file, 'utf8');
     const normalizedPath = file.replaceAll('\\', '/');
-    if (normalizedPath.startsWith('scripts/policy-gate/')) {
-      continue;
-    }
 
     const isSystemFile = normalizedPath.startsWith('src/ecs/systems/');
     const isRenderSystem = normalizedPath === 'src/ecs/systems/render-dom-system.js';
 
     // Reject any unsafe sinks unconditionally across all source files.
-    for (const pattern of unsafeSinks) {
-      if (pattern.test(content)) {
+    for (const rule of forbiddenPatterns) {
+      if (rule.pattern.test(content)) {
         throw new Error(
           [
             `Unsafe sink or forbidden API found in file: ${file}`,
-            `Matched pattern: ${pattern}`,
+            `Matched rule: ${rule.name}`,
+            `Matched pattern: ${rule.pattern}`,
             'Action: Use safe DOM APIs (e.g., textContent, classList) or predefined abstractions instead of innerHTML/eval.',
           ].join('\n'),
         );
       }
     }
 
-    for (const pattern of frameworkImports) {
-      if (pattern.test(content)) {
-        throw new Error(
-          [
-            `Framework or CommonJS import found in file: ${file}`,
-            `Matched pattern: ${pattern}`,
-            'Action: Use Vanilla ESM imports syntax only. Frameworks are forbidden.',
-          ].join('\n'),
-        );
-      }
-    }
-
     if (isSystemFile && !isRenderSystem) {
-      for (const pattern of domAPIs) {
+      for (const pattern of ECS_DOM_API_RULES) {
         if (pattern.test(content)) {
           throw new Error(
             [
@@ -742,7 +893,61 @@ function scanSecurityAndArchitectureBoundaries() {
   }
 }
 
+function assertGeneratedArtifactsUntracked() {
+  const listResult = spawnSync('git', ['ls-files', '--', 'coverage', 'test-results'], {
+    encoding: 'utf8',
+  });
+
+  if (listResult.error) {
+    throw new Error(
+      [
+        `Unable to verify generated artifact tracking status: ${listResult.error.message}`,
+        'Action: Ensure git is available in PATH and rerun policy checks.',
+      ].join('\n'),
+    );
+  }
+
+  if (listResult.status !== 0) {
+    throw new Error(
+      [
+        'Unable to verify generated artifact tracking status via git ls-files.',
+        `Exit code: ${listResult.status}`,
+        'Action: Run from the repository root with a valid git worktree.',
+      ].join('\n'),
+    );
+  }
+
+  const trackedArtifacts = String(listResult.stdout || '')
+    .split(/\r?\n/)
+    .map((entry) => entry.trim())
+    .filter(Boolean);
+
+  if (trackedArtifacts.length > 0) {
+    throw new Error(
+      [
+        'Generated artifact tracking violation: coverage/ and test-results/ must not be tracked.',
+        ...trackedArtifacts.map((entry) => `- ${entry}`),
+        'Action: Remove generated files from git tracking (git rm --cached ...) and keep them ignored.',
+      ].join('\n'),
+    );
+  }
+}
+
+assertGeneratedArtifactsUntracked();
 verifyTraceabilityCoverage();
+await verifyAuditExecutionObligations();
+
+const hasPrContextArtifacts = fs.existsSync(metaPath) && fs.existsSync(changedPath);
+if (checkSet === 'pr' && !hasPrContextArtifacts) {
+  console.warn(
+    `${GATE_WARN} — PR context artifacts are missing (${metaPath}, ${changedPath}); falling back to repo-style checks.`,
+  );
+
+  enforceAuditAndDependencyPairing();
+  scanSecurityAndArchitectureBoundaries();
+  console.log(`${GATE_PASS} — Policy checks completed for pr checks (repo fallback mode).`);
+  process.exit(0);
+}
 
 if (checkSet === 'repo' || checkSet === 'all') {
   enforceAuditAndDependencyPairing();

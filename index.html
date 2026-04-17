@@ -8,10 +8,14 @@
   </head>
   <body>
     <main id="app" class="app-shell">
-      <section id="hud" aria-label="Game HUD"></section>
+      <section id="hud" aria-label="Game HUD">
+        <p data-hud="timer">Timer: 0</p>
+        <p data-hud="score">Score: 0</p>
+        <p data-hud="lives">Lives: 3</p>
+      </section>
       <section id="game-board" aria-label="Game Board"></section>
       <section id="overlay-root" aria-live="polite"></section>
     </main>
-    <script type="module" src="/src/main.ecs.js"></script>
+    <script type="module" src="/src/main.js"></script>
   </body>
 </html>

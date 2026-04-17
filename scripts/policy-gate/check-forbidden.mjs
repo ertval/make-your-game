@@ -7,35 +7,32 @@
 
 import fs from 'node:fs';
 import process from 'node:process';
-import { GATE_FAIL, GATE_PASS, parseArgs, readLines, walkFiles } from './lib/policy-utils.mjs';
+import {
+  DEFAULT_CHANGED_FILES_PATH,
+  FORBIDDEN_TECH_RULES,
+  GATE_FAIL,
+  GATE_PASS,
+  parseArgs,
+  readLines,
+  SECURITY_SINK_RULES,
+  SECURITY_SOURCE_PATTERN,
+  walkFiles,
+} from './lib/policy-utils.mjs';
 
 const args = parseArgs(process.argv.slice(2));
 const scope = args.scope || 'repo';
-const changedPath = args['changed-file'] || 'changed-files.txt';
+const changedPath = args['changed-file'] || DEFAULT_CHANGED_FILES_PATH;
 
-// We filter by extension to restrict scanning down to logic and markup, avoiding binary or asset files.
-const sourcePattern = /\.(js|mjs|cjs|ts|tsx|jsx|html)$/;
-// We define regexes to ban direct use of frameworks or raw Canvas APIs, enforcing Vanilla DOM/ECS constraints.
-const forbiddenPatterns = [
-  { name: 'canvas element', pattern: /<\s*canvas\b/i },
-  { name: 'canvas createElement', pattern: /createElement\s*\(\s*['"]canvas['"]\s*\)/i },
-  {
-    name: 'framework import',
-    pattern: /from\s+['"](?:react|vue|angular|svelte|phaser|pixi\.js|three|jquery)['"]/,
-  },
-  {
-    name: 'framework require',
-    pattern:
-      /require\s*\(\s*['"](?:react|vue|angular|svelte|phaser|pixi\.js|three|jquery)['"]\s*\)/,
-  },
-];
+const forbiddenPatterns = [...FORBIDDEN_TECH_RULES, ...SECURITY_SINK_RULES];
 
 // We branch based on scope to support both targeted PR diff scanning (faster) and exhaustive repo audits.
 const files =
   scope === 'changed'
     ? // We conditionally filter out deleted files by checking `existsSync` so we don't try to read paths that no longer exist.
-      readLines(changedPath).filter((file) => sourcePattern.test(file) && fs.existsSync(file))
-    : walkFiles(process.cwd(), (file) => sourcePattern.test(file));
+      readLines(changedPath).filter(
+        (file) => SECURITY_SOURCE_PATTERN.test(file) && fs.existsSync(file),
+      )
+    : walkFiles(process.cwd(), (file) => SECURITY_SOURCE_PATTERN.test(file));
 
 const violations = [];
 

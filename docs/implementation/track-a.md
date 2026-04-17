@@ -1,8 +1,8 @@
 # ⚙️ Track A — World, Game Flow, Scaffolding, Testing & QA (Dev 1)
 
-��� Source plan: `docs/implementation/implementation-plan.md` (Section 3)
+Source plan: `docs/implementation/implementation-plan.md` (Section 3)
 
-> **Scope**: Project scaffolding, ECS internals (World, Entity Store, Queries), game flow orchestration (`game/` folder), game loop, CI/schema wiring, **ALL testing** (unit, integration, e2e, audit), QA, polish, and evidence aggregation. Track A has global ownership of `tests/**`; Tracks B/C/D may also modify scoped tests that map to files they own. **Does NOT own** resources (`constants`, `clock`, `rng`, `event-queue`, `game-status`) or map loading — those are owned by Track D.
+> **Scope**: Project scaffolding, ECS internals (World, Entity Store, Queries), game flow orchestration (`game/` folder, including `level-loader.js` orchestration), game loop, CI/schema wiring, **ALL testing** (unit, integration, e2e, audit), QA, polish, and evidence aggregation. Track A has global ownership of `tests/**` and QA gates. Tracks B/C/D also own scoped tests for their owned implementation files and may modify those tests. All visual assets (including map schemas/raw map assets) are co-owned by Track A and Track D. **Does NOT own** resource definitions (`constants`, `clock`, `rng`, `event-queue`, `game-status`) — those are owned by Track D.
 > **Execution model**: Prototype-first delivery for fastest visual feedback, then playable MVP, feature depth, and hardening.
 
 ## Phase Order (Prototype-First)
@@ -16,24 +16,24 @@
 ---
 
 #### A-01: Project Scaffolding & Tooling
-**Priority**: ��� Critical
+**Priority**: Critical
 **Phase**: P0 Foundation
 **Depends On**: None
 **Impacts**: Repo bootstrapping, local dev velocity, policy gates (`AUDIT-F-04`, `AUDIT-F-05`, `AUDIT-B-02`)
 **Blocks**: A-02, A-03, A-07, C-06, D-05
 
 **Deliverables**:
-- `package.json` with all scripts (`dev`, `build`, `preview`, `lint`, `format`, `check`, `test`, `test:watch`, `test:unit`, `test:integration`, `test:e2e`, `test:audit`, `coverage`, `ci`, `validate:schema`, `sbom`)
+- `package.json` with all scripts (`dev`, `build`, `preview`, `check`, `fix`, `test`, `test:watch`, `test:unit`, `test:integration`, `test:e2e`, `test:audit`, `coverage`, `ci`, `validate:schema`, `sbom`)
 - `vite.config.js`, `biome.json`, `vitest.config.js`, `playwright.config.js`
 - `index.html` with core `<div>` mount points (game-board, hud, overlay containers)
 - Basic CSS reset and variable stubs
-- CI workflow configuration with merge gates (lint, tests, coverage)
+- CI workflow configuration with merge gates (check, tests, coverage)
 - Static CI scan failing on `<canvas>` usage and banned frameworks
 
 - [x] Initialize `package.json` with ES modules, configure Vite and Biome.
 - [x] Setup Vitest for pure system/component testing.
 - [x] Setup Playwright for e2e/audit testing.
-- [x] Configure CI merge gates (lint, tests, coverage minimums, protected branch checks).
+- [x] Configure CI merge gates (check, tests, coverage minimums, protected branch checks).
 - [x] Implement dependency governance (strict lockfile policy and SBOM generation).
 - [x] Create `index.html` structure with core `<div>` mount points (game-board, hud, overlay containers).
 - [x] Commit basic CSS reset and variable stubs.
@@ -45,7 +45,7 @@
 ---
 
 #### A-02: ECS Architecture Core (World, Entity, Query)
-**Priority**: ��� Critical
+**Priority**: Critical
 **Phase**: P0 Foundation
 **Depends On**: `A-01`
 **Impacts**: Deterministic runtime backbone, unblocks all simulation systems (`AUDIT-B-03`)
@@ -70,21 +70,24 @@
 ---
 
 #### A-03: Game Loop & Main Initialization
-**Priority**: ��� Critical
+**Priority**: Critical
 **Phase**: P0 Foundation
 **Depends On**: `A-02`, `D-01` (resources from Track D)
 **Impacts**: Runtime frame pipeline, pause semantics, FPS instrumentation (`AUDIT-F-02`, `AUDIT-F-10`, `AUDIT-F-17`, `AUDIT-F-18`)
 **Blocks**: A-04, A-05, A-06, B-02, C-04
 
 **Deliverables**:
-- `src/main.ecs.js` — app entry, boots World, binds rAF
+- `src/main.js` — Browser entrypoint (side-effectful bootstrap)
+- `src/main.ecs.js` — App engine logic (pure bootstrap)
+- `src/shared/type-guards.js` — Runtime type validation utilities
 - `src/game/bootstrap.js` — World assembly + system registration order
 - `src/game/game-flow.js` — FSM driver (MENU → PLAYING ↔ PAUSED → GAMEOVER/VICTORY)
 - `src/game/level-loader.js` — level transition orchestration (stub, data from D-03)
 - Global `unhandledrejection` handler with error overlay
 
-- [x] Implement `main.ecs.js`: Boots World, binds `window.requestAnimationFrame`.
+- [x] Implement `main.ecs.js` (logic) and `src/main.js` (side effects): Split entrypoints to ensure safety for unit/integration tests and browser bootstrap.
 - [x] Connect `rAF` pipeline into World's internal accumulator update.
+- [x] Implement `src/shared/type-guards.js` for runtime type validation and deterministic safety.
 - [x] Implement basic state-transition flow (playing, paused) handled by checking `clock.isPaused` to freeze simulation while keeping rAF active.
 - [x] Add resume safety and lifecycle handling: baseline reset (`lastFrameTime = now`) and accumulator clamp/clear on unpause and tab restore.
 - [x] Clamp catch-up using `MAX_STEPS_PER_FRAME` and resync clock baselines on `blur` and `visibilitychange` recovery.
@@ -98,9 +101,9 @@
 ---
 
 #### A-04: Unit Tests — ECS Core & Resources
-**Priority**: ��� Critical
+**Priority**: Critical
 **Phase**: P3 Feature Complete + Hardening
-**Depends On**: `A-02`, `A-03`, `D-01`, `D-03`
+**Depends On**: `A-02`, `A-03`, `D-01`, `D-03`, `A-12`
 **Impacts**: Early regression safety net for runtime foundation
 **Blocks**: None
 
@@ -123,9 +126,9 @@
 ---
 
 #### A-05: Integration Tests — Multi-System & Adapter Boundaries
-**Priority**: ��� Medium
+**Priority**: Medium
 **Phase**: P3 Feature Complete + Hardening
-**Depends On**: `A-03`, `B-03`, `B-04`, `B-06`, `B-09`, `C-01`, `C-02`, `C-04`, `C-05`, `D-08`
+**Depends On**: `A-03`, `B-03`, `B-04`, `B-06`, `B-09`, `C-01`, `C-02`, `C-04`, `C-05`, `D-08`, `A-12`
 **Impacts**: Cross-system correctness, adapter boundary guarantees, deterministic replay confidence
 **Blocks**: A-09
 
@@ -153,9 +156,9 @@
 ---
 
 #### A-06: E2E Audit Tests (Playwright)
-**Priority**: ��� Critical
+**Priority**: Critical
 **Phase**: P3 Feature Complete + Hardening
-**Depends On**: `A-03`, `B-04`, `B-06`, `B-07`, `B-08`, `B-09`, `C-01`, `C-02`, `C-03`, `C-04`, `C-05`
+**Depends On**: `A-03`, `B-04`, `B-06`, `B-07`, `B-08`, `B-09`, `C-01`, `C-02`, `C-03`, `C-04`, `C-05`, `A-12`
 **Impacts**: Acceptance automation coverage (`AUDIT-F-01..F-18`, `AUDIT-B-01..B-05`)
 **Blocks**: A-09
 
@@ -200,9 +203,9 @@
 ---
 
 #### A-07: CI, Schema Validation & Asset Gates
-**Priority**: ��� Medium
+**Priority**: Medium
 **Phase**: P2 Playable MVP
-**Depends On**: `A-01`, `D-03`
+**Depends On**: `A-01`, `D-03`, `A-11`
 **Impacts**: Merge safety, schema integrity, dependency and asset governance (`AUDIT-B-02`)
 **Blocks**: A-09, C-10, D-11
 
@@ -220,9 +223,9 @@
 ---
 
 #### A-08: Unit Tests — All Gameplay Systems
-**Priority**: ��� Critical
+**Priority**: Critical
 **Phase**: P3 Feature Complete + Hardening
-**Depends On**: `B-01` through `B-09`, `C-01` through `C-05`, `C-07`
+**Depends On**: `B-01` through `B-09`, `C-01` through `C-05`, `C-07`, `A-12`
 **Impacts**: Full simulation regression protection and deterministic behavior guarantees
 **Blocks**: A-09
 
@@ -247,9 +250,9 @@
 ---
 
 #### A-09: Evidence Aggregation & Final QA Polish
-**Priority**: ��� Medium
+**Priority**: Medium
 **Phase**: P4 Final Acceptance
-**Depends On**: `A-05`, `A-06`, `A-07`, `A-08`, `C-09`, `D-11`
+**Depends On**: `A-05`, `A-06`, `A-07`, `A-08`, `C-09`, `D-11`, `A-13`
 **Impacts**: Final audit sign-off (`AUDIT-F-19..F-21`, `AUDIT-B-06`), release readiness
 **Blocks**: None
 
@@ -275,13 +278,13 @@
 **Blocks**: `D-05`, `D-06`, `B-02`, `B-03`, `D-07`, `D-08`, `D-09`
 
 **Deliverables**:
-- Consolidated deduplicated codebase audit report for P0
+- Consolidated deduplicated codebase audit package for P0 (all-track audits + 4 track fix reports)
 
-- [ ] Execute `codebase-analysis-audit` prompt against the P0 foundation codebase.
-- [ ] Merge the generated report to main.
-- [ ] Create a deduplicated consolidated report mapping all issues to track owners.
-- [ ] Map issues to existing or new implementation tickets.
-- [ ] Verification gate: P0 consolidated report merged to `docs/audit-reports/`.
+- [ ] Each track runs prompt `codebase-analysis-audit` (repository prompt file: `.github/prompts/code-analysis-audit.prompt.md`) against the P0 codebase and merges the generated report.
+- [ ] Track A runs `.github/prompts/phase-deduplicate-track-audits.prompt.md` and publishes four deduplicated track reports (A/B/C/D) in `docs/audit-reports/phase-0/`.
+- [ ] Map deduplicated issues to existing or new implementation tickets.
+- [ ] Each track resolves all issues assigned in its track report.
+- [ ] Verification gate: all P0 reports + 4 deduplicated track reports merged to `docs/audit-reports/phase-0/`, and all assigned issues are resolved.
 
 ---
 
@@ -293,13 +296,13 @@
 **Blocks**: First-wave P2 tickets
 
 **Deliverables**:
-- Consolidated deduplicated codebase audit report for P1
+- Consolidated deduplicated codebase audit package for P1 (all-track audits + 4 track fix reports)
 
-- [ ] Execute `codebase-analysis-audit` prompt against the P1 codebase.
-- [ ] Merge the generated report to main.
-- [ ] Create a deduplicated consolidated report mapping all issues to track owners.
-- [ ] Map issues to existing or new implementation tickets.
-- [ ] Verification gate: P1 consolidated report merged to `docs/audit-reports/`.
+- [ ] Each track runs prompt `codebase-analysis-audit` (repository prompt file: `.github/prompts/code-analysis-audit.prompt.md`) against the P1 codebase and merges the generated report.
+- [ ] Track A runs `.github/prompts/phase-deduplicate-track-audits.prompt.md` and publishes four deduplicated track reports (A/B/C/D) in `docs/audit-reports/phase-1/`.
+- [ ] Map deduplicated issues to existing or new implementation tickets.
+- [ ] Each track resolves all issues assigned in its track report.
+- [ ] Verification gate: all P1 reports + 4 deduplicated track reports merged to `docs/audit-reports/phase-1/`, and all assigned issues are resolved.
 
 ---
 
@@ -311,13 +314,13 @@
 **Blocks**: First-wave P3 tickets
 
 **Deliverables**:
-- Consolidated deduplicated codebase audit report for P2
+- Consolidated deduplicated codebase audit package for P2 (all-track audits + 4 track fix reports)
 
-- [ ] Execute `codebase-analysis-audit` prompt against the P2 codebase.
-- [ ] Merge the generated report to main.
-- [ ] Create a deduplicated consolidated report mapping all issues to track owners.
-- [ ] Map issues to existing or new implementation tickets.
-- [ ] Verification gate: P2 consolidated report merged to `docs/audit-reports/`.
+- [ ] Each track runs prompt `codebase-analysis-audit` (repository prompt file: `.github/prompts/code-analysis-audit.prompt.md`) against the P2 codebase and merges the generated report.
+- [ ] Track A runs `.github/prompts/phase-deduplicate-track-audits.prompt.md` and publishes four deduplicated track reports (A/B/C/D) in `docs/audit-reports/phase-2/`.
+- [ ] Map deduplicated issues to existing or new implementation tickets.
+- [ ] Each track resolves all issues assigned in its track report.
+- [ ] Verification gate: all P2 reports + 4 deduplicated track reports merged to `docs/audit-reports/phase-2/`, and all assigned issues are resolved.
 
 ---
 
@@ -329,13 +332,13 @@
 **Blocks**: First-wave P4 tickets
 
 **Deliverables**:
-- Consolidated deduplicated codebase audit report for P3
+- Consolidated deduplicated codebase audit package for P3 (all-track audits + 4 track fix reports)
 
-- [ ] Execute `codebase-analysis-audit` prompt against the P3 codebase.
-- [ ] Merge the generated report to main.
-- [ ] Create a deduplicated consolidated report mapping all issues to track owners.
-- [ ] Map issues to existing or new implementation tickets.
-- [ ] Verification gate: P3 consolidated report merged to `docs/audit-reports/`.
+- [ ] Each track runs prompt `codebase-analysis-audit` (repository prompt file: `.github/prompts/code-analysis-audit.prompt.md`) against the P3 codebase and merges the generated report.
+- [ ] Track A runs `.github/prompts/phase-deduplicate-track-audits.prompt.md` and publishes four deduplicated track reports (A/B/C/D) in `docs/audit-reports/phase-3/`.
+- [ ] Map deduplicated issues to existing or new implementation tickets.
+- [ ] Each track resolves all issues assigned in its track report.
+- [ ] Verification gate: all P3 reports + 4 deduplicated track reports merged to `docs/audit-reports/phase-3/`, and all assigned issues are resolved.
 
 ---
 
@@ -347,10 +350,10 @@
 **Blocks**: None
 
 **Deliverables**:
-- Consolidated deduplicated codebase audit report for P4
+- Consolidated deduplicated codebase audit package for P4 (all-track audits + 4 track fix reports)
 
-- [ ] Execute `codebase-analysis-audit` prompt against the final codebase.
-- [ ] Merge the generated report to main.
-- [ ] Create a deduplicated consolidated report mapping all issues to track owners.
-- [ ] Map issues to existing or new implementation tickets.
-- [ ] Verification gate: P4 consolidated report merged to `docs/audit-reports/`.
+- [ ] Each track runs prompt `codebase-analysis-audit` (repository prompt file: `.github/prompts/code-analysis-audit.prompt.md`) against the final codebase and merges the generated report.
+- [ ] Track A runs `.github/prompts/phase-deduplicate-track-audits.prompt.md` and publishes four deduplicated track reports (A/B/C/D) in `docs/audit-reports/phase-4/`.
+- [ ] Map deduplicated issues to existing or new implementation tickets.
+- [ ] Each track resolves all issues assigned in its track report.
+- [ ] Verification gate: all P4 reports + 4 deduplicated track reports merged to `docs/audit-reports/phase-4/`, and all assigned issues are resolved.

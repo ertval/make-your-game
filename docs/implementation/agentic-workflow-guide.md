@@ -106,7 +106,7 @@ A PR is not ready until the following are true.
 
 ### Required checks
 
-- Formatting and linting pass for the changed scope.
+- Biome check passes for the changed scope.
 - Relevant unit tests pass.
 - Relevant integration tests pass.
 - For each affected audit ID, verification is listed by execution category: Fully Automatable, Semi-Automatable, or Manual-With-Evidence.
@@ -260,7 +260,11 @@ If a task stalls, stop adding scope. Either finish the slice or split it.
 ### Phase Transitions & Codebase Audits
 
 > **Important Instruction:**
-> Every time a phase of the plan tracker is finished, each dev should run the prompt `codebase-analysis-audit` against the whole codebase. Merge the resulting report to main. Then there should be created a deduplicated consolidated report with all issues found. Then each can fix the ones owned by the track they follow.
+> Every time a phase of the plan tracker is finished, all tracks MUST run prompt `codebase-analysis-audit` (repository prompt file: `.github/prompts/code-analysis-audit.prompt.md`) against the whole codebase and merge their reports.
+>
+> Then Track A MUST run `.github/prompts/phase-deduplicate-track-audits.prompt.md` to create four deduplicated issue reports (one per track: A/B/C/D) in `docs/audit-reports/<phase>/`.
+>
+> Each track MUST fix all issues assigned in its track report before closing that phase.
 
 ## 12. PR Message and Gate Workflow
 
@@ -273,12 +277,12 @@ The docs entrypoint for the PR contract lives in `docs/implementation/pr-templat
 Follow the agreed ticket order and keep branches short-lived and single-purpose.
 
 - Follow the phase-first execution order (`P0 -> P1 -> P2 -> P3 -> P4`) from `ticket-tracker.md` and claim only tickets whose dependencies are complete.
-- Typical first-ticket starts are `A-01`, `B-01`, and `D-01`; Track C starts in `P2`, where `C-03` can begin after `D-01` and `D-03`, while `C-01` and `C-02` start after `B-04` unlocks collision-driven dependencies.
+- Typical first-ticket starts are `A-01`, `B-01`, and `D-01`; Track C starts in `P2` only after `A-11`, where `C-03` can begin after `D-01` and `D-03` plus `A-11`, while `C-01` and `C-02` start after `B-04` plus `A-11`.
 - Use one branch per ticket slice.
 - Use the same branch only for the one logical change it was created for.
-- Branches must follow: `<owner-or-scope>/<TRACK>-<NN>`.
+- Branches must follow: `<owner-or-scope>/<TRACK>-<NN>[-<COMMENT>]`.
 - Example branch sequence (Track A): `ekaramet/A-01`, `ekaramet/A-02`, `ekaramet/A-03`.
-- If you intentionally work without a ticket ID on a docs/process branch, include `process` in the PR body so policy can classify it as GENERAL_DOCS_PROCESS.
+- If you intentionally work without a ticket ID on a docs/process branch, include `process` in the PR body (preferred explicit marker). Policy may also detect process mode from branch name or branch commit text. GENERAL_DOCS_PROCESS still enforces changed-file ownership against the branch owner's mapped track.
 
 ### PR message checklist
 
@@ -286,7 +290,7 @@ Before opening a PR, confirm the description and checklist cover all required it
 
 - [ ] I read AGENTS.md and the agentic workflow guide.
 - [ ] I ran `npm run policy` locally.
-- [ ] I verified my branch name follows `<owner-or-scope>/<TRACK>-<NN>` (for example `ekaramet/A-03`), or I marked the PR body with `process` for a GENERAL_DOCS_PROCESS branch.
+- [ ] I verified my branch name follows `<owner-or-scope>/<TRACK>-<NN>[-<COMMENT>]` (for example `ekaramet/A-03` or `asmyrogl/B-03-runtime-integration`), or I marked the PR body with `process` for a GENERAL_DOCS_PROCESS branch.
 - [ ] I confirmed changed files stay within the declared ticket track ownership scope.
 - [ ] I ran the applicable local checks for this change.
 - [ ] I listed each affected audit ID with execution type (Fully Automatable, Semi-Automatable, or Manual-With-Evidence) and linked the test output or evidence artifact.
@@ -318,7 +322,7 @@ Local test command reference (run what applies to your change and list what you 
 
 ### Manual gate workflow (required)
 
-Run the local checks before opening a PR. For ticketed branches, include the branch ticket ID in commit messages before running local checks (policy scripts analyze commit metadata). For intentional docs/process branches without a ticket ID, include `process` in the PR body so policy can classify GENERAL_DOCS_PROCESS mode.
+Run the local checks before opening a PR. For ticketed branches, include the branch ticket ID in commit messages before running local checks (policy scripts analyze commit metadata). For intentional docs/process branches without a ticket ID, include `process` in the PR body so policy can classify GENERAL_DOCS_PROCESS mode; this mode relaxes ticket association only and still applies owner-scoped file ownership checks.
 
 1. Commit your changes:
 
@@ -359,7 +363,7 @@ npm run policy:trace
 6. If you changed HTML/JS tech stack boundaries, run explicit static scan:
 
 ```bash
-npm run check:forbidden
+npm run policy:forbid
 ```
 
 ### PR message template
@@ -400,7 +404,7 @@ After a ticket is merged, update the matching ticket entry in `ticket-tracker.md
 - `npm run policy:repo` runs the repo-wide gate. It covers repo forbidden-tech scans, repo source headers, and traceability and dependency pairing checks.
 - `npm run policy:quality` is the narrow quality-only rerun.
 - `npm run policy:checks:local` is the preferred local rerun for checks because it runs `policy:prep` before `policy:checks`.
-- `npm run policy:checks` is the direct rerun for branch-ticket format validation, ticket list membership, single-track ownership checks, and the GENERAL_DOCS_PROCESS process-marker fallback.
+- `npm run policy:checks` is the direct rerun for branch-ticket format validation, ticket list membership, single-track ownership checks, and the GENERAL_DOCS_PROCESS process-marker fallback (owner-scoped ownership enforcement still applies).
 - `npm run policy:forbid` and `npm run policy:forbidrepo` isolate forbidden-tech failures.
 - `npm run policy:header` and `npm run policy:headerrepo` isolate source-header failures.
 - `npm run policy:trace` isolates repo traceability and dependency pairing failures.
