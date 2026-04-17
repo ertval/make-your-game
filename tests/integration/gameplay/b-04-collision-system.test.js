@@ -196,8 +196,30 @@ function createScriptedMovementSystem(applyMovement) {
   };
 }
 
+/**
+ * Create a tiny phase-recorder system so integration tests can assert dispatcher order.
+ *
+ * @param {'physics' | 'logic'} phase - ECS phase to record.
+ * @param {string[]} phaseLog - Mutable array collecting phase labels.
+ * @param {string} label - Label appended when the phase runs.
+ * @returns {{ name: string, phase: string, resourceCapabilities: object, update: Function }} ECS recorder system.
+ */
+function createPhaseRecorderSystem(phase, phaseLog, label) {
+  return {
+    name: `test-${label}-recorder`,
+    phase,
+    resourceCapabilities: {
+      read: [],
+      write: [],
+    },
+    update() {
+      phaseLog.push(label);
+    },
+  };
+}
+
 describe('B-04 collision system integration', () => {
-  it('resolves pickup and fire collisions after a physics movement step', () => {
+  it('runs physics before logic and resolves pickup and fire collisions from moved tiles', () => {
     const {
       colliderStore,
       collisionIntents,
@@ -207,6 +229,7 @@ describe('B-04 collision system integration', () => {
       positionStore,
       world,
     } = createCollisionIntegrationWorld([[1, 2, CELL_TYPE.EMPTY]]);
+    const phaseLog = [];
 
     const ghost = addCollisionEntity(
       world,
@@ -218,15 +241,18 @@ describe('B-04 collision system integration', () => {
     );
     addCollisionEntity(world, positionStore, colliderStore, COLLIDER_TYPE.FIRE, 1, 1);
 
+    world.registerSystem(createPhaseRecorderSystem('physics', phaseLog, 'physics'));
     world.registerSystem(
       createScriptedMovementSystem((store) => {
         moveEntity(store, player.id, 1, 1);
         moveEntity(store, ghost.id, 1, 1);
       }),
     );
+    world.registerSystem(createPhaseRecorderSystem('logic', phaseLog, 'logic'));
 
     world.runFixedStep({ dtMs: 16.6667 });
 
+    expect(phaseLog).toEqual(['physics', 'logic']);
     expect(collisionIntents).toEqual([
       {
         order: 0,
@@ -257,6 +283,184 @@ describe('B-04 collision system integration', () => {
     ]);
     expect(getCell(mapResource, 1, 1)).toBe(CELL_TYPE.EMPTY);
     expect(ghostStore.state[ghost.id]).toBe(GHOST_STATE.DEAD);
+  });
+
+  it('suppresses fire damage when the player is invincible', () => {
+    const { colliderStore, collisionIntents, healthStore, player, positionStore, world } =
+      createCollisionIntegrationWorld();
+
+    healthStore.isInvincible[player.id] = 1;
+    addCollisionEntity(world, positionStore, colliderStore, COLLIDER_TYPE.FIRE, 1, 2);
+
+    world.registerSystem(
+      createScriptedMovementSystem((store) => {
+        moveEntity(store, player.id, 1, 2);
+      }),
+    );
+
+    world.runFixedStep({ dtMs: 16.6667 });
+
+    expect(collisionIntents).toEqual([
+      {
+        order: 0,
+        type: 'pellet-collected',
+        entityId: player.id,
+        row: 1,
+        col: 2,
+      },
+    ]);
+  });
+
+  it('suppresses normal ghost contact when the player is invincible', () => {
+    const { colliderStore, collisionIntents, healthStore, player, positionStore, world } =
+      createCollisionIntegrationWorld();
+
+    healthStore.isInvincible[player.id] = 1;
+    addCollisionEntity(world, positionStore, colliderStore, COLLIDER_TYPE.GHOST, 1, 2);
+
+    world.registerSystem(
+      createScriptedMovementSystem((store) => {
+        moveEntity(store, player.id, 1, 2);
+      }),
+    );
+
+    world.runFixedStep({ dtMs: 16.6667 });
+
+    expect(collisionIntents).toEqual([
+      {
+        order: 0,
+        type: 'pellet-collected',
+        entityId: player.id,
+        row: 1,
+        col: 2,
+      },
+    ]);
+  });
+
+  it('treats stunned ghost contact as harmless', () => {
+    const { colliderStore, collisionIntents, ghostStore, player, positionStore, world } =
+      createCollisionIntegrationWorld();
+
+    const ghost = addCollisionEntity(
+      world,
+      positionStore,
+      colliderStore,
+      COLLIDER_TYPE.GHOST,
+      1,
+      3,
+    );
+    ghostStore.state[ghost.id] = GHOST_STATE.STUNNED;
+
+    world.registerSystem(
+      createScriptedMovementSystem((store) => {
+        moveEntity(store, player.id, 1, 3);
+      }),
+    );
+
+    world.runFixedStep({ dtMs: 16.6667 });
+
+    expect(collisionIntents).toEqual([
+      {
+        order: 0,
+        type: 'pellet-collected',
+        entityId: player.id,
+        row: 1,
+        col: 3,
+      },
+    ]);
+  });
+
+  it('records normal ghost contact after the physics move', () => {
+    const { colliderStore, collisionIntents, player, positionStore, world } =
+      createCollisionIntegrationWorld();
+
+    const ghost = addCollisionEntity(
+      world,
+      positionStore,
+      colliderStore,
+      COLLIDER_TYPE.GHOST,
+      1,
+      2,
+    );
+
+    world.registerSystem(
+      createScriptedMovementSystem((store) => {
+        moveEntity(store, player.id, 1, 2);
+      }),
+    );
+
+    world.runFixedStep({ dtMs: 16.6667 });
+
+    expect(collisionIntents).toEqual([
+      {
+        order: 0,
+        type: 'pellet-collected',
+        entityId: player.id,
+        row: 1,
+        col: 2,
+      },
+      {
+        order: 1,
+        type: 'player-death',
+        entityId: player.id,
+        row: 1,
+        col: 2,
+        cause: 'ghost',
+        sourceEntityId: ghost.id,
+        ghostState: GHOST_STATE.NORMAL,
+      },
+    ]);
+  });
+
+  it('collects a power pellet after the physics move', () => {
+    const { collisionIntents, mapResource, player, world } = createCollisionIntegrationWorld([
+      [1, 1, CELL_TYPE.POWER_PELLET],
+    ]);
+
+    world.registerSystem(
+      createScriptedMovementSystem((store) => {
+        moveEntity(store, player.id, 1, 1);
+      }),
+    );
+
+    world.runFixedStep({ dtMs: 16.6667 });
+
+    expect(collisionIntents).toEqual([
+      {
+        order: 0,
+        type: 'power-pellet-collected',
+        entityId: player.id,
+        row: 1,
+        col: 1,
+      },
+    ]);
+    expect(getCell(mapResource, 1, 1)).toBe(CELL_TYPE.EMPTY);
+  });
+
+  it('collects a power-up after the physics move', () => {
+    const { collisionIntents, mapResource, player, world } = createCollisionIntegrationWorld([
+      [1, 1, CELL_TYPE.POWER_UP_FIRE],
+    ]);
+
+    world.registerSystem(
+      createScriptedMovementSystem((store) => {
+        moveEntity(store, player.id, 1, 1);
+      }),
+    );
+
+    world.runFixedStep({ dtMs: 16.6667 });
+
+    expect(collisionIntents).toEqual([
+      {
+        order: 0,
+        type: 'power-up-collected',
+        entityId: player.id,
+        row: 1,
+        col: 1,
+        powerUpType: 'firePlus',
+      },
+    ]);
+    expect(getCell(mapResource, 1, 1)).toBe(CELL_TYPE.EMPTY);
   });
 
   it('reverts illegal ghost-house and bomb-cell entries before collision resolution', () => {
@@ -293,6 +497,85 @@ describe('B-04 collision system integration', () => {
     expect(positionStore.col[ghost.id]).toBe(1);
     expect(positionStore.targetRow[ghost.id]).toBe(1);
     expect(positionStore.targetCol[ghost.id]).toBe(1);
+    expect(collisionIntents).toEqual([]);
+  });
+
+  it('allows dead ghosts to re-enter the ghost house and live ghosts to exit it', () => {
+    const { colliderStore, collisionIntents, ghostStore, player, positionStore, world } =
+      createCollisionIntegrationWorld([
+        [1, 1, CELL_TYPE.EMPTY],
+        [2, 2, CELL_TYPE.EMPTY],
+      ]);
+
+    placeEntity(positionStore, player.id, 1, 1);
+    const deadGhost = addCollisionEntity(
+      world,
+      positionStore,
+      colliderStore,
+      COLLIDER_TYPE.GHOST,
+      2,
+      2,
+    );
+    ghostStore.state[deadGhost.id] = GHOST_STATE.DEAD;
+    const exitingGhost = addCollisionEntity(
+      world,
+      positionStore,
+      colliderStore,
+      COLLIDER_TYPE.GHOST,
+      3,
+      2,
+    );
+
+    world.registerSystem(
+      createScriptedMovementSystem((store) => {
+        moveEntity(store, deadGhost.id, 3, 2);
+        moveEntity(store, exitingGhost.id, 2, 2);
+      }),
+    );
+
+    world.runFixedStep({ dtMs: 16.6667 });
+
+    expect(positionStore.row[deadGhost.id]).toBe(3);
+    expect(positionStore.col[deadGhost.id]).toBe(2);
+    expect(positionStore.row[exitingGhost.id]).toBe(2);
+    expect(positionStore.col[exitingGhost.id]).toBe(2);
+    expect(collisionIntents).toEqual([]);
+  });
+
+  it('pushes a ghost one cell in its travel direction when a bomb is dropped on the shared tile', () => {
+    const { colliderStore, collisionIntents, player, positionStore, world } =
+      createCollisionIntegrationWorld([
+        [1, 2, CELL_TYPE.EMPTY],
+        [1, 3, CELL_TYPE.EMPTY],
+      ]);
+
+    placeEntity(positionStore, player.id, 2, 2);
+    const ghost = addCollisionEntity(
+      world,
+      positionStore,
+      colliderStore,
+      COLLIDER_TYPE.GHOST,
+      1,
+      2,
+    );
+    const bomb = addCollisionEntity(world, positionStore, colliderStore, COLLIDER_TYPE.BOMB, 1, 2);
+
+    world.registerSystem(
+      createScriptedMovementSystem((store) => {
+        moveEntity(store, ghost.id, 1, 2);
+        store.prevCol[ghost.id] = 1;
+        moveEntity(store, bomb.id, 1, 2);
+        store.prevRow[bomb.id] = 0;
+        store.prevCol[bomb.id] = 0;
+      }),
+    );
+
+    world.runFixedStep({ dtMs: 16.6667 });
+
+    expect(positionStore.row[ghost.id]).toBe(1);
+    expect(positionStore.col[ghost.id]).toBe(3);
+    expect(positionStore.targetRow[ghost.id]).toBe(1);
+    expect(positionStore.targetCol[ghost.id]).toBe(3);
     expect(collisionIntents).toEqual([]);
   });
 });

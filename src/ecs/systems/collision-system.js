@@ -27,14 +27,19 @@
  *   schema decision here.
  * - The system records collision intents but does not award score or mutate
  *   player lives directly; later tickets consume these intents.
- * - The one-time "bomb dropped on a shared ghost cell" push-back rule is not
- *   approximated here because it needs an explicit placement-edge signal.
+ * - Shared-cell bomb push-back is inferred from bomb movement between the
+ *   previous and current fixed-step tiles so the rule stays local to B-04.
  */
 
 import { COMPONENT_MASK } from '../components/registry.js';
 import { COLLIDER_TYPE } from '../components/spatial.js';
 import { CELL_TYPE, GHOST_STATE } from '../resources/constants.js';
-import { getCell, isGhostHouseCell, setCell } from '../resources/map-resource.js';
+import {
+  getCell,
+  isGhostHouseCell,
+  isPassableForGhost,
+  setCell,
+} from '../resources/map-resource.js';
 
 /**
  * Dynamic entities with tile positions are queried through position + collider.
@@ -137,6 +142,7 @@ export function createCollisionScratch(cellCount, maxGhostsPerCell = DEFAULT_GHO
     // Single-lane colliders use -1 to mean "no entity occupies this cell yet".
     playerByCell: new Int32Array(cellCount).fill(-1),
     bombByCell: new Int32Array(cellCount).fill(-1),
+    droppedBombByCell: new Int32Array(cellCount).fill(-1),
     fireByCell: new Int32Array(cellCount).fill(-1),
     // Ghosts need a compact fan-out lane because multiple ghosts can share one tile.
     ghostCounts: new Uint8Array(cellCount),
@@ -153,6 +159,7 @@ export function createCollisionScratch(cellCount, maxGhostsPerCell = DEFAULT_GHO
 export function resetCollisionScratch(scratch) {
   scratch.playerByCell.fill(-1);
   scratch.bombByCell.fill(-1);
+  scratch.droppedBombByCell.fill(-1);
   scratch.fireByCell.fill(-1);
   scratch.ghostCounts.fill(0);
   scratch.ghostIds.fill(-1);
@@ -262,6 +269,44 @@ function readTileFromCellIndex(mapResource, cellIndex, outTile) {
 }
 
 /**
+ * Check whether an entity changed tiles during the current fixed step.
+ *
+ * @param {{ row: number, col: number }} currentTile - Entity's current tile.
+ * @param {{ row: number, col: number }} previousTile - Entity's previous tile.
+ * @returns {boolean} True when the entity occupies a different tile this step.
+ */
+function hasTileChanged(currentTile, previousTile) {
+  return currentTile.row !== previousTile.row || currentTile.col !== previousTile.col;
+}
+
+/**
+ * Resolve the ghost's current travel direction from prior and target tiles.
+ *
+ * The collision system does not own ghost movement state, so it infers travel
+ * direction from the tile delta that already exists in the shared position store.
+ *
+ * @param {PositionStore} positionStore - Position component store.
+ * @param {number} entityId - Ghost entity slot to inspect.
+ * @param {{ row: number, col: number }} currentTile - Current tile.
+ * @param {{ row: number, col: number }} previousTile - Previous tile.
+ * @param {{ rowDelta: number, colDelta: number }} outVector - Reusable travel vector.
+ * @returns {{ rowDelta: number, colDelta: number }} The populated travel vector.
+ */
+function readGhostTravelDirection(positionStore, entityId, currentTile, previousTile, outVector) {
+  outVector.rowDelta = Math.sign(currentTile.row - previousTile.row);
+  outVector.colDelta = Math.sign(currentTile.col - previousTile.col);
+  if (outVector.rowDelta !== 0 || outVector.colDelta !== 0) {
+    return outVector;
+  }
+
+  // When the ghost has not changed tile yet this step, the target tile still
+  // exposes its intended travel direction from the movement system.
+  outVector.rowDelta = Math.sign(Math.round(positionStore.targetRow[entityId]) - currentTile.row);
+  outVector.colDelta = Math.sign(Math.round(positionStore.targetCol[entityId]) - currentTile.col);
+  return outVector;
+}
+
+/**
  * Populate occupancy lanes for bombs and fire only.
  *
  * These colliders are the inputs for later actor constraint checks, so they
@@ -272,7 +317,8 @@ function readTileFromCellIndex(mapResource, cellIndex, outTile) {
  * @param {PositionStore} positionStore - Position component store.
  * @param {ColliderStore} colliderStore - Collider component store.
  * @param {CollisionScratch} scratch - Reusable occupancy scratch buffer.
- * @param {{ row: number, col: number }} reusableTile - Shared temporary tile object.
+ * @param {{ row: number, col: number }} reusableTile - Shared current-tile object.
+ * @param {{ row: number, col: number }} reusablePreviousTile - Shared previous-tile object.
  */
 function buildHazardOccupancy(
   entityIds,
@@ -281,10 +327,11 @@ function buildHazardOccupancy(
   colliderStore,
   scratch,
   reusableTile,
+  reusablePreviousTile,
 ) {
   for (const entityId of entityIds) {
-    const tile = readEntityTile(positionStore, entityId, reusableTile);
-    const cellIndex = tileToCellIndex(mapResource, tile.row, tile.col);
+    const currentTile = readEntityTile(positionStore, entityId, reusableTile);
+    const cellIndex = tileToCellIndex(mapResource, currentTile.row, currentTile.col);
     if (cellIndex < 0) {
       continue;
     }
@@ -297,6 +344,10 @@ function buildHazardOccupancy(
 
     if (colliderType === COLLIDER_TYPE.BOMB) {
       scratch.bombByCell[cellIndex] = entityId;
+      const previousTile = readPreviousEntityTile(positionStore, entityId, reusablePreviousTile);
+      if (hasTileChanged(currentTile, previousTile)) {
+        scratch.droppedBombByCell[cellIndex] = entityId;
+      }
     }
   }
 }
@@ -327,10 +378,95 @@ function canGhostOccupyGhostHouse(mapResource, ghostStore, entityId, currentTile
 }
 
 /**
- * Check whether a ghost should be blocked from entering a bomb cell this step.
+ * Check whether one tile is legal for a ghost to occupy after bomb push-back.
  *
- * Staying on the same bomb cell is tolerated here because the one-time
- * bomb-drop push-back rule is handled separately from this occupancy check.
+ * @param {MapResource} mapResource - Map resource with tile semantics.
+ * @param {GhostStore | null | undefined} ghostStore - Ghost gameplay store.
+ * @param {CollisionScratch} scratch - Reusable occupancy scratch buffer.
+ * @param {number} entityId - Ghost entity slot to inspect.
+ * @param {{ row: number, col: number }} candidateTile - Proposed destination tile.
+ * @param {{ row: number, col: number }} currentTile - Ghost tile before displacement.
+ * @returns {boolean} True when the tile is legal for the ghost.
+ */
+function canPushGhostIntoTile(
+  mapResource,
+  ghostStore,
+  scratch,
+  entityId,
+  candidateTile,
+  currentTile,
+) {
+  const candidateCellIndex = tileToCellIndex(mapResource, candidateTile.row, candidateTile.col);
+  if (candidateCellIndex < 0) {
+    return false;
+  }
+
+  if (!isPassableForGhost(mapResource, candidateTile.row, candidateTile.col)) {
+    return false;
+  }
+
+  if (!canGhostOccupyGhostHouse(mapResource, ghostStore, entityId, candidateTile, currentTile)) {
+    return false;
+  }
+
+  // Push-back must not move the ghost directly into another active bomb cell.
+  return scratch.bombByCell[candidateCellIndex] === -1;
+}
+
+/**
+ * Push a ghost away from a newly dropped shared-cell bomb when possible.
+ *
+ * The primary rule uses the ghost's current travel direction. If that target is
+ * unavailable, falling back to the previous tile still breaks the illegal
+ * bomb-sharing state deterministically without inventing a broader pathfinding rule.
+ *
+ * @param {MapResource} mapResource - Map resource with tile semantics.
+ * @param {PositionStore} positionStore - Mutable position store.
+ * @param {GhostStore | null | undefined} ghostStore - Ghost gameplay store.
+ * @param {CollisionScratch} scratch - Reusable occupancy scratch buffer.
+ * @param {number} entityId - Ghost entity slot to move.
+ * @param {{ row: number, col: number }} currentTile - Current ghost tile.
+ * @param {{ row: number, col: number }} previousTile - Previous ghost tile.
+ * @param {{ rowDelta: number, colDelta: number }} travelVector - Reusable travel vector.
+ * @param {{ row: number, col: number }} candidateTile - Reusable candidate tile object.
+ * @returns {boolean} True when the ghost was displaced away from the bomb cell.
+ */
+function pushGhostOffDroppedBomb(
+  mapResource,
+  positionStore,
+  ghostStore,
+  scratch,
+  entityId,
+  currentTile,
+  previousTile,
+  travelVector,
+  candidateTile,
+) {
+  readGhostTravelDirection(positionStore, entityId, currentTile, previousTile, travelVector);
+  if (travelVector.rowDelta !== 0 || travelVector.colDelta !== 0) {
+    candidateTile.row = currentTile.row + travelVector.rowDelta;
+    candidateTile.col = currentTile.col + travelVector.colDelta;
+    if (
+      canPushGhostIntoTile(mapResource, ghostStore, scratch, entityId, candidateTile, currentTile)
+    ) {
+      setEntityTile(positionStore, entityId, candidateTile.row, candidateTile.col);
+      return true;
+    }
+  }
+
+  if (
+    hasTileChanged(currentTile, previousTile) &&
+    canPushGhostIntoTile(mapResource, ghostStore, scratch, entityId, previousTile, currentTile)
+  ) {
+    setEntityTile(positionStore, entityId, previousTile.row, previousTile.col);
+    return true;
+  }
+
+  return false;
+}
+
+/**
+ * Check whether a ghost should be blocked from entering an occupied bomb cell.
  *
  * @param {CollisionScratch} scratch - Reusable occupancy scratch buffer.
  * @param {number} currentCellIndex - Ghost's current flat cell index.
@@ -356,6 +492,8 @@ function shouldBlockGhostFromBombCell(scratch, currentCellIndex, previousCellInd
  * @param {CollisionScratch} scratch - Reusable occupancy scratch buffer.
  * @param {{ row: number, col: number }} currentTile - Shared current-tile object.
  * @param {{ row: number, col: number }} previousTile - Shared previous-tile object.
+ * @param {{ rowDelta: number, colDelta: number }} travelVector - Shared travel-direction object.
+ * @param {{ row: number, col: number }} candidateTile - Shared candidate-tile object.
  */
 function enforceOccupancyConstraints(
   entityIds,
@@ -366,6 +504,8 @@ function enforceOccupancyConstraints(
   scratch,
   currentTile,
   previousTile,
+  travelVector,
+  candidateTile,
 ) {
   for (const entityId of entityIds) {
     const colliderType = colliderStore.type[entityId];
@@ -382,6 +522,24 @@ function enforceOccupancyConstraints(
       if (isGhostHouseCell(mapResource, current.row, current.col)) {
         setEntityTile(positionStore, entityId, previous.row, previous.col);
       }
+      continue;
+    }
+
+    if (
+      currentCellIndex >= 0 &&
+      scratch.droppedBombByCell[currentCellIndex] !== -1 &&
+      pushGhostOffDroppedBomb(
+        mapResource,
+        positionStore,
+        ghostStore,
+        scratch,
+        entityId,
+        current,
+        previous,
+        travelVector,
+        candidateTile,
+      )
+    ) {
       continue;
     }
 
@@ -637,6 +795,8 @@ export function createCollisionSystem(options = {}) {
   const reusableTile = { row: 0, col: 0 };
   const reusableCellTile = { row: 0, col: 0 };
   const reusablePreviousTile = { row: 0, col: 0 };
+  const reusableTravelVector = { rowDelta: 0, colDelta: 0 };
+  const reusableCandidateTile = { row: 0, col: 0 };
 
   return {
     name: 'collision-system',
@@ -679,6 +839,7 @@ export function createCollisionSystem(options = {}) {
         colliderStore,
         scratch,
         reusableTile,
+        reusablePreviousTile,
       );
       enforceOccupancyConstraints(
         entityIds,
@@ -689,6 +850,8 @@ export function createCollisionSystem(options = {}) {
         scratch,
         reusableTile,
         reusablePreviousTile,
+        reusableTravelVector,
+        reusableCandidateTile,
       );
       buildActorOccupancy(
         entityIds,

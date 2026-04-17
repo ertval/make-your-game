@@ -110,6 +110,8 @@ function createCollisionHarness(mapOverrides = []) {
   // The harness keeps the player centered on the declared spawn tile.
   positionStore.row[player.id] = mapResource.playerSpawnRow;
   positionStore.col[player.id] = mapResource.playerSpawnCol;
+  positionStore.prevRow[player.id] = mapResource.playerSpawnRow;
+  positionStore.prevCol[player.id] = mapResource.playerSpawnCol;
   positionStore.targetRow[player.id] = mapResource.playerSpawnRow;
   positionStore.targetCol[player.id] = mapResource.playerSpawnCol;
   colliderStore.type[player.id] = COLLIDER_TYPE.PLAYER;
@@ -145,6 +147,8 @@ function createCollisionHarness(mapOverrides = []) {
  * @param {number} col - Tile col to occupy.
  */
 function setEntityTile(positionStore, entityId, row, col) {
+  positionStore.prevRow[entityId] = row;
+  positionStore.prevCol[entityId] = col;
   positionStore.row[entityId] = row;
   positionStore.col[entityId] = col;
   positionStore.targetRow[entityId] = row;
@@ -167,7 +171,10 @@ function setEntityTile(positionStore, entityId, row, col) {
 function setEntityPath(positionStore, entityId, prevRow, prevCol, row, col) {
   positionStore.prevRow[entityId] = prevRow;
   positionStore.prevCol[entityId] = prevCol;
-  setEntityTile(positionStore, entityId, row, col);
+  positionStore.row[entityId] = row;
+  positionStore.col[entityId] = col;
+  positionStore.targetRow[entityId] = row;
+  positionStore.targetCol[entityId] = col;
 }
 
 /**
@@ -270,6 +277,7 @@ describe('collision-system helpers', () => {
 
     scratch.playerByCell[0] = 7;
     scratch.bombByCell[1] = 8;
+    scratch.droppedBombByCell[1] = 8;
     scratch.fireByCell[2] = 9;
     scratch.ghostCounts[3] = 2;
     scratch.ghostIds[4] = 10;
@@ -279,6 +287,7 @@ describe('collision-system helpers', () => {
     expect(returnedScratch).toBe(scratch);
     expect([...scratch.playerByCell]).toEqual([-1, -1, -1, -1]);
     expect([...scratch.bombByCell]).toEqual([-1, -1, -1, -1]);
+    expect([...scratch.droppedBombByCell]).toEqual([-1, -1, -1, -1]);
     expect([...scratch.fireByCell]).toEqual([-1, -1, -1, -1]);
     expect([...scratch.ghostCounts]).toEqual([0, 0, 0, 0]);
     expect([...scratch.ghostIds]).toEqual([-1, -1, -1, -1, -1, -1, -1, -1]);
@@ -958,7 +967,7 @@ describe('collision-system update shell', () => {
         [1, 3, CELL_TYPE.EMPTY],
       ]);
 
-    setEntityTile(positionStore, player.id, 1, 3);
+    setEntityTile(positionStore, player.id, 2, 2);
     const ghost = addCollisionEntity(
       world,
       positionStore,
@@ -983,14 +992,14 @@ describe('collision-system update shell', () => {
     expect(collisionIntents).toEqual([]);
   });
 
-  it('allows a ghost to remain on the same bomb cell when the previous tile matches the current tile', () => {
+  it('pushes a ghost one cell in its travel direction when a bomb is dropped on the shared tile', () => {
     const { colliderStore, collisionIntents, player, positionStore, system, world } =
       createCollisionHarness([
         [1, 2, CELL_TYPE.EMPTY],
         [1, 3, CELL_TYPE.EMPTY],
       ]);
 
-    setEntityTile(positionStore, player.id, 1, 3);
+    setEntityTile(positionStore, player.id, 2, 2);
     const ghost = addCollisionEntity(
       world,
       positionStore,
@@ -999,8 +1008,9 @@ describe('collision-system update shell', () => {
       1,
       2,
     );
-    setEntityPath(positionStore, ghost.id, 1, 2, 1, 2);
-    addCollisionEntity(world, positionStore, colliderStore, COLLIDER_TYPE.BOMB, 1, 2);
+    setEntityPath(positionStore, ghost.id, 1, 1, 1, 2);
+    const bomb = addCollisionEntity(world, positionStore, colliderStore, COLLIDER_TYPE.BOMB, 1, 2);
+    setEntityPath(positionStore, bomb.id, 0, 0, 1, 2);
 
     system.update({
       dtMs: 16.6667,
@@ -1009,9 +1019,9 @@ describe('collision-system update shell', () => {
     });
 
     expect(positionStore.row[ghost.id]).toBe(1);
-    expect(positionStore.col[ghost.id]).toBe(2);
+    expect(positionStore.col[ghost.id]).toBe(3);
     expect(positionStore.targetRow[ghost.id]).toBe(1);
-    expect(positionStore.targetCol[ghost.id]).toBe(2);
+    expect(positionStore.targetCol[ghost.id]).toBe(3);
     expect(collisionIntents).toEqual([]);
   });
 
