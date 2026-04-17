@@ -7,10 +7,7 @@
 
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-import {
-  safeRead,
-  safeWrite,
-} from '../../../src/adapters/io/storage-adapter.js';
+import { safeRead, safeWrite } from '../../../src/adapters/io/storage-adapter.js';
 
 function createMockStorage() {
   let store = {};
