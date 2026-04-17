@@ -1,14 +1,14 @@
-# P0 Remediation (Track D) PR Audit Report
+# D-01 P0 Remediation PR Audit Report
 
 Date: 2026-04-17
 
 ## Report Metadata
-- Output file path: docs/audit-reports/pr-audit/pr-audit-medvall-D-P0-bug-fixes.md
+- Output file path: docs/audit-reports/pr-audit/pr-audit-medvall-D-01-P0-remediation.md
 - Base branch: main
-- Head branch: medvall/D-P0-bug-fixes
+- Head branch: medvall/D-01-P0-remediation
 
 ## Scope Reviewed
-- Branch: medvall/D-P0-bug-fixes
+- Branch: medvall/D-01-P0-remediation
 - Ticket scope: P0 Deduplicated Audit Remediation (Track D)
 - Track: D
 - Audit mode: TICKET
@@ -19,7 +19,7 @@ Date: 2026-04-17
 - VERDICT: GREEN
 - READY_FOR_MAIN: YES
 - AUDIT_MODE: TICKET
-- TICKET_SCOPE: D-01, D-03, D-04 (P0 Remediation)
+- TICKET_SCOPE: D-01, D-03, D-04
 - TRACK: D
 
 ## Gate Summary
