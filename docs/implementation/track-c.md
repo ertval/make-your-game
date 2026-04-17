@@ -135,6 +135,24 @@ C-04 is system-layer complete only. Runtime integration, HUD, overlays, visible 
 - [ ] Implement `adapters/io/storage-adapter.js`: High score saving/reading from `localStorage` with untrusted data validation on read.
 - [ ] Verification gate: adapter tests confirm HUD metrics update correctly via safe sinks; e2e tests confirm keyboard-only navigation across all screens.
 
+### Storage Trust Boundary & Validation Contract
+
+All data read from `localStorage` or `sessionStorage` MUST be treated as untrusted input.
+
+Track C enforces the following contract for storage-backed adapters:
+
+- All reads MUST go through a guarded access layer (`safeRead`).
+- Stored values MUST be parsed using `JSON.parse` inside a try/catch block.
+- Parsed values MUST be validated for basic structural correctness (non-null object, no arrays).
+- Invalid, malformed, or unexpected data MUST NOT crash the application.
+- On validation failure, a safe default value MUST be returned.
+- All validation failures MUST log a warning via `console.warn`.
+- JSON Schema (2020-12) validation will be integrated in a future step for strict contract enforcement.
+
+This ensures that storage acts as a safe, fault-tolerant boundary and cannot corrupt runtime state.
+
+This contract is implemented in `src/adapters/io/storage-adapter.js` and defines a strict trust boundary between external storage and the ECS runtime state.
+
 ---
 
 #### C-06: Audio Adapter Implementation
