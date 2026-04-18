@@ -137,8 +137,10 @@ function assertTicketAssociation() {
   }
 
   if (bugfixMode) {
+    const bugfixWarning = `🐞 BUGFIX MODE DETECTED: Branch "${branchName}" has relaxed policy checks allowing multitrack edits. Use with care.`;
+    console.warn(`\n${GATE_WARN} — POLICY WARNING: ${bugfixWarning}\n`);
     return createProcessFallback(
-      `Bugfix mode detected for branch "${branchName}". Relaxing ticket association requirements.`,
+      bugfixWarning,
       context.ticketIds,
       true,
     );
