@@ -12,6 +12,7 @@ import { pathToFileURL } from 'node:url';
 import {
   assertOwnerTrackMatch,
   BANNED_FRAMEWORK_DEPENDENCIES,
+  BUGFIX_BRANCH_PATTERN,
   DEFAULT_CHANGED_FILES_PATH,
   describePolicyResolution,
   ECS_DOM_API_RULES,
@@ -26,6 +27,7 @@ import {
   inferProcessModeFromSources,
   inferTicketIdsFromSources,
   inferTracksFromTicketIds,
+  isBugfixBranch,
   matchesOwnership,
   parseArgs,
   readJson,
@@ -60,6 +62,10 @@ const branchOwnerTrack = resolveOwnerTrackFromBranch(branchName);
 const processMode =
   Boolean(meta.processMode) ||
   inferProcessModeFromSources(branchName, meta.commitMessages || '', meta.body || '');
+
+// Bugfix branches (format: <owner>/bugfix-<slug>) are exempt from track ownership checks.
+// They still run all security, traceability, lockfile, and quality gates.
+const bugfixMode = isBugfixBranch(branchName);
 
 // Ticket context resolution prioritizes explicit CLI and branch ticket IDs to keep checks deterministic.
 function deriveTicketContext() {
@@ -115,8 +121,10 @@ function deriveTicketContext() {
 function assertTicketAssociation() {
   const context = deriveTicketContext();
 
-  function createProcessFallback(message, originalTicketIds = []) {
-    console.warn(`\n${GATE_WARN} — POLICY WARNING: ${message}\n`);
+  function createProcessFallback(message, originalTicketIds = [], isBugfix = false) {
+    if (!isBugfix) {
+      console.warn(`\n${GATE_WARN} — POLICY WARNING: ${message}\n`);
+    }
     return {
       branchTicketIds: context.branchTicketIds,
       commitTicketIds: context.commitTicketIds,
@@ -124,7 +132,16 @@ function assertTicketAssociation() {
       trackCode: 'GENERAL',
       processMode: true,
       processMarkerDetected: true,
+      bugfixMode: isBugfix,
     };
+  }
+
+  if (bugfixMode) {
+    return createProcessFallback(
+      `Bugfix mode detected for branch "${branchName}". Relaxing ticket association requirements.`,
+      context.ticketIds,
+      true,
+    );
   }
 
   if (context.ticketIds.length === 0 && !processMode) {
@@ -236,6 +253,14 @@ function formatOwnershipViolations(violations) {
 
 // Ownership enforcement uses path patterns instead of AST analysis to keep policy checks lightweight.
 function assertTrackOwnership(trackCode, ticketIds) {
+  // Bugfix branches are exempt from single-track ownership; they may touch any path.
+  if (bugfixMode) {
+    console.log(
+      `${GATE_PASS} — Ownership check skipped: branch "${branchName}" matches ${BUGFIX_BRANCH_PATTERN} (bugfix-mode, cross-track edits allowed).`,
+    );
+    return;
+  }
+
   if (existingChangedFiles.length === 0) {
     console.warn(
       `${GATE_WARN} — No changed files found in changed-files context. Skipping ownership path validation.`,
@@ -269,6 +294,14 @@ function assertTrackOwnership(trackCode, ticketIds) {
 }
 
 function assertOwnerScopedOwnership(ticketIds) {
+  // Bugfix branches are exempt from single-owner track scoping; cross-track edits are intentional.
+  if (bugfixMode) {
+    console.log(
+      `${GATE_PASS} — Owner-scoped ownership check skipped: branch "${branchName}" matches ${BUGFIX_BRANCH_PATTERN} (bugfix-mode, cross-track edits allowed).`,
+    );
+    return;
+  }
+
   if (!branchOwner) {
     throw new Error(
       [

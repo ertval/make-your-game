@@ -3,6 +3,11 @@
  * Purpose: Provides shared utilities and policy metadata for policy-gate scripts.
  * Public API: Exports ticket parsing helpers, ownership rules, filesystem helpers, and process-mode resolution used by all gate scripts.
  * Implementation Notes: Utilities are synchronous and deterministic to keep local and CI policy outcomes consistent.
+ *
+ * Bugfix Branch Policy:
+ * Branches matching the pattern <owner>/bugfix-<slug> bypass track ownership checks so a single
+ * developer can touch files across multiple tracks during a cross-cutting bug fix. All other gates
+ * (security boundaries, forbidden APIs, traceability, lockfile pairing) still run normally.
  */
 
 import { spawnSync } from 'node:child_process';
@@ -117,6 +122,28 @@ const IGNORED_DIRS = new Set([
 export const TICKET_ID_PATTERN = /\b([ABCD]-\d{2})\b/gi;
 export const EXPLICIT_TICKET_BRANCH_PATTERN =
   /^[A-Za-z0-9._-]+\/([ABCD]-\d{2})(?:-[A-Za-z0-9._-]+)?$/;
+
+// Bugfix branches bypass ownership checks so a developer can fix cross-track issues without
+// splitting into per-track PRs. The owner prefix is still required and must be a registered owner,
+// ensuring commits are attributed but not gated on file scope.
+export const BUGFIX_BRANCH_PATTERN = /^[A-Za-z0-9._-]+\/bugfix-[A-Za-z0-9._-]+$/;
+
+/**
+ * Return true when the branch follows the cross-track bugfix convention.
+ * Format: <owner>/bugfix-<slug> (e.g. ekaramet/bugfix-ghost-collision)
+ * The <owner> part MUST be a registered developer in OWNER_TRACK_MAPPING.
+ *
+ * @param {string} branchName — The full branch name.
+ * @returns {boolean}
+ */
+export function isBugfixBranch(branchName) {
+  if (!BUGFIX_BRANCH_PATTERN.test(String(branchName || '').trim())) {
+    return false;
+  }
+
+  const owner = extractOwnerFromBranch(branchName).toLowerCase();
+  return Object.keys(OWNER_TRACK_MAPPING).some((key) => key.toLowerCase() === owner);
+}
 
 // Owner-to-track mapping enforces that each developer only modifies files in their assigned track.
 // This prevents cross-track edits when a branch owner's ticket belongs to a different track.
