@@ -96,6 +96,7 @@ function deriveTicketContext() {
   if (
     requireBranchTicket &&
     !processMode &&
+    !bugfixMode &&
     branchName &&
     !EXPLICIT_TICKET_BRANCH_PATTERN.test(branchName)
   ) {

@@ -638,16 +638,21 @@ export function resolvePrPolicyPath({
   branchTicketIds = [],
   commitTicketIds = [],
   hasProcessMode = false,
+  isBugfixMode = false,
 } = {}) {
   const hasPrMetadata = branchTicketIds.length > 0 || commitTicketIds.length > 0;
-  const shouldRunPrChecks = hasPrMetadata || hasProcessMode;
+  const shouldRunPrChecks = hasPrMetadata || hasProcessMode || isBugfixMode;
 
   if (shouldRunPrChecks) {
     return {
       hasPrMetadata,
       shouldRunPrChecks,
-      auditMode: hasProcessMode ? 'GENERAL_DOCS_PROCESS' : 'TICKET',
-      selectedPath: hasProcessMode ? 'owner-scoped process checks' : 'PR ticket checks',
+      auditMode: isBugfixMode ? 'BUGFIX' : hasProcessMode ? 'GENERAL_DOCS_PROCESS' : 'TICKET',
+      selectedPath: isBugfixMode
+        ? 'cross-track bugfix checks'
+        : hasProcessMode
+          ? 'owner-scoped process checks'
+          : 'PR ticket checks',
     };
   }
 
