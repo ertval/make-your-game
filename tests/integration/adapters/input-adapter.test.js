@@ -164,6 +164,35 @@ describe('keyboard input adapter', () => {
     adapter.destroy();
   });
 
+  it('rejects malformed adapters that do not implement the explicit contract', () => {
+    expect(() => {
+      assertValidInputAdapter(null);
+    }).toThrow('adapter must be an object');
+
+    expect(() => {
+      assertValidInputAdapter({
+        clearHeldKeys() {},
+        destroy() {},
+        drainPressedKeys() {
+          return new Set();
+        },
+      });
+    }).toThrow('adapter.getHeldKeys() must be defined');
+
+    expect(() => {
+      assertValidInputAdapter({
+        clearHeldKeys() {},
+        destroy() {},
+        drainPressedKeys() {
+          return [];
+        },
+        getHeldKeys() {
+          return new Set();
+        },
+      });
+    }).toThrow('adapter.drainPressedKeys() must return a Set');
+  });
+
   it('buffers one press edge regardless of repeated keydown events', () => {
     const eventTarget = createEventTargetStub();
     const adapter = createInputAdapter({ eventTarget });

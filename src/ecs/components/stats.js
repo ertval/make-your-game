@@ -10,6 +10,7 @@
  * - None of them are registered by the current bootstrap path yet.
  *
  * Public API:
+ * - STATS_STORE_RUNTIME_STATUS: runtime/bootstrap status for each stats store.
  * - createScoreStore(maxEntities): allocate typed arrays for score state.
  * - resetScore(store, entityId): restore one score slot to defaults.
  * - createTimerStore(maxEntities): allocate typed arrays for timer state.
@@ -27,6 +28,16 @@
  */
 
 import { PLAYER_START_LIVES } from '../resources/constants.js';
+
+/**
+ * Declarative runtime/bootstrap status for stats stores.
+ * This metadata is descriptive only and must not be treated as a registration API.
+ */
+export const STATS_STORE_RUNTIME_STATUS = Object.freeze({
+  health: 'planned',
+  score: 'planned',
+  timer: 'planned',
+});
 
 /**
  * Allocate the typed-array store for score state.

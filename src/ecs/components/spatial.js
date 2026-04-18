@@ -12,6 +12,7 @@
  *   registered by the current bootstrap path yet.
  *
  * Public API:
+ * - SPATIAL_STORE_RUNTIME_STATUS: runtime/bootstrap status for each spatial store.
  * - COLLIDER_TYPE: canonical collider enum values used by collision systems.
  * - createPositionStore(maxEntities): allocate typed arrays for grid position.
  * - resetPosition(store, entityId): clear one entity slot back to defaults.
@@ -42,6 +43,16 @@ export const COLLIDER_TYPE = Object.freeze({
   PELLET: 5,
   POWER_UP: 6,
   WALL: 7,
+});
+
+/**
+ * Declarative runtime/bootstrap status for spatial stores.
+ * This metadata is descriptive only and must not be treated as a registration API.
+ */
+export const SPATIAL_STORE_RUNTIME_STATUS = Object.freeze({
+  collider: 'planned',
+  position: 'active',
+  velocity: 'active',
 });
 
 /**

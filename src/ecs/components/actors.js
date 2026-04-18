@@ -12,6 +12,7 @@
  *   the live bootstrap path yet.
  *
  * Public API:
+ * - ACTOR_STORE_RUNTIME_STATUS: runtime/bootstrap status for each actor store.
  * - UNASSIGNED_GHOST_TYPE: sentinel value for ghost slots that are not yet configured.
  * - createPlayerStore(maxEntities): allocate typed arrays for player state.
  * - resetPlayer(store, entityId): restore one player slot to canonical defaults.
@@ -42,6 +43,16 @@ import {
  * This prevents a fresh slot from being misread as Blinky before initialization.
  */
 export const UNASSIGNED_GHOST_TYPE = -1;
+
+/**
+ * Declarative runtime/bootstrap status for actor stores.
+ * This metadata is descriptive only and must not be treated as a registration API.
+ */
+export const ACTOR_STORE_RUNTIME_STATUS = Object.freeze({
+  ghost: 'planned',
+  inputState: 'active',
+  player: 'active',
+});
 
 /**
  * Allocate the typed-array store for player gameplay state.

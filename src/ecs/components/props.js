@@ -11,6 +11,7 @@
  * - None of them are registered by the current bootstrap path yet.
  *
  * Public API:
+ * - PROP_STORE_RUNTIME_STATUS: runtime/bootstrap status for each prop store.
  * - PROP_POWER_UP_TYPE: ticket-aligned power-up type enum values.
  * - createBombStore(maxEntities): allocate typed arrays for bomb state.
  * - resetBomb(store, entityId): clear one bomb slot back to defaults.
@@ -42,6 +43,17 @@ export const PROP_POWER_UP_TYPE = Object.freeze({
   BOMB_PLUS: 1,
   FIRE_PLUS: 2,
   SPEED_BOOST: 3,
+});
+
+/**
+ * Declarative runtime/bootstrap status for prop stores.
+ * This metadata is descriptive only and must not be treated as a registration API.
+ */
+export const PROP_STORE_RUNTIME_STATUS = Object.freeze({
+  bomb: 'planned',
+  fire: 'planned',
+  pellet: 'planned',
+  powerUp: 'planned',
 });
 
 /**
