@@ -1,5 +1,5 @@
 /*
- * B-01 spatial component stores. (Modified for bugfix test)
+ * B-01 spatial component stores.
  *
  * This file defines the hot-path ECS component storage used by movement,
  * collision, and interpolation systems. The stores are intentionally split

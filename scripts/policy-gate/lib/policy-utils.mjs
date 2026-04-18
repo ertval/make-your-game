@@ -684,9 +684,20 @@ export function describePolicyResolution({
   const normalizedBranchTicketIds = sortTicketIds(branchTicketIds);
   const normalizedCommitTicketIds = sortTicketIds(commitTicketIds);
 
+  const resolvedMode =
+    auditMode || (normalizedTicketIds.length > 0 ? 'TICKET' : 'GENERAL_DOCS_PROCESS');
+  const modeEmoji =
+    resolvedMode === 'BUGFIX'
+      ? '🐞'
+      : resolvedMode === 'GENERAL_DOCS_PROCESS'
+        ? '⚠️ '
+        : resolvedMode === 'TICKET'
+          ? '✅'
+          : '🔍';
+
   return [
-    'Policy checks resolved',
-    `mode=${auditMode || (normalizedTicketIds.length > 0 ? 'TICKET' : 'GENERAL_DOCS_PROCESS')}`,
+    `${modeEmoji} Policy checks resolved`,
+    `mode=${resolvedMode}`,
     `path=${selectedPath || (normalizedTicketIds.length > 0 ? 'ticketed checks' : 'fallback checks')}`,
     `track=${trackCode || 'GENERAL'}`,
     `tickets=${normalizedTicketIds.length > 0 ? normalizedTicketIds.join(', ') : '(none)'}`,
