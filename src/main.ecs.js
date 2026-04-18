@@ -358,6 +358,12 @@ export function createGameRuntime({
     if (typeof cancelScheduledFrame === 'function') {
       cancelScheduledFrame(frameHandle);
     }
+
+    const adapter = bootstrap.getInputAdapter();
+    if (adapter && typeof adapter.destroy === 'function') {
+      adapter.destroy();
+    }
+
     if (targetWindow && typeof targetWindow.removeEventListener === 'function') {
       targetWindow.removeEventListener('blur', onBlur);
       targetWindow.removeEventListener('focus', onFocus);
