@@ -5,6 +5,10 @@
  * gameplay state. The stores stay numeric and data-only so later systems can
  * update them deterministically with no per-entity object churn.
  *
+ * Runtime status:
+ * - All stores in this module are planned gameplay scaffolding.
+ * - None of them are registered by the current bootstrap path yet.
+ *
  * Public API:
  * - createScoreStore(maxEntities): allocate typed arrays for score state.
  * - resetScore(store, entityId): restore one score slot to defaults.
@@ -26,6 +30,8 @@ import { PLAYER_START_LIVES } from '../resources/constants.js';
 
 /**
  * Allocate the typed-array store for score state.
+ * This store is planned scaffolding and is not part of the active runtime
+ * bootstrap contract yet.
  *
  * @param {number} maxEntities - Total entity capacity for the world.
  * @returns {ScoreStore} Fresh score store with zeroed defaults.
@@ -52,6 +58,8 @@ export function resetScore(store, entityId) {
 
 /**
  * Allocate the typed-array store for level timer state.
+ * This store is planned scaffolding and is not part of the active runtime
+ * bootstrap contract yet.
  *
  * @param {number} maxEntities - Total entity capacity for the world.
  * @returns {TimerStore} Fresh timer store with zeroed defaults.
@@ -77,6 +85,8 @@ export function resetTimer(store, entityId) {
 
 /**
  * Allocate the typed-array store for health state.
+ * This store is planned scaffolding and is not part of the active runtime
+ * bootstrap contract yet.
  *
  * @param {number} maxEntities - Total entity capacity for the world.
  * @returns {HealthStore} Fresh health store with canonical defaults.

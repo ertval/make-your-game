@@ -6,6 +6,11 @@
  * into separate data-only records so later systems can query only the fields
  * they need while keeping numeric simulation data in typed arrays.
  *
+ * Runtime status:
+ * - `position` and `velocity` are part of the active runtime bootstrap path.
+ * - `collider` is planned scaffolding for later collision tickets and is not
+ *   registered by the current bootstrap path yet.
+ *
  * Public API:
  * - COLLIDER_TYPE: canonical collider enum values used by collision systems.
  * - createPositionStore(maxEntities): allocate typed arrays for grid position.
@@ -41,6 +46,7 @@ export const COLLIDER_TYPE = Object.freeze({
 
 /**
  * Allocate the typed-array store for position data.
+ * This store is part of the active runtime contract today.
  *
  * @param {number} maxEntities - Total entity capacity for the world.
  * @returns {PositionStore} Fresh position store with zero-initialized arrays.
@@ -76,6 +82,7 @@ export function resetPosition(store, entityId) {
 
 /**
  * Allocate the typed-array store for velocity data.
+ * This store is part of the active runtime contract today.
  *
  * @param {number} maxEntities - Total entity capacity for the world.
  * @returns {VelocityStore} Fresh velocity store with zero-initialized arrays.
@@ -104,6 +111,8 @@ export function resetVelocity(store, entityId) {
 
 /**
  * Allocate the typed-array store for collider type data.
+ * This store is planned scaffolding for later collision tickets and is not
+ * registered by the current bootstrap path yet.
  *
  * @param {number} maxEntities - Total entity capacity for the world.
  * @returns {ColliderStore} Fresh collider store with zero-initialized arrays.
