@@ -9,6 +9,7 @@
 import { describe, expect, it } from 'vitest';
 
 import {
+  assertValidInputAdapter,
   createInputAdapter,
   INPUT_INTENT,
   normalizeKeyboardIntent,
@@ -101,8 +102,8 @@ describe('keyboard input adapter', () => {
       repeat: false,
     });
 
-    expect(adapter.heldKeys.has(INPUT_INTENT.LEFT)).toBe(true);
-    expect(adapter.heldKeys.has(INPUT_INTENT.CONFIRM)).toBe(true);
+    expect(adapter.getHeldKeys().has(INPUT_INTENT.LEFT)).toBe(true);
+    expect(adapter.getHeldKeys().has(INPUT_INTENT.CONFIRM)).toBe(true);
 
     const pressedKeys = adapter.drainPressedKeys();
     expect(pressedKeys.has(INPUT_INTENT.LEFT)).toBe(true);
@@ -122,8 +123,8 @@ describe('keyboard input adapter', () => {
       },
     });
 
-    expect(adapter.heldKeys.has(INPUT_INTENT.LEFT)).toBe(false);
-    expect(adapter.heldKeys.has(INPUT_INTENT.CONFIRM)).toBe(false);
+    expect(adapter.getHeldKeys().has(INPUT_INTENT.LEFT)).toBe(false);
+    expect(adapter.getHeldKeys().has(INPUT_INTENT.CONFIRM)).toBe(false);
     expect(keydownPreventDefaultCalls).toEqual(['down-left', 'down-enter']);
     expect(keyupPreventDefault).toEqual({
       enter: 0,
@@ -153,6 +154,16 @@ describe('keyboard input adapter', () => {
     adapter.destroy();
   });
 
+  it('exposes an explicit adapter contract for systems to consume', () => {
+    const eventTarget = createEventTargetStub();
+    const adapter = createInputAdapter({ eventTarget });
+
+    expect(assertValidInputAdapter(adapter)).toBe(true);
+    expect(adapter.getHeldKeys()).toBe(adapter.heldKeys);
+
+    adapter.destroy();
+  });
+
   it('buffers one press edge regardless of repeated keydown events', () => {
     const eventTarget = createEventTargetStub();
     const adapter = createInputAdapter({ eventTarget });
@@ -170,7 +181,7 @@ describe('keyboard input adapter', () => {
       repeat: true,
     });
 
-    expect(adapter.heldKeys.has(INPUT_INTENT.BOMB)).toBe(true);
+    expect(adapter.getHeldKeys().has(INPUT_INTENT.BOMB)).toBe(true);
     expect(adapter.pressedKeys.size).toBe(1);
     expect([...adapter.drainPressedKeys()]).toEqual([INPUT_INTENT.BOMB]);
 
@@ -207,16 +218,16 @@ describe('keyboard input adapter', () => {
       repeat: false,
     });
 
-    expect(adapter.heldKeys.has(INPUT_INTENT.UP)).toBe(true);
-    expect(adapter.heldKeys.has(INPUT_INTENT.RIGHT)).toBe(true);
-    expect(adapter.heldKeys.size).toBe(2);
+    expect(adapter.getHeldKeys().has(INPUT_INTENT.UP)).toBe(true);
+    expect(adapter.getHeldKeys().has(INPUT_INTENT.RIGHT)).toBe(true);
+    expect(adapter.getHeldKeys().size).toBe(2);
 
     eventTarget.dispatch('keyup', {
       code: 'ArrowUp',
     });
 
-    expect(adapter.heldKeys.has(INPUT_INTENT.UP)).toBe(false);
-    expect(adapter.heldKeys.has(INPUT_INTENT.RIGHT)).toBe(true);
+    expect(adapter.getHeldKeys().has(INPUT_INTENT.UP)).toBe(false);
+    expect(adapter.getHeldKeys().has(INPUT_INTENT.RIGHT)).toBe(true);
 
     adapter.destroy();
   });

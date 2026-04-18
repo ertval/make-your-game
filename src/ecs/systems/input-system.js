@@ -13,15 +13,29 @@
  * Implementation notes:
  * - The system queries only entities with both PLAYER and INPUT_STATE masks so
  *   non-player entities never receive player keyboard input.
- * - Held directions are sampled from `adapter.heldKeys` without consuming them.
- * - One-shot actions are sampled from `adapter.drainPressedKeys()` exactly once
- *   per fixed step so bomb, pause, and confirm never depend on OS key repeat.
+ * - Held directions are sampled from `adapter.getHeldKeys()` without consuming
+ *   them.
+ * - One-shot actions are sampled from `adapter.drainPressedKeys()` exactly
+ *   once per fixed step so bomb, pause, and confirm never depend on OS key
+ *   repeat.
  */
 
 import { COMPONENT_MASK } from '../components/registry.js';
 
 const DEFAULT_REQUIRED_MASK = COMPONENT_MASK.PLAYER | COMPONENT_MASK.INPUT_STATE;
 const EMPTY_INTENT_SET = new Set();
+
+function assertInputAdapterContract(adapter, adapterResourceKey) {
+  if (typeof adapter.getHeldKeys !== 'function') {
+    throw new Error(`Input adapter resource "${adapterResourceKey}" must expose getHeldKeys().`);
+  }
+
+  if (typeof adapter.drainPressedKeys !== 'function') {
+    throw new Error(
+      `Input adapter resource "${adapterResourceKey}" must expose drainPressedKeys().`,
+    );
+  }
+}
 
 /**
  * Create the input snapshot system.
@@ -45,7 +59,7 @@ export function createInputSystem(options = {}) {
     // system reads so policy and tooling can inspect its world dependencies.
     resourceCapabilities: {
       read: [adapterResourceKey, inputStateResourceKey],
-      write: [],
+      write: [inputStateResourceKey],
     },
     update(context) {
       const adapter = context.world.getResource(adapterResourceKey);
@@ -55,11 +69,27 @@ export function createInputSystem(options = {}) {
         return;
       }
 
-      const heldKeys = adapter?.heldKeys instanceof Set ? adapter.heldKeys : EMPTY_INTENT_SET;
-      const pressedKeys =
-        typeof adapter?.drainPressedKeys === 'function'
-          ? adapter.drainPressedKeys()
-          : EMPTY_INTENT_SET;
+      let heldKeys = EMPTY_INTENT_SET;
+      let pressedKeys = EMPTY_INTENT_SET;
+
+      if (adapter !== null && adapter !== undefined) {
+        assertInputAdapterContract(adapter, adapterResourceKey);
+        heldKeys = adapter.getHeldKeys();
+        pressedKeys = adapter.drainPressedKeys();
+
+        if (!(heldKeys instanceof Set)) {
+          throw new Error(
+            `Input adapter resource "${adapterResourceKey}" getHeldKeys() must return a Set.`,
+          );
+        }
+
+        if (!(pressedKeys instanceof Set)) {
+          throw new Error(
+            `Input adapter resource "${adapterResourceKey}" drainPressedKeys() must return a Set.`,
+          );
+        }
+      }
+
       const playerEntityIds = context.world.query(requiredMask);
 
       for (const entityId of playerEntityIds) {
