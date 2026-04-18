@@ -1,4 +1,4 @@
-/*
+/**
  * D-04 render-intent buffer.
  *
  * Defines the frame-local batch structure consumed by render-dom-system.js
@@ -28,6 +28,30 @@
 
 import { RENDERABLE_KIND } from './components/visual.js';
 import { MAX_RENDER_INTENTS } from './resources/constants.js';
+
+/**
+ * @typedef {Object} RenderIntentBuffer
+ * @property {Uint32Array} entityId - Entity IDs for DOM node mapping.
+ * @property {Uint8Array} kind - RENDERABLE_KIND enum values.
+ * @property {Int32Array} spriteId - Asset manifest sprite IDs (-1 for none).
+ * @property {Float32Array} x - Interpolated tile-space X positions.
+ * @property {Float32Array} y - Interpolated tile-space Y positions.
+ * @property {Uint8Array} classBits - VISUAL_FLAGS bitmasks.
+ * @property {Uint8Array} opacity - Opacity bytes (0-255).
+ * @property {number} _count - Current population count.
+ * @property {number} _capacity - Maximum capacity.
+ */
+
+/**
+ * @typedef {Object} RenderIntentEntry
+ * @property {number} entityId
+ * @property {number} kind
+ * @property {number} spriteId
+ * @property {number} x
+ * @property {number} y
+ * @property {number} classBits
+ * @property {number} opacity
+ */
 
 /**
  * Contract schema version — bumped when the intent field layout changes so
