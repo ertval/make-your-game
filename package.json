@@ -48,6 +48,9 @@
     "ajv": "^8.18.0",
     "ajv-formats": "^3.0.1",
     "husky": "^9.1.7",
+    "maxrects-packer": "^2.7.3",
+    "playwright": "^1.59.1",
+    "sharp": "^0.34.5",
     "vite": "^8.0.3",
     "vitest": "^4.1.2"
   }
