@@ -122,15 +122,24 @@ function deriveTicketContext() {
 function assertTicketAssociation() {
   const context = deriveTicketContext();
 
-  function createProcessFallback(message, originalTicketIds = [], isBugfix = false) {
+  function createProcessFallback(
+    branchTickets = [],
+    commitTickets = [],
+    allTickets = [],
+    tracks = [],
+    isBugfix = false,
+  ) {
     if (!isBugfix) {
-      console.warn(`\n${GATE_WARN} — POLICY WARNING: ${message}\n`);
+      console.warn(
+        `\n${GATE_WARN} — POLICY WARNING: Process marker detected or fallback activated.\n`,
+      );
     }
     return {
-      branchTicketIds: context.branchTicketIds,
-      commitTicketIds: context.commitTicketIds,
-      ticketIds: originalTicketIds,
-      trackCode: 'GENERAL',
+      branchTicketIds: branchTickets,
+      commitTicketIds: commitTickets,
+      ticketIds: allTickets,
+      trackCode:
+        tracks.length === 1 ? tracks[0] : tracks.length > 0 ? tracks.sort().join(', ') : 'GENERAL',
       processMode: true,
       processMarkerDetected: true,
       bugfixMode: isBugfix,
@@ -140,7 +149,13 @@ function assertTicketAssociation() {
   if (bugfixMode) {
     const bugfixWarning = `🐞 BUGFIX MODE DETECTED: Branch "${branchName}" has relaxed policy checks allowing multitrack edits. Use with care.`;
     console.warn(`\n${GATE_WARN} — POLICY WARNING: ${bugfixWarning}\n`);
-    return createProcessFallback(bugfixWarning, context.ticketIds, true);
+    return createProcessFallback(
+      context.branchTicketIds,
+      context.commitTicketIds,
+      context.ticketIds,
+      context.trackCodes,
+      true,
+    );
   }
 
   if (context.ticketIds.length === 0 && !processMode) {
@@ -153,36 +168,30 @@ function assertTicketAssociation() {
     );
   }
 
-  if (context.ticketIds.length === 0 && processMode) {
+  if (processMode) {
     return createProcessFallback(
-      'No ticket ID found in branch or commit metadata. Continuing because a "process" marker was detected.',
-      [],
+      context.branchTicketIds,
+      context.commitTicketIds,
+      context.ticketIds,
+      context.trackCodes,
     );
   }
 
-  if (context.trackCodes.length !== 1) {
-    if (processMode) {
-      return createProcessFallback(
-        [
-          'Track Association Conflict Detected.',
-          `The branch contains ticket IDs from multiple tracks: ${context.trackCodes.join(', ')}.`,
-          'Normally, this would require splitting the branch into track-specific PRs.',
-          '',
-          'PROCEEDING IN OWNER-SCOPED PROCESS MODE:',
-          'A "process" marker was detected, so the gate will allow this ticket-track conflict but will still',
-          'enforce changed-file ownership against the branch owner track.',
-          '',
-          `Detected ticket IDs: ${context.ticketIds.join(', ')}`,
-        ].join('\n'),
-        context.ticketIds,
-      );
-    }
-
+  if (context.trackCodes.length === 0) {
     throw new Error(
       [
-        `Ticket IDs resolve to ${context.trackCodes.length} tracks: ${context.trackCodes.join(', ') || '(none)'}.`,
+        'PR gate failed: No ticket IDs or process marker detected.',
+        'Action: Use a ticket-format branch (owner/TRACK-NN) or include "process" in the PR body.',
+      ].join('\n'),
+    );
+  }
+
+  if (context.trackCodes.length > 1) {
+    throw new Error(
+      [
+        `Ticket IDs resolve to ${context.trackCodes.length} tracks: ${context.trackCodes.join(', ')}.`,
         `Detected ticket IDs: ${context.ticketIds.join(', ')}.`,
-        'Action: keep one ticket track per branch or split the branch into separate track-specific PRs.',
+        'Action: keep one ticket track per branch or use the "process" marker in the PR body to bypass track-level grouping.',
       ].join('\n'),
     );
   }
@@ -223,7 +232,7 @@ function assertTicketAssociation() {
     commitTicketIds: context.commitTicketIds,
     ticketIds: context.ticketIds,
     trackCode: context.trackCodes[0],
-    processMode: false,
+    processMode: processMode,
     processMarkerDetected: processMode,
   };
 }
@@ -292,7 +301,7 @@ function assertTrackOwnership(trackCode, ticketIds) {
   );
 }
 
-function assertOwnerScopedOwnership(ticketIds) {
+function assertOwnerScopedOwnership(trackCode, ticketIds) {
   // Bugfix branches are exempt from single-owner track scoping; cross-track edits are intentional.
   if (bugfixMode) {
     console.log(
@@ -322,7 +331,37 @@ function assertOwnerScopedOwnership(ticketIds) {
     );
   }
 
+  // In process mode, we allow files from the branch owner's track AND the ticket's track.
   const result = findOwnershipViolations(branchOwnerTrack, existingChangedFiles);
+  const violations = result.violations;
+
+  // If there are violations against the owner track, check if they are covered by the ticket track.
+  if (
+    violations.length > 0 &&
+    trackCode &&
+    trackCode !== 'GENERAL' &&
+    trackCode !== branchOwnerTrack
+  ) {
+    const ticketResult = findOwnershipViolations(trackCode, violations);
+    if (ticketResult.violations.length === 0) {
+      console.log(
+        `${GATE_PASS} — Owner-scoped ownership check passed via ticket-track fallback (Owner: ${branchOwnerTrack}, Ticket: ${trackCode}).`,
+      );
+      return;
+    }
+
+    // Report violations if they fall outside both tracks.
+    throw new Error(
+      [
+        `Owner-scoped ownership check failed for ${branchOwner} (Track ${branchOwnerTrack}) with ticket ${ticketIds.length > 0 ? ticketIds.join(', ') : '(none)'} (Track ${trackCode}).`,
+        `The following ${ticketResult.violations.length} file(s) are outside both allowed tracks:`,
+        ...formatOwnershipViolations(ticketResult.violations),
+        '',
+        'Action: Ensure your changes are scoped to your assigned track or the ticket track, or use a bugfix branch.',
+      ].join('\n'),
+    );
+  }
+
   if (result.violations.length === 0) {
     console.log(
       `${GATE_PASS} — Owner-scoped ownership check for ${branchOwner} (Track ${branchOwnerTrack}) with ${existingChangedFiles.length} existing changed file(s).`,
