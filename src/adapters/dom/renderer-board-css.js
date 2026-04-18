@@ -36,3 +36,5 @@ export function updateBoardCss(mapResource, targetElement) {
     el.style.setProperty('--board-columns', String(cols));
   }
 }
+
+//testing bugfix mode
