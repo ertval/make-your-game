@@ -128,10 +128,8 @@ export function assertValidInputAdapter(adapter) {
   assertInputAdapter(typeof adapter.destroy === 'function', 'adapter.destroy() must be defined');
 
   const heldKeys = adapter.getHeldKeys();
-  const pressedKeys = adapter.drainPressedKeys();
 
   assertInputAdapter(heldKeys instanceof Set, 'adapter.getHeldKeys() must return a Set');
-  assertInputAdapter(pressedKeys instanceof Set, 'adapter.drainPressedKeys() must return a Set');
 
   return true;
 }

@@ -164,6 +164,21 @@ describe('keyboard input adapter', () => {
     adapter.destroy();
   });
 
+  it('validates the adapter contract without consuming buffered pressed input', () => {
+    const eventTarget = createEventTargetStub();
+    const adapter = createInputAdapter({ eventTarget });
+
+    eventTarget.dispatch('keydown', {
+      code: 'Space',
+      repeat: false,
+    });
+
+    expect(assertValidInputAdapter(adapter)).toBe(true);
+    expect([...adapter.drainPressedKeys()]).toEqual([INPUT_INTENT.BOMB]);
+
+    adapter.destroy();
+  });
+
   it('rejects malformed adapters that do not implement the explicit contract', () => {
     expect(() => {
       assertValidInputAdapter(null);
@@ -183,14 +198,11 @@ describe('keyboard input adapter', () => {
       assertValidInputAdapter({
         clearHeldKeys() {},
         destroy() {},
-        drainPressedKeys() {
-          return [];
-        },
         getHeldKeys() {
           return new Set();
         },
       });
-    }).toThrow('adapter.drainPressedKeys() must return a Set');
+    }).toThrow('adapter.drainPressedKeys() must be defined');
   });
 
   it('buffers one press edge regardless of repeated keydown events', () => {
