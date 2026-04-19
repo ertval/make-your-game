@@ -7,4 +7,4 @@
     - The `update` loop uses `style.transform` exclusively for movement.
     - Vitest stubs confirm that the renderer correctly maps `x` and `y` coordinates to `translate3d`.
     - By architectural design (`AGENTS.md`), `translate3d` movement does not trigger paint cycles on the container.
-- **Code Reference**: `src/adapters/dom/dom-renderer.js` (Lines 66-70).
+- **Code Reference**: `src/adapters/dom/renderer-dom.js` (Lines 66-70).

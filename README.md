@@ -200,21 +200,21 @@ make-your-game/
 ├── sbom.json                       # 🧾 Generated dependency inventory for policy checks
 ├── src/                            # 🧠 Runtime source code
 │   ├── adapters/                   # 🔌 Imperative boundaries for DOM and IO
-│   ├── adapters/dom/               # Planned DOM adapter subfolder
-│   ├── adapters/io/                # Planned IO adapter subfolder
+│   ├── adapters/dom/               # DOM adapter implementations (present)
+│   ├── adapters/io/                # IO adapter implementations (present)
 │   ├── debug/                      # 🐞 Debug utilities and replay helpers
 │   ├── ecs/                        # ⚙️ ECS core
-│   │   ├── components/             # Planned pure state data definitions
+│   │   ├── components/             # Pure state data definitions (present)
 │   │   ├── resources/              # Shared data (Clock, RNG, Maps)
-│   │   ├── systems/                # Planned domain logic systems
+│   │   ├── systems/                # Domain logic systems (partial/iterative)
 │   │   └── world/                  # World, entity store, queries
 │   ├── game/                       # 🎮 Game bootstrap and flow orchestration
 │   ├── main.ecs.js                 # App entry — bootstraps the ECS World
 │   └── shared/                     # 🛠️ Cross-cutting utilities
 ├── styles/                         # 💅 Global CSS
 │   ├── base.css                    # Design tokens, reset, and layout base
-│   ├── grid.css                    # Planned grid layout stylesheet not checked in yet
-│   └── animations.css              # Planned animation stylesheet not checked in yet
+│   ├── grid.css                    # Grid layout stylesheet
+│   └── animations.css              # Animation stylesheet
 ├── tests/                          # 🧪 Automated test suites
 │   ├── README.md                   # Coverage policy and completion rules
 │   ├── e2e/                        # Browser-level validation suites
@@ -292,7 +292,7 @@ The repository includes the current runtime/build toolchain, so the commands bel
 
 ### Prerequisites
 
-- **Node.js** ≥ 20.x
+- **Node.js** ≥ 24.0.0
 - **npm** ≥ 10.x
 
 ### Installation
@@ -396,7 +396,7 @@ Use the broadest command first, then drop to the narrower command below if you n
 | `npm run test:watch` | Run tests in watch mode |
 | `npm run test:unit` | Run unit tests only |
 | `npm run test:integration` | Run integration tests only; passes when no integration files exist yet |
-| `npm run test:e2e` | Run Playwright browser tests |
+| `npm run test:e2e` | Run Playwright browser tests (top-level `tests/e2e`). For audit tests run `npm run test:audit` |
 | `npm run test:audit` | Run the audit inventory suite |
 | `npm run test:coverage` | Generate test coverage report |
 | `npm run check` | Run all Biome checks (lint, format, and import sorting) |

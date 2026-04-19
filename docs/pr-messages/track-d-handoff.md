@@ -27,7 +27,7 @@ Register the renderer and sync CSS board dimensions.
 
 ```javascript
 // 1. Add these imports:
-import { updateBoardCss } from '../adapters/dom/board-css-adapter.js';
+import { updateBoardCss } from '../adapters/dom/renderer-board-css.js';
 
 // 2. Add registration helper to return object:
 function registerRenderer(renderer) {
@@ -61,7 +61,7 @@ Instantiate the renderer and validate HUD elements.
 
 ```javascript
 // 1. Add imports:
-import { createDomRenderer } from './adapters/dom/dom-renderer.js';
+import { createDomRenderer } from './adapters/dom/renderer-dom.js';
 
 // 2. Update bootstrapApplication():
 const renderer = createDomRenderer({ appRoot });

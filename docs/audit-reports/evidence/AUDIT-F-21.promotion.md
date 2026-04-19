@@ -6,4 +6,4 @@
 - **Verification**: 
     - Test `updates existing elements` confirms that `transform` is the primary mutation path.
     - Implementation uses `translate3d` for all entity movements.
-- **Code Reference**: `src/adapters/dom/dom-renderer.js` (Line 70).
+- **Code Reference**: `src/adapters/dom/renderer-dom.js` (Line 70).
