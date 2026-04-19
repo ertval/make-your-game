@@ -12,12 +12,14 @@ Source plan: `docs/implementation/implementation-plan.md` (Section 3)
 - **P3 Feature Complete + Hardening**: `C-07`
 - **P4 Polish and Validation**: `C-08` to `C-10`
 
+> `A-11` is treated as a phase-level audit gate and is not a hard runtime dependency for Track C tasks.
+
 ---
 
 #### C-01: Scoring System
 **Priority**: Critical
 **Phase**: P2 Playable MVP
-**Depends On**: `B-04` (collision intents), `C-02` (timer/lives), `D-01` (event-queue resource), `A-11` (P1 consolidated audit gate)
+**Depends On**: `B-04` (collision intents), `C-02` (timer/lives), `D-01` (event-queue resource)
 **Impacts**: HUD-critical score metric (`AUDIT-F-15`)
 **Blocks**: A-08, B-09
 
@@ -36,7 +38,7 @@ Source plan: `docs/implementation/implementation-plan.md` (Section 3)
 #### C-02: Timer & Life Systems
 **Priority**: Critical
 **Phase**: P2 Playable MVP
-**Depends On**: `D-01` (clock/constants resources), `B-04` (collision intents for death), `A-11` (P1 consolidated audit gate)
+**Depends On**: `D-01` (clock/constants resources), `B-04` (collision intents for death)
 **Impacts**: HUD-critical timer and lives metrics (`AUDIT-F-14`, `AUDIT-F-16`)
 **Blocks**: A-05, A-08, B-09, C-04, C-05
 
@@ -53,7 +55,7 @@ Source plan: `docs/implementation/implementation-plan.md` (Section 3)
 #### C-03: Spawn System
 **Priority**: Critical
 **Phase**: P2 Playable MVP
-**Depends On**: `D-01` (constants/clock), `D-03` (map resource — ghost spawn points), `A-11` (P1 consolidated audit gate)
+**Depends On**: `D-01` (constants/clock), `D-03` (map resource — ghost spawn points)
 **Impacts**: Ghost stagger timing and death-return respawn
 **Blocks**: A-08, B-08
 
@@ -70,7 +72,7 @@ Source plan: `docs/implementation/implementation-plan.md` (Section 3)
 #### C-04: Pause & Level Progression Systems
 **Priority**: Critical
 **Phase**: P2 Playable MVP
-**Depends On**: `D-01` (clock/game-status), `D-03` (map resource), `C-02` (timer/lives), `A-03` (game loop), `A-11` (P1 consolidated audit gate)
+**Depends On**: `D-01` (clock/game-status), `D-03` (map resource), `C-02` (timer/lives), `A-03` (game loop)
 **Impacts**: Pause menu behavior and level/game state transitions (`AUDIT-F-07..F-10`)
 **Blocks**: A-05, A-06, A-08, C-05
 
@@ -93,7 +95,7 @@ Source plan: `docs/implementation/implementation-plan.md` (Section 3)
 #### C-05: HUD Adapter & Screen Overlays
 **Priority**: Critical
 **Phase**: P2 Playable MVP
-**Depends On**: `D-05` (CSS layout), `C-02` (timer/lives data), `C-04` (pause/progression states), `A-11` (P1 consolidated audit gate)
+**Depends On**: `D-05` (CSS layout), `C-02` (timer/lives data), `C-04` (pause/progression states)
 **Impacts**: Visible gameplay metrics (`AUDIT-F-14..F-16`), pause/start/restart UX (`AUDIT-F-07..F-09`)
 **Blocks**: A-05, A-06, A-08, D-11
 
@@ -115,12 +117,30 @@ Source plan: `docs/implementation/implementation-plan.md` (Section 3)
 - [ ] Implement `adapters/io/storage-adapter.js`: High score saving/reading from `localStorage` with untrusted data validation on read.
 - [ ] Verification gate: adapter tests confirm HUD metrics update correctly via safe sinks; e2e tests confirm keyboard-only navigation across all screens.
 
+### Storage Trust Boundary & Validation Contract
+
+All data read from `localStorage` or `sessionStorage` MUST be treated as untrusted input.
+
+Track C enforces the following contract for storage-backed adapters:
+
+- All reads MUST go through a guarded access layer (`safeRead`).
+- Stored values MUST be parsed using `JSON.parse` inside a try/catch block.
+- Parsed values MUST be validated for basic structural correctness (non-null object, no arrays).
+- Invalid, malformed, or unexpected data MUST NOT crash the application.
+- On validation failure, a safe default value MUST be returned.
+- All validation failures MUST log a warning via `console.warn`.
+- JSON Schema (2020-12) validation will be integrated in a future step for strict contract enforcement.
+
+This ensures that storage acts as a safe, fault-tolerant boundary and cannot corrupt runtime state.
+
+This contract is implemented in `src/adapters/io/storage-adapter.js` and defines a strict trust boundary between external storage and the ECS runtime state.
+
 ---
 
 #### C-06: Audio Adapter Implementation
 **Priority**: Critical
 **Phase**: P2 Playable MVP
-**Depends On**: `A-01` (scaffolding), `D-01` (constants resource), `A-11` (P1 consolidated audit gate)
+**Depends On**: `A-01` (scaffolding), `D-01` (constants resource)
 **Impacts**: Runtime audio boundary, fallback resilience, async decode baseline (`AUDIT-B-05`)
 **Blocks**: C-07, C-08, C-09
 
