@@ -15,6 +15,7 @@ import {
   GATE_PASS,
   inferProcessModeFromSources,
   inferTicketIdsFromSources,
+  isBugfixBranch,
   parseArgs,
   readJson,
   resolveBranchName,
@@ -100,6 +101,7 @@ function resolvePolicyContext() {
     metadata.branchName || '',
     metadata.commitMessages || '',
   );
+  const isBugfixMode = isBugfixBranch(branchName);
 
   return {
     metadata,
@@ -109,6 +111,7 @@ function resolvePolicyContext() {
     commitTicketIds,
     hasPrMetadata,
     hasProcessMode,
+    isBugfixMode,
     ticketIds,
   };
 }
@@ -133,6 +136,7 @@ if (scope === 'pr' || scope === 'all') {
     branchTicketIds,
     commitTicketIds,
     hasProcessMode,
+    isBugfixMode,
     ticketIds,
   } = resolvePolicyContext();
 
@@ -141,6 +145,7 @@ if (scope === 'pr' || scope === 'all') {
     branchTicketIds,
     commitTicketIds,
     hasProcessMode,
+    isBugfixMode,
   });
 
   console.log(
@@ -223,13 +228,16 @@ if ((scope === 'repo' || scope === 'all') && !(scope === 'all' && ranRepoFallbac
     branchTicketIds,
     commitTicketIds,
     hasProcessMode,
+    isBugfixMode,
     ticketIds,
   } = resolvePolicyContext();
-  const auditMode = hasProcessMode
-    ? 'GENERAL_DOCS_PROCESS'
-    : ticketIds.length > 0
-      ? 'TICKET'
-      : 'GENERAL_DOCS_PROCESS';
+  const auditMode = isBugfixMode
+    ? 'BUGFIX'
+    : hasProcessMode
+      ? 'GENERAL_DOCS_PROCESS'
+      : ticketIds.length > 0
+        ? 'TICKET'
+        : 'GENERAL_DOCS_PROCESS';
 
   console.log(
     describePolicyResolution({

@@ -17,6 +17,7 @@ import {
   getOwnersForTrack,
   inferProcessModeFromSources,
   inferTicketIdsFromSources,
+  isBugfixBranch,
   resolveBranchName,
   resolveOwnerTrackFromBranch,
   resolvePrPolicyPath,
@@ -376,5 +377,26 @@ describe('policy-utils branch resolution', () => {
     vi.stubEnv('GITHUB_REF', 'refs/heads/asmyrogl/B-03-runtime-integration');
 
     expect(resolveBranchName('HEAD')).toBe('asmyrogl/B-03-runtime-integration');
+  });
+});
+describe('policy-utils bugfix branch detection', () => {
+  it('identifies bugfix branches for registered owners', () => {
+    expect(isBugfixBranch('ekaramet/bugfix-ghost-collision')).toBe(true);
+    expect(isBugfixBranch('asmyrogl/bugfix-B-07-timer-race')).toBe(true);
+    expect(isBugfixBranch('chbaikas/bugfix-audio-pause-deadlock')).toBe(true);
+    expect(isBugfixBranch('medvall/bugfix-visuals')).toBe(true);
+  });
+
+  it('rejects bugfix branches for unregistered owners', () => {
+    expect(isBugfixBranch('unknown/bugfix-test')).toBe(false);
+    expect(isBugfixBranch('newdev/bugfix-something')).toBe(false);
+    expect(isBugfixBranch('bugfix-no-owner')).toBe(false);
+  });
+
+  it('rejects branches without bugfix- keyword or with invalid format', () => {
+    expect(isBugfixBranch('ekaramet/fix-typo')).toBe(false);
+    expect(isBugfixBranch('ekaramet/A-03')).toBe(false);
+    expect(isBugfixBranch('ekaramet/process-audit')).toBe(false);
+    expect(isBugfixBranch('ekaramet/bugfix-')).toBe(false);
   });
 });

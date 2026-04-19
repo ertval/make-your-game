@@ -3,6 +3,11 @@
  * Purpose: Provides shared utilities and policy metadata for policy-gate scripts.
  * Public API: Exports ticket parsing helpers, ownership rules, filesystem helpers, and process-mode resolution used by all gate scripts.
  * Implementation Notes: Utilities are synchronous and deterministic to keep local and CI policy outcomes consistent.
+ *
+ * Bugfix Branch Policy:
+ * Branches matching the pattern <owner>/bugfix-<slug> bypass track ownership checks so a single
+ * developer can touch files across multiple tracks during a cross-cutting bug fix. All other gates
+ * (security boundaries, forbidden APIs, traceability, lockfile pairing) still run normally.
  */
 
 import { spawnSync } from 'node:child_process';
@@ -118,6 +123,28 @@ export const TICKET_ID_PATTERN = /\b([ABCD]-\d{2})\b/gi;
 export const EXPLICIT_TICKET_BRANCH_PATTERN =
   /^[A-Za-z0-9._-]+\/([ABCD]-\d{2})(?:-[A-Za-z0-9._-]+)?$/;
 
+// Bugfix branches bypass ownership checks so a developer can fix cross-track issues without
+// splitting into per-track PRs. The owner prefix is still required and must be a registered owner,
+// ensuring commits are attributed but not gated on file scope.
+export const BUGFIX_BRANCH_PATTERN = /^[A-Za-z0-9._-]+\/bugfix-[A-Za-z0-9._-]+$/;
+
+/**
+ * Return true when the branch follows the cross-track bugfix convention.
+ * Format: <owner>/bugfix-<slug> (e.g. ekaramet/bugfix-ghost-collision)
+ * The <owner> part MUST be a registered developer in OWNER_TRACK_MAPPING.
+ *
+ * @param {string} branchName — The full branch name.
+ * @returns {boolean}
+ */
+export function isBugfixBranch(branchName) {
+  if (!BUGFIX_BRANCH_PATTERN.test(String(branchName || '').trim())) {
+    return false;
+  }
+
+  const owner = extractOwnerFromBranch(branchName).toLowerCase();
+  return Object.keys(OWNER_TRACK_MAPPING).some((key) => key.toLowerCase() === owner);
+}
+
 // Owner-to-track mapping enforces that each developer only modifies files in their assigned track.
 // This prevents cross-track edits when a branch owner's ticket belongs to a different track.
 export const OWNER_TRACK_MAPPING = {
@@ -201,6 +228,7 @@ export function assertOwnerTrackMatch(trackCode, branchName) {
   const normalizedTrackCode = String(trackCode || '')
     .trim()
     .toUpperCase();
+
   if (ownerTrack !== normalizedTrackCode) {
     throw new Error(
       [
@@ -611,16 +639,21 @@ export function resolvePrPolicyPath({
   branchTicketIds = [],
   commitTicketIds = [],
   hasProcessMode = false,
+  isBugfixMode = false,
 } = {}) {
   const hasPrMetadata = branchTicketIds.length > 0 || commitTicketIds.length > 0;
-  const shouldRunPrChecks = hasPrMetadata || hasProcessMode;
+  const shouldRunPrChecks = hasPrMetadata || hasProcessMode || isBugfixMode;
 
   if (shouldRunPrChecks) {
     return {
       hasPrMetadata,
       shouldRunPrChecks,
-      auditMode: hasProcessMode ? 'GENERAL_DOCS_PROCESS' : 'TICKET',
-      selectedPath: hasProcessMode ? 'owner-scoped process checks' : 'PR ticket checks',
+      auditMode: isBugfixMode ? 'BUGFIX' : hasProcessMode ? 'GENERAL_DOCS_PROCESS' : 'TICKET',
+      selectedPath: isBugfixMode
+        ? 'cross-track bugfix checks'
+        : hasProcessMode
+          ? 'owner-scoped process checks'
+          : 'PR ticket checks',
     };
   }
 
@@ -652,9 +685,20 @@ export function describePolicyResolution({
   const normalizedBranchTicketIds = sortTicketIds(branchTicketIds);
   const normalizedCommitTicketIds = sortTicketIds(commitTicketIds);
 
+  const resolvedMode =
+    auditMode || (normalizedTicketIds.length > 0 ? 'TICKET' : 'GENERAL_DOCS_PROCESS');
+  const modeEmoji =
+    resolvedMode === 'BUGFIX'
+      ? '🐞'
+      : resolvedMode === 'GENERAL_DOCS_PROCESS'
+        ? '⚠️ '
+        : resolvedMode === 'TICKET'
+          ? '✅'
+          : '🔍';
+
   return [
-    'Policy checks resolved',
-    `mode=${auditMode || (normalizedTicketIds.length > 0 ? 'TICKET' : 'GENERAL_DOCS_PROCESS')}`,
+    `${modeEmoji} Policy checks resolved`,
+    `mode=${resolvedMode}`,
     `path=${selectedPath || (normalizedTicketIds.length > 0 ? 'ticketed checks' : 'fallback checks')}`,
     `track=${trackCode || 'GENERAL'}`,
     `tickets=${normalizedTicketIds.length > 0 ? normalizedTicketIds.join(', ') : '(none)'}`,
