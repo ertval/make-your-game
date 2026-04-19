@@ -424,7 +424,7 @@ export function createBootstrap(options = {}) {
   }
 
   function getInputAdapter() {
-    return world.getResource('inputAdapter') || world.getResource('input') || null;
+    return world.getResource('inputAdapter') || null;
   }
 
   return {
