@@ -155,4 +155,19 @@ describe('runtime adapter boundaries', () => {
 
     runtime.stop();
   });
+  it('tears down the input adapter when the runtime stops', () => {
+    const bootstrap = createBootstrap({ now: 0 });
+    const inputAdapter = {
+      destroy: vi.fn(),
+    };
+    bootstrap.world.setResource('inputAdapter', inputAdapter);
+
+    const runtime = createGameRuntime({
+      bootstrap,
+      requestFrame: vi.fn(),
+    });
+
+    runtime.stop();
+    expect(inputAdapter.destroy).toHaveBeenCalledTimes(1);
+  });
 });
