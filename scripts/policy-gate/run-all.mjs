@@ -12,7 +12,6 @@ import {
   describePolicyResolution,
   extractOwnerFromBranch,
   GATE_FAIL,
-  GATE_PASS,
   inferProcessModeFromSources,
   inferTicketIdsFromSources,
   isBugfixBranch,
@@ -273,4 +272,6 @@ if ((scope === 'repo' || scope === 'all') && !(scope === 'all' && ranRepoFallbac
   }
 }
 
-console.log(`${GATE_PASS} — Policy gate completed in ${mode} mode for ${scope} scope.`);
+console.log(
+  `\n🎉 🏁 ALL CLEAR: Policy gate successfully completed in ${mode} mode for ${scope} scope. 🏁 🎉\n`,
+);
