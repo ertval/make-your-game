@@ -63,7 +63,7 @@ You are the **Master Orchestrator** for the Ms. Ghostman project. Your goal is t
 ## 2. Technical Standards (Ms. Ghostman Baseline)
 - **Language**: Modern (2026) Vanilla JS (ES Modules).
 - **Time/RNG**: Use injected `clock.js` and `rng.js`. No `Date.now()` or `Math.random()` in systems.
-- **DOM**: Use `renderer-adapter.js` and `textContent`. **FORBIDDEN**: `innerHTML`, `eval`, and frameworks.
+- **DOM**: Use `renderer-dom.js` and `textContent`. **FORBIDDEN**: `innerHTML`, `eval`, and frameworks.
 - **Performance**: 60 FPS target. p95 frame time <= 16.7ms.
 
 ---

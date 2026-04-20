@@ -103,6 +103,7 @@ describe('game-status', () => {
     expect(VALID_TRANSITIONS).toEqual({
       [GAME_STATE.MENU]: [GAME_STATE.PLAYING],
       [GAME_STATE.PLAYING]: [
+        GAME_STATE.PLAYING,
         GAME_STATE.PAUSED,
         GAME_STATE.LEVEL_COMPLETE,
         GAME_STATE.GAME_OVER,

@@ -269,7 +269,7 @@ make-your-game/
 │   │
 │   ├── adapters/
 │   │   ├── dom/
-│   │   │   ├── renderer-adapter.js    # DOM helper wrappers (no `innerHTML`)
+│   │   │   ├── renderer-dom.js        # DOM helper wrappers (no `innerHTML`)
 │   │   │   ├── sprite-pool-adapter.js # Object pool for DOM elements
 │   │   │   ├── hud-adapter.js         # Updates textContent for UI
 │   │   │   └── screens-adapter.js     # Menus and overlays
