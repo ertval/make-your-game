@@ -1,94 +1,87 @@
 # Ownership Handoff Request - Track D
 
 ## Summary
-This process branch (owner Track A) temporarily included Track D-owned resource changes and cannot keep them under owner-scoped policy enforcement.
+This process branch (owner Track A) temporarily included a Track D-owned change and cannot keep it under owner-scoped policy enforcement.
 
-Please open a Track D branch and apply exactly the diffs below.
+Please open a Track D branch and apply exactly the diff below.
 
 - Owner track: Track D
 - Owner: medvall
-- Files:
-  - src/ecs/resources/game-status.js
-  - src/ecs/resources/map-resource.js
-- Source branch context ticket IDs: A-10, D-05 (informational only)
+- File: src/ecs/resources/map-resource.js
+- Source branch context ticket IDs: A-10 (informational only)
 
-## Exact Diffs To Re-Apply
-
-```diff
-diff --git a/src/ecs/resources/game-status.js b/src/ecs/resources/game-status.js
-index c4cfa1b..a547e5d 100644
---- a/src/ecs/resources/game-status.js
-+++ b/src/ecs/resources/game-status.js
-@@ -50,6 +50,8 @@ export const GAME_STATE = {
- export const VALID_TRANSITIONS = {
-   [GAME_STATE.MENU]: [GAME_STATE.PLAYING],
-   [GAME_STATE.PLAYING]: [
-+    // Explicit PLAYING self-transition keeps restart semantics valid without a pause detour.
-+    GAME_STATE.PLAYING,
-     GAME_STATE.PAUSED,
-     GAME_STATE.LEVEL_COMPLETE,
-     GAME_STATE.GAME_OVER,
-```
+## Exact Diff To Re-Apply
 
 ```diff
 diff --git a/src/ecs/resources/map-resource.js b/src/ecs/resources/map-resource.js
-index f8ac756..5508a62 100644
+index f8ac756..8d31f75 100644
 --- a/src/ecs/resources/map-resource.js
 +++ b/src/ecs/resources/map-resource.js
-@@ -20,6 +20,7 @@
+@@ -29,6 +29,7 @@
+  *   - isInGhostHouse(map, row, col) — check if coords are within ghost house
+  *   - countPellets(map) — count remaining pellets on the map
+  *   - countPowerPellets(map) — count remaining power pellets on the map
++ *   - assertValidMapResource(map) — runtime guard for loaded map resources
+  *   - cloneMap(map) — deep clone for level restart determinism
+  *   - validateMapSemantic(rawMap) — semantic validation without parsing
   *
-  * Public API:
-  *   - createMapResource(rawMap) - factory that parses and validates a raw map
-+ *   - assertValidMapResource(map) - runtime contract guard for trusted map resources
-  *   - getCell(map, row, col) - O(1) cell type lookup
-  *   - setCell(map, row, col, type) - mutate a cell (runtime destruction)
-  *   - isWall(map, row, col) - convenience check for impassable cells
-@@ -318,6 +319,64 @@ function countCellType(flatGrid, cellType) {
-   return count;
+@@ -515,6 +516,113 @@ export function countPowerPellets(map) {
+   return countCellType(map.grid, CELL_TYPE.POWER_PELLET);
  }
  
-+function isSafeInteger(value) {
-+  return Number.isInteger(value) && Number.isFinite(value);
-+}
-+
-+function assertMapResource(condition, message) {
-+  if (!condition) {
-+    throw new Error(`Map resource validation failed: ${message}`);
-+  }
-+}
-+
 +/**
-+ * Validate that an object satisfies the trusted runtime MapResource contract.
++ * Assert that a runtime map resource satisfies the trusted contract shape.
 + *
-+ * This guard is used at load boundaries before world resource injection.
++ * This guard protects the loader boundary when a pre-parsed map resource is
++ * injected at runtime (for example through sync preload adapters).
 + *
-+ * @param {object} map - Candidate map resource object.
-+ * @returns {boolean}
++ * @param {MapResource} map
++ * @throws {Error} If the map resource shape is malformed.
 + */
 +export function assertValidMapResource(map) {
-+  assertMapResource(Boolean(map) && typeof map === 'object', 'map must be an object');
++  const errors = [];
 +
-+  assertMapResource(isSafeInteger(map.rows) && map.rows > 0, 'rows must be a positive integer');
-+  assertMapResource(isSafeInteger(map.cols) && map.cols > 0, 'cols must be a positive integer');
-+  assertMapResource(
-+    map.grid instanceof Uint8Array,
-+    'grid must be a Uint8Array for deterministic O(1) lookup',
-+  );
-+  assertMapResource(map.grid.length === map.rows * map.cols, 'grid size must equal rows * cols');
-+  assertMapResource(Array.isArray(map.grid2D), 'grid2D must be an array of rows');
-+  assertMapResource(map.grid2D.length === map.rows, 'grid2D row count must match rows');
-+  assertMapResource(Array.isArray(map.activeGhostTypes), 'activeGhostTypes must be an array');
-+
-+  for (let rowIndex = 0; rowIndex < map.grid2D.length; rowIndex += 1) {
-+    const row = map.grid2D[rowIndex];
-+    assertMapResource(Array.isArray(row), `grid2D row ${rowIndex} must be an array`);
-+    assertMapResource(
-+      row.length === map.cols,
-+      `grid2D row ${rowIndex} length must match declared columns`,
-+    );
++  if (!map || typeof map !== 'object') {
++    throw new Error('Map resource validation failed: map must be a non-null object');
 +  }
 +
-+  const coordinateKeys = [
++  if (!Number.isInteger(map.rows) || map.rows <= 0) {
++    errors.push('rows must be a positive integer');
++  }
++
++  if (!Number.isInteger(map.cols) || map.cols <= 0) {
++    errors.push('cols must be a positive integer');
++  }
++
++  if (!(map.grid instanceof Uint8Array)) {
++    errors.push('grid must be a Uint8Array');
++  }
++
++  if (!Array.isArray(map.grid2D)) {
++    errors.push('grid2D must be an array of rows');
++  }
++
++  if (!Array.isArray(map.activeGhostTypes)) {
++    errors.push('activeGhostTypes must be an array');
++  }
++
++  if (typeof map.name !== 'string') {
++    errors.push('name must be a string');
++  }
++
++  if (!Number.isFinite(map.timerSeconds)) {
++    errors.push('timerSeconds must be a finite number');
++  }
++
++  if (!Number.isFinite(map.maxGhosts)) {
++    errors.push('maxGhosts must be a finite number');
++  }
++
++  if (!Number.isFinite(map.ghostSpeed)) {
++    errors.push('ghostSpeed must be a finite number');
++  }
++
++  const coordinateFields = [
 +    'playerSpawnRow',
 +    'playerSpawnCol',
 +    'ghostHouseTopRow',
@@ -99,15 +92,53 @@ index f8ac756..5508a62 100644
 +    'ghostSpawnCol',
 +  ];
 +
-+  for (const key of coordinateKeys) {
-+    assertMapResource(isSafeInteger(map[key]), `${key} must be an integer`);
++  for (const field of coordinateFields) {
++    if (!Number.isInteger(map[field])) {
++      errors.push(`${field} must be an integer`);
++    }
 +  }
 +
-+  return true;
++  if (!Number.isInteger(map.initialPelletCount) || map.initialPelletCount < 0) {
++    errors.push('initialPelletCount must be a non-negative integer');
++  }
++
++  if (!Number.isInteger(map.initialPowerPelletCount) || map.initialPowerPelletCount < 0) {
++    errors.push('initialPowerPelletCount must be a non-negative integer');
++  }
++
++  if (Number.isInteger(map.rows) && Number.isInteger(map.cols)) {
++    const expectedGridLength = map.rows * map.cols;
++    if (map.grid instanceof Uint8Array && map.grid.length !== expectedGridLength) {
++      errors.push(`grid length must equal rows * cols (${expectedGridLength})`);
++    }
++
++    if (Array.isArray(map.grid2D)) {
++      if (map.grid2D.length !== map.rows) {
++        errors.push(`grid2D row count must equal rows (${map.rows})`);
++      }
++
++      for (let rowIndex = 0; rowIndex < map.grid2D.length; rowIndex += 1) {
++        const row = map.grid2D[rowIndex];
++        if (!Array.isArray(row)) {
++          errors.push(`grid2D row ${rowIndex} must be an array`);
++          continue;
++        }
++
++        if (row.length !== map.cols) {
++          errors.push(`grid2D row ${rowIndex} length must equal cols (${map.cols})`);
++        }
++      }
++    }
++  }
++
++  if (errors.length > 0) {
++    throw new Error(`Map resource validation failed: ${errors.join('; ')}`);
++  }
 +}
- // ---------------------------------------------------------------------------
- // Map resource factory
- // ---------------------------------------------------------------------------
++
+ /**
+  * Deep clone a map resource for level restart determinism.
+  * Clones the flat grid, 2D grid, and metadata arrays.
 ```
 
 ## Validation Expected In Track D PR

@@ -394,6 +394,9 @@ describe('game loop and runtime', () => {
     const adapter = {
       drainPressedKeys: () => new Set(),
       heldKeys: new Set(['right']),
+      getHeldKeys() {
+        return this.heldKeys;
+      },
     };
 
     bootstrap.world.setResource('inputAdapter', adapter);
@@ -461,6 +464,9 @@ describe('game loop and runtime', () => {
     const adapter = {
       drainPressedKeys: () => new Set(),
       heldKeys: new Set(['right']),
+      getHeldKeys() {
+        return this.heldKeys;
+      },
     };
 
     bootstrap.world.setResource('inputAdapter', adapter);
