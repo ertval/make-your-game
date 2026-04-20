@@ -192,6 +192,54 @@ describe('runtime adapter boundaries', () => {
 
     runtime.stop();
   });
+
+  it('clears the stored adapter resource when the runtime stops', () => {
+    const bootstrap = createBootstrap({ now: 0 });
+    const inputAdapter = {
+      clearHeldKeys: vi.fn(),
+      destroy: vi.fn(),
+      drainPressedKeys: vi.fn(() => new Set()),
+      getHeldKeys: vi.fn(() => new Set()),
+    };
+    bootstrap.setInputAdapter(inputAdapter);
+
+    const runtime = createGameRuntime({
+      bootstrap,
+      requestFrame: vi.fn(),
+    });
+
+    runtime.stop();
+
+    expect(inputAdapter.destroy).toHaveBeenCalledTimes(1);
+    expect(bootstrap.getInputAdapter()).toBeNull();
+  });
+
+  it('throws on blur when a caller bypasses bootstrap adapter registration', () => {
+    const bootstrap = createBootstrap({ now: 0 });
+    const documentStub = createDocumentStub();
+    const windowStub = createWindowStub();
+
+    bootstrap.world.setResource('inputAdapter', {
+      heldKeys: new Set(['left']),
+    });
+
+    const runtime = createGameRuntime({
+      bootstrap,
+      documentRef: documentStub,
+      nowProvider: () => 0,
+      requestFrame: windowStub.requestAnimationFrame,
+      windowRef: windowStub,
+    });
+
+    runtime.start();
+
+    expect(() => {
+      windowStub.dispatch('blur');
+    }).toThrow('must expose clearHeldKeys()');
+
+    runtime.stop();
+  });
+
   it('tears down the input adapter when the runtime stops', () => {
     const bootstrap = createBootstrap({ now: 0 });
     const inputAdapter = {

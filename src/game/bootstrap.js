@@ -42,6 +42,22 @@ const DEFAULT_INPUT_ADAPTER_RESOURCE_KEY = 'inputAdapter';
 const DEFAULT_INPUT_STATE_RESOURCE_KEY = 'inputState';
 const DEFAULT_PLAYER_ENTITY_RESOURCE_KEY = 'playerEntity';
 
+function resolveInputAdapterResourceKey(options = {}) {
+  if (
+    typeof options.inputAdapterResourceKey === 'string' &&
+    options.inputAdapterResourceKey.length > 0
+  ) {
+    return options.inputAdapterResourceKey;
+  }
+
+  // Preserve the older option name so existing callers do not silently break.
+  if (typeof options.adapterResourceKey === 'string' && options.adapterResourceKey.length > 0) {
+    return options.adapterResourceKey;
+  }
+
+  return DEFAULT_INPUT_ADAPTER_RESOURCE_KEY;
+}
+
 function normalizeManifest(manifest) {
   const version =
     manifest && typeof manifest.version === 'string' && manifest.version.trim().length > 0
@@ -155,7 +171,7 @@ function normalizeSystemRegistration(phase, registration, index) {
  * @returns {Record<string, Array<object>>} Phase-keyed ECS system registrations.
  */
 function createDefaultSystemsByPhase(options = {}) {
-  const adapterResourceKey = options.adapterResourceKey || DEFAULT_INPUT_ADAPTER_RESOURCE_KEY;
+  const adapterResourceKey = resolveInputAdapterResourceKey(options);
   const inputStateResourceKey = options.inputStateResourceKey || DEFAULT_INPUT_STATE_RESOURCE_KEY;
   const playerResourceKey = options.playerResourceKey || DEFAULT_PLAYER_RESOURCE_KEY;
   const positionResourceKey = options.positionResourceKey || DEFAULT_POSITION_RESOURCE_KEY;
@@ -344,8 +360,7 @@ export function registerSystemsByPhase(world, systemsByPhase = {}) {
 export function createBootstrap(options = {}) {
   const nowMs = toFiniteTimestamp(options.now ?? 0);
   const world = options.world || new World();
-  const inputAdapterResourceKey =
-    options.inputAdapterResourceKey || DEFAULT_INPUT_ADAPTER_RESOURCE_KEY;
+  const inputAdapterResourceKey = resolveInputAdapterResourceKey(options);
   const playerEntityResourceKey =
     options.playerEntityResourceKey || DEFAULT_PLAYER_ENTITY_RESOURCE_KEY;
   const clock = createClock(nowMs);
@@ -385,7 +400,13 @@ export function createBootstrap(options = {}) {
 
   registerSystemsByPhase(
     world,
-    mergeSystemsByPhase(createDefaultSystemsByPhase(options), options.systemsByPhase),
+    mergeSystemsByPhase(
+      createDefaultSystemsByPhase({
+        ...options,
+        inputAdapterResourceKey,
+      }),
+      options.systemsByPhase,
+    ),
   );
 
   function stepFrame(
@@ -436,12 +457,27 @@ export function createBootstrap(options = {}) {
    * @returns {InputAdapter | null} The stored adapter resource.
    */
   function setInputAdapter(adapter) {
+    const previousAdapter = world.getResource(inputAdapterResourceKey) || null;
+
     if (adapter === null || adapter === undefined) {
+      if (previousAdapter && typeof previousAdapter.destroy === 'function') {
+        previousAdapter.destroy();
+      }
+
       world.setResource(inputAdapterResourceKey, null);
       return null;
     }
 
     assertValidInputAdapter(adapter);
+
+    if (
+      previousAdapter &&
+      previousAdapter !== adapter &&
+      typeof previousAdapter.destroy === 'function'
+    ) {
+      previousAdapter.destroy();
+    }
+
     world.setResource(inputAdapterResourceKey, adapter);
     return adapter;
   }

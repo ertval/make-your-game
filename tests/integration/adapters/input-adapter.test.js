@@ -164,7 +164,7 @@ describe('keyboard input adapter', () => {
     adapter.destroy();
   });
 
-  it('validates the adapter contract without consuming buffered pressed input', () => {
+  it('validates the adapter contract by checking the pressed-key drain shape once', () => {
     const eventTarget = createEventTargetStub();
     const adapter = createInputAdapter({ eventTarget });
 
@@ -174,7 +174,8 @@ describe('keyboard input adapter', () => {
     });
 
     expect(assertValidInputAdapter(adapter)).toBe(true);
-    expect([...adapter.drainPressedKeys()]).toEqual([INPUT_INTENT.BOMB]);
+    expect(adapter.pressedKeys.size).toBe(0);
+    expect([...adapter.drainPressedKeys()]).toEqual([]);
 
     adapter.destroy();
   });

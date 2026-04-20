@@ -364,9 +364,13 @@ export function createGameRuntime({
       cancelScheduledFrame(frameHandle);
     }
 
-    const adapter = bootstrap.getInputAdapter();
-    if (adapter && typeof adapter.destroy === 'function') {
-      adapter.destroy();
+    if (typeof bootstrap.setInputAdapter === 'function') {
+      bootstrap.setInputAdapter(null);
+    } else {
+      const adapter = bootstrap.getInputAdapter();
+      if (adapter && typeof adapter.destroy === 'function') {
+        adapter.destroy();
+      }
     }
 
     if (targetWindow && typeof targetWindow.removeEventListener === 'function') {
