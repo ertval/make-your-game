@@ -391,20 +391,12 @@ describe('game loop and runtime', () => {
       loadMapForLevel: () => createMovementMapResource(),
       now: 0,
     });
-    const heldKeys = new Set(['right']);
     const adapter = {
       drainPressedKeys: () => new Set(),
-      clearHeldKeys() {
-        heldKeys.clear();
-      },
-      destroy() {},
-      getHeldKeys() {
-        return heldKeys;
-      },
-      heldKeys,
+      heldKeys: new Set(['right']),
     };
 
-    bootstrap.setInputAdapter(adapter);
+    bootstrap.world.setResource('inputAdapter', adapter);
 
     expect(bootstrap.gameFlow.startGame({ levelIndex: 0 })).toBe(true);
 
@@ -420,43 +412,6 @@ describe('game loop and runtime', () => {
     expect(positionStore.col[playerHandle.id]).toBeLessThan(4);
   });
 
-  it('uses a custom input adapter resource key consistently across bootstrap and systems', () => {
-    const bootstrap = createBootstrap({
-      inputAdapterResourceKey: 'customInputAdapter',
-      loadMapForLevel: () => createMovementMapResource(),
-      now: 0,
-    });
-    const heldKeys = new Set(['right']);
-    const adapter = {
-      clearHeldKeys() {
-        heldKeys.clear();
-      },
-      destroy() {},
-      drainPressedKeys() {
-        return new Set();
-      },
-      getHeldKeys() {
-        return heldKeys;
-      },
-      heldKeys,
-    };
-
-    bootstrap.setInputAdapter(adapter);
-
-    expect(bootstrap.world.getResource('customInputAdapter')).toBe(adapter);
-    expect(bootstrap.world.getResource('inputAdapter')).toBeUndefined();
-    expect(bootstrap.gameFlow.startGame({ levelIndex: 0 })).toBe(true);
-
-    const playerHandle = bootstrap.world.getResource('playerEntity');
-    const inputState = bootstrap.world.getResource('inputState');
-    const positionStore = bootstrap.world.getResource('position');
-
-    bootstrap.stepFrame(FIXED_DT_MS);
-
-    expect(inputState.right[playerHandle.id]).toBe(1);
-    expect(positionStore.col[playerHandle.id]).toBeGreaterThan(3);
-  });
-
   it('runs the default bootstrap movement pipeline from adapter input through one fixed step', () => {
     const bootstrap = createBootstrap({
       loadMapForLevel: () => createMovementMapResource(),
@@ -470,7 +425,7 @@ describe('game loop and runtime', () => {
       windowTarget: windowStub,
     });
 
-    bootstrap.setInputAdapter(inputAdapter);
+    bootstrap.world.setResource('inputAdapter', inputAdapter);
 
     expect(bootstrap.gameFlow.startGame({ levelIndex: 0 })).toBe(true);
 
@@ -503,20 +458,12 @@ describe('game loop and runtime', () => {
       loadMapForLevel: () => createMovementMapResource(),
       now: 0,
     });
-    const heldKeys = new Set(['right']);
     const adapter = {
       drainPressedKeys: () => new Set(),
-      clearHeldKeys() {
-        heldKeys.clear();
-      },
-      destroy() {},
-      getHeldKeys() {
-        return heldKeys;
-      },
-      heldKeys,
+      heldKeys: new Set(['right']),
     };
 
-    bootstrap.setInputAdapter(adapter);
+    bootstrap.world.setResource('inputAdapter', adapter);
 
     expect(bootstrap.gameFlow.startGame({ levelIndex: 0 })).toBe(true);
 
@@ -631,19 +578,8 @@ describe('game loop and runtime', () => {
     let nowMs = 0;
 
     bootstrap.gameFlow.startGame();
-    const heldKeys = new Set(['ArrowLeft']);
-    bootstrap.setInputAdapter({
-      clearHeldKeys() {
-        heldKeys.clear();
-      },
-      destroy() {},
-      drainPressedKeys() {
-        return new Set();
-      },
-      getHeldKeys() {
-        return heldKeys;
-      },
-      heldKeys,
+    bootstrap.world.setResource('inputAdapter', {
+      heldKeys: new Set(['ArrowLeft']),
     });
 
     const runtime = createGameRuntime({

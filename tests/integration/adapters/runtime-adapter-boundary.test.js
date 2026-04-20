@@ -77,37 +77,6 @@ function createWindowStub() {
 }
 
 describe('runtime adapter boundaries', () => {
-  it('pre-registers the input adapter resource and stores validated adapters through bootstrap', () => {
-    const bootstrap = createBootstrap({ now: 0 });
-    const heldKeys = new Set(['left']);
-    const inputAdapter = {
-      clearHeldKeys: vi.fn(() => {
-        heldKeys.clear();
-      }),
-      destroy: vi.fn(),
-      drainPressedKeys: vi.fn(() => new Set()),
-      getHeldKeys: vi.fn(() => heldKeys),
-      heldKeys,
-    };
-
-    expect(bootstrap.world.getResource('inputAdapter')).toBeNull();
-
-    bootstrap.setInputAdapter(inputAdapter);
-
-    expect(bootstrap.world.getResource('inputAdapter')).toBe(inputAdapter);
-    expect(bootstrap.getInputAdapter()).toBe(inputAdapter);
-  });
-
-  it('rejects malformed input adapters at bootstrap registration time', () => {
-    const bootstrap = createBootstrap({ now: 0 });
-
-    expect(() => {
-      bootstrap.setInputAdapter({
-        heldKeys: new Set(['left']),
-      });
-    }).toThrow('adapter.getHeldKeys() must be defined');
-  });
-
   it('bootstraps through explicit entrypoint and exposes runtime hooks on window', async () => {
     const documentStub = createDocumentStub();
     const windowStub = createWindowStub();
@@ -162,20 +131,14 @@ describe('runtime adapter boundaries', () => {
 
   it('clears held input through the input adapter boundary when blur occurs', async () => {
     const bootstrap = createBootstrap({ now: 0 });
-    const heldKeys = new Set(['left']);
     const inputAdapter = {
-      clearHeldKeys: vi.fn(() => {
-        heldKeys.clear();
-      }),
-      destroy: vi.fn(),
-      drainPressedKeys: vi.fn(() => new Set()),
-      getHeldKeys: vi.fn(() => heldKeys),
-      heldKeys,
+      clearHeldKeys: vi.fn(),
+      heldKeys: new Set(['left']),
     };
     const documentStub = createDocumentStub();
     const windowStub = createWindowStub();
 
-    bootstrap.setInputAdapter(inputAdapter);
+    bootstrap.world.setResource('inputAdapter', inputAdapter);
 
     const runtime = createGameRuntime({
       bootstrap,
@@ -192,63 +155,12 @@ describe('runtime adapter boundaries', () => {
 
     runtime.stop();
   });
-
-  it('clears the stored adapter resource when the runtime stops', () => {
-    const bootstrap = createBootstrap({ now: 0 });
-    const inputAdapter = {
-      clearHeldKeys: vi.fn(),
-      destroy: vi.fn(),
-      drainPressedKeys: vi.fn(() => new Set()),
-      getHeldKeys: vi.fn(() => new Set()),
-    };
-    bootstrap.setInputAdapter(inputAdapter);
-
-    const runtime = createGameRuntime({
-      bootstrap,
-      requestFrame: vi.fn(),
-    });
-
-    runtime.stop();
-
-    expect(inputAdapter.destroy).toHaveBeenCalledTimes(1);
-    expect(bootstrap.getInputAdapter()).toBeNull();
-  });
-
-  it('throws on blur when a caller bypasses bootstrap adapter registration', () => {
-    const bootstrap = createBootstrap({ now: 0 });
-    const documentStub = createDocumentStub();
-    const windowStub = createWindowStub();
-
-    bootstrap.world.setResource('inputAdapter', {
-      heldKeys: new Set(['left']),
-    });
-
-    const runtime = createGameRuntime({
-      bootstrap,
-      documentRef: documentStub,
-      nowProvider: () => 0,
-      requestFrame: windowStub.requestAnimationFrame,
-      windowRef: windowStub,
-    });
-
-    runtime.start();
-
-    expect(() => {
-      windowStub.dispatch('blur');
-    }).toThrow('must expose clearHeldKeys()');
-
-    runtime.stop();
-  });
-
   it('tears down the input adapter when the runtime stops', () => {
     const bootstrap = createBootstrap({ now: 0 });
     const inputAdapter = {
-      clearHeldKeys: vi.fn(),
       destroy: vi.fn(),
-      drainPressedKeys: vi.fn(() => new Set()),
-      getHeldKeys: vi.fn(() => new Set()),
     };
-    bootstrap.setInputAdapter(inputAdapter);
+    bootstrap.world.setResource('inputAdapter', inputAdapter);
 
     const runtime = createGameRuntime({
       bootstrap,

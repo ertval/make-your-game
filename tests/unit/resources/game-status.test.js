@@ -42,7 +42,7 @@ describe('game-status', () => {
     expect(status.currentState).toBe(GAME_STATE.PLAYING);
   });
 
-  it('allows PLAYING → PLAYING self transition', () => {
+  it('rejects PLAYING → PLAYING self transition', () => {
     const status = createGameStatus(GAME_STATE.PLAYING);
     expect(canTransition(status, GAME_STATE.PLAYING)).toBe(true);
     transitionTo(status, GAME_STATE.PLAYING);

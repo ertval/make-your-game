@@ -111,13 +111,14 @@ function clearHeldInputState(bootstrap) {
     return;
   }
 
-  if (typeof adapter.clearHeldKeys !== 'function') {
-    throw new Error(
-      'Input adapter resource must expose clearHeldKeys(). Register it through bootstrap.setInputAdapter().',
-    );
+  if (typeof adapter.clearHeldKeys === 'function') {
+    adapter.clearHeldKeys();
+    return;
   }
 
-  adapter.clearHeldKeys();
+  if (adapter.heldKeys instanceof Set) {
+    adapter.heldKeys.clear();
+  }
 }
 
 /**
@@ -364,13 +365,9 @@ export function createGameRuntime({
       cancelScheduledFrame(frameHandle);
     }
 
-    if (typeof bootstrap.setInputAdapter === 'function') {
-      bootstrap.setInputAdapter(null);
-    } else {
-      const adapter = bootstrap.getInputAdapter();
-      if (adapter && typeof adapter.destroy === 'function') {
-        adapter.destroy();
-      }
+    const adapter = bootstrap.getInputAdapter();
+    if (adapter && typeof adapter.destroy === 'function') {
+      adapter.destroy();
     }
 
     if (targetWindow && typeof targetWindow.removeEventListener === 'function') {
@@ -452,7 +449,7 @@ export async function bootstrapApplication({
       loadMapForLevel: resolvedLoadMapForLevel,
       now: getNow(),
     });
-    bootstrap.setInputAdapter(inputAdapter);
+    bootstrap.world.setResource('inputAdapter', inputAdapter);
 
     installUnhandledRejectionHandler({
       logger,
