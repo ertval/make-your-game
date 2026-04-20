@@ -60,11 +60,11 @@ describe('policy-utils ticket and process detection', () => {
       trackCode: 'A',
     });
 
-    expect(ticketSummary).toContain('mode=TICKET');
-    expect(ticketSummary).toContain('path=ticketed ownership checks');
-    expect(ticketSummary).toContain('tickets=A-01, A-02');
-    expect(ticketSummary).toContain('branchTickets=A-02');
-    expect(ticketSummary).toContain('commitTickets=A-01, A-02');
+    expect(ticketSummary).toContain('Mode:           TICKET');
+    expect(ticketSummary).toContain('Path:           ticketed ownership checks');
+    expect(ticketSummary).toContain('Tickets:        A-01, A-02');
+    expect(ticketSummary).toContain('Branch Tickets: A-02');
+    expect(ticketSummary).toContain('Commit Tickets: A-01, A-02');
 
     const processSummary = describePolicyResolution({
       auditMode: 'GENERAL_DOCS_PROCESS',
@@ -78,12 +78,12 @@ describe('policy-utils ticket and process detection', () => {
       trackCode: 'GENERAL',
     });
 
-    expect(processSummary).toContain('mode=GENERAL_DOCS_PROCESS');
-    expect(processSummary).toContain('path=process-marker fallback');
-    expect(processSummary).toContain('tickets=(none)');
-    expect(processSummary).toContain('branchOwner=ekaramet');
-    expect(processSummary).toContain('ownerTrack=A');
-    expect(processSummary).toContain('processMarker=true');
+    expect(processSummary).toContain('Mode:           GENERAL_DOCS_PROCESS');
+    expect(processSummary).toContain('Path:           process-marker fallback');
+    expect(processSummary).toContain('Tickets:        (none)');
+    expect(processSummary).toContain('Branch Owner:   ekaramet');
+    expect(processSummary).toContain('Owner Track:    A');
+    expect(processSummary).toContain('Process Marker: true');
   });
 
   it('allows Track A to modify test files from any track', () => {
