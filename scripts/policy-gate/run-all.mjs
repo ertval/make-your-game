@@ -12,7 +12,6 @@ import {
   describePolicyResolution,
   extractOwnerFromBranch,
   GATE_FAIL,
-  GATE_PASS,
   inferProcessModeFromSources,
   inferTicketIdsFromSources,
   isBugfixBranch,
@@ -128,17 +127,12 @@ if (scope === 'pr' || scope === 'all') {
   });
   contextPrepared = true;
 
+  console.log('\n========================================================================');
+  console.log('🚀 Phase 2: Starting Policy Enforcements');
+  console.log('========================================================================\n');
+
   // We parse the extracted git metadata file to infer PR intent and verify traceability.
-  const {
-    metadata,
-    branchOwner,
-    branchOwnerTrack,
-    branchTicketIds,
-    commitTicketIds,
-    hasProcessMode,
-    isBugfixMode,
-    ticketIds,
-  } = resolvePolicyContext();
+  const { branchTicketIds, commitTicketIds, hasProcessMode, isBugfixMode } = resolvePolicyContext();
 
   // Process-marker branches must still run PR checks so process-scope violations are enforced.
   const policyPath = resolvePrPolicyPath({
@@ -148,20 +142,7 @@ if (scope === 'pr' || scope === 'all') {
     isBugfixMode,
   });
 
-  console.log(
-    describePolicyResolution({
-      auditMode: policyPath.auditMode,
-      branchTicketIds,
-      commitTicketIds,
-      owner: branchOwner,
-      ownerTrack: branchOwnerTrack,
-      processMarkerDetected: hasProcessMode,
-      selectedPath: policyPath.selectedPath,
-      ticketIds: policyPath.shouldRunPrChecks ? ticketIds : [],
-      trackCode: branchOwnerTrack || metadata.trackCode || 'GENERAL',
-    }),
-  );
-
+  // The describePolicyResolution call was removed from here because run-checks.mjs
   if (policyPath.shouldRunPrChecks) {
     runStep(
       'PR checklist and traceability checks',
@@ -239,21 +220,27 @@ if ((scope === 'repo' || scope === 'all') && !(scope === 'all' && ranRepoFallbac
         ? 'TICKET'
         : 'GENERAL_DOCS_PROCESS';
 
-  console.log(
-    describePolicyResolution({
-      auditMode,
-      branchTicketIds,
-      commitTicketIds,
-      owner: branchOwner,
-      ownerTrack: branchOwnerTrack,
-      processMarkerDetected: hasProcessMode,
-      selectedPath: 'repo-wide validation',
-      ticketIds,
-      trackCode: branchOwnerTrack || metadata.trackCode || 'GENERAL',
-    }),
-  );
-
   // We execute repo-wide policies for deeper validation when specifically requested or on merge to main.
+  // Suppress the duplicate resolution log if we're running all scopes, as PR already printed context.
+  if (scope !== 'all') {
+    console.log(
+      describePolicyResolution({
+        auditMode,
+        branchTicketIds,
+        commitTicketIds,
+        owner: branchOwner,
+        ownerTrack: branchOwnerTrack,
+        processMarkerDetected: hasProcessMode,
+        selectedPath: 'repo-wide validation',
+        ticketIds,
+        trackCode: branchOwnerTrack || metadata.trackCode || 'GENERAL',
+      }),
+    );
+  } else {
+    console.log('\n========================================================================');
+    console.log('🚀 Phase 3: Repo-Wide Validations');
+    console.log('========================================================================\n');
+  }
   runStep(
     'Repo-wide forbidden-tech scan',
     'node',
@@ -285,4 +272,6 @@ if ((scope === 'repo' || scope === 'all') && !(scope === 'all' && ranRepoFallbac
   }
 }
 
-console.log(`${GATE_PASS} — Policy gate completed in ${mode} mode for ${scope} scope.`);
+console.log(
+  `\n🎉 🏁 ALL CLEAR: Policy gate successfully completed in ${mode} mode for ${scope} scope. 🏁 🎉\n`,
+);

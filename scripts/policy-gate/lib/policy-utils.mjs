@@ -252,6 +252,7 @@ export const SHARED_OWNERSHIP_PATTERNS = [
   'styles/base.css',
   'package-lock.json',
   '**/.gitkeep',
+  '.agents/**',
 ];
 
 // Track ownership is dual-layer for tests:
@@ -697,17 +698,20 @@ export function describePolicyResolution({
           : '🔍';
 
   return [
-    `${modeEmoji} Policy checks resolved`,
-    `mode=${resolvedMode}`,
-    `path=${selectedPath || (normalizedTicketIds.length > 0 ? 'ticketed checks' : 'fallback checks')}`,
-    `track=${trackCode || 'GENERAL'}`,
-    `tickets=${normalizedTicketIds.length > 0 ? normalizedTicketIds.join(', ') : '(none)'}`,
-    `branchTickets=${normalizedBranchTicketIds.length > 0 ? normalizedBranchTicketIds.join(', ') : '(none)'}`,
-    `commitTickets=${normalizedCommitTicketIds.length > 0 ? normalizedCommitTicketIds.join(', ') : '(none)'}`,
-    `branchOwner=${owner || '(none)'}`,
-    `ownerTrack=${ownerTrack || '(none)'}`,
-    `processMarker=${processMarkerDetected ? 'true' : 'false'}`,
-  ].join('; ');
+    '',
+    `╭── ${modeEmoji} Policy Resolution Context ────────────────────────────`,
+    `│ Mode:           ${resolvedMode}`,
+    `│ Path:           ${selectedPath || (normalizedTicketIds.length > 0 ? 'ticketed checks' : 'fallback checks')}`,
+    `│ Track:          ${trackCode || 'GENERAL'}`,
+    `│ Tickets:        ${normalizedTicketIds.length > 0 ? normalizedTicketIds.join(', ') : '(none)'}`,
+    `│ Branch Tickets: ${normalizedBranchTicketIds.length > 0 ? normalizedBranchTicketIds.join(', ') : '(none)'}`,
+    `│ Commit Tickets: ${normalizedCommitTicketIds.length > 0 ? normalizedCommitTicketIds.join(', ') : '(none)'}`,
+    `│ Branch Owner:   ${owner || '(none)'}`,
+    `│ Owner Track:    ${ownerTrack || '(none)'}`,
+    `│ Process Marker: ${processMarkerDetected ? 'true' : 'false'}`,
+    `╰───────────────────────────────────────────────────────────`,
+    '',
+  ].join('\n');
 }
 
 export function readTicketIdsFromTracker(trackerPath = 'docs/implementation/ticket-tracker.md') {

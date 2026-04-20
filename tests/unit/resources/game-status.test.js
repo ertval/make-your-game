@@ -42,7 +42,7 @@ describe('game-status', () => {
     expect(status.currentState).toBe(GAME_STATE.PLAYING);
   });
 
-  it('allows PLAYING → PLAYING self transition', () => {
+  it('rejects PLAYING → PLAYING self transition', () => {
     const status = createGameStatus(GAME_STATE.PLAYING);
     expect(canTransition(status, GAME_STATE.PLAYING)).toBe(true);
     transitionTo(status, GAME_STATE.PLAYING);
@@ -99,10 +99,20 @@ describe('game-status', () => {
     expect(isTerminal(gameOverStatus)).toBe(true);
   });
 
-  it('defines all expected transitions in the map', () => {
-    for (const state of Object.values(GAME_STATE)) {
-      expect(VALID_TRANSITIONS[state]).toBeDefined();
-      expect(VALID_TRANSITIONS[state].length).toBeGreaterThan(0);
-    }
+  it('defines the canonical transition map exactly', () => {
+    expect(VALID_TRANSITIONS).toEqual({
+      [GAME_STATE.MENU]: [GAME_STATE.PLAYING],
+      [GAME_STATE.PLAYING]: [
+        GAME_STATE.PLAYING,
+        GAME_STATE.PAUSED,
+        GAME_STATE.LEVEL_COMPLETE,
+        GAME_STATE.GAME_OVER,
+        GAME_STATE.VICTORY,
+      ],
+      [GAME_STATE.PAUSED]: [GAME_STATE.PLAYING],
+      [GAME_STATE.LEVEL_COMPLETE]: [GAME_STATE.PLAYING, GAME_STATE.VICTORY],
+      [GAME_STATE.VICTORY]: [GAME_STATE.MENU],
+      [GAME_STATE.GAME_OVER]: [GAME_STATE.MENU],
+    });
   });
 });

@@ -851,11 +851,12 @@ function enforceAuditAndDependencyPairing() {
   const touchesGameDescription = has('docs/game-description.md');
   const touchesTraceability = has('docs/implementation/audit-traceability-matrix.md');
   const touchesAuditTests = touchesPrefix('tests/e2e/audit/');
+  const touchesAnyTests = touchesPrefix('tests/');
 
   if (touchesAuditDocs || touchesRequirements || touchesGameDescription || touchesAuditTests) {
     const required = [];
     if (!touchesTraceability) required.push('docs/implementation/audit-traceability-matrix.md');
-    if (!touchesAuditTests) required.push('tests/e2e/audit/');
+    if (!touchesAnyTests) required.push('tests/ (any test directory)');
     if (
       (touchesAuditDocs || touchesRequirements || touchesGameDescription) &&
       !has('docs/audit.md')
