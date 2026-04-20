@@ -126,14 +126,14 @@
 **Blocks**: D-08, D-09, D-10
 
 **Deliverables**:
-- `src/adapters/dom/renderer-dom.js` — createElement/createElementNS, zero innerHTML
+- `src/adapters/dom/renderer-adapter.js` — createElement/createElementNS, zero innerHTML
 
-- [ ] Implement `renderer-dom.js`: Strict `document.createElement` / `createElementNS` logic for generating the static board. Zero `innerHTML`.
-- [ ] Generate static grid cells from `map-resource` data: walls get appropriate CSS classes, empty cells are passable.
-- [ ] Define Content Security Policy (CSP) and Trusted Types rollout plan (relaxed for Vite dev, strict for production).
-- [ ] Use `textContent` and explicit attribute APIs for all dynamic content.
-- [ ] Verification gate: adapter tests confirm safe DOM sinks, no innerHTML usage.
-- [ ] **DEFERRED from D-03**: Playwright e2e restart test proves canonical map reset (load level, trigger restart, verify board returns to initial state with correct cell types and spawn positions).
+- [x] Implement `renderer-adapter.js`: Strict `document.createElement` / `createElementNS` logic for generating the static board. Zero `innerHTML`.
+- [x] Generate static grid cells from `map-resource` data: walls get appropriate CSS classes, empty cells are passable.
+- [x] Define Content Security Policy (CSP) and Trusted Types rollout plan (relaxed for Vite dev, strict for production).
+- [x] Use `textContent` and explicit attribute APIs for all dynamic content.
+- [x] Verification gate: adapter tests confirm safe DOM sinks, no innerHTML usage.
+- [ ] **DEFERRED from D-03**: Playwright e2e restart test proves canonical map reset (load level, trigger restart, verify board returns to initial state with correct cell types and spawn positions). — Pending D-08 integration
 
 ---
 
@@ -156,9 +156,11 @@
 #### D-08: Render DOM System (The Batcher)
 **Priority**: ��� Critical
 **Phase**: P1 Visual Prototype
-**Depends On**: `D-06`, `D-07`, `D-09`
+**Depends On**: `D-06` ✓, `D-07`, `D-09`
 **Impacts**: Frame-time stability and compositor-only writes (`AUDIT-F-19`, `AUDIT-F-20`, `AUDIT-F-21`)
 **Blocks**: D-09, D-10 || A-05
+
+**D-06 Dependency Note**: Board generation (`renderer-adapter.js`) is complete; D-08 integrates board rendering with entity sprite rendering.
 
 **Deliverables**:
 - `src/ecs/systems/render-dom-system.js` — one-pass DOM commit, transform/opacity/class writes only
