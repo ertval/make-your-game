@@ -10,6 +10,7 @@
  * - registerSystemsByPhase(world, systemsByPhase)
  */
 
+import { assertValidInputAdapter } from '../adapters/io/input-adapter.js';
 import {
   createInputStateStore,
   createPlayerStore,
@@ -37,6 +38,7 @@ import { createLevelLoader } from './level-loader.js';
 const DEFAULT_PLAYER_RESOURCE_KEY = 'player';
 const DEFAULT_POSITION_RESOURCE_KEY = 'position';
 const DEFAULT_VELOCITY_RESOURCE_KEY = 'velocity';
+const DEFAULT_INPUT_ADAPTER_RESOURCE_KEY = 'inputAdapter';
 const DEFAULT_INPUT_STATE_RESOURCE_KEY = 'inputState';
 const DEFAULT_PLAYER_ENTITY_RESOURCE_KEY = 'playerEntity';
 
@@ -153,7 +155,7 @@ function normalizeSystemRegistration(phase, registration, index) {
  * @returns {Record<string, Array<object>>} Phase-keyed ECS system registrations.
  */
 function createDefaultSystemsByPhase(options = {}) {
-  const adapterResourceKey = options.adapterResourceKey || 'inputAdapter';
+  const adapterResourceKey = options.adapterResourceKey || DEFAULT_INPUT_ADAPTER_RESOURCE_KEY;
   const inputStateResourceKey = options.inputStateResourceKey || DEFAULT_INPUT_STATE_RESOURCE_KEY;
   const playerResourceKey = options.playerResourceKey || DEFAULT_PLAYER_RESOURCE_KEY;
   const positionResourceKey = options.positionResourceKey || DEFAULT_POSITION_RESOURCE_KEY;
@@ -342,6 +344,8 @@ export function registerSystemsByPhase(world, systemsByPhase = {}) {
 export function createBootstrap(options = {}) {
   const nowMs = toFiniteTimestamp(options.now ?? 0);
   const world = options.world || new World();
+  const inputAdapterResourceKey =
+    options.inputAdapterResourceKey || DEFAULT_INPUT_ADAPTER_RESOURCE_KEY;
   const playerEntityResourceKey =
     options.playerEntityResourceKey || DEFAULT_PLAYER_ENTITY_RESOURCE_KEY;
   const clock = createClock(nowMs);
@@ -349,6 +353,8 @@ export function createBootstrap(options = {}) {
 
   // Movement systems need their component stores present before fixed-step work begins.
   initializeMovementResources(world, options);
+  // Pre-register the adapter slot so runtime wiring has one explicit resource key.
+  ensureWorldResource(world, inputAdapterResourceKey, () => null);
 
   const levelLoader = createLevelLoader({
     loadMapForLevel: options.loadMapForLevel,
@@ -423,8 +429,25 @@ export function createBootstrap(options = {}) {
     resetClock(clock, timestamp);
   }
 
+  /**
+   * Validate and register the browser-facing input adapter resource.
+   *
+   * @param {InputAdapter | null} adapter - Explicit adapter contract or null to clear it.
+   * @returns {InputAdapter | null} The stored adapter resource.
+   */
+  function setInputAdapter(adapter) {
+    if (adapter === null || adapter === undefined) {
+      world.setResource(inputAdapterResourceKey, null);
+      return null;
+    }
+
+    assertValidInputAdapter(adapter);
+    world.setResource(inputAdapterResourceKey, adapter);
+    return adapter;
+  }
+
   function getInputAdapter() {
-    return world.getResource('inputAdapter') || null;
+    return world.getResource(inputAdapterResourceKey) || null;
   }
 
   return {
@@ -435,6 +458,7 @@ export function createBootstrap(options = {}) {
     levelLoader,
     playerEntityResourceKey,
     resyncTime,
+    setInputAdapter,
     stepFrame,
     world,
   };

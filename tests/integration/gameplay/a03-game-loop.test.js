@@ -391,15 +391,20 @@ describe('game loop and runtime', () => {
       loadMapForLevel: () => createMovementMapResource(),
       now: 0,
     });
+    const heldKeys = new Set(['right']);
     const adapter = {
       drainPressedKeys: () => new Set(),
-      heldKeys: new Set(['right']),
-      getHeldKeys() {
-        return this.heldKeys;
+      clearHeldKeys() {
+        heldKeys.clear();
       },
+      destroy() {},
+      getHeldKeys() {
+        return heldKeys;
+      },
+      heldKeys,
     };
 
-    bootstrap.world.setResource('inputAdapter', adapter);
+    bootstrap.setInputAdapter(adapter);
 
     expect(bootstrap.gameFlow.startGame({ levelIndex: 0 })).toBe(true);
 
@@ -428,7 +433,7 @@ describe('game loop and runtime', () => {
       windowTarget: windowStub,
     });
 
-    bootstrap.world.setResource('inputAdapter', inputAdapter);
+    bootstrap.setInputAdapter(inputAdapter);
 
     expect(bootstrap.gameFlow.startGame({ levelIndex: 0 })).toBe(true);
 
@@ -461,15 +466,20 @@ describe('game loop and runtime', () => {
       loadMapForLevel: () => createMovementMapResource(),
       now: 0,
     });
+    const heldKeys = new Set(['right']);
     const adapter = {
       drainPressedKeys: () => new Set(),
-      heldKeys: new Set(['right']),
-      getHeldKeys() {
-        return this.heldKeys;
+      clearHeldKeys() {
+        heldKeys.clear();
       },
+      destroy() {},
+      getHeldKeys() {
+        return heldKeys;
+      },
+      heldKeys,
     };
 
-    bootstrap.world.setResource('inputAdapter', adapter);
+    bootstrap.setInputAdapter(adapter);
 
     expect(bootstrap.gameFlow.startGame({ levelIndex: 0 })).toBe(true);
 
@@ -584,8 +594,19 @@ describe('game loop and runtime', () => {
     let nowMs = 0;
 
     bootstrap.gameFlow.startGame();
-    bootstrap.world.setResource('inputAdapter', {
-      heldKeys: new Set(['ArrowLeft']),
+    const heldKeys = new Set(['ArrowLeft']);
+    bootstrap.setInputAdapter({
+      clearHeldKeys() {
+        heldKeys.clear();
+      },
+      destroy() {},
+      drainPressedKeys() {
+        return new Set();
+      },
+      getHeldKeys() {
+        return heldKeys;
+      },
+      heldKeys,
     });
 
     const runtime = createGameRuntime({
