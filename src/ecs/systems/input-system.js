@@ -26,6 +26,8 @@ const DEFAULT_REQUIRED_MASK = COMPONENT_MASK.PLAYER | COMPONENT_MASK.INPUT_STATE
 const EMPTY_INTENT_SET = new Set();
 
 function assertInputAdapterContract(adapter, adapterResourceKey) {
+  // Keep this contract check local to the system so ECS simulation code does
+  // not import the DOM-facing adapter module directly.
   if (typeof adapter.getHeldKeys !== 'function') {
     throw new Error(`Input adapter resource "${adapterResourceKey}" must expose getHeldKeys().`);
   }
