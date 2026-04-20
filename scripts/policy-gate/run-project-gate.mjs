@@ -16,19 +16,23 @@ if (!fs.existsSync('package.json')) {
 const pkg = JSON.parse(fs.readFileSync('package.json', 'utf8'));
 const scripts = pkg.scripts ?? {};
 
-const commands = ['check', 'test'];
-if (scripts['test:e2e']) {
-  commands.push('test:e2e');
+const commands = ['check'];
+if (scripts['test:coverage']) {
+  commands.push('test:coverage');
+} else if (scripts.coverage) {
+  commands.push('coverage');
+}
+
+if (scripts['test:integration']) {
+  commands.push('test:integration');
 }
 
 if (scripts['test:audit']) {
   commands.push('test:audit');
 }
 
-if (scripts['test:coverage']) {
-  commands.push('test:coverage');
-} else if (scripts.coverage) {
-  commands.push('coverage');
+if (scripts['test:e2e']) {
+  commands.push('test:e2e');
 }
 
 if (scripts['validate:schema']) {
