@@ -126,9 +126,9 @@
 **Blocks**: D-08, D-09, D-10
 
 **Deliverables**:
-- `src/adapters/dom/renderer-adapter.js` — createElement/createElementNS, zero innerHTML
+- `src/adapters/dom/renderer-dom.js` — createElement/createElementNS, zero innerHTML
 
-- [ ] Implement `renderer-adapter.js`: Strict `document.createElement` / `createElementNS` logic for generating the static board. Zero `innerHTML`.
+- [ ] Implement `renderer-dom.js`: Strict `document.createElement` / `createElementNS` logic for generating the static board. Zero `innerHTML`.
 - [ ] Generate static grid cells from `map-resource` data: walls get appropriate CSS classes, empty cells are passable.
 - [ ] Define Content Security Policy (CSP) and Trusted Types rollout plan (relaxed for Vite dev, strict for production).
 - [ ] Use `textContent` and explicit attribute APIs for all dynamic content.

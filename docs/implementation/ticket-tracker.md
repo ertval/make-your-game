@@ -47,7 +47,7 @@ Use this ledger to keep phase-audit publication and remediation traceable.
 	- `docs/audit-reports/phase-0/audit-report-p0-track-d-deduplicated-2026-04-14.md`
 - P0 remediation mapping status:
 	- Track A issues: mapped to `A-03`, `A-04`, `A-05`, `A-06`, `A-07`, `A-10` (and follow-up tickets as required).
-	- Track A next-ticket note: after Track B (`B-02`) and Track D (`D-01`, `D-03`) merge to `main`, create a Track A follow-up ticket to restore strict post-merge expectations in temporary compatibility tests (`tests/unit/resources/game-status.test.js`, `tests/unit/resources/map-resource.test.js`) and remove loader compatibility fallback in `src/game/level-loader.js`.
+	- Track A follow-up ticket executed (2026-04-18): restored strict post-merge expectations in temporary compatibility tests (`tests/unit/resources/game-status.test.js`, `tests/unit/resources/map-resource.test.js`) and removed loader compatibility fallback in `src/game/level-loader.js` with strict runtime map-resource validation.
 	- Track A Tests/CI gap closures in this phase: `CI-01`, `CI-02`, `CI-03`, `CI-04`, `CI-05`, `CI-06`, `CI-07`, `CI-08`, `CI-09`, `CI-10`, `CI-X01`, `CI-X02`, `CI-X03` via executable audit suites, policy-gate obligations, and merge workflow hardening.
 	- Track B issues: mapped to `B-02`, `B-03`.
 	- Track C issues: mapped to `C-06` and Track C documentation/dependency updates.

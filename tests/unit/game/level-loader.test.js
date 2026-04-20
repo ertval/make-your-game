@@ -41,6 +41,7 @@ function createMapResourceFixture(level) {
     playerSpawnCol: 1,
     playerSpawnRow: 1,
     rows,
+    ghostSpeed: 4,
     timerSeconds: 120,
   };
 }

@@ -36,6 +36,39 @@ This directory contains scripts used to enforce project policies via `npm run po
 - Process mode may relax ticket-association conflicts (for docs/process workflows).
 - Process mode does **not** bypass ownership boundaries; changed files are still validated against the branch owner's mapped track.
 
+## Bugfix Branch Mode
+
+Branches named `<owner>/bugfix-<slug>` (for example `ekaramet/bugfix-ghost-collision`) activate **bugfix mode**, which:
+
+- **Bypasses** track ownership checks (`assertTrackOwnership` and `assertOwnerScopedOwnership`) so a single developer can touch files across multiple tracks in one PR without splitting the branch.
+- **Does not bypass** any other gates: security sink and ECS DOM boundary scans, forbidden-API checks, traceability coverage, lockfile pairing, and all quality gates still run normally.
+
+### Rules and Constraints
+
+| Rule | Requirement |
+|---|---|
+| **Registered Owner required** | The `<owner>` prefix MUST be present and MUST be one of the registered developers in `OWNER_TRACK_MAPPING` (ekaramet, asmyrogl, chbaikas, medvall). |
+| **`bugfix-` keyword mandatory** | The slug must start exactly with `bugfix-` (case-sensitive). |
+| **Ownership Relaxed** | Track ownership checks are bypassed, allowing the developer to touch files outside their assigned track. |
+| **Ticket association Relaxed** | Ticket association is NOT a blocking factor. Bugfix branches can have no tickets or cross-track tickets. |
+| **All other gates active** | Security, traceability, lockfile, and quality gates run unchanged. |
+
+### Pattern
+
+```
+<owner>/bugfix-<slug>
+```
+
+**Examples:**
+- `ekaramet/bugfix-ghost-collision`
+- `asmyrogl/bugfix-B-07-timer-race`
+- `chbaikas/bugfix-audio-pause-deadlock`
+
+### Implementation reference
+
+- `lib/policy-utils.mjs` — exports `BUGFIX_BRANCH_PATTERN` and `isBugfixBranch()`.
+- `run-checks.mjs` — detects `bugfixMode` at startup and short-circuits both ownership functions.
+
 ## Repo Trace Behavior
 
 - `npm run policy:trace` (`run-checks.mjs --check-set=repo`) always validates:
