@@ -6,7 +6,7 @@
  */
 
 import fs from 'node:fs';
-import { GATE_PASS, runCommand } from './lib/policy-utils.mjs';
+import { GATE_FAIL, GATE_PASS, runCommand } from './lib/policy-utils.mjs';
 
 if (!fs.existsSync('package.json')) {
   console.log('package.json not present; skipping npm project gate.');
@@ -49,9 +49,24 @@ if (scripts.sbom) {
   commands.push('sbom');
 }
 
+const errors = [];
+
 for (const script of commands) {
   console.log(`Running npm run ${script}`);
-  runCommand('npm', ['run', script], { stdio: 'inherit' });
+  try {
+    runCommand('npm', ['run', script], { stdio: 'inherit' });
+  } catch {
+    console.error(`\n${GATE_FAIL} — npm run ${script} failed.`);
+    errors.push(`npm run ${script}`);
+  }
+}
+
+if (errors.length > 0) {
+  console.error(`\n${GATE_FAIL} — Project gate checks completed with ${errors.length} failure(s):`);
+  for (const err of errors) {
+    console.error(` - ${err}`);
+  }
+  process.exit(1);
 }
 
 console.log(`${GATE_PASS} — Project gate checks completed.`);
