@@ -50,6 +50,8 @@ export const GAME_STATE = {
 export const VALID_TRANSITIONS = {
   [GAME_STATE.MENU]: [GAME_STATE.PLAYING],
   [GAME_STATE.PLAYING]: [
+    // Explicit PLAYING self-transition keeps restart semantics valid without a pause detour.
+    GAME_STATE.PLAYING,
     GAME_STATE.PAUSED,
     GAME_STATE.LEVEL_COMPLETE,
     GAME_STATE.GAME_OVER,

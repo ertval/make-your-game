@@ -1,8 +1,15 @@
+# PR Template Contract
+
+This document includes the full PR template content used in `.github/pull_request_template.md`.
+
+## Template Content
+
+```md
 # PR Gate Checklist
 
 Local test command reference (run what applies to your change and list what you ran in the `## Tests` section below):
 
-- Baseline for every change: `npm run check`, `npm run fix`, `npm run test`, `npm run policy`
+- Baseline for every change: `npm run check`, `npm run test`, `npm run policy`
 - Unit-only slices: `npm run test:unit`
 - Cross-system or adapter changes: `npm run test:integration`
 - Browser/runtime behavior changes (pause, input, HUD, rendering, gameplay): `npm run test:e2e`
@@ -15,8 +22,9 @@ Local test command reference (run what applies to your change and list what you 
 
 - [ ] I read AGENTS.md and the agentic workflow guide.
 - [ ] I ran `npm run policy` locally.
-- [ ] I verified my branch name follows `<owner-or-scope>/<TRACK>-<NN>[-<COMMENT>]` (for example `ekaramet/A-03` or `asmyrogl/B-03-runtime-integration`), or I marked the PR body with `process` for a GENERAL_DOCS_PROCESS branch.
 - [ ] I confirmed changed files stay within the declared ticket ownership scope.
+- [ ] I ran `npm run policy` locally.
+- [ ] I verified my branch name follows `<owner-or-scope>/<TRACK>-<NN>[-<COMMENT>]` (for example `ekaramet/A-03` or `asmyrogl/B-03-runtime-integration`), or I marked the PR body with `process` for a GENERAL_DOCS_PROCESS branch.
 - [ ] I ran the applicable local checks for this change.
 - [ ] I listed each affected AUDIT ID with execution type (Fully Automatable, Semi-Automatable, or Manual-With-Evidence) and linked the passing test output or evidence artifact.
 - [ ] I confirmed full audit coverage remains mapped for F-01 through F-21 and B-01 through B-06.
@@ -54,4 +62,10 @@ Local test command reference (run what applies to your change and list what you 
 - 
 
 ## Risks
-- 
+-
+```
+
+## Sync Rule
+
+1. Update `.github/pull_request_template.md` first.
+2. Update this file in the same PR.

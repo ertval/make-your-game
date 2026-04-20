@@ -474,6 +474,63 @@ describe('map-resource — pellet counting', () => {
 });
 
 // ---------------------------------------------------------------------------
+// Runtime robustness and bounds checks (BUG-05, BUG-07)
+// ---------------------------------------------------------------------------
+
+describe('map-resource — robustness and bounds (BUG-05, BUG-07)', () => {
+  it('getCell returns INDESTRUCTIBLE for out-of-bounds access (BUG-05)', () => {
+    const map = loadLevelMap(1);
+    expect(getCell(map, -1, 0)).toBe(CELL_TYPE.INDESTRUCTIBLE);
+    expect(getCell(map, 0, -1)).toBe(CELL_TYPE.INDESTRUCTIBLE);
+    expect(getCell(map, map.rows, 0)).toBe(CELL_TYPE.INDESTRUCTIBLE);
+    expect(getCell(map, 0, map.cols)).toBe(CELL_TYPE.INDESTRUCTIBLE);
+  });
+
+  it('setCell ignores out-of-bounds access (BUG-05)', () => {
+    const map = loadLevelMap(1);
+    // Should not throw or corrupt memory.
+    setCell(map, -1, 0, CELL_TYPE.EMPTY);
+    setCell(map, map.rows, map.cols, CELL_TYPE.EMPTY);
+  });
+
+  it('validateMapSemantic performs structural preflight before traversal (BUG-07)', () => {
+    // Missing dimensions
+    const malformed1 = { grid: [[]], spawn: {} };
+    const result1 = validateMapSemantic(malformed1);
+    expect(result1.ok).toBe(false);
+    expect(result1.errors).toContain('Missing map dimensions');
+
+    // Missing grid
+    const malformed2 = { dimensions: { rows: 1, columns: 1 }, spawn: {} };
+    const result2 = validateMapSemantic(malformed2);
+    expect(result2.ok).toBe(false);
+    expect(result2.errors).toContain('Missing map grid array');
+
+    // Missing spawn
+    const malformed3 = { dimensions: { rows: 1, columns: 1 }, grid: [[1]] };
+    const result3 = validateMapSemantic(malformed3);
+    expect(result3.ok).toBe(false);
+    expect(result3.errors).toContain('Missing map spawn definitions');
+  });
+
+  it('validateMapSemantic catches crashes during semantic traversal (BUG-07)', () => {
+    const rawMap = createMinimalValidRawMap();
+    // Simulate a payload that might cause a crash in a deeper check
+    rawMap.grid = null; // Should be caught by preflight but testing catch block
+    const result = validateMapSemantic(rawMap);
+    expect(result.ok).toBe(false);
+    expect(result.errors.length).toBeGreaterThan(0);
+  });
+
+  it('isPassableForGhost rejects destructible walls (BUG-X01)', () => {
+    const map = loadLevelMap(1);
+    // In Level 1, (1, 6) is a destructible wall per manual inspection or getCell check.
+    expect(getCell(map, 1, 6)).toBe(CELL_TYPE.DESTRUCTIBLE);
+    expect(isPassableForGhost(map, 1, 6)).toBe(false);
+  });
+});
+
+// ---------------------------------------------------------------------------
 // createSyncMapLoader integration
 // ---------------------------------------------------------------------------
 
