@@ -17,6 +17,10 @@ import {
 } from '../../../src/ecs/systems/timer-system.js';
 import { World } from '../../../src/ecs/world/world.js';
 
+function updateTimer(timerSystem, world, dtMs = 0) {
+  timerSystem.update({ world, dtMs });
+}
+
 function createLevelLoaderStub(levelIndex = 0) {
   return {
     getCurrentLevelIndex() {
@@ -46,7 +50,7 @@ describe('timer-system', () => {
     world.setResource('gameStatus', createGameStatus(GAME_STATE.PLAYING));
     world.setResource('levelLoader', createLevelLoaderStub(1));
 
-    timerSystem.update({ world });
+    updateTimer(timerSystem, world);
 
     expect(world.getResource('levelTimer')).toEqual({
       activeLevel: 2,
@@ -58,11 +62,8 @@ describe('timer-system', () => {
   it('decrements remaining time by the clock delta while playing', () => {
     const world = new World();
     const timerSystem = createTimerSystem();
-    const clock = createClock(0);
 
-    clock.deltaMs = 250;
-
-    world.setResource('clock', clock);
+    world.setResource('clock', createClock(0));
     world.setResource('gameStatus', createGameStatus(GAME_STATE.PLAYING));
     world.setResource('levelLoader', createLevelLoaderStub(0));
     world.setResource('levelTimer', {
@@ -71,7 +72,7 @@ describe('timer-system', () => {
       remainingSeconds: 10,
     });
 
-    timerSystem.update({ world });
+    updateTimer(timerSystem, world, 250);
 
     expect(world.getResource('levelTimer').remainingSeconds).toBeCloseTo(9.75, 6);
   });
@@ -79,11 +80,8 @@ describe('timer-system', () => {
   it('does not decrement the timer while the game is not playing', () => {
     const world = new World();
     const timerSystem = createTimerSystem();
-    const clock = createClock(0);
 
-    clock.deltaMs = 500;
-
-    world.setResource('clock', clock);
+    world.setResource('clock', createClock(0));
     world.setResource('gameStatus', createGameStatus(GAME_STATE.PAUSED));
     world.setResource('levelLoader', createLevelLoaderStub(2));
     world.setResource('levelTimer', {
@@ -92,7 +90,7 @@ describe('timer-system', () => {
       remainingSeconds: 15,
     });
 
-    timerSystem.update({ world });
+    updateTimer(timerSystem, world, 500);
 
     expect(world.getResource('levelTimer').remainingSeconds).toBe(15);
   });
@@ -100,11 +98,8 @@ describe('timer-system', () => {
   it('reinitializes the timer when the active level changes', () => {
     const world = new World();
     const timerSystem = createTimerSystem();
-    const clock = createClock(0);
 
-    clock.deltaMs = 1000;
-
-    world.setResource('clock', clock);
+    world.setResource('clock', createClock(0));
     world.setResource('gameStatus', createGameStatus(GAME_STATE.PLAYING));
     world.setResource('levelLoader', createLevelLoaderStub(2));
     world.setResource('levelTimer', {
@@ -113,7 +108,7 @@ describe('timer-system', () => {
       remainingSeconds: 4,
     });
 
-    timerSystem.update({ world });
+    updateTimer(timerSystem, world, 1000);
 
     expect(world.getResource('levelTimer')).toEqual({
       activeLevel: 3,
@@ -125,12 +120,9 @@ describe('timer-system', () => {
   it('clamps at zero and transitions the game to GAME_OVER when time expires', () => {
     const world = new World();
     const timerSystem = createTimerSystem();
-    const clock = createClock(0);
     const gameStatus = createGameStatus(GAME_STATE.PLAYING);
 
-    clock.deltaMs = 1500;
-
-    world.setResource('clock', clock);
+    world.setResource('clock', createClock(0));
     world.setResource('gameStatus', gameStatus);
     world.setResource('levelLoader', createLevelLoaderStub(0));
     world.setResource('levelTimer', {
@@ -139,7 +131,7 @@ describe('timer-system', () => {
       remainingSeconds: 1,
     });
 
-    timerSystem.update({ world });
+    updateTimer(timerSystem, world, 1500);
 
     expect(world.getResource('levelTimer').remainingSeconds).toBe(0);
     expect(gameStatus.currentState).toBe(GAME_STATE.GAME_OVER);
@@ -160,7 +152,7 @@ describe('timer-system', () => {
       remainingSeconds: 0,
     });
 
-    timerSystem.update({ world });
+    updateTimer(timerSystem, world);
 
     expect(gameStatus.currentState).toBe(GAME_STATE.GAME_OVER);
   });
@@ -168,11 +160,8 @@ describe('timer-system', () => {
   it('caps delta time to avoid large jumps (lag spike)', () => {
     const world = new World();
     const timerSystem = createTimerSystem();
-    const clock = createClock(0);
 
-    clock.deltaMs = 5000;
-
-    world.setResource('clock', clock);
+    world.setResource('clock', createClock(0));
     world.setResource('gameStatus', createGameStatus(GAME_STATE.PLAYING));
     world.setResource('levelLoader', createLevelLoaderStub(0));
     world.setResource('levelTimer', {
@@ -181,8 +170,26 @@ describe('timer-system', () => {
       remainingSeconds: 10,
     });
 
-    timerSystem.update({ world });
+    updateTimer(timerSystem, world, 5000);
 
     expect(world.getResource('levelTimer').remainingSeconds).toBe(9);
+  });
+
+  it('ignores negative dtMs values', () => {
+    const world = new World();
+    const timerSystem = createTimerSystem();
+
+    world.setResource('clock', createClock(0));
+    world.setResource('gameStatus', createGameStatus(GAME_STATE.PLAYING));
+    world.setResource('levelLoader', createLevelLoaderStub(0));
+    world.setResource('levelTimer', {
+      activeLevel: 1,
+      durationSeconds: 120,
+      remainingSeconds: 10,
+    });
+
+    updateTimer(timerSystem, world, -250);
+
+    expect(world.getResource('levelTimer').remainingSeconds).toBe(10);
   });
 });

@@ -25,10 +25,10 @@
 import { LEVEL_TIMERS } from '../resources/constants.js';
 import { canTransition, GAME_STATE, transitionTo } from '../resources/game-status.js';
 
-const DEFAULT_CLOCK_RESOURCE_KEY = 'clock';
 const DEFAULT_GAME_STATUS_RESOURCE_KEY = 'gameStatus';
 const DEFAULT_LEVEL_LOADER_RESOURCE_KEY = 'levelLoader';
 const DEFAULT_TIMER_RESOURCE_KEY = 'levelTimer';
+const MAX_DELTA_MS = 1000;
 
 export function getLevelDurationSeconds(level) {
   const levelIndex = Math.floor(level) - 1;
@@ -90,13 +90,13 @@ function ensureTimerResource(timerState, activeLevel) {
   return timerState;
 }
 
-function getDeltaSeconds(clock) {
-  const deltaMs = clock?.deltaMs;
-  if (Number.isFinite(deltaMs) && deltaMs >= 0) {
-    return Math.min(deltaMs / 1000, 1);
+function getDeltaSeconds(context) {
+  const deltaMs = Number(context.dtMs ?? 0);
+  if (!Number.isFinite(deltaMs) || deltaMs < 0) {
+    return 0;
   }
 
-  return 0;
+  return Math.min(deltaMs, MAX_DELTA_MS) / 1000;
 }
 
 function expireTimer(gameStatus, timerState) {
@@ -119,7 +119,6 @@ function expireIfNeeded(gameStatus, timerState) {
 }
 
 export function createTimerSystem(options = {}) {
-  const clockResourceKey = options.clockResourceKey || DEFAULT_CLOCK_RESOURCE_KEY;
   const gameStatusResourceKey = options.gameStatusResourceKey || DEFAULT_GAME_STATUS_RESOURCE_KEY;
   const levelLoaderResourceKey =
     options.levelLoaderResourceKey || DEFAULT_LEVEL_LOADER_RESOURCE_KEY;
@@ -129,11 +128,10 @@ export function createTimerSystem(options = {}) {
     name: 'timer-system',
     phase: 'logic',
     resourceCapabilities: {
-      read: [clockResourceKey, gameStatusResourceKey, levelLoaderResourceKey, timerResourceKey],
+      read: [gameStatusResourceKey, levelLoaderResourceKey, timerResourceKey],
       write: [gameStatusResourceKey, timerResourceKey],
     },
     update(context) {
-      const clock = context.world.getResource(clockResourceKey);
       const gameStatus = context.world.getResource(gameStatusResourceKey);
       const levelLoader = context.world.getResource(levelLoaderResourceKey);
       const activeLevel = resolveActiveLevel(levelLoader);
@@ -152,7 +150,7 @@ export function createTimerSystem(options = {}) {
       }
 
       timerState.remainingSeconds = clampRemainingTime(
-        timerState.remainingSeconds - getDeltaSeconds(clock),
+        timerState.remainingSeconds - getDeltaSeconds(context),
       );
 
       expireIfNeeded(gameStatus, timerState);
