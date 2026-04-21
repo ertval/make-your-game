@@ -24,7 +24,7 @@ import {
   GATE_FAIL,
   GATE_PASS,
   GATE_WARN,
-  getAliasesForUser,
+  getCanonicalUserForUser,
   isAllowedBranchForOwner,
   OWNER_TRACK_MAPPING,
   parseArgs,
@@ -93,8 +93,8 @@ if (!remoteBranch) {
 // ---------------------------------------------------------------------------
 
 if (!isAllowedBranchForOwner(username, remoteBranch)) {
-  const aliases = getAliasesForUser(username);
-  const ownPrefixes = aliases.map((a) => `${a.toLowerCase()}/`);
+  const canonicalUser = getCanonicalUserForUser(username);
+  const ownPrefix = `${canonicalUser.toLowerCase()}/`;
 
   console.error('');
   console.error('╭── ❌ Branch Push Protection ─────────────────────────────────────');
@@ -102,13 +102,11 @@ if (!isAllowedBranchForOwner(username, remoteBranch)) {
   console.error(`│ Target branch: ${remoteBranch}`);
   console.error('│');
   console.error(`│ REJECTED — "${username}" may only push to branches that start with:`);
-  for (const prefix of ownPrefixes) {
-    console.error(`│   • ${prefix}`);
-  }
-  console.error('│   • process/');
-  console.error('│   • bugfix/');
+  console.error(`│   • ${ownPrefix} (your canonical namespace)`);
+  console.error('│   • process/  (shared governance branches)');
+  console.error('│   • bugfix/   (cross-track bugfix branches)');
   console.error('│');
-  console.error('│ Action: Push to a branch that starts with one of your prefixes.');
+  console.error('│ Action: Push to a branch that starts with your canonical prefix.');
   console.error('╰───────────────────────────────────────────────────────────────────');
   console.error('');
   process.exit(1);

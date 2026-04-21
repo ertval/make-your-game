@@ -180,6 +180,15 @@ export const OWNER_TRACK_MAPPING = {
   edvallm: 'D',
 };
 
+// Canonical owner mapping defines the single allowed branch prefix for each track.
+// Even if a developer has multiple aliases, their branches MUST start with this ID.
+export const TRACK_CANONICAL_OWNER = {
+  A: 'ekaramet',
+  B: 'asmyrogl',
+  C: 'chbaikas',
+  D: 'medvall',
+};
+
 /**
  * Return the canonical track for a given username alias.
  * @param {string} username — The username or name to look up.
@@ -195,6 +204,16 @@ export function getTrackForUser(username) {
     }
   }
   return '';
+}
+
+/**
+ * Return the canonical (default) username for a given alias.
+ * @param {string} username — The username to resolve.
+ * @returns {string} The canonical username or empty string.
+ */
+export function getCanonicalUserForUser(username) {
+  const track = getTrackForUser(username);
+  return TRACK_CANONICAL_OWNER[track] || '';
 }
 
 /**
@@ -216,9 +235,11 @@ export function getAliasesForUser(username) {
  * Return true when the given username is allowed to push to the given remote branch name.
  *
  * A developer is allowed to push to:
- *   1. Any branch starting with one of their registered aliases (e.g. "ekaramet/" or "Ertval Karameta/")
+ *   1. Any branch starting with their track's canonical username (e.g. "ekaramet/")
  *   2. The shared "process/" namespace
  *   3. The shared "bugfix/" namespace
+ *
+ * Note: While the dev is identified by any alias, the branch prefix is strictly gated to the canonical ID.
  *
  * @param {string} username   — The git username of the person pushing.
  * @param {string} branchName — The remote branch being pushed to.
@@ -230,20 +251,23 @@ export function isAllowedBranchForOwner(username, branchName) {
     return false;
   }
 
+  const track = getTrackForUser(username);
+  if (!track) {
+    return false;
+  }
+
   // Shared namespaces accessible to any registered developer.
   if (normalizedBranch.startsWith('process/') || normalizedBranch.startsWith('bugfix/')) {
     return true;
   }
 
-  const aliases = getAliasesForUser(username);
-  if (aliases.length === 0) {
+  const canonicalUser = TRACK_CANONICAL_OWNER[track];
+  if (!canonicalUser) {
     return false;
   }
 
-  // The developer's own namespace: branch must start with any of their aliases.
-  return aliases.some((alias) =>
-    normalizedBranch.toLowerCase().startsWith(`${alias.toLowerCase()}/`),
-  );
+  // The developer's own namespace: branch must start with the canonical username.
+  return normalizedBranch.toLowerCase().startsWith(`${canonicalUser.toLowerCase()}/`);
 }
 
 /**

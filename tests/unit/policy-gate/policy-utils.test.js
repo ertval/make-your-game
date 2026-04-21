@@ -14,9 +14,12 @@ import {
   extractOwnerFromBranch,
   extractTicketIdFromBranchName,
   findOwnershipViolations,
+  getCanonicalUserForUser,
   getOwnersForTrack,
+  getTrackForUser,
   inferProcessModeFromSources,
   inferTicketIdsFromSources,
+  isAllowedBranchForOwner,
   isBugfixBranch,
   resolveBranchName,
   resolveOwnerTrackFromBranch,
@@ -398,5 +401,58 @@ describe('policy-utils bugfix branch detection', () => {
     expect(isBugfixBranch('ekaramet/A-03')).toBe(false);
     expect(isBugfixBranch('ekaramet/process-audit')).toBe(false);
     expect(isBugfixBranch('ekaramet/bugfix-')).toBe(false);
+  });
+});
+
+describe('policy-utils branch push protection', () => {
+  it('identifies track from developer alias (case-insensitive)', () => {
+    expect(getTrackForUser('ekaramet')).toBe('A');
+    expect(getTrackForUser('Ertval Karameta')).toBe('A');
+    expect(getTrackForUser('ERTVAL K')).toBe('A');
+    expect(getTrackForUser('medvall')).toBe('D');
+    expect(getTrackForUser('Magnus Edvall')).toBe('D');
+    expect(getTrackForUser('unknown')).toBe('');
+  });
+
+  it('resolves canonical username for any alias', () => {
+    expect(getCanonicalUserForUser('Ertval Karameta')).toBe('ekaramet');
+    expect(getCanonicalUserForUser('Ertval K')).toBe('ekaramet');
+    expect(getCanonicalUserForUser('Magnus Edvall')).toBe('medvall');
+    expect(getCanonicalUserForUser('edvallm')).toBe('medvall');
+    expect(getCanonicalUserForUser('unknown')).toBe('');
+  });
+
+  it('allows push to branch starting with canonical username prefix', () => {
+    // Ekaramet (alias) can push to ekaramet/ prefix
+    expect(isAllowedBranchForOwner('Ertval Karameta', 'ekaramet/A-10')).toBe(true);
+    // Medvall (canonical) can push to medvall/ prefix
+    expect(isAllowedBranchForOwner('medvall', 'medvall/D-01')).toBe(true);
+  });
+
+  it('rejects push to branch starting with an alias prefix', () => {
+    // Ertval Karameta is an alias, not the canonical username
+    expect(isAllowedBranchForOwner('Ertval Karameta', 'Ertval Karameta/A-10')).toBe(false);
+    // Magnus Edvall is an alias, not the canonical username
+    expect(isAllowedBranchForOwner('Magnus Edvall', 'Magnus Edvall/D-01')).toBe(false);
+  });
+
+  it('allows shared namespaces for any registered developer', () => {
+    expect(isAllowedBranchForOwner('ekaramet', 'process/update-policy')).toBe(true);
+    expect(isAllowedBranchForOwner('medvall', 'bugfix/ghost-ai')).toBe(true);
+  });
+
+  it('rejects push to another track canonical prefix', () => {
+    // medvall (Track D) cannot push to ekaramet/ (Track A)
+    expect(isAllowedBranchForOwner('medvall', 'ekaramet/A-10')).toBe(false);
+  });
+
+  it('rejects unregistered users', () => {
+    expect(isAllowedBranchForOwner('ci-bot', 'ekaramet/A-10')).toBe(false);
+    expect(isAllowedBranchForOwner('unknown-dev', 'process/docs')).toBe(false);
+  });
+
+  it('rejects empty or malformed branch names', () => {
+    expect(isAllowedBranchForOwner('ekaramet', '')).toBe(false);
+    expect(isAllowedBranchForOwner('ekaramet', '   ')).toBe(false);
   });
 });
