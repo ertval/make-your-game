@@ -2,10 +2,10 @@
  * C-02 player life and respawn protection system.
  *
  * This module implements a pure ECS logic system that manages player lives,
- * death consumption, temporary invincibility, and terminal game-over
- * transitions entirely through world resources. It consumes collision-driven
- * death intents deterministically and mutates only the shared gameplay
- * resources needed for life-state progression.
+ * death consumption, temporary invincibility, explicit respawn signaling,
+ * and terminal game-over transitions entirely through world resources. It
+ * consumes collision-driven death intents deterministically and mutates only
+ * the shared gameplay resources needed for life-state progression.
  *
  * Public API:
  * - createLifeSystem(options)
@@ -26,6 +26,7 @@ const DEFAULT_CLOCK_RESOURCE_KEY = 'clock';
 const DEFAULT_DEATH_INTENT_RESOURCE_KEY = 'deathIntent';
 const DEFAULT_GAME_STATUS_RESOURCE_KEY = 'gameStatus';
 const DEFAULT_PLAYER_LIFE_RESOURCE_KEY = 'playerLife';
+const DEFAULT_RESPAWN_INTENT_RESOURCE_KEY = 'respawnIntent';
 
 function createDefaultPlayerLife() {
   return {
@@ -92,6 +93,8 @@ export function createLifeSystem(options = {}) {
     options.deathIntentResourceKey || DEFAULT_DEATH_INTENT_RESOURCE_KEY;
   const gameStatusResourceKey = options.gameStatusResourceKey || DEFAULT_GAME_STATUS_RESOURCE_KEY;
   const playerLifeResourceKey = options.playerLifeResourceKey || DEFAULT_PLAYER_LIFE_RESOURCE_KEY;
+  const respawnIntentResourceKey =
+    options.respawnIntentResourceKey || DEFAULT_RESPAWN_INTENT_RESOURCE_KEY;
 
   return {
     name: 'life-system',
@@ -102,8 +105,14 @@ export function createLifeSystem(options = {}) {
         deathIntentResourceKey,
         gameStatusResourceKey,
         playerLifeResourceKey,
+        respawnIntentResourceKey,
       ],
-      write: [deathIntentResourceKey, gameStatusResourceKey, playerLifeResourceKey],
+      write: [
+        deathIntentResourceKey,
+        gameStatusResourceKey,
+        playerLifeResourceKey,
+        respawnIntentResourceKey,
+      ],
     },
     update(context) {
       const clock = context.world.getResource(clockResourceKey);
@@ -113,6 +122,11 @@ export function createLifeSystem(options = {}) {
 
       playerLife = ensurePlayerLifeResource(playerLife);
       context.world.setResource(playerLifeResourceKey, playerLife);
+      // Reset per-tick respawn signaling up front so the resource is always defined
+      // and never leaks a previous-frame event into the next fixed step.
+      context.world.setResource(respawnIntentResourceKey, false);
+      // Consume death intent deterministically every tick after snapshotting it.
+      context.world.setResource(deathIntentResourceKey, false);
 
       tickInvincibility(playerLife, getDeltaMs(clock));
 
@@ -121,10 +135,6 @@ export function createLifeSystem(options = {}) {
         playerLife.isInvincible === false &&
         gameStatus?.currentState === GAME_STATE.PLAYING;
 
-      if (deathIntent) {
-        context.world.setResource(deathIntentResourceKey, false);
-      }
-
       if (!canHandleDeath) {
         return;
       }
@@ -132,12 +142,14 @@ export function createLifeSystem(options = {}) {
       playerLife.lives = Math.max(0, playerLife.lives - 1);
 
       if (playerLife.lives === 0) {
+        context.world.setResource(respawnIntentResourceKey, false);
         triggerGameOver(gameStatus);
         return;
       }
 
       playerLife.isInvincible = true;
       playerLife.invincibilityRemainingMs = INVINCIBILITY_MS;
+      context.world.setResource(respawnIntentResourceKey, true);
     },
   };
 }

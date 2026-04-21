@@ -2,8 +2,8 @@
  * Unit tests for the C-02 player life system.
  *
  * These checks verify deterministic life initialization, invincibility timing,
- * one-shot death intent consumption, and terminal game-over transitions with
- * no DOM-facing dependencies.
+ * one-shot death intent consumption, explicit respawn signaling, and terminal
+ * game-over transitions with no DOM-facing dependencies.
  */
 
 import { describe, expect, it } from 'vitest';
@@ -29,6 +29,7 @@ describe('life-system', () => {
       isInvincible: false,
       invincibilityRemainingMs: 0,
     });
+    expect(world.getResource('respawnIntent')).toBe(false);
   });
 
   it('sanitizes malformed playerLife resource', () => {
@@ -51,9 +52,10 @@ describe('life-system', () => {
       isInvincible: false,
       invincibilityRemainingMs: 0,
     });
+    expect(world.getResource('respawnIntent')).toBe(false);
   });
 
-  it('decrements lives and grants invincibility on a valid death', () => {
+  it('decrements lives, sets respawnIntent, and grants invincibility on a valid death', () => {
     const world = new World();
     const lifeSystem = createLifeSystem();
 
@@ -74,6 +76,7 @@ describe('life-system', () => {
       invincibilityRemainingMs: 2000,
     });
     expect(world.getResource('deathIntent')).toBe(false);
+    expect(world.getResource('respawnIntent')).toBe(true);
   });
 
   it('does not decrement lives when deathIntent persists across invincibility frames', () => {
@@ -99,6 +102,27 @@ describe('life-system', () => {
     expect(world.getResource('playerLife').lives).toBe(2);
     expect(world.getResource('playerLife').isInvincible).toBe(true);
     expect(world.getResource('deathIntent')).toBe(false);
+    expect(world.getResource('respawnIntent')).toBe(false);
+  });
+
+  it('clears respawnIntent on the next tick after a respawn-triggering death', () => {
+    const world = new World();
+    const lifeSystem = createLifeSystem();
+
+    world.setResource('clock', createClock(0));
+    world.setResource('gameStatus', createGameStatus(GAME_STATE.PLAYING));
+    world.setResource('deathIntent', true);
+    world.setResource('playerLife', {
+      lives: 3,
+      isInvincible: false,
+      invincibilityRemainingMs: 0,
+    });
+
+    lifeSystem.update({ world });
+    expect(world.getResource('respawnIntent')).toBe(true);
+
+    lifeSystem.update({ world });
+    expect(world.getResource('respawnIntent')).toBe(false);
   });
 
   it('counts down invincibility and clears it when the timer expires', () => {
@@ -124,6 +148,7 @@ describe('life-system', () => {
       isInvincible: false,
       invincibilityRemainingMs: 0,
     });
+    expect(world.getResource('respawnIntent')).toBe(false);
   });
 
   it('does not handle death while the player is invincible', () => {
@@ -150,6 +175,7 @@ describe('life-system', () => {
       invincibilityRemainingMs: 1900,
     });
     expect(world.getResource('deathIntent')).toBe(false);
+    expect(world.getResource('respawnIntent')).toBe(false);
   });
 
   it('treats zero invincibility time as not invincible', () => {
@@ -172,6 +198,7 @@ describe('life-system', () => {
       isInvincible: true,
       invincibilityRemainingMs: 2000,
     });
+    expect(world.getResource('respawnIntent')).toBe(true);
   });
 
   it('clamps negative invincibility to zero', () => {
@@ -194,6 +221,7 @@ describe('life-system', () => {
       isInvincible: false,
       invincibilityRemainingMs: 0,
     });
+    expect(world.getResource('respawnIntent')).toBe(false);
   });
 
   it('does not handle death outside PLAYING state', () => {
@@ -217,6 +245,7 @@ describe('life-system', () => {
       invincibilityRemainingMs: 0,
     });
     expect(world.getResource('deathIntent')).toBe(false);
+    expect(world.getResource('respawnIntent')).toBe(false);
   });
 
   it('clamps lives at zero and transitions to GAME_OVER on terminal death', () => {
@@ -243,6 +272,7 @@ describe('life-system', () => {
     expect(gameStatus.currentState).toBe(GAME_STATE.GAME_OVER);
     expect(gameStatus.previousState).toBe(GAME_STATE.PLAYING);
     expect(world.getResource('deathIntent')).toBe(false);
+    expect(world.getResource('respawnIntent')).toBe(false);
   });
 
   it('does not trigger multiple GAME_OVER transitions once already game over', () => {
@@ -265,5 +295,6 @@ describe('life-system', () => {
     expect(gameStatus.previousState).toBeNull();
     expect(world.getResource('playerLife').lives).toBe(0);
     expect(world.getResource('deathIntent')).toBe(false);
+    expect(world.getResource('respawnIntent')).toBe(false);
   });
 });

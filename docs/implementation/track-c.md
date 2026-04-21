@@ -12,12 +12,14 @@ Source plan: `docs/implementation/implementation-plan.md` (Section 3)
 - **P3 Feature Complete + Hardening**: `C-07`
 - **P4 Polish and Validation**: `C-08` to `C-10`
 
+> Note: `A-11` is referenced for audit traceability only and does not block Track C ticket execution.
+
 ---
 
 #### C-01: Scoring System
 **Priority**: Critical
 **Phase**: P2 Playable MVP
-**Depends On**: `B-04` (collision intents), `C-02` (timer/lives), `D-01` (event-queue resource), `A-11` (P1 consolidated audit gate)
+**Depends On**: `B-04` (collision intents), `C-02` (timer/lives), `D-01` (event-queue resource), `A-11` (audit gate, non-blocking)
 **Impacts**: HUD-critical score metric (`AUDIT-F-15`)
 **Blocks**: A-08, B-09
 
@@ -36,7 +38,7 @@ Source plan: `docs/implementation/implementation-plan.md` (Section 3)
 #### C-02: Timer & Life Systems
 **Priority**: Critical
 **Phase**: P2 Playable MVP
-**Depends On**: `D-01` (clock/constants resources), `B-04` (collision intents for death), `A-11` (P1 consolidated audit gate)
+**Depends On**: `D-01` (clock/constants resources), `B-04` (collision intents for death), `A-11` (audit gate, non-blocking)
 **Impacts**: HUD-critical timer and lives metrics (`AUDIT-F-14`, `AUDIT-F-16`)
 **Blocks**: A-05, A-08, B-09, C-04, C-05
 
@@ -53,7 +55,7 @@ Source plan: `docs/implementation/implementation-plan.md` (Section 3)
 #### C-03: Spawn System
 **Priority**: Critical
 **Phase**: P2 Playable MVP
-**Depends On**: `D-01` (constants/clock), `D-03` (map resource — ghost spawn points), `A-11` (P1 consolidated audit gate)
+**Depends On**: `D-01` (constants/clock), `D-03` (map resource — ghost spawn points), `A-11` (audit gate, non-blocking)
 **Impacts**: Ghost stagger timing and death-return respawn
 **Blocks**: A-08, B-08
 
@@ -70,7 +72,7 @@ Source plan: `docs/implementation/implementation-plan.md` (Section 3)
 #### C-04: Pause & Level Progression Systems
 **Priority**: Critical
 **Phase**: P2 Playable MVP
-**Depends On**: `D-01` (clock/game-status), `D-03` (map resource), `C-02` (timer/lives), `A-03` (game loop), `A-11` (P1 consolidated audit gate)
+**Depends On**: `D-01` (clock/game-status), `D-03` (map resource), `C-02` (timer/lives), `A-03` (game loop), `A-11` (audit gate, non-blocking)
 **Impacts**: Pause menu behavior and level/game state transitions (`AUDIT-F-07..F-10`)
 **Blocks**: A-05, A-06, A-08, C-05
 
@@ -93,7 +95,7 @@ Source plan: `docs/implementation/implementation-plan.md` (Section 3)
 #### C-05: HUD Adapter & Screen Overlays
 **Priority**: Critical
 **Phase**: P2 Playable MVP
-**Depends On**: `D-05` (CSS layout), `C-02` (timer/lives data), `C-04` (pause/progression states), `A-11` (P1 consolidated audit gate)
+**Depends On**: `D-05` (CSS layout), `C-02` (timer/lives data), `C-04` (pause/progression states), `A-11` (audit gate, non-blocking)
 **Impacts**: Visible gameplay metrics (`AUDIT-F-14..F-16`), pause/start/restart UX (`AUDIT-F-07..F-09`)
 **Blocks**: A-05, A-06, A-08, D-11
 
@@ -120,7 +122,7 @@ Source plan: `docs/implementation/implementation-plan.md` (Section 3)
 #### C-06: Audio Adapter Implementation
 **Priority**: Critical
 **Phase**: P2 Playable MVP
-**Depends On**: `A-01` (scaffolding), `D-01` (constants resource), `A-11` (P1 consolidated audit gate)
+**Depends On**: `A-01` (scaffolding), `D-01` (constants resource), `A-11` (audit gate, non-blocking)
 **Impacts**: Runtime audio boundary, fallback resilience, async decode baseline (`AUDIT-B-05`)
 **Blocks**: C-07, C-08, C-09
 
