@@ -1,0 +1,64 @@
+#!/usr/bin/env bash
+# pre-push hook — Branch Push Protection
+#
+# Purpose: Prevents any registered developer from pushing to a remote branch they do not own.
+# Allowed branch prefixes for a given developer:
+#   • <username>/   — their own namespace (e.g. medvall/D-04)
+#   • process/      — shared governance / docs branches
+#   • bugfix/       — cross-track bugfix branches
+#
+# The hook reads the pushed refs from stdin (git protocol), extracts the remote branch name,
+# and delegates to the Node policy script for the actual ownership check.
+# If node is unavailable the hook degrades gracefully (warn + allow) to avoid blocking CI.
+#
+# Installation: Symlink or copy this file to .git/hooks/pre-push and make it executable.
+# The `npm run install:hooks` script handles this automatically.
+
+set -euo pipefail
+
+REPO_ROOT="$(git rev-parse --show-toplevel 2>/dev/null || pwd)"
+POLICY_SCRIPT="${REPO_ROOT}/scripts/policy-gate/check-branch-ownership.mjs"
+
+# Detect git username — same resolution order used by the policy script itself.
+GIT_USERNAME="$(git config user.name 2>/dev/null || echo "")"
+
+if [[ -z "${GIT_USERNAME}" ]]; then
+  echo "⚠️  pre-push: could not determine git user.name — branch protection skipped." >&2
+  exit 0
+fi
+
+# The remote name and URL are provided by git as positional arguments.
+REMOTE_NAME="${1:-}"
+# REMOTE_URL="${2:-}"  # available but not needed for ownership checks
+
+# git feeds the pushed refs to stdin in the format:
+#   <local-ref> <local-sha> <remote-ref> <remote-sha>
+# We iterate every ref being pushed and check each remote branch name.
+FAILED=0
+
+while IFS=' ' read -r _local_ref _local_sha remote_ref _remote_sha; do
+  # Strip the 'refs/heads/' prefix to get the bare branch name.
+  REMOTE_BRANCH="${remote_ref#refs/heads/}"
+
+  # Skip tag pushes and deletions (zero sha).
+  if [[ "${remote_ref}" == refs/tags/* ]]; then
+    continue
+  fi
+  if [[ "${_local_sha}" == "0000000000000000000000000000000000000000" ]]; then
+    # This is a branch deletion — ownership check not applicable.
+    continue
+  fi
+
+  if ! command -v node &>/dev/null; then
+    echo "⚠️  pre-push: node not found — branch protection check skipped for '${REMOTE_BRANCH}'." >&2
+    continue
+  fi
+
+  if ! node "${POLICY_SCRIPT}" \
+      --username="${GIT_USERNAME}" \
+      --branch="${REMOTE_BRANCH}" 2>&1; then
+    FAILED=1
+  fi
+done
+
+exit "${FAILED}"

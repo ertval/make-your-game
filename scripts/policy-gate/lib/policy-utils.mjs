@@ -8,6 +8,13 @@
  * Branches matching the pattern <owner>/bugfix-<slug> bypass track ownership checks so a single
  * developer can touch files across multiple tracks during a cross-cutting bug fix. All other gates
  * (security boundaries, forbidden APIs, traceability, lockfile pairing) still run normally.
+ *
+ * Branch Push Protection:
+ * Each registered developer (see OWNER_TRACK_MAPPING) may only push to remote branches whose name
+ * starts with their own username (e.g. medvall/D-04), the shared 'process/' namespace, or the
+ * cross-track 'bugfix/' namespace. Pushes to any other prefix are rejected by the pre-push hook
+ * and the check-branch-ownership.mjs policy script.
+ * See: isAllowedBranchForOwner() below.
  */
 
 import { spawnSync } from 'node:child_process';
@@ -145,14 +152,99 @@ export function isBugfixBranch(branchName) {
   return Object.keys(OWNER_TRACK_MAPPING).some((key) => key.toLowerCase() === owner);
 }
 
-// Owner-to-track mapping enforces that each developer only modifies files in their assigned track.
-// This prevents cross-track edits when a branch owner's ticket belongs to a different track.
+// Developer registry maps all known aliases (from git history) to their canonical track.
+// This allows developers to use different git usernames/names across machines while
+// maintaining track-scoped policy enforcement.
 export const OWNER_TRACK_MAPPING = {
+  // Track A: Engine/CI/Testing
   ekaramet: 'A',
+  'Erti Karameta': 'A',
+  'Ertval K': 'A',
+  'Ertval Karameta': 'A',
+
+  // Track B: Simulation Gameplay Systems
   asmyrogl: 'B',
+  'Alex Smyroglou': 'B',
+  'Alexandros Smyroglou': 'B',
+  alexsmyr0: 'B',
+  alexsmyro: 'B',
+
+  // Track C: Gameplay Feedback + Audio
   chbaikas: 'C',
+  'Chris Baikas': 'C',
+  chrisbaikas: 'C',
+
+  // Track D: Resources/Rendering/Visual
   medvall: 'D',
+  'Magnus Edvall': 'D',
+  edvallm: 'D',
 };
+
+/**
+ * Return the canonical track for a given username alias.
+ * @param {string} username — The username or name to look up.
+ * @returns {string} The track code (A/B/C/D) or empty string if not found.
+ */
+export function getTrackForUser(username) {
+  const normalized = String(username || '')
+    .trim()
+    .toLowerCase();
+  for (const [alias, track] of Object.entries(OWNER_TRACK_MAPPING)) {
+    if (alias.toLowerCase() === normalized) {
+      return track;
+    }
+  }
+  return '';
+}
+
+/**
+ * Return all usernames/aliases that belong to the same developer (same track) as the input username.
+ * @param {string} username — The username to find peers for.
+ * @returns {string[]} List of aliases for that developer.
+ */
+export function getAliasesForUser(username) {
+  const track = getTrackForUser(username);
+  if (!track) {
+    return [];
+  }
+  return Object.entries(OWNER_TRACK_MAPPING)
+    .filter(([, t]) => t === track)
+    .map(([alias]) => alias);
+}
+
+/**
+ * Return true when the given username is allowed to push to the given remote branch name.
+ *
+ * A developer is allowed to push to:
+ *   1. Any branch starting with one of their registered aliases (e.g. "ekaramet/" or "Ertval Karameta/")
+ *   2. The shared "process/" namespace
+ *   3. The shared "bugfix/" namespace
+ *
+ * @param {string} username   — The git username of the person pushing.
+ * @param {string} branchName — The remote branch being pushed to.
+ * @returns {boolean}
+ */
+export function isAllowedBranchForOwner(username, branchName) {
+  const normalizedBranch = String(branchName || '').trim();
+  if (!normalizedBranch) {
+    return false;
+  }
+
+  // Shared namespaces accessible to any registered developer.
+  if (normalizedBranch.startsWith('process/') || normalizedBranch.startsWith('bugfix/')) {
+    return true;
+  }
+
+  const aliases = getAliasesForUser(username);
+  if (aliases.length === 0) {
+    return false;
+  }
+
+  // The developer's own namespace: branch must start with any of their aliases.
+  return aliases.some((alias) =>
+    normalizedBranch.toLowerCase().startsWith(`${alias.toLowerCase()}/`),
+  );
+}
 
 /**
  * Extract the owner (username) from a branch name.

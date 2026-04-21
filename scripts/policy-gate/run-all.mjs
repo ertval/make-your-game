@@ -131,6 +131,11 @@ if (scope === 'pr' || scope === 'all') {
   console.log('🚀 Phase 2: Starting Policy Enforcements');
   console.log('========================================================================\n');
 
+  // Branch ownership is enforced unconditionally — every registered developer may only push to
+  // branches that start with their own username, 'process/', or 'bugfix/'. This check runs before
+  // ticket/process resolution so a bad branch name fails fast regardless of PR metadata.
+  runStep('Branch ownership check', 'npm', ['run', 'policy:branch'], 'npm run policy:branch');
+
   // We parse the extracted git metadata file to infer PR intent and verify traceability.
   const { branchTicketIds, commitTicketIds, hasProcessMode, isBugfixMode } = resolvePolicyContext();
 
