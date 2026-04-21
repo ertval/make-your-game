@@ -111,14 +111,15 @@ function clearHeldInputState(bootstrap) {
     return;
   }
 
-  if (typeof adapter.clearHeldKeys === 'function') {
-    adapter.clearHeldKeys();
-    return;
+  // The explicit adapter contract requires clearHeldKeys(); fall-through to
+  // field probing would hide a malformed adapter registration, so throw loudly.
+  if (typeof adapter.clearHeldKeys !== 'function') {
+    throw new Error(
+      'Input adapter resource must expose clearHeldKeys(). Register it through bootstrap.setInputAdapter().',
+    );
   }
 
-  if (adapter.heldKeys instanceof Set) {
-    adapter.heldKeys.clear();
-  }
+  adapter.clearHeldKeys();
 }
 
 /**
@@ -365,9 +366,15 @@ export function createGameRuntime({
       cancelScheduledFrame(frameHandle);
     }
 
-    const adapter = bootstrap.getInputAdapter();
-    if (adapter && typeof adapter.destroy === 'function') {
-      adapter.destroy();
+    // Prefer the explicit bootstrap API so the resource slot is cleared and any
+    // previously-registered adapter is destroyed through one code path.
+    if (typeof bootstrap.setInputAdapter === 'function') {
+      bootstrap.setInputAdapter(null);
+    } else {
+      const adapter = bootstrap.getInputAdapter();
+      if (adapter && typeof adapter.destroy === 'function') {
+        adapter.destroy();
+      }
     }
 
     if (targetWindow && typeof targetWindow.removeEventListener === 'function') {
@@ -449,7 +456,9 @@ export async function bootstrapApplication({
       loadMapForLevel: resolvedLoadMapForLevel,
       now: getNow(),
     });
-    bootstrap.world.setResource('inputAdapter', inputAdapter);
+    // Register through the explicit bootstrap API so the adapter contract is
+    // validated at injection time and teardown on stop is symmetric.
+    bootstrap.setInputAdapter(inputAdapter);
 
     installUnhandledRejectionHandler({
       logger,

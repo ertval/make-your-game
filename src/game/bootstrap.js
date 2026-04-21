@@ -10,6 +10,7 @@
  * - registerSystemsByPhase(world, systemsByPhase)
  */
 
+import { assertValidInputAdapter } from '../adapters/io/input-adapter.js';
 import {
   createInputStateStore,
   createPlayerStore,
@@ -37,8 +38,34 @@ import { createLevelLoader } from './level-loader.js';
 const DEFAULT_PLAYER_RESOURCE_KEY = 'player';
 const DEFAULT_POSITION_RESOURCE_KEY = 'position';
 const DEFAULT_VELOCITY_RESOURCE_KEY = 'velocity';
+const DEFAULT_INPUT_ADAPTER_RESOURCE_KEY = 'inputAdapter';
 const DEFAULT_INPUT_STATE_RESOURCE_KEY = 'inputState';
 const DEFAULT_PLAYER_ENTITY_RESOURCE_KEY = 'playerEntity';
+
+/**
+ * Resolve the input adapter resource key from bootstrap options.
+ *
+ * Both `inputAdapterResourceKey` and the older `adapterResourceKey` names are
+ * honored so callers that wire the system directly do not silently break while
+ * we migrate everything to the explicit bootstrap API.
+ *
+ * @param {object} [options={}] - Bootstrap options.
+ * @returns {string} Resolved resource key for the input adapter slot.
+ */
+function resolveInputAdapterResourceKey(options = {}) {
+  if (
+    typeof options.inputAdapterResourceKey === 'string' &&
+    options.inputAdapterResourceKey.length > 0
+  ) {
+    return options.inputAdapterResourceKey;
+  }
+
+  if (typeof options.adapterResourceKey === 'string' && options.adapterResourceKey.length > 0) {
+    return options.adapterResourceKey;
+  }
+
+  return DEFAULT_INPUT_ADAPTER_RESOURCE_KEY;
+}
 
 function normalizeManifest(manifest) {
   const version =
@@ -153,7 +180,7 @@ function normalizeSystemRegistration(phase, registration, index) {
  * @returns {Record<string, Array<object>>} Phase-keyed ECS system registrations.
  */
 function createDefaultSystemsByPhase(options = {}) {
-  const adapterResourceKey = options.adapterResourceKey || 'inputAdapter';
+  const adapterResourceKey = resolveInputAdapterResourceKey(options);
   const inputStateResourceKey = options.inputStateResourceKey || DEFAULT_INPUT_STATE_RESOURCE_KEY;
   const playerResourceKey = options.playerResourceKey || DEFAULT_PLAYER_RESOURCE_KEY;
   const positionResourceKey = options.positionResourceKey || DEFAULT_POSITION_RESOURCE_KEY;
@@ -342,6 +369,7 @@ export function registerSystemsByPhase(world, systemsByPhase = {}) {
 export function createBootstrap(options = {}) {
   const nowMs = toFiniteTimestamp(options.now ?? 0);
   const world = options.world || new World();
+  const inputAdapterResourceKey = resolveInputAdapterResourceKey(options);
   const playerEntityResourceKey =
     options.playerEntityResourceKey || DEFAULT_PLAYER_ENTITY_RESOURCE_KEY;
   const clock = createClock(nowMs);
@@ -349,6 +377,9 @@ export function createBootstrap(options = {}) {
 
   // Movement systems need their component stores present before fixed-step work begins.
   initializeMovementResources(world, options);
+  // Pre-register the adapter slot so runtime wiring has one explicit resource key
+  // and systems never have to distinguish "never registered" from "registered null".
+  ensureWorldResource(world, inputAdapterResourceKey, () => null);
 
   const levelLoader = createLevelLoader({
     loadMapForLevel: options.loadMapForLevel,
@@ -379,7 +410,13 @@ export function createBootstrap(options = {}) {
 
   registerSystemsByPhase(
     world,
-    mergeSystemsByPhase(createDefaultSystemsByPhase(options), options.systemsByPhase),
+    mergeSystemsByPhase(
+      createDefaultSystemsByPhase({
+        ...options,
+        inputAdapterResourceKey,
+      }),
+      options.systemsByPhase,
+    ),
   );
 
   function stepFrame(
@@ -424,7 +461,43 @@ export function createBootstrap(options = {}) {
   }
 
   function getInputAdapter() {
-    return world.getResource('inputAdapter') || null;
+    return world.getResource(inputAdapterResourceKey) || null;
+  }
+
+  /**
+   * Validate and register the browser-facing input adapter resource.
+   *
+   * Passing `null` or `undefined` clears the registration and destroys any
+   * previously stored adapter so blur/visibility teardown is explicit.
+   * Any non-null value must satisfy the `assertValidInputAdapter` contract.
+   *
+   * @param {InputAdapter | null} adapter - Explicit adapter contract or null to clear it.
+   * @returns {InputAdapter | null} The stored adapter resource, or null after clearing.
+   */
+  function setInputAdapter(adapter) {
+    const previousAdapter = world.getResource(inputAdapterResourceKey) || null;
+
+    if (adapter === null || adapter === undefined) {
+      if (previousAdapter && typeof previousAdapter.destroy === 'function') {
+        previousAdapter.destroy();
+      }
+      world.setResource(inputAdapterResourceKey, null);
+      return null;
+    }
+
+    // Validate before any side effects so a bad adapter never replaces a good one.
+    assertValidInputAdapter(adapter);
+
+    if (
+      previousAdapter &&
+      previousAdapter !== adapter &&
+      typeof previousAdapter.destroy === 'function'
+    ) {
+      previousAdapter.destroy();
+    }
+
+    world.setResource(inputAdapterResourceKey, adapter);
+    return adapter;
   }
 
   return {
@@ -432,9 +505,11 @@ export function createBootstrap(options = {}) {
     gameFlow,
     gameStatus,
     getInputAdapter,
+    inputAdapterResourceKey,
     levelLoader,
     playerEntityResourceKey,
     resyncTime,
+    setInputAdapter,
     stepFrame,
     world,
   };
