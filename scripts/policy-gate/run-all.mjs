@@ -65,6 +65,8 @@ for (const [key, value] of Object.entries(args)) {
   passThrough.push(`--${key}=${value}`);
 }
 
+const aggregatedErrors = [];
+
 // We wrap shell execution to unify error propagation and consistently hint the user on how to reproduce the step locally.
 function runStep(label, command, commandArgs, retryHint) {
   try {
@@ -72,7 +74,9 @@ function runStep(label, command, commandArgs, retryHint) {
   } catch (error) {
     const hint = retryHint ? ` Retry with: ${retryHint}.` : '';
     const detail = error instanceof Error ? error.message : String(error);
-    throw new Error(`${GATE_FAIL} — ${label} failed.${hint} Original error: ${detail}`);
+    const msg = `${label} failed.${hint}\n  Error details: ${detail}`;
+    console.error(`\n${GATE_FAIL} — ${msg}\n`);
+    aggregatedErrors.push(msg);
   }
 }
 
@@ -275,6 +279,16 @@ if ((scope === 'repo' || scope === 'all') && !(scope === 'all' && ranRepoFallbac
   } else {
     console.log('Skipping repo integrity checks by configuration.');
   }
+}
+
+if (aggregatedErrors.length > 0) {
+  console.error(
+    `\n${GATE_FAIL} — Policy gate finished with ${aggregatedErrors.length} failure(s):`,
+  );
+  for (const err of aggregatedErrors) {
+    console.error(` - ${err}`);
+  }
+  process.exit(1);
 }
 
 console.log(
