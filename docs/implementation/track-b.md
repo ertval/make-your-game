@@ -68,13 +68,13 @@
 - `src/adapters/io/input-adapter.js` — keydown/keyup capture, blur clearing, no OS key-repeat dependency
 - `src/ecs/systems/input-system.js` — reads adapter, writes input-state component per fixed step
 
-- [ ] Implement `adapters/io/input-adapter.js`: Captures `keydown`/`keyup` securely mapping into an intent buffer. No OS key repeat reliance.
-- [ ] Ensure held-key state clears on `blur`/`visibilitychange` to prevent stuck movement after focus loss.
-- [ ] Implement `ecs/systems/input-system.js`: Reads adapter, writes into the `input-state` component attached to the Player entity within the frame logic.
-- [ ] Snapshot input state once per fixed simulation step and consume immutable snapshots in gameplay systems.
-- [ ] Use canonical bindings: Arrow keys movement, `Space` bomb, `Escape`/`P` pause toggle.
-- [ ] Handle `Enter` key for menu navigation, Start Game, Next Level, and Play Again confirmations.
-- [ ] Verification gate: tests cover hold-to-move behavior, focus-loss clearing, and no dependency on OS key-repeat.
+- [x] Implement `adapters/io/input-adapter.js`: Captures `keydown`/`keyup` securely mapping into an intent buffer. No OS key repeat reliance.
+- [x] Ensure held-key state clears on `blur`/`visibilitychange` to prevent stuck movement after focus loss.
+- [x] Implement `ecs/systems/input-system.js`: Reads adapter, writes into the `input-state` component attached to the Player entity within the frame logic.
+- [x] Snapshot input state once per fixed simulation step and consume immutable snapshots in gameplay systems.
+- [x] Use canonical bindings: Arrow keys movement, `Space` bomb, `Escape`/`P` pause toggle.
+- [x] Handle `Enter` key for menu navigation, Start Game, Next Level, and Play Again confirmations.
+- [x] Verification gate: tests cover hold-to-move behavior, focus-loss clearing, and no dependency on OS key-repeat.
 
 ---
 
@@ -88,12 +88,12 @@
 **Deliverables**:
 - `src/ecs/systems/player-move-system.js` — grid-constrained player motion
 
-- [ ] Implement `player-move-system.js`: Queries the grid from `map-resource` based on Position vs Velocity intentions. Ensures smooth sub-cell locking and prevents walking through walls.
-- [ ] Works using ECS state-machine variables. Updates TargetRow/Col.
-- [ ] Enforce no diagonal drift and deterministic motion under variable render FPS.
-- [ ] Apply exact base speed from `game-description.md` §8 (Player = 5.0 tiles/sec).
-- [ ] Handle speed boost multiplier (`1.5x`) when player has active speed boost.
-- [ ] Verification gate: unit tests for blocked movement, path continuity, and interpolation correctness.
+- [x] Implement `player-move-system.js`: Queries the grid from `map-resource` based on Position vs Velocity intentions. Ensures smooth sub-cell locking and prevents walking through walls.
+- [x] Works using ECS state-machine variables. Updates TargetRow/Col.
+- [x] Enforce no diagonal drift and deterministic motion under variable render FPS.
+- [x] Apply exact base speed from `game-description.md` §8 (Player = 5.0 tiles/sec).
+- [x] Handle speed boost multiplier (`1.5x`) when player has active speed boost.
+- [x] Verification gate: unit tests for blocked movement, path continuity, and interpolation correctness.
 
 ---
 
@@ -107,7 +107,7 @@
 **Deliverables**:
 - `src/ecs/systems/collision-system.js` — cell-occupancy map, collision hierarchy, ghost house barrier
 
-- [ ] Implement `collision-system.js` using a **cell-occupancy map** for O(1) spatial lookups:
+- [x] Implement `collision-system.js` using a **cell-occupancy map** for O(1) spatial lookups:
   - **Mandatory Hierarchy**: `Invincibility > Fire > Ghost Contact`.
   - Fire vs Player → damage/death intent (unless Player `isInvincible`).
   - Fire vs Ghost → ghost death intent (Normal/Stunned ghosts).
@@ -116,11 +116,11 @@
   - Player vs Pellet → mark for collection (+10 points).
   - Player vs Power Pellet → mark for collection (+50 points, stun all ghosts).
   - Player vs Power-up → mark for collection (+100 points, apply effect).
-- [ ] Enforce **Ghost House Barrier** logic:
+- [x] Enforce **Ghost House Barrier** logic:
   - Ghosts can exit `G` tiles; only `Dead` (eyes-only) ghosts can enter.
   - Player is hard-blocked from entering any `G` tile.
-- [ ] Include bomb-cell occupancy constraints and ghost push-back when bomb dropped on shared cell.
-- [ ] Verification gate: integration tests cover all listed collision permutations.
+- [x] Include bomb-cell occupancy constraints and ghost push-back when bomb dropped on shared cell.
+- [x] Verification gate: integration tests cover all listed collision permutations.
 
 ---
 
