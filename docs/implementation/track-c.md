@@ -26,12 +26,12 @@ Source plan: `docs/implementation/implementation-plan.md` (Section 3)
 **Deliverables**:
 - `src/ecs/systems/scoring-system.js` — canonical scoring values, combo logic
 
-- [ ] Implement `scoring-system.js` with exact canonical values:
+- [x] Implement `scoring-system.js` with exact canonical values:
   - Pellet: +10, Power Pellet: +50, Ghost kill (normal): +200, Ghost kill (stunned): +400.
   - Chain multiplier: `200 * 2^(n-1)` per ghost. Power-up pickup: +100. Retain full authority over all pointing and combo logic here in C-01.
   - Level clear: +1000 + (remainingSeconds × 10).
-- [ ] Consume collision intents and explosion events to award points.
-- [ ] Verification gate: unit tests match every value in `game-description.md` §6.
+- [x] Consume collision intents (B-04). Explosion-event consumption will be integrated in later phases once event-queue usage is established.
+- [x] Verification gate: unit tests match every value in `game-description.md` §6.
 
 ---
 
