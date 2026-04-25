@@ -29,12 +29,14 @@ Coverage mapping remains canonical in `audit-traceability-matrix.md`.
 5. If a higher phase ticket is needed early, record the reason in the ticket line text.
 6. Track ticket phase labels (P0-P4) remain unchanged; the claim queue below is the active sequencing rule.
 
+> Note: `A-11` is referenced for audit traceability only and does not block Track C ticket execution.
+
 ## 📈 Summary Snapshot
 
 - Total tickets: `44`
-- Done: `13`
+- Done: `14`
 - In Progress: `0`
-- Not Started: `31`
+- Not Started: `30`
 
 ## 🧮 Phase Audit Remediation Ledger
 
@@ -103,19 +105,19 @@ Canonical ticket ID ranges used by policy checks:
 - [ ] **D-07** P1 - Render Collect System (Depends on: D-04, B-03, A-10) | Blocks: D-08; A-11
 - [ ] **D-09** P1 - Sprite Pool Adapter (Depends on: D-06, A-10) | Blocks: D-08; A-11
 - [ ] **D-08** P1 - Render DOM System (The Batcher) (Depends on: D-06, D-07, D-09, A-10) | Blocks: A-05; D-10; A-11
-- [ ] **A-11** P1 - Consolidate P1 audits + publish 4 deduplicated track fix reports (Depends on: D-05, D-06, B-02, B-03, D-07, D-09, D-08) | Blocks: B-04; C-02; C-01; C-03; C-04; C-05; B-05; A-07; C-06
+- [ ] **A-11** P1 - Consolidate P1 audits + publish 4 deduplicated track fix reports (Depends on: D-05, D-06, B-02, B-03, D-07, D-09, D-08) | Blocks: B-04; B-05; A-07
 
 ### Q2 / P2 Playable MVP
 
 - [x] **B-04** P2 - Entity Collision System (Depends on: B-01, B-03, D-03, A-11) | Blocks: A-06; A-08; B-05; B-06; B-07; B-08; C-01; C-02; A-12
-- [ ] **C-02** P2 - Timer & Life Systems (Depends on: D-01, B-04, A-11) | Blocks: A-05; A-08; B-09; C-01; C-04; C-05; A-12
-- [ ] **C-01** P2 - Scoring System (Depends on: B-04, C-02, D-01, A-11) | Blocks: A-05; A-06; A-08; B-09; A-12
-- [ ] **C-03** P2 - Spawn System (Depends on: D-01, D-03, A-11) | Blocks: A-06; A-08; B-08; A-12
-- [ ] **C-04** P2 - Pause & Level Progression Systems (Depends on: D-01, D-03, C-02, A-03, A-11) | Blocks: A-05; A-06; A-08; B-09; C-05; A-12
-- [ ] **C-05** P2 - HUD Adapter & Screen Overlays (Depends on: D-05, C-02, C-04, A-11) | Blocks: A-05; A-06; A-08; D-11; A-12
+- [x] **C-02** P2 - Timer & Life Systems (Depends on: D-01, B-04, A-11 audit gate, non-blocking) | Blocks: A-05; A-08; B-09; C-01; C-04; C-05; A-12
+- [ ] **C-01** P2 - Scoring System (Depends on: B-04, C-02, D-01, A-11 audit gate, non-blocking) | Blocks: A-05; A-06; A-08; B-09; A-12
+- [ ] **C-03** P2 - Spawn System (Depends on: D-01, D-03, A-11 audit gate, non-blocking) | Blocks: A-06; A-08; B-08; A-12
+- [ ] **C-04** P2 - Pause & Level Progression Systems (Depends on: D-01, D-03, C-02, A-03, A-11 audit gate, non-blocking) | Blocks: A-05; A-06; A-08; B-09; C-05; A-12
+- [ ] **C-05** P2 - HUD Adapter & Screen Overlays (Depends on: D-05, C-02, C-04, A-11 audit gate, non-blocking) | Blocks: A-05; A-06; A-08; D-11; A-12
 - [ ] **B-05** P2 - Core Gameplay Event Surface (Depends on: B-04, D-01, A-11) | Blocks: A-08; B-09; A-12
-- [x] **A-07** P2 - CI, Schema Validation & Asset Gates (Depends on: A-01, D-03, A-11) | Blocks: A-09; C-10; D-11; A-12
-- [ ] **C-06** P2 - Audio Adapter Implementation (Depends on: A-01, D-01, A-11) | Blocks: C-07; C-08; C-09; A-12
+- [ ] **A-07** P2 - CI, Schema Validation & Asset Gates (Depends on: A-01, D-03, A-11) | Blocks: A-09; C-10; D-11; A-12
+- [ ] **C-06** P2 - Audio Adapter Implementation (Depends on: A-01, D-01, A-11 audit gate, non-blocking) | Blocks: C-07; C-08; C-09; A-12
 - [ ] **A-12** P2 - Consolidate P2 audits + publish 4 deduplicated track fix reports (Depends on: B-04, C-02, C-01, C-03, C-04, C-05, B-05, A-07, C-06) | Blocks: B-06; B-07; B-08; B-09; C-07; A-04; A-05; A-06; A-08
 
 ### Q3 / P3 Feature Complete + Hardening

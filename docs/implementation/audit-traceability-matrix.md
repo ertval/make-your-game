@@ -43,9 +43,9 @@ This document is the single source of truth for requirement-to-audit-to-ticket-t
 | REQ-01 | Run at least 60 FPS and avoid frame drops | A-03, A-06, D-08, A-09 | AUDIT-F-17, AUDIT-F-18, AUDIT-B-01 | `tests/e2e/audit/audit.e2e.test.js` + performance evidence artifacts | Mapped, Planned, Pending |
 | REQ-02 | Use `requestAnimationFrame` correctly | A-03, A-06 | AUDIT-F-02, AUDIT-F-10 | `tests/e2e/audit/audit.e2e.test.js` | Mapped, Planned, Pending |
 | REQ-03 | Pause menu contains Continue and Restart | C-04, C-05, A-06 | AUDIT-F-07, AUDIT-F-08, AUDIT-F-09 | `tests/e2e/audit/audit.e2e.test.js` | Mapped, Planned, Pending |
-| REQ-04 | HUD shows countdown/timer | C-02, C-05, A-06 | AUDIT-F-14 | `tests/e2e/audit/audit.e2e.test.js` | Mapped, Planned, Pending |
+| REQ-04 | HUD shows countdown/timer | C-02, C-05, A-06 | AUDIT-F-14 | `tests/unit/systems/timer-system.test.js` | Mapped, Covered, Executable (system logic only — HUD coverage pending C-05) |
 | REQ-05 | HUD shows score and score increments | C-01, C-05, A-06 | AUDIT-F-15 | `tests/e2e/audit/audit.e2e.test.js` + integration scoring checks | Mapped, Planned, Pending |
-| REQ-06 | HUD shows lives and lives decrement | C-02, C-05, A-06 | AUDIT-F-16 | `tests/e2e/audit/audit.e2e.test.js` | Mapped, Planned, Pending |
+| REQ-06 | HUD shows lives and lives decrement | C-02, C-05, A-06 | AUDIT-F-16 | `tests/unit/systems/life-system.test.js` | Mapped, Covered, Executable (system logic only — HUD coverage pending C-05) |
 | REQ-07 | Keyboard-only control path | B-02, C-05, A-06 | AUDIT-F-11, AUDIT-F-12 | `tests/e2e/audit/audit.e2e.test.js` + adapter focus tests | Mapped, Planned, Pending |
 | REQ-08 | Hold-to-move without key spamming | B-02, B-03, A-06 | AUDIT-F-12 | `tests/e2e/audit/audit.e2e.test.js` + input adapter tests | Mapped, Planned, Pending |
 | REQ-09 | Pause/continue/restart at any time and paused frames unaffected | A-03, C-04, C-05, A-06 | AUDIT-F-08, AUDIT-F-09, AUDIT-F-10, AUDIT-F-17 | `tests/e2e/audit/audit.e2e.test.js` + pause performance traces | Mapped, Planned, Pending |
@@ -74,9 +74,9 @@ This document is the single source of truth for requirement-to-audit-to-ticket-t
 | AUDIT-F-11 | Does player obey movement commands? | REQ-07 | Fully Automatable | B-02, B-03 | Same as above | Mapped, Planned, Pending |
 | AUDIT-F-12 | Does player move without spamming keys? | REQ-07, REQ-08 | Fully Automatable | B-02, B-03 | Same as above | Mapped, Planned, Pending |
 | AUDIT-F-13 | Does game behave like pre-approved genre? | REQ-14 | Fully Automatable | B-03, B-06, B-07, B-08 | Same as above | Mapped, Planned, Pending |
-| AUDIT-F-14 | Does timer/countdown work? | REQ-04 | Fully Automatable | C-02, C-05 | Same as above | Mapped, Planned, Pending |
+| AUDIT-F-14 | Does timer/countdown work? | REQ-04 | Fully Automatable | C-02, C-05 | `tests/unit/systems/timer-system.test.js` | Mapped, Covered, Executable (system logic only — HUD coverage pending C-05) |
 | AUDIT-F-15 | Does score increase on scoring actions? | REQ-05 | Fully Automatable | C-01, C-05 | Same as above | Mapped, Planned, Pending |
-| AUDIT-F-16 | Do lives decrease on life-loss events? | REQ-06 | Fully Automatable | C-02, C-05 | Same as above | Mapped, Planned, Pending |
+| AUDIT-F-16 | Do lives decrease on life-loss events? | REQ-06 | Fully Automatable | C-02, C-05 | `tests/unit/systems/life-system.test.js` | Mapped, Covered, Executable (system logic only — HUD coverage pending C-05) |
 | AUDIT-F-17 | Can you confirm there are no frame drops? | REQ-01, REQ-09 | Semi-Automatable | A-06, D-08, A-09 | `tests/e2e/audit/audit.e2e.test.js` + Performance API (`page.evaluate`) | Mapped, Planned, Pending |
 | AUDIT-F-18 | Does game run around 60 FPS? | REQ-01 | Semi-Automatable | A-06, D-08, A-09 | Same as above | Mapped, Planned, Pending |
 | AUDIT-F-19 | Is paint used as little as possible? | REQ-10 | Manual-With-Evidence | D-08, A-09 | DevTools paint evidence linked from PR artifacts | Mapped, Planned, Pending |
