@@ -46,9 +46,9 @@ Source plan: `docs/implementation/implementation-plan.md` (Section 3)
 - `src/ecs/systems/timer-system.js` — level countdown, time-up → GAME_OVER
 - `src/ecs/systems/life-system.js` — 3 starting lives, decrement, respawn, invincibility, zero → GAME_OVER
 
-- [ ] Implement `timer-system.js`: countdown per level (120s/180s/240s). Timer hits zero → GAME_OVER.
-- [ ] Implement `life-system.js`: 3 starting lives, decrement on death, respawn with 2000ms invincibility. Zero lives → GAME_OVER.
-- [ ] Verification gate: unit tests cover countdown, time-up game over, respawn invincibility, and zero-lives game over.
+- [x] Implement `timer-system.js`: countdown per level (120s/180s/240s). Timer hits zero → GAME_OVER.
+- [x] Implement `life-system.js`: 3 starting lives, decrement on death, respawn with 2000ms invincibility. Zero lives → GAME_OVER.
+- [x] Verification gate: unit tests cover countdown, time-up game over, respawn invincibility, and zero-lives game over.
 
 ---
 

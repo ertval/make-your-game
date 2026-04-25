@@ -34,9 +34,9 @@ Coverage mapping remains canonical in `audit-traceability-matrix.md`.
 ## 📈 Summary Snapshot
 
 - Total tickets: `44`
-- Done: `13`
+- Done: `14`
 - In Progress: `0`
-- Not Started: `31`
+- Not Started: `30`
 
 ## 🧮 Phase Audit Remediation Ledger
 
@@ -110,7 +110,7 @@ Canonical ticket ID ranges used by policy checks:
 ### Q2 / P2 Playable MVP
 
 - [x] **B-04** P2 - Entity Collision System (Depends on: B-01, B-03, D-03, A-11) | Blocks: A-06; A-08; B-05; B-06; B-07; B-08; C-01; C-02; A-12
-- [ ] **C-02** P2 - Timer & Life Systems (Depends on: D-01, B-04, A-11 audit gate, non-blocking) | Blocks: A-05; A-08; B-09; C-01; C-04; C-05; A-12
+- [x] **C-02** P2 - Timer & Life Systems (Depends on: D-01, B-04, A-11 audit gate, non-blocking) | Blocks: A-05; A-08; B-09; C-01; C-04; C-05; A-12
 - [ ] **C-01** P2 - Scoring System (Depends on: B-04, C-02, D-01, A-11 audit gate, non-blocking) | Blocks: A-05; A-06; A-08; B-09; A-12
 - [ ] **C-03** P2 - Spawn System (Depends on: D-01, D-03, A-11 audit gate, non-blocking) | Blocks: A-06; A-08; B-08; A-12
 - [ ] **C-04** P2 - Pause & Level Progression Systems (Depends on: D-01, D-03, C-02, A-03, A-11 audit gate, non-blocking) | Blocks: A-05; A-06; A-08; B-09; C-05; A-12
