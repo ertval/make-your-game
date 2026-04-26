@@ -24,6 +24,7 @@ import {
   resetPosition,
   resetVelocity,
 } from '../ecs/components/spatial.js';
+import { createRenderIntentBuffer } from '../ecs/render-intent.js';
 import { advanceSimTime, createClock, resetClock, tickClock } from '../ecs/resources/clock.js';
 import { FIXED_DT_MS, MAX_STEPS_PER_FRAME, TOTAL_LEVELS } from '../ecs/resources/constants.js';
 import { createGameStatus } from '../ecs/resources/game-status.js';
@@ -415,6 +416,7 @@ export function createBootstrap(options = {}) {
   world.setResource('gameFlow', gameFlow);
   world.setResource('gameStatus', gameStatus);
   world.setResource('levelLoader', levelLoader);
+  world.setResource('renderIntent', createRenderIntentBuffer());
 
   registerSystemsByPhase(
     world,

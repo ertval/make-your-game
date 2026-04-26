@@ -120,7 +120,12 @@ export function resetRenderIntentBuffer(buffer) {
  */
 export function appendRenderIntent(buffer, entry) {
   if (buffer._count >= buffer._capacity) {
-    if (process?.env?.NODE_ENV === 'development') {
+    let isDev = false;
+    try {
+      isDev = process.env.NODE_ENV === 'development';
+    } catch {}
+
+    if (isDev) {
       console.warn(
         `Render intent buffer full (${buffer._capacity}/${buffer._capacity}). ` +
           `Intent for entity ${entry.entityId} dropped.`,

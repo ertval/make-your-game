@@ -442,7 +442,12 @@ export async function bootstrapApplication({
     lives: targetDocument.getElementById('hud-lives'),
   };
 
-  if (process?.env?.NODE_ENV === 'development') {
+  let isDev = false;
+  try {
+    isDev = process.env.NODE_ENV === 'development';
+  } catch {}
+
+  if (isDev) {
     for (const [name, el] of Object.entries(hudElements)) {
       if (!el) logger.warn(`HUD element "#hud-${name}" not found.`);
     }
