@@ -57,7 +57,7 @@
 
 ##### Try playing the game and score some points.
 
-###### Does the score increase correctly on scoring actions, using deterministic scoring from collision intents (pellet `+10`, Power Pellet `+50`, power-up `+100`, normal ghost kills following `200 × 2^(n-1)` chain scoring, and stunned ghost kills awarding a fixed `400` bonus without participating in the chain)?
+###### Does the score seems to work like it should, by increasing at a certain action done by the player?
 
 ##### Try playing the game and try losing a life.
 
