@@ -39,6 +39,9 @@ function createDocumentStub() {
       }
       return null;
     },
+    querySelector() {
+      return null;
+    },
     hidden: false,
     overlayRoot,
     removeEventListener(eventName) {

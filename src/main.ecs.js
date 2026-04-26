@@ -437,9 +437,9 @@ export async function bootstrapApplication({
   const renderer = createDomRenderer({ appRoot });
 
   const hudElements = {
-    score: targetDocument.getElementById('hud-score'),
-    level: targetDocument.getElementById('hud-level'),
-    lives: targetDocument.getElementById('hud-lives'),
+    timer: targetDocument.querySelector('[data-hud="timer"]'),
+    score: targetDocument.querySelector('[data-hud="score"]'),
+    lives: targetDocument.querySelector('[data-hud="lives"]'),
   };
 
   let isDev = false;
@@ -449,7 +449,7 @@ export async function bootstrapApplication({
 
   if (isDev) {
     for (const [name, el] of Object.entries(hudElements)) {
-      if (!el) logger.warn(`HUD element "#hud-${name}" not found.`);
+      if (!el) logger.warn(`HUD element "[data-hud="${name}"]" not found.`);
     }
   }
 

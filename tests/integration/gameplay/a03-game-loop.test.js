@@ -121,6 +121,8 @@ function createBrowserDocumentStub() {
     return null;
   };
 
+  documentStub.querySelector = () => null;
+
   return {
     appRoot,
     documentStub,
