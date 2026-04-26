@@ -32,7 +32,7 @@ You are the **Master Orchestrator** for the Ms. Ghostman project. Your goal is t
    - **Adapter Interface**: If touching the DOM, define the resource API for the system.
    - **Validation Gate**: A pass/fail checklist derived from the ticket's **Verification Gate** in `docs/implementation/track-*.md` and relevant `docs/audit.md` IDs.
 
-### Phase 2: Implementation (Spawn Domain Agents)
+### Phase 2: Implementation (Spawn Domain Agents)****b 
 **Task**: Depending on the ticket track, spawn specialized implementation agents.
 - **Track B/C (Simulation/Logic)**:
   - Implement systems in `src/ecs/systems/` and components in `src/ecs/components/`.
