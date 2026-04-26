@@ -149,7 +149,7 @@ export const AUDIT_QUESTIONS = [
     category: 'Functional',
     question: 'Does score increase correctly after scoring actions?',
     executionType: 'Fully Automatable',
-    assertionKey: 'scoring-system-contract',
+    assertionKey: 'hud-contract',
   },
   {
     id: 'AUDIT-F-16',
