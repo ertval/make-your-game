@@ -224,3 +224,35 @@ describe('bootstrap input-adapter registration', () => {
     expect(bootstrap.inputAdapterResourceKey).toBe('customInputAdapter');
   });
 });
+
+describe('bootstrap event-queue registration', () => {
+  it('registers the default eventQueue resource for B-05 cross-system events', () => {
+    const bootstrap = createBootstrap({ now: 0 });
+
+    expect(bootstrap.world.hasResource('eventQueue')).toBe(true);
+
+    const eventQueue = bootstrap.world.getResource('eventQueue');
+    expect(eventQueue).toBeDefined();
+    expect(eventQueue).not.toBeNull();
+    // Verify it looks like the event queue structure
+    expect(Array.isArray(eventQueue.events)).toBe(true);
+    expect(typeof eventQueue.orderCounter).toBe('number');
+  });
+
+  it('exposes the configured eventQueueResourceKey for B-05 consumers', () => {
+    const bootstrap = createBootstrap({ now: 0 });
+
+    expect(bootstrap.eventQueueResourceKey).toBe('eventQueue');
+  });
+
+  it('honors a custom eventQueueResourceKey when provided in options', () => {
+    const bootstrap = createBootstrap({
+      eventQueueResourceKey: 'customEventQueue',
+      now: 0,
+    });
+
+    expect(bootstrap.eventQueueResourceKey).toBe('customEventQueue');
+    expect(bootstrap.world.hasResource('customEventQueue')).toBe(true);
+    expect(bootstrap.world.hasResource('eventQueue')).toBe(false);
+  });
+});

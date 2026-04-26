@@ -26,6 +26,9 @@
  *   test without re-deriving direction and speed rules in multiple places.
  * - The system shell intentionally performs no movement yet because Batch 1
  *   only freezes the contract; movement stepping arrives in the next batch.
+ * - B-05: accepts `eventQueueResourceKey` so bootstrap can thread the D-01
+ *   event queue resource key into the system. Emission logic is a Track B
+ *   B-05 responsibility and is guarded by a resource-presence check.
  */
 
 import { COMPONENT_MASK } from '../components/registry.js';
@@ -244,6 +247,7 @@ export function advanceTowardTarget(positionStore, velocityStore, entityId, dist
  *   positionResourceKey?: string,
  *   velocityResourceKey?: string,
  *   inputStateResourceKey?: string,
+ *   eventQueueResourceKey?: string,
  *   requiredMask?: number,
  * }} [options] - Optional resource key overrides for later wiring and tests.
  * @returns {{ name: string, phase: string, update: Function }} ECS system registration.
@@ -254,6 +258,9 @@ export function createPlayerMoveSystem(options = {}) {
   const positionResourceKey = options.positionResourceKey || 'position';
   const velocityResourceKey = options.velocityResourceKey || 'velocity';
   const inputStateResourceKey = options.inputStateResourceKey || 'inputState';
+  // B-05: store the event queue key so future emission code can look it up
+  // without coupling the system to bootstrap or any specific resource name.
+  const eventQueueResourceKey = options.eventQueueResourceKey || 'eventQueue';
   const requiredMask = options.requiredMask ?? PLAYER_MOVE_REQUIRED_MASK;
 
   return {
@@ -266,10 +273,18 @@ export function createPlayerMoveSystem(options = {}) {
       const positionStore = world.getResource(positionResourceKey);
       const velocityStore = world.getResource(velocityResourceKey);
       const inputState = world.getResource(inputStateResourceKey);
+      // B-05: read the event queue resource so emission guards in this update
+      // are consistent with the "only emit when present" contract. Track B will
+      // add PlayerPositionChanged emission here once B-05 emission code lands.
+      const eventQueue = world.getResource(eventQueueResourceKey);
 
       if (!mapResource || !playerStore || !positionStore || !velocityStore || !inputState) {
         return;
       }
+
+      // eventQueue is intentionally not consumed yet — emission is Track B B-05 work.
+      // The resource-presence read above ensures the key wiring is exercised every step.
+      void eventQueue;
 
       const entityIds = world.query(requiredMask);
       const stepDistanceBase = Math.max(0, Number(context.dtMs) || 0) / 1000;

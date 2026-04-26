@@ -8,6 +8,11 @@
  * Public API:
  * - createBootstrap(options)
  * - registerSystemsByPhase(world, systemsByPhase)
+ *
+ * B-05 note: The default runtime registers an `eventQueue` resource so Track B
+ * systems that support event emission (collision-system, player-move-system)
+ * can enqueue events without importing bootstrap or adapter modules directly.
+ * The resource key can be customised via `options.eventQueueResourceKey`.
  */
 
 import { updateBoardCss } from '../adapters/dom/renderer-board-css.js';
@@ -27,6 +32,7 @@ import {
 import { createRenderIntentBuffer } from '../ecs/render-intent.js';
 import { advanceSimTime, createClock, resetClock, tickClock } from '../ecs/resources/clock.js';
 import { FIXED_DT_MS, MAX_STEPS_PER_FRAME, TOTAL_LEVELS } from '../ecs/resources/constants.js';
+import { createEventQueue } from '../ecs/resources/event-queue.js';
 import { createGameStatus } from '../ecs/resources/game-status.js';
 import { createInputSystem } from '../ecs/systems/input-system.js';
 import {
@@ -43,6 +49,8 @@ const DEFAULT_VELOCITY_RESOURCE_KEY = 'velocity';
 const DEFAULT_INPUT_ADAPTER_RESOURCE_KEY = 'inputAdapter';
 const DEFAULT_INPUT_STATE_RESOURCE_KEY = 'inputState';
 const DEFAULT_PLAYER_ENTITY_RESOURCE_KEY = 'playerEntity';
+// D-01 canonical resource key for the cross-system deterministic event queue.
+const DEFAULT_EVENT_QUEUE_RESOURCE_KEY = 'eventQueue';
 
 /**
  * Resolve the input adapter resource key from bootstrap options.
@@ -188,6 +196,9 @@ function createDefaultSystemsByPhase(options = {}) {
   const positionResourceKey = options.positionResourceKey || DEFAULT_POSITION_RESOURCE_KEY;
   const velocityResourceKey = options.velocityResourceKey || DEFAULT_VELOCITY_RESOURCE_KEY;
   const mapResourceKey = options.mapResourceKey || 'mapResource';
+  // B-05: thread the event queue key so Track B systems can enqueue events
+  // through the world resource API without importing bootstrap or adapters.
+  const eventQueueResourceKey = options.eventQueueResourceKey || DEFAULT_EVENT_QUEUE_RESOURCE_KEY;
 
   const inputSystem = createInputSystem({
     adapterResourceKey,
@@ -199,6 +210,7 @@ function createDefaultSystemsByPhase(options = {}) {
   };
 
   const playerMoveSystem = createPlayerMoveSystem({
+    eventQueueResourceKey,
     inputStateResourceKey,
     mapResourceKey,
     playerResourceKey,
@@ -212,6 +224,7 @@ function createDefaultSystemsByPhase(options = {}) {
       playerResourceKey,
       positionResourceKey,
       velocityResourceKey,
+      eventQueueResourceKey,
     ],
     write: [playerResourceKey, positionResourceKey, velocityResourceKey],
   };
@@ -413,6 +426,11 @@ export function createBootstrap(options = {}) {
 
   world.setResource('assetPipeline', assetPipeline);
   world.setResource('clock', clock);
+  // B-05: Register the canonical event queue resource so Track B simulation
+  // systems can emit deterministic cross-system events without importing
+  // bootstrap or adapter modules. Systems access this only via world.getResource.
+  const eventQueueResourceKey = options.eventQueueResourceKey || DEFAULT_EVENT_QUEUE_RESOURCE_KEY;
+  ensureWorldResource(world, eventQueueResourceKey, createEventQueue);
   world.setResource('gameFlow', gameFlow);
   world.setResource('gameStatus', gameStatus);
   world.setResource('levelLoader', levelLoader);
@@ -517,6 +535,7 @@ export function createBootstrap(options = {}) {
 
   return {
     clock,
+    eventQueueResourceKey,
     gameFlow,
     gameStatus,
     getInputAdapter,

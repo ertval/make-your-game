@@ -29,6 +29,9 @@
  *   player lives directly; later tickets consume these intents.
  * - Shared-cell bomb push-back is inferred from bomb movement between the
  *   previous and current fixed-step tiles so the rule stays local to B-04.
+ * - B-05: accepts `eventQueueResourceKey` so bootstrap can thread the D-01
+ *   event queue resource key into the system. Emission logic is a Track B
+ *   B-05 responsibility and is guarded by a resource-presence check.
  */
 
 import { COMPONENT_MASK } from '../components/registry.js';
@@ -776,6 +779,7 @@ function resolveDynamicCellCollisions(
  *   healthResourceKey?: string,
  *   ghostResourceKey?: string,
  *   collisionIntentsResourceKey?: string,
+ *   eventQueueResourceKey?: string,
  *   requiredMask?: number,
  *   maxGhostsPerCell?: number,
  * }} [options] - Optional resource-key overrides for tests and later wiring.
@@ -789,6 +793,9 @@ export function createCollisionSystem(options = {}) {
   const healthResourceKey = options.healthResourceKey || 'health';
   const ghostResourceKey = options.ghostResourceKey || 'ghost';
   const collisionIntentsResourceKey = options.collisionIntentsResourceKey || 'collisionIntents';
+  // B-05: store the event queue key so future emission code can look it up
+  // without coupling the system to bootstrap or any specific resource name.
+  const eventQueueResourceKey = options.eventQueueResourceKey || 'eventQueue';
   const requiredMask = options.requiredMask ?? COLLISION_ENTITY_REQUIRED_MASK;
   const maxGhostsPerCell = options.maxGhostsPerCell ?? DEFAULT_GHOST_SLOTS_PER_CELL;
   let scratch = null;
@@ -802,7 +809,7 @@ export function createCollisionSystem(options = {}) {
     name: 'collision-system',
     phase: 'logic',
     resourceCapabilities: {
-      read: [colliderResourceKey, playerResourceKey, healthResourceKey],
+      read: [colliderResourceKey, playerResourceKey, healthResourceKey, eventQueueResourceKey],
       write: [mapResourceKey, positionResourceKey, ghostResourceKey, collisionIntentsResourceKey],
     },
     update(context) {
@@ -814,6 +821,14 @@ export function createCollisionSystem(options = {}) {
       const healthStore = world.getResource(healthResourceKey);
       const ghostStore = world.getResource(ghostResourceKey);
       const collisionIntents = world.getResource(collisionIntentsResourceKey);
+      // B-05: read the event queue resource so emission guards in this update
+      // are consistent with the "only emit when present" contract. Track B will
+      // add collision event emission here once B-05 emission code lands.
+      const eventQueue = world.getResource(eventQueueResourceKey);
+
+      // eventQueue is intentionally not consumed yet — emission is Track B B-05 work.
+      // The resource-presence read above ensures the key wiring is exercised every step.
+      void eventQueue;
 
       // The shell is intentionally tolerant during early integration so tests
       // and downstream systems can inject resources incrementally.
