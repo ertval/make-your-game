@@ -161,31 +161,32 @@ function readFrameIndex(context) {
  *
  * @param {ScoreState} scoreState - Mutable score world resource.
  * @param {object | null | undefined} intent - One collision intent candidate.
- * @param {{ normalGhostChainCount: number }} chainState - Frame-local chain counters.
+ * @param {number} normalGhostChainCount - Current frame-local normal ghost chain count.
+ * @returns {number} Updated frame-local normal ghost chain count.
  */
-function applyIntentScore(scoreState, intent, chainState) {
+function applyIntentScore(scoreState, intent, normalGhostChainCount) {
   switch (intent?.type) {
     case 'pellet-collected':
       scoreState.totalPoints += SCORE_PELLET;
-      return;
+      return normalGhostChainCount;
     case 'power-pellet-collected':
       scoreState.totalPoints += SCORE_POWER_PELLET;
-      return;
+      return normalGhostChainCount;
     case 'power-up-collected':
       scoreState.totalPoints += SCORE_POWER_UP;
-      return;
+      return normalGhostChainCount;
     case 'ghost-death': {
       if (intent.ghostState === GHOST_STATE.STUNNED) {
         scoreState.totalPoints += SCORE_STUNNED_GHOST_KILL;
-        return;
+        return normalGhostChainCount;
       }
 
-      chainState.normalGhostChainCount += 1;
-      scoreState.totalPoints += computeChainGhostScore(chainState.normalGhostChainCount);
-      return;
+      const nextNormalGhostChainCount = normalGhostChainCount + 1;
+      scoreState.totalPoints += computeChainGhostScore(nextNormalGhostChainCount);
+      return nextNormalGhostChainCount;
     }
     default:
-      return;
+      return normalGhostChainCount;
   }
 }
 
@@ -227,17 +228,15 @@ export function createScoringSystem(options = {}) {
       // Only non-stunned ghost kills participate in the normal chain sequence:
       // 200, 400, 800, ... . Stunned ghost kills always award a fixed +400 and
       // intentionally do not advance the chain counter.
-      const chainState = {
-        normalGhostChainCount: 0,
-      };
+      let normalGhostChainCount = 0;
 
       for (const intent of collisionIntents) {
-        applyIntentScore(scoreState, intent, chainState);
+        normalGhostChainCount = applyIntentScore(scoreState, intent, normalGhostChainCount);
       }
 
       // comboCounter reflects only the current-frame normal ghost chain length.
       // It resets automatically on frames with no non-stunned ghost-death intents.
-      scoreState.comboCounter = chainState.normalGhostChainCount;
+      scoreState.comboCounter = normalGhostChainCount;
       scoreState.lastProcessedFrame = frameIndex;
     },
   };
