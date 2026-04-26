@@ -10,6 +10,7 @@
  * - registerSystemsByPhase(world, systemsByPhase)
  */
 
+import { updateBoardCss } from '../adapters/dom/renderer-board-css.js';
 import { assertValidInputAdapter } from '../adapters/io/input-adapter.js';
 import {
   createInputStateStore,
@@ -367,6 +368,12 @@ export function registerSystemsByPhase(world, systemsByPhase = {}) {
 }
 
 export function createBootstrap(options = {}) {
+  let registeredRenderer = null;
+
+  function registerRenderer(renderer) {
+    registeredRenderer = renderer;
+  }
+
   const nowMs = toFiniteTimestamp(options.now ?? 0);
   const world = options.world || new World();
   const inputAdapterResourceKey = resolveInputAdapterResourceKey(options);
@@ -385,6 +392,7 @@ export function createBootstrap(options = {}) {
     loadMapForLevel: options.loadMapForLevel,
     mapResourceKey: options.mapResourceKey || 'mapResource',
     onLevelLoaded: (mapResource) => {
+      updateBoardCss(mapResource);
       syncPlayerEntityFromMap(world, mapResource, options);
     },
     totalLevels: TOTAL_LEVELS,
@@ -395,8 +403,8 @@ export function createBootstrap(options = {}) {
     gameStatus,
     levelLoader,
     onRestart: () => {
-      // Reset simulation clock to zero so timers/counters start fresh.
-      resetClock(clock, clock.realTimeMs);
+      const now = typeof performance !== 'undefined' ? performance.now() : Date.now();
+      resetClock(clock, now);
     },
     world,
   });
@@ -444,6 +452,11 @@ export function createBootstrap(options = {}) {
       simTimeMs: clock.simTimeMs,
       stepsThisFrame: steps,
     });
+
+    const renderIntent = world.getResource('renderIntent');
+    if (registeredRenderer && typeof registeredRenderer.update === 'function') {
+      registeredRenderer.update(renderIntent);
+    }
 
     return {
       alpha: clock.alpha,
@@ -508,6 +521,7 @@ export function createBootstrap(options = {}) {
     inputAdapterResourceKey,
     levelLoader,
     playerEntityResourceKey,
+    registerRenderer,
     resyncTime,
     setInputAdapter,
     stepFrame,

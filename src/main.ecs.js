@@ -36,6 +36,7 @@
  * - startBrowserApplication(options)
  */
 
+import { createDomRenderer } from './adapters/dom/renderer-dom.js';
 import { createInputAdapter } from './adapters/io/input-adapter.js';
 import { percentileFromSorted, toSortedNumericArray } from './debug/frame-stats.js';
 import { FIXED_DT_MS, MAX_STEPS_PER_FRAME, TOTAL_LEVELS } from './ecs/resources/constants.js';
@@ -433,6 +434,20 @@ export async function bootstrapApplication({
     throw new Error('Missing #app root.');
   }
 
+  const renderer = createDomRenderer({ appRoot });
+
+  const hudElements = {
+    score: targetDocument.getElementById('hud-score'),
+    level: targetDocument.getElementById('hud-level'),
+    lives: targetDocument.getElementById('hud-lives'),
+  };
+
+  if (process?.env?.NODE_ENV === 'development') {
+    for (const [name, el] of Object.entries(hudElements)) {
+      if (!el) logger.warn(`HUD element "#hud-${name}" not found.`);
+    }
+  }
+
   const getNow = nowProvider || (() => targetWindow?.performance?.now?.() ?? Date.now());
   let inputAdapter = null;
 
@@ -456,6 +471,7 @@ export async function bootstrapApplication({
       loadMapForLevel: resolvedLoadMapForLevel,
       now: getNow(),
     });
+    bootstrap.registerRenderer(renderer);
     // Register through the explicit bootstrap API so the adapter contract is
     // validated at injection time and teardown on stop is symmetric.
     bootstrap.setInputAdapter(inputAdapter);
