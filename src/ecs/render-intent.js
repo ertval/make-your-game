@@ -26,6 +26,7 @@
  *   DOM system converts them to pixel translate3d values.
  */
 
+import { isDevelopment } from '../shared/env.js';
 import { RENDERABLE_KIND } from './components/visual.js';
 import { MAX_RENDER_INTENTS } from './resources/constants.js';
 
@@ -120,7 +121,7 @@ export function resetRenderIntentBuffer(buffer) {
  */
 export function appendRenderIntent(buffer, entry) {
   if (buffer._count >= buffer._capacity) {
-    if (process?.env?.NODE_ENV === 'development') {
+    if (isDevelopment()) {
       console.warn(
         `Render intent buffer full (${buffer._capacity}/${buffer._capacity}). ` +
           `Intent for entity ${entry.entityId} dropped.`,

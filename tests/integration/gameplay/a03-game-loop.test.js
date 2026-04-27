@@ -101,7 +101,12 @@ function createWindowStub() {
  */
 function createBrowserDocumentStub() {
   const documentStub = createDocumentStub();
+  // DOM renderer no-ops: render-collect systems may start emitting intents
+  // through bootstrap, and the renderer will call appendChild/removeChild on
+  // the appRoot. No-op stubs here keep the harness DOM-shaped enough.
   const appRoot = {
+    appendChild() {},
+    removeChild() {},
     textContent: '',
   };
   const overlayRoot = {
@@ -120,6 +125,8 @@ function createBrowserDocumentStub() {
 
     return null;
   };
+
+  documentStub.querySelector = () => null;
 
   return {
     appRoot,

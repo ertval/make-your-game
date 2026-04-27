@@ -29,6 +29,11 @@
  *   player lives directly; later tickets consume these intents.
  * - Shared-cell bomb push-back is inferred from bomb movement between the
  *   previous and current fixed-step tiles so the rule stays local to B-04.
+ * - B-05 wiring: accepts `eventQueueResourceKey` so bootstrap can thread the
+ *   D-01 event-queue resource key in for later emission code. We declare the
+ *   key as a `write` capability (matching the B-05 branch's emit calls) but
+ *   do not look it up here — that lookup lives next to the actual emit calls
+ *   in B-05.
  */
 
 import { COMPONENT_MASK } from '../components/registry.js';
@@ -817,6 +822,7 @@ function resolveDynamicCellCollisions(
       sourceEntityId: ghostId,
       ghostState,
     });
+
     emitGameplayEvent(
       eventContext?.eventQueue,
       GAMEPLAY_EVENT_TYPE.PLAYER_GHOST_CONTACT,

@@ -8,6 +8,7 @@
 
 import { describe, expect, it, vi } from 'vitest';
 
+import { GAME_STATE } from '../../../src/ecs/resources/game-status.js';
 import { createBootstrap } from '../../../src/game/bootstrap.js';
 
 function createAdapterStub({ heldKeys = ['left'], pressedKeys = [] } = {}) {
@@ -222,5 +223,115 @@ describe('bootstrap input-adapter registration', () => {
     });
 
     expect(bootstrap.inputAdapterResourceKey).toBe('customInputAdapter');
+  });
+});
+
+describe('bootstrap event-queue registration', () => {
+  it('registers the default eventQueue resource for B-05 cross-system events', () => {
+    const bootstrap = createBootstrap({ now: 0 });
+
+    expect(bootstrap.world.hasResource('eventQueue')).toBe(true);
+
+    const eventQueue = bootstrap.world.getResource('eventQueue');
+    expect(eventQueue).toBeDefined();
+    expect(eventQueue).not.toBeNull();
+    // Verify it looks like the event queue structure
+    expect(Array.isArray(eventQueue.events)).toBe(true);
+    expect(typeof eventQueue.orderCounter).toBe('number');
+  });
+
+  it('exposes the configured eventQueueResourceKey for B-05 consumers', () => {
+    const bootstrap = createBootstrap({ now: 0 });
+
+    expect(bootstrap.eventQueueResourceKey).toBe('eventQueue');
+  });
+
+  it('honors a custom eventQueueResourceKey when provided in options', () => {
+    const bootstrap = createBootstrap({
+      eventQueueResourceKey: 'customEventQueue',
+      now: 0,
+    });
+
+    expect(bootstrap.eventQueueResourceKey).toBe('customEventQueue');
+    expect(bootstrap.world.hasResource('customEventQueue')).toBe(true);
+    expect(bootstrap.world.hasResource('eventQueue')).toBe(false);
+  });
+});
+
+describe('bootstrap renderer registration', () => {
+  it('invokes registered renderer.update with the renderIntent buffer per stepFrame', () => {
+    const bootstrap = createBootstrap({ now: 0 });
+    const renderer = {
+      update: vi.fn(),
+    };
+
+    bootstrap.registerRenderer(renderer);
+    bootstrap.stepFrame(16);
+
+    expect(renderer.update).toHaveBeenCalledTimes(1);
+    const buffer = renderer.update.mock.calls[0][0];
+    // The buffer is the same renderIntent resource registered in the world.
+    expect(buffer).toBe(bootstrap.world.getResource('renderIntent'));
+    // It must be reset to count=0 at the start of each frame.
+    expect(buffer._count).toBe(0);
+  });
+
+  it('rejects renderers without an update(buffer) method', () => {
+    const bootstrap = createBootstrap({ now: 0 });
+
+    expect(() => bootstrap.registerRenderer({})).toThrow(/update\(buffer\)/);
+  });
+
+  it('clears the slot and calls destroy when registerRenderer(null) is invoked', () => {
+    const bootstrap = createBootstrap({ now: 0 });
+    const destroy = vi.fn();
+    const renderer = { update: vi.fn(), destroy };
+
+    bootstrap.registerRenderer(renderer);
+    bootstrap.registerRenderer(null);
+
+    expect(destroy).toHaveBeenCalledTimes(1);
+
+    // After clearing, stepFrame must not call the (now-removed) renderer.
+    bootstrap.stepFrame(16);
+    expect(renderer.update).not.toHaveBeenCalled();
+  });
+
+  it('destroys the previous renderer when a new one replaces it', () => {
+    const bootstrap = createBootstrap({ now: 0 });
+    const destroy = vi.fn();
+    const first = { update: vi.fn(), destroy };
+    const second = { update: vi.fn() };
+
+    bootstrap.registerRenderer(first);
+    bootstrap.registerRenderer(second);
+
+    expect(destroy).toHaveBeenCalledTimes(1);
+
+    bootstrap.stepFrame(16);
+    expect(first.update).not.toHaveBeenCalled();
+    expect(second.update).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe('bootstrap onRestart deterministic time', () => {
+  it('uses the injected nowProvider when restarting the clock', () => {
+    let synthetic = 1000;
+    const nowProvider = vi.fn(() => synthetic);
+    const bootstrap = createBootstrap({ now: 0, nowProvider });
+
+    // Restart only fires onRestart from PLAYING/PAUSED; transition first so
+    // the test exercises the actual nowProvider callback.
+    bootstrap.gameFlow.setState(GAME_STATE.PLAYING);
+
+    // Advance the synthetic clock and trigger a restart through gameFlow.
+    synthetic = 5000;
+    bootstrap.gameFlow.restartLevel();
+
+    expect(nowProvider).toHaveBeenCalled();
+    // resetClock zeroes simTimeMs and rebases lastFrameTime/realTimeMs to now.
+    expect(bootstrap.clock.simTimeMs).toBe(0);
+    expect(bootstrap.clock.lastFrameTime).toBe(5000);
+    expect(bootstrap.clock.realTimeMs).toBe(5000);
   });
 });

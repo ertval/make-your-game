@@ -26,6 +26,11 @@
  *   test without re-deriving direction and speed rules in multiple places.
  * - The system shell intentionally performs no movement yet because Batch 1
  *   only freezes the contract; movement stepping arrives in the next batch.
+ * - B-05 wiring: accepts an optional `eventQueueResourceKey` (default `null`)
+ *   so bootstrap can thread the D-01 event-queue resource key in for later
+ *   emission code. We deliberately do not look up the queue here — that lookup
+ *   lives next to the actual emit calls in the B-05 branch — and we only
+ *   declare a `write` capability on the key when one was provided.
  */
 
 import { COMPONENT_MASK } from '../components/registry.js';
@@ -303,7 +308,10 @@ export function createPlayerMoveSystem(options = {}) {
   const positionResourceKey = options.positionResourceKey || 'position';
   const velocityResourceKey = options.velocityResourceKey || 'velocity';
   const inputStateResourceKey = options.inputStateResourceKey || 'inputState';
-  const eventQueueResourceKey = options.eventQueueResourceKey || null;
+  // B-05 wiring: opt-in event queue key. When `null`, the system declares no
+  // write access and never looks up the queue, so unwired tests stay quiet.
+  // The bootstrap supplies the key explicitly in the default runtime stack.
+  const eventQueueResourceKey = options.eventQueueResourceKey ?? null;
   const requiredMask = options.requiredMask ?? PLAYER_MOVE_REQUIRED_MASK;
   const writeCapabilities = [positionResourceKey, velocityResourceKey];
   if (eventQueueResourceKey) {

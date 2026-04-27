@@ -36,12 +36,14 @@
  * - startBrowserApplication(options)
  */
 
+import { createDomRenderer } from './adapters/dom/renderer-dom.js';
 import { createInputAdapter } from './adapters/io/input-adapter.js';
 import { percentileFromSorted, toSortedNumericArray } from './debug/frame-stats.js';
 import { FIXED_DT_MS, MAX_STEPS_PER_FRAME, TOTAL_LEVELS } from './ecs/resources/constants.js';
 import { createMapResource } from './ecs/resources/map-resource.js';
 import { createBootstrap } from './game/bootstrap.js';
 import { createSyncMapLoader } from './game/level-loader.js';
+import { isDevelopment } from './shared/env.js';
 
 const DEFAULT_FRAME_SAMPLE_SIZE = 600;
 const FRAME_PROBE_KEY = '__MS_GHOSTMAN_FRAME_PROBE__';
@@ -433,6 +435,20 @@ export async function bootstrapApplication({
     throw new Error('Missing #app root.');
   }
 
+  const renderer = createDomRenderer({ appRoot });
+
+  const hudElements = {
+    timer: targetDocument.querySelector('[data-hud="timer"]'),
+    score: targetDocument.querySelector('[data-hud="score"]'),
+    lives: targetDocument.querySelector('[data-hud="lives"]'),
+  };
+
+  if (isDevelopment()) {
+    for (const [name, el] of Object.entries(hudElements)) {
+      if (!el) logger.warn(`HUD element "[data-hud="${name}"]" not found.`);
+    }
+  }
+
   const getNow = nowProvider || (() => targetWindow?.performance?.now?.() ?? Date.now());
   let inputAdapter = null;
 
@@ -455,7 +471,11 @@ export async function bootstrapApplication({
     const bootstrap = createBootstrap({
       loadMapForLevel: resolvedLoadMapForLevel,
       now: getNow(),
+      // Thread the resolved now-source through so onRestart resyncs stay on
+      // the same clock as the rAF loop (deterministic for tests).
+      nowProvider: getNow,
     });
+    bootstrap.registerRenderer(renderer);
     // Register through the explicit bootstrap API so the adapter contract is
     // validated at injection time and teardown on stop is symmetric.
     bootstrap.setInputAdapter(inputAdapter);
