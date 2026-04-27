@@ -36,6 +36,11 @@
 import { COMPONENT_MASK } from '../components/registry.js';
 import { PLAYER_BASE_SPEED, SPEED_BOOST_MULTIPLIER } from '../resources/constants.js';
 import { isPassable } from '../resources/map-resource.js';
+import {
+  emitGameplayEvent,
+  GAMEPLAY_EVENT_SOURCE,
+  GAMEPLAY_EVENT_TYPE,
+} from './collision-gameplay-events.js';
 
 /**
  * Canonical component query for player movement.
@@ -241,6 +246,49 @@ export function advanceTowardTarget(positionStore, velocityStore, entityId, dist
 }
 
 /**
+ * Emit a deterministic position-change event when movement changed the player.
+ *
+ * @param {EventQueue | null | undefined} eventQueue - Optional event queue resource.
+ * @param {PositionStore} positionStore - Position component store.
+ * @param {number} entityId - Player entity slot.
+ * @param {number} frame - Fixed-step frame index.
+ * @returns {GameEvent | null} Enqueued event or null when no queue is registered or no movement happened.
+ */
+function emitPlayerPositionChanged(eventQueue, positionStore, entityId, frame) {
+  const previousRow = positionStore.prevRow[entityId];
+  const previousCol = positionStore.prevCol[entityId];
+  const row = positionStore.row[entityId];
+  const col = positionStore.col[entityId];
+  const previousTile = {
+    row: Math.round(previousRow),
+    col: Math.round(previousCol),
+  };
+  const tile = {
+    row: Math.round(row),
+    col: Math.round(col),
+  };
+
+  // B-05 only publishes semantic grid-cell movement; render interpolation can
+  // read the position store directly without flooding the queue every tick.
+  if (previousTile.row === tile.row && previousTile.col === tile.col) {
+    return null;
+  }
+
+  return emitGameplayEvent(
+    eventQueue,
+    GAMEPLAY_EVENT_TYPE.PLAYER_POSITION_CHANGED,
+    {
+      entityId,
+      position: { row, col },
+      previousTile,
+      sourceSystem: GAMEPLAY_EVENT_SOURCE.PLAYER_MOVE,
+      tile,
+    },
+    frame,
+  );
+}
+
+/**
  * Create the B-03 player movement system.
  *
  * @param {{
@@ -249,7 +297,7 @@ export function advanceTowardTarget(positionStore, velocityStore, entityId, dist
  *   positionResourceKey?: string,
  *   velocityResourceKey?: string,
  *   inputStateResourceKey?: string,
- *   eventQueueResourceKey?: string,
+ *   eventQueueResourceKey?: string | null,
  *   requiredMask?: number,
  * }} [options] - Optional resource key overrides for later wiring and tests.
  * @returns {{ name: string, phase: string, update: Function }} ECS system registration.
@@ -265,8 +313,7 @@ export function createPlayerMoveSystem(options = {}) {
   // The bootstrap supplies the key explicitly in the default runtime stack.
   const eventQueueResourceKey = options.eventQueueResourceKey ?? null;
   const requiredMask = options.requiredMask ?? PLAYER_MOVE_REQUIRED_MASK;
-
-  const writeCapabilities = [playerResourceKey, positionResourceKey, velocityResourceKey];
+  const writeCapabilities = [positionResourceKey, velocityResourceKey];
   if (eventQueueResourceKey) {
     writeCapabilities.push(eventQueueResourceKey);
   }
@@ -275,7 +322,13 @@ export function createPlayerMoveSystem(options = {}) {
     name: 'player-move-system',
     phase: 'physics',
     resourceCapabilities: {
-      read: [inputStateResourceKey, mapResourceKey],
+      read: [
+        inputStateResourceKey,
+        mapResourceKey,
+        playerResourceKey,
+        positionResourceKey,
+        velocityResourceKey,
+      ],
       write: writeCapabilities,
     },
     update(context) {
@@ -285,13 +338,11 @@ export function createPlayerMoveSystem(options = {}) {
       const positionStore = world.getResource(positionResourceKey);
       const velocityStore = world.getResource(velocityResourceKey);
       const inputState = world.getResource(inputStateResourceKey);
+      const eventQueue = eventQueueResourceKey ? world.getResource(eventQueueResourceKey) : null;
 
       if (!mapResource || !playerStore || !positionStore || !velocityStore || !inputState) {
         return;
       }
-
-      // The actual eventQueue lookup + emit calls land with B-05; we only thread
-      // the key through here so wiring + capability declarations are stable.
 
       const entityIds = world.query(requiredMask);
       const stepDistanceBase = Math.max(0, Number(context.dtMs) || 0) / 1000;
@@ -347,6 +398,8 @@ export function createPlayerMoveSystem(options = {}) {
         if (remainingDistance > MOVEMENT_EPSILON && hasReachedTarget(positionStore, entityId)) {
           stopAtCurrentTarget(positionStore, velocityStore, entityId);
         }
+
+        emitPlayerPositionChanged(eventQueue, positionStore, entityId, context.frame);
       }
     },
   };

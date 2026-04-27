@@ -18,7 +18,12 @@ import {
   PLAYER_BASE_SPEED,
   SPEED_BOOST_MULTIPLIER,
 } from '../../../src/ecs/resources/constants.js';
+import { createEventQueue, drain } from '../../../src/ecs/resources/event-queue.js';
 import { createMapResource } from '../../../src/ecs/resources/map-resource.js';
+import {
+  GAMEPLAY_EVENT_SOURCE,
+  GAMEPLAY_EVENT_TYPE,
+} from '../../../src/ecs/systems/collision-gameplay-events.js';
 import {
   createPlayerMoveSystem,
   getPlayerMoveSpeed,
@@ -99,12 +104,13 @@ function createMovementRawMap(overrides = []) {
  */
 function createMovementHarness(mapOverrides = []) {
   const world = new World();
-  const system = createPlayerMoveSystem();
+  const system = createPlayerMoveSystem({ eventQueueResourceKey: 'eventQueue' });
   const mapResource = createMapResource(createMovementRawMap(mapOverrides));
   const playerStore = createPlayerStore(8);
   const positionStore = createPositionStore(8);
   const velocityStore = createVelocityStore(8);
   const inputState = createInputStateStore(8);
+  const eventQueue = createEventQueue();
   const player = world.createEntity(PLAYER_MOVE_REQUIRED_MASK);
 
   // The player begins centered on the spawn tile with no pending motion.
@@ -120,8 +126,10 @@ function createMovementHarness(mapOverrides = []) {
   world.setResource('position', positionStore);
   world.setResource('velocity', velocityStore);
   world.setResource('inputState', inputState);
+  world.setResource('eventQueue', eventQueue);
 
   return {
+    eventQueue,
     inputState,
     mapResource,
     player,
@@ -479,6 +487,32 @@ describe('player-move-system stepping behavior', () => {
     expect(positionStore.prevCol[player.id]).toBe(3);
     expect(positionStore.row[player.id]).toBe(3);
     expect(positionStore.col[player.id]).toBeGreaterThan(3);
+  });
+
+  it('emits a queued position-change event when the player enters a new tile', () => {
+    const { eventQueue, inputState, player, positionStore, system, world } =
+      createMovementHarness();
+
+    holdSingleDirection(inputState, player.id, 'right');
+    runMovementSteps({ system, world, steps: 6 });
+
+    expect(drain(eventQueue)).toEqual([
+      {
+        frame: 5,
+        order: 0,
+        payload: {
+          entityId: player.id,
+          position: {
+            row: positionStore.row[player.id],
+            col: positionStore.col[player.id],
+          },
+          previousTile: { row: 3, col: 3 },
+          sourceSystem: GAMEPLAY_EVENT_SOURCE.PLAYER_MOVE,
+          tile: { row: 3, col: 4 },
+        },
+        type: GAMEPLAY_EVENT_TYPE.PLAYER_POSITION_CHANGED,
+      },
+    ]);
   });
 
   it('finishes the current tile before turning into a new direction', () => {
