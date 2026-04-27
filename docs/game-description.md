@@ -194,8 +194,6 @@ There are **4 ghost types**, each with a distinct color and deterministic target
 | Level clear (all pellets eaten) | **1000 + time bonus** |
 | Time bonus | **remaining seconds × 10** |
 
-Chain scoring applies only to ghosts killed by bomb while in the **Normal** state. Stunned ghost kills always award a fixed **400** points and do **not** participate in the `200 × 2^(n-1)` chain-scoring sequence.
-
 ---
 
 ## 7. Timer / Countdown
