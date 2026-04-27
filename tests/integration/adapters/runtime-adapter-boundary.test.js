@@ -13,7 +13,15 @@ import { bootstrapApplication, createGameRuntime } from '../../../src/main.ecs.j
 
 function createDocumentStub() {
   const listeners = new Map();
-  const appRoot = {};
+  // The DOM renderer registered by main.ecs.js calls appendChild/removeChild
+  // on the appRoot once render-collect systems start emitting intents. The
+  // bootstrap currently issues no real intents in this harness, but the
+  // stubs are here so a future intent producer doesn't trip the test on a
+  // missing DOM method.
+  const appRoot = {
+    appendChild() {},
+    removeChild() {},
+  };
   const overlayRoot = {
     setAttribute: vi.fn(),
     textContent: '',

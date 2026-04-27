@@ -220,6 +220,9 @@ describe('collision-system contract', () => {
       'position',
       'ghost',
       'collisionIntents',
+      // B-05 wiring: collision-system enqueues gameplay events on the shared
+      // event queue, so the queue resource is part of the system's write set.
+      'eventQueue',
     ]);
   });
 });

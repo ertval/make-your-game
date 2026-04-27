@@ -29,7 +29,7 @@ import {
   resetPosition,
   resetVelocity,
 } from '../ecs/components/spatial.js';
-import { createRenderIntentBuffer } from '../ecs/render-intent.js';
+import { createRenderIntentBuffer, resetRenderIntentBuffer } from '../ecs/render-intent.js';
 import { advanceSimTime, createClock, resetClock, tickClock } from '../ecs/resources/clock.js';
 import { FIXED_DT_MS, MAX_STEPS_PER_FRAME, TOTAL_LEVELS } from '../ecs/resources/constants.js';
 import { createEventQueue } from '../ecs/resources/event-queue.js';
@@ -209,6 +209,9 @@ function createDefaultSystemsByPhase(options = {}) {
     write: [inputStateResourceKey],
   };
 
+  // The player-move system declares its own resourceCapabilities (including
+  // the conditional `write` capability on the event queue when wired), so we
+  // pass the keys in and trust the system's own declaration.
   const playerMoveSystem = createPlayerMoveSystem({
     eventQueueResourceKey,
     inputStateResourceKey,
@@ -217,17 +220,6 @@ function createDefaultSystemsByPhase(options = {}) {
     positionResourceKey,
     velocityResourceKey,
   });
-  playerMoveSystem.resourceCapabilities = {
-    read: [
-      inputStateResourceKey,
-      mapResourceKey,
-      playerResourceKey,
-      positionResourceKey,
-      velocityResourceKey,
-      eventQueueResourceKey,
-    ],
-    write: [playerResourceKey, positionResourceKey, velocityResourceKey],
-  };
 
   return {
     input: [inputSystem],
@@ -384,8 +376,43 @@ export function registerSystemsByPhase(world, systemsByPhase = {}) {
 export function createBootstrap(options = {}) {
   let registeredRenderer = null;
 
+  /**
+   * Register (or clear) the frame renderer driven by the bootstrap step loop.
+   *
+   * The bootstrap calls `renderer.update(renderIntent)` once per `stepFrame`
+   * after `runRenderCommit`. Passing `null` or `undefined` clears the slot and
+   * invokes `previous.destroy()` if defined, mirroring `setInputAdapter`'s
+   * teardown semantics so test runtimes can be cleanly stopped and restarted.
+   *
+   * @typedef {{ update(buffer: object): void, destroy?: () => void }} BootstrapRenderer
+   * @param {BootstrapRenderer | null | undefined} renderer - Renderer to install,
+   *   or null/undefined to clear the slot.
+   * @returns {BootstrapRenderer | null} The renderer now stored in the slot.
+   */
   function registerRenderer(renderer) {
+    if (renderer === null || renderer === undefined) {
+      const previous = registeredRenderer;
+      registeredRenderer = null;
+      if (previous && typeof previous.destroy === 'function') {
+        previous.destroy();
+      }
+      return null;
+    }
+
+    if (typeof renderer.update !== 'function') {
+      throw new Error('registerRenderer requires a renderer with an update(buffer) method.');
+    }
+
+    if (
+      registeredRenderer &&
+      registeredRenderer !== renderer &&
+      typeof registeredRenderer.destroy === 'function'
+    ) {
+      registeredRenderer.destroy();
+    }
+
     registeredRenderer = renderer;
+    return renderer;
   }
 
   const nowMs = toFiniteTimestamp(options.now ?? 0);
@@ -395,6 +422,15 @@ export function createBootstrap(options = {}) {
     options.playerEntityResourceKey || DEFAULT_PLAYER_ENTITY_RESOURCE_KEY;
   const clock = createClock(nowMs);
   const gameStatus = createGameStatus();
+
+  // Resolve a single now-source for restart resyncs. Tests wire a synthetic
+  // `nowProvider` so the restart path stays deterministic; production falls
+  // back to `performance.now` (or `Date.now` in non-browser hosts) only when
+  // no provider is supplied.
+  const nowProvider =
+    typeof options.nowProvider === 'function'
+      ? options.nowProvider
+      : () => (typeof performance !== 'undefined' ? performance.now() : Date.now());
 
   // Movement systems need their component stores present before fixed-step work begins.
   initializeMovementResources(world, options);
@@ -417,8 +453,10 @@ export function createBootstrap(options = {}) {
     gameStatus,
     levelLoader,
     onRestart: () => {
-      const now = typeof performance !== 'undefined' ? performance.now() : Date.now();
-      resetClock(clock, now);
+      // BUG-01: use the injected nowProvider so synthetic test clocks remain
+      // deterministic across restarts, falling back to the real wall clock
+      // only when no provider is supplied.
+      resetClock(clock, toFiniteTimestamp(nowProvider()));
     },
     world,
   });
@@ -465,6 +503,15 @@ export function createBootstrap(options = {}) {
       });
     }
 
+    // Reset the render-intent buffer at the start of the render commit phase
+    // so render-collect systems append into a clean buffer each frame. Without
+    // this, intents from previous frames pile up until capacity is hit and new
+    // intents are silently dropped.
+    const renderIntent = world.getResource('renderIntent');
+    if (renderIntent) {
+      resetRenderIntentBuffer(renderIntent);
+    }
+
     world.runRenderCommit({
       alpha: clock.alpha,
       dtMs: fixedDtMs,
@@ -473,7 +520,6 @@ export function createBootstrap(options = {}) {
       stepsThisFrame: steps,
     });
 
-    const renderIntent = world.getResource('renderIntent');
     if (registeredRenderer && typeof registeredRenderer.update === 'function') {
       registeredRenderer.update(renderIntent);
     }
