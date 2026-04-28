@@ -3,6 +3,9 @@
 ## What changed
 - Added `src/adapters/dom/sprite-pool-adapter.js` — pre-allocates DOM element pools for all dynamic sprite types (player, ghost, bomb, fire, pellet) sized from `constants.js`
 - Added `tests/integration/adapters/sprite-pool-adapter.test.js` — 15 tests covering pool sizing, offscreen-hiding strategy, acquire/release API, exhaustion behavior, and reset
+- Updated `docs/implementation/track-d.md` — D-09 checklist items marked complete
+- Updated `docs/implementation/ticket-tracker.md` — D-09 marked `[x]`
+- Updated `docs/implementation/audit-traceability-matrix.md` — AUDIT-B-03 updated to reference `sprite-pool-adapter.test.js` as partial coverage; status updated to `Covered, Pending` (full coverage pending D-08)
 
 ## Why
 - D-09 is a P1 blocker required before D-08 (Render DOM Batcher) can be completed
