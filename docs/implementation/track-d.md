@@ -147,9 +147,9 @@
 **Deliverables**:
 - `src/ecs/systems/render-collect-system.js` — interpolation, render-intent buffer
 
-- [ ] Implement `render-collect-system.js`: Called after simulation but before DOM write. Matches all entities with Position + Renderable. Computes intended transforms using interpolation factor (`alpha`). Outputs a preallocated render-intent buffer.
-- [ ] Use stable intent ordering for deterministic commits.
-- [ ] Verification gate: unit tests validate interpolation math and deterministic intent ordering.
+- [x] Implement `render-collect-system.js`: Called after simulation but before DOM write. Matches all entities with Position + Renderable. Computes intended transforms using interpolation factor (`alpha`). Outputs a preallocated render-intent buffer.
+- [x] Use stable intent ordering for deterministic commits.
+- [x] Verification gate: unit tests validate interpolation math and deterministic intent ordering.
 
 ---
 

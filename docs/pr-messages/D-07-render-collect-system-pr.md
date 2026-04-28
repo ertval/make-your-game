@@ -36,8 +36,8 @@ Local test command reference (run what applies to your change and list what you 
 - [x] No framework imports or canvas APIs were introduced in this change
 
 ## What changed
-- Added `src/ecs/systems/render-collect-system.js` — queries all entities with Position + Renderable, computes interpolated tile-space coordinates using the frame alpha, and writes one render intent per entity into the preallocated render-intent buffer (D-04)
-- Added `tests/unit/systems/render-collect-system.test.js` — 20 unit tests covering interpolation math, alpha edge cases, deterministic ordering, buffer reset, entity filtering, classBits passthrough, opacity encoding, and buffer capacity
+- Added `src/ecs/systems/render-collect-system.js` — uses `world.query(RENDER_COLLECT_REQUIRED_MASK)` to query entities with Position + Renderable component bits, computes interpolated tile-space coordinates using the frame alpha, and writes one render intent per entity into the preallocated render-intent buffer (D-04)
+- Added `tests/unit/systems/render-collect-system.test.js` — unit tests covering interpolation math, deterministic ordering, buffer reset, classBits passthrough, opacity encoding, and the ECS membership contract (Position + Renderable required)
 
 ## Why
 - D-07 is a P1 blocker required before D-08 (Render DOM Batcher) can be completed
@@ -46,7 +46,7 @@ Local test command reference (run what applies to your change and list what you 
 
 ## Tests
 - `npm run check` — passed (Biome lint + format)
-- `npm run test:unit` — 375 tests passed including 20 new D-07 tests
+- `npm run test:unit` — 375 tests passed
 - `npm run policy` — ALL CLEAR
 
 ## Audit questions affected
@@ -59,8 +59,9 @@ Local test command reference (run what applies to your change and list what you 
 
 ## Architecture / dependency notes
 - System runs in `phase: 'collect'` — after simulation, before DOM write
+- Entity selection driven by `world.query(RENDER_COLLECT_REQUIRED_MASK)` — only entities with both Position and Renderable component bits are collected
 - Reads from `renderable`, `visualState`, and `position` resources; writes only to `renderIntentBuffer`
-- Entity iteration is ascending entity ID order for stable, deterministic output every frame
+- Ascending entity ID order from query for stable, deterministic output every frame
 - Invincible entities render at opacity 128 (half) so the player blinks without disappearing
 - No wiring into the game loop bootstrap — that happens in D-08
 
