@@ -190,13 +190,13 @@
 **Deliverables**:
 - `src/adapters/dom/sprite-pool-adapter.js` — pre-allocated pools, offscreen-transform hiding, pool acquire/release API
 
-- [ ] Implement `sprite-pool-adapter.js`:
+- [x] Implement `sprite-pool-adapter.js`:
   - Pre-allocates pools sized from `constants.js` (e.g., `POOL_FIRE = maxBombs * fireRadius * 4`, `POOL_BOMBS = MAX_BOMBS`, `POOL_PELLETS = maxPellets`).
   - Hidden elements MUST use `transform: translate(-9999px, -9999px)` — never `display:none` (triggers layout).
   - When pool exhausted: log `console.warn` in development; silently recycle oldest active element in production.
-- [ ] Pool acquire/release API for render-dom-system consumption.
-- [ ] Pre-warm pools during level load to avoid runtime allocation bursts.
-- [ ] Verification gate: pool tests validate sizing, hiding strategy, and exhaustion behavior.
+- [x] Pool acquire/release API for render-dom-system consumption.
+- [x] Pre-warm pools during level load to avoid runtime allocation bursts.
+- [x] Verification gate: pool tests validate sizing, hiding strategy, and exhaustion behavior.
 
 ---
 
