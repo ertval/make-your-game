@@ -393,9 +393,9 @@ export function createSpawnSystem(options = {}) {
       const existingSpawnState = world.getResource(spawnResourceKey);
 
       const spawnState = sanitizeSpawnState(existingSpawnState);
-      if (spawnState.activeGhostCap === 0) {
-        spawnState.activeGhostCap = resolveActiveGhostCap(mapResource);
-      }
+      // Keep the spawn cap synchronized with the current map so persisted
+      // spawn state cannot carry a stale level-specific ghost limit forward.
+      spawnState.activeGhostCap = resolveActiveGhostCap(mapResource);
       const ghostOrder = resolveDeterministicGhostOrder(ghostIds, spawnState.activeGhostCap);
 
       if (gameStatus?.currentState === GAME_STATE.PLAYING) {

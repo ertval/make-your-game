@@ -110,6 +110,25 @@ describe('spawn-system', () => {
     expect(getSpawnState(world).queuedGhostIds).toEqual([2, 3]);
   });
 
+  it('updates activeGhostCap when mapResource.maxGhosts changes', () => {
+    const { spawnSystem, world } = createSpawnHarness({
+      maxGhosts: 2,
+      spawnState: {
+        elapsedMs: 10000,
+        releasedGhostIds: [0, 1],
+        queuedGhostIds: [],
+        respawnQueue: [],
+        activeGhostCap: 2,
+      },
+    });
+
+    world.setResource('mapResource', { maxGhosts: 4 });
+
+    updateSpawn(spawnSystem, world, 0);
+
+    expect(getSpawnState(world).activeGhostCap).toBe(4);
+  });
+
   it('releases ghosts in deterministic FIFO order when slots free', () => {
     const { spawnSystem, world } = createSpawnHarness({
       maxGhosts: 2,
