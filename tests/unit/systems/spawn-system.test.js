@@ -12,7 +12,10 @@ import { createGameStatus, GAME_STATE } from '../../../src/ecs/resources/game-st
 import {
   createInitialSpawnState,
   createSpawnSystem,
+  DEFAULT_DEAD_GHOST_IDS_RESOURCE_KEY,
   DEFAULT_SPAWN_RESOURCE_KEY,
+  getRespawnDelayMs,
+  scheduleRespawn,
 } from '../../../src/ecs/systems/spawn-system.js';
 import { World } from '../../../src/ecs/world/world.js';
 
@@ -38,6 +41,7 @@ function createSpawnHarness({
   gameState = GAME_STATE.PLAYING,
   ghostIds = [0, 1, 2, 3],
   maxGhosts = 4,
+  deadGhostIds = undefined,
   spawnState = null,
 } = {}) {
   const world = new World();
@@ -46,6 +50,9 @@ function createSpawnHarness({
   world.setResource('gameStatus', createGameStatus(gameState));
   world.setResource('mapResource', createMapResourceStub(maxGhosts));
   world.setResource('ghostIds', ghostIds);
+  if (deadGhostIds !== undefined) {
+    world.setResource(DEFAULT_DEAD_GHOST_IDS_RESOURCE_KEY, deadGhostIds);
+  }
 
   if (spawnState) {
     world.setResource(DEFAULT_SPAWN_RESOURCE_KEY, spawnState);
@@ -110,16 +117,33 @@ describe('spawn-system', () => {
         elapsedMs: 15000,
         releasedGhostIds: [0, 1],
         queuedGhostIds: [2, 3],
-        respawnQueue: [{ ghostId: 0, readyAtMs: 20000 }],
+        respawnQueue: [],
         activeGhostCap: 2,
       },
     });
+    scheduleRespawn(getSpawnState(world), 0);
 
     updateSpawn(spawnSystem, world, 0);
 
     expect(getSpawnState(world).releasedGhostIds).toEqual([1, 2]);
     expect(getSpawnState(world).queuedGhostIds).toEqual([3]);
-    expect(getSpawnState(world).respawnQueue).toEqual([{ ghostId: 0, readyAtMs: 20000 }]);
+    expect(getSpawnState(world).respawnQueue).toEqual([
+      { ghostId: 0, readyAtMs: 15000 + getRespawnDelayMs() },
+    ]);
+  });
+
+  it('schedules respawn using elapsedMs plus the canonical 5000ms delay', () => {
+    const spawnState = {
+      elapsedMs: 4000,
+      releasedGhostIds: [0, 1],
+      queuedGhostIds: [],
+      respawnQueue: [],
+      activeGhostCap: 2,
+    };
+
+    scheduleRespawn(spawnState, 1);
+
+    expect(spawnState.respawnQueue).toEqual([{ ghostId: 1, readyAtMs: 9000 }]);
   });
 
   it('does not release respawning ghosts before readyAtMs', () => {
@@ -129,42 +153,66 @@ describe('spawn-system', () => {
         elapsedMs: 4000,
         releasedGhostIds: [0, 1],
         queuedGhostIds: [],
-        respawnQueue: [{ ghostId: 1, readyAtMs: 9000 }],
+        respawnQueue: [],
         activeGhostCap: 2,
       },
     });
+    scheduleRespawn(getSpawnState(world), 1);
 
     advanceSpawnTime(spawnSystem, world, 1000);
 
     expect(getSpawnState(world).elapsedMs).toBe(5000);
     expect(getSpawnState(world).releasedGhostIds).toEqual([0]);
     expect(getSpawnState(world).queuedGhostIds).toEqual([]);
-    expect(getSpawnState(world).respawnQueue).toEqual([{ ghostId: 1, readyAtMs: 9000 }]);
+    expect(getSpawnState(world).respawnQueue).toEqual([
+      { ghostId: 1, readyAtMs: 4000 + getRespawnDelayMs() },
+    ]);
   });
 
-  it('re-enters a respawned ghost into the queue after readyAtMs and still respects cap', () => {
+  it('runs the full death to schedule to wait to release flow', () => {
     const { spawnSystem, world } = createSpawnHarness({
       maxGhosts: 2,
+      deadGhostIds: [1],
       spawnState: {
         elapsedMs: 14000,
         releasedGhostIds: [0, 1],
         queuedGhostIds: [2],
-        respawnQueue: [{ ghostId: 1, readyAtMs: 15000 }],
+        respawnQueue: [],
         activeGhostCap: 2,
       },
     });
 
-    advanceSpawnTime(spawnSystem, world, 1000);
+    updateSpawn(spawnSystem, world, 0);
 
-    expect(getSpawnState(world).elapsedMs).toBe(15000);
+    expect(getSpawnState(world).elapsedMs).toBe(14000);
     expect(getSpawnState(world).releasedGhostIds).toEqual([0, 2]);
-    expect(getSpawnState(world).queuedGhostIds).toEqual([1, 3]);
+    expect(getSpawnState(world).queuedGhostIds).toEqual([]);
+    expect(getSpawnState(world).respawnQueue).toEqual([
+      { ghostId: 1, readyAtMs: 14000 + getRespawnDelayMs() },
+    ]);
+    expect(world.getResource(DEFAULT_DEAD_GHOST_IDS_RESOURCE_KEY)).toEqual([1]);
+
+    advanceSpawnTime(spawnSystem, world, getRespawnDelayMs() - 1);
+
+    expect(getSpawnState(world).elapsedMs).toBe(18999);
+    expect(getSpawnState(world).releasedGhostIds).toEqual([0, 2]);
+    expect(getSpawnState(world).queuedGhostIds).toEqual([3]);
+    expect(getSpawnState(world).respawnQueue).toEqual([
+      { ghostId: 1, readyAtMs: 14000 + getRespawnDelayMs() },
+    ]);
+
+    advanceSpawnTime(spawnSystem, world, 1);
+
+    expect(getSpawnState(world).elapsedMs).toBe(19000);
+    expect(getSpawnState(world).releasedGhostIds).toEqual([0, 2]);
+    expect(getSpawnState(world).queuedGhostIds).toEqual([3, 1]);
     expect(getSpawnState(world).respawnQueue).toEqual([]);
   });
 
-  it('never duplicates a ghost id in releasedGhostIds', () => {
+  it('never duplicates a ghost id in releasedGhostIds or respawnQueue', () => {
     const { spawnSystem, world } = createSpawnHarness({
       maxGhosts: 4,
+      deadGhostIds: [2, 2, 3],
       spawnState: {
         elapsedMs: 15000,
         releasedGhostIds: [0, 1, 2],
@@ -176,7 +224,12 @@ describe('spawn-system', () => {
 
     updateSpawn(spawnSystem, world, 0);
 
-    expect(getSpawnState(world).releasedGhostIds).toEqual([0, 1, 2, 3]);
+    expect(getSpawnState(world).releasedGhostIds).toEqual([0, 1]);
+    expect(getSpawnState(world).queuedGhostIds).toEqual([]);
+    expect(getSpawnState(world).respawnQueue).toEqual([
+      { ghostId: 2, readyAtMs: 15000 + getRespawnDelayMs() },
+      { ghostId: 3, readyAtMs: 15000 + getRespawnDelayMs() },
+    ]);
   });
 
   it('initializes missing state with the canonical spawn-state defaults', () => {

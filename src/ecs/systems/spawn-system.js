@@ -8,9 +8,11 @@
  *
  * Public API:
  * - DEFAULT_SPAWN_RESOURCE_KEY
+ * - DEFAULT_DEAD_GHOST_IDS_RESOURCE_KEY
  * - DEFAULT_GHOST_IDS_RESOURCE_KEY
  * - getGhostReleaseDelayMs(index)
  * - getRespawnDelayMs()
+ * - scheduleRespawn(spawnState, ghostId)
  * - resolveActiveGhostCap(mapResource)
  * - resolveDeterministicGhostOrder(ghostIds, activeGhostCap)
  * - createInitialSpawnState()
@@ -40,6 +42,7 @@ const MAX_DELTA_MS = 1000;
 export const DEFAULT_GAME_STATUS_RESOURCE_KEY = 'gameStatus';
 export const DEFAULT_MAP_RESOURCE_KEY = 'mapResource';
 export const DEFAULT_GHOST_IDS_RESOURCE_KEY = 'ghostIds';
+export const DEFAULT_DEAD_GHOST_IDS_RESOURCE_KEY = 'deadGhostIds';
 export const DEFAULT_SPAWN_RESOURCE_KEY = 'ghostSpawnState';
 
 function toFiniteNonNegativeInteger(value, fallback = 0) {
@@ -132,6 +135,33 @@ export function getRespawnDelayMs() {
   }
 
   return Math.floor(delay);
+}
+
+export function scheduleRespawn(spawnState, ghostId) {
+  const normalizedGhostId = Number(ghostId);
+  if (!Number.isFinite(normalizedGhostId)) {
+    return false;
+  }
+
+  const nextGhostId = Math.floor(normalizedGhostId);
+  for (const entry of spawnState.respawnQueue) {
+    if (entry.ghostId === nextGhostId) {
+      return false;
+    }
+  }
+
+  spawnState.respawnQueue.push({
+    ghostId: nextGhostId,
+    readyAtMs: spawnState.elapsedMs + getRespawnDelayMs(),
+  });
+  spawnState.respawnQueue.sort((left, right) => {
+    if (left.readyAtMs !== right.readyAtMs) {
+      return left.readyAtMs - right.readyAtMs;
+    }
+
+    return left.ghostId - right.ghostId;
+  });
+  return true;
 }
 
 export function resolveActiveGhostCap(mapResource) {
@@ -319,9 +349,21 @@ function enqueueNewlyEligibleInitialGhosts(spawnState, ghostOrder) {
   );
 }
 
+function consumeDeadGhostIds(spawnState, deadGhostIds) {
+  if (!Array.isArray(deadGhostIds) || deadGhostIds.length === 0) {
+    return;
+  }
+
+  for (const ghostId of deadGhostIds) {
+    scheduleRespawn(spawnState, ghostId);
+  }
+}
+
 export function createSpawnSystem(options = {}) {
   const gameStatusResourceKey = options.gameStatusResourceKey || DEFAULT_GAME_STATUS_RESOURCE_KEY;
   const ghostIdsResourceKey = options.ghostIdsResourceKey || DEFAULT_GHOST_IDS_RESOURCE_KEY;
+  const deadGhostIdsResourceKey =
+    options.deadGhostIdsResourceKey || DEFAULT_DEAD_GHOST_IDS_RESOURCE_KEY;
   const mapResourceKey = options.mapResourceKey || DEFAULT_MAP_RESOURCE_KEY;
   const spawnResourceKey = options.spawnResourceKey || DEFAULT_SPAWN_RESOURCE_KEY;
 
@@ -329,13 +371,20 @@ export function createSpawnSystem(options = {}) {
     name: 'spawn-system',
     phase: 'logic',
     resourceCapabilities: {
-      read: [gameStatusResourceKey, ghostIdsResourceKey, mapResourceKey, spawnResourceKey],
+      read: [
+        gameStatusResourceKey,
+        ghostIdsResourceKey,
+        deadGhostIdsResourceKey,
+        mapResourceKey,
+        spawnResourceKey,
+      ],
       write: [spawnResourceKey],
     },
     update(context) {
       const world = context.world;
       const gameStatus = world.getResource(gameStatusResourceKey);
       const ghostIds = world.getResource(ghostIdsResourceKey);
+      const deadGhostIds = world.getResource(deadGhostIdsResourceKey) || [];
       const mapResource = world.getResource(mapResourceKey);
       const existingSpawnState = world.getResource(spawnResourceKey);
 
@@ -347,6 +396,10 @@ export function createSpawnSystem(options = {}) {
 
       if (gameStatus?.currentState === GAME_STATE.PLAYING) {
         spawnState.elapsedMs += getDeltaMs(context);
+      }
+
+      if (deadGhostIds.length > 0) {
+        consumeDeadGhostIds(spawnState, deadGhostIds);
       }
 
       // Ghosts waiting out the dead-return penalty are not currently active and
