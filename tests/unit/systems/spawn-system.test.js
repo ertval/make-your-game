@@ -190,7 +190,7 @@ describe('spawn-system', () => {
     expect(getSpawnState(world).respawnQueue).toEqual([
       { ghostId: 1, readyAtMs: 14000 + getRespawnDelayMs() },
     ]);
-    expect(world.getResource(DEFAULT_DEAD_GHOST_IDS_RESOURCE_KEY)).toEqual([1]);
+    expect(world.getResource(DEFAULT_DEAD_GHOST_IDS_RESOURCE_KEY)).toEqual([]);
 
     advanceSpawnTime(spawnSystem, world, getRespawnDelayMs() - 1);
 
@@ -207,6 +207,40 @@ describe('spawn-system', () => {
     expect(getSpawnState(world).releasedGhostIds).toEqual([0, 2]);
     expect(getSpawnState(world).queuedGhostIds).toEqual([3, 1]);
     expect(getSpawnState(world).respawnQueue).toEqual([]);
+  });
+
+  it('does not reschedule a stale death intent after the respawn entry is consumed', () => {
+    const { spawnSystem, world } = createSpawnHarness({
+      maxGhosts: 4,
+      deadGhostIds: [1],
+      spawnState: {
+        elapsedMs: 14000,
+        releasedGhostIds: [0, 1, 2],
+        queuedGhostIds: [3],
+        respawnQueue: [],
+        activeGhostCap: 4,
+      },
+    });
+
+    updateSpawn(spawnSystem, world, 0);
+
+    expect(getSpawnState(world).respawnQueue).toEqual([
+      { ghostId: 1, readyAtMs: 14000 + getRespawnDelayMs() },
+    ]);
+    expect(world.getResource(DEFAULT_DEAD_GHOST_IDS_RESOURCE_KEY)).toEqual([]);
+
+    advanceSpawnTime(spawnSystem, world, getRespawnDelayMs());
+
+    expect(getSpawnState(world).respawnQueue).toEqual([]);
+    expect(getSpawnState(world).queuedGhostIds).toEqual([]);
+    expect(getSpawnState(world).releasedGhostIds).toEqual([0, 2, 3, 1]);
+
+    updateSpawn(spawnSystem, world, 0);
+
+    expect(getSpawnState(world).respawnQueue).toEqual([]);
+    expect(getSpawnState(world).queuedGhostIds).toEqual([]);
+    expect(getSpawnState(world).releasedGhostIds).toEqual([0, 2, 3, 1]);
+    expect(world.getResource(DEFAULT_DEAD_GHOST_IDS_RESOURCE_KEY)).toEqual([]);
   });
 
   it('never duplicates a ghost id in releasedGhostIds or respawnQueue', () => {

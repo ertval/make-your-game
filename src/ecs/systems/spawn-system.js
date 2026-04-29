@@ -24,6 +24,8 @@
  *   timing/queue bookkeeping without changing ghost components prematurely.
  * - `elapsedMs` advances only while gameplay is in the PLAYING state, matching
  *   the pause-safe timing pattern used by other logic systems.
+ * - Dead ghost ids are treated as edge-triggered intents and cleared after
+ *   consumption so stale resource data cannot schedule duplicate respawns.
  * - Release and respawn mutation are deliberately deferred until a later step
  *   provides a deterministic ghost entity ordering resource.
  */
@@ -378,7 +380,9 @@ export function createSpawnSystem(options = {}) {
         mapResourceKey,
         spawnResourceKey,
       ],
-      write: [spawnResourceKey],
+      // `deadGhostIds` is consumed as an event queue, so the system clears it
+      // after reading to avoid replaying stale death intents on later ticks.
+      write: [deadGhostIdsResourceKey, spawnResourceKey],
     },
     update(context) {
       const world = context.world;
@@ -400,6 +404,9 @@ export function createSpawnSystem(options = {}) {
 
       if (deadGhostIds.length > 0) {
         consumeDeadGhostIds(spawnState, deadGhostIds);
+        // Death intents are edge-triggered. Clear them once consumed so the
+        // same death cannot be re-applied after the queued respawn releases.
+        world.setResource(deadGhostIdsResourceKey, []);
       }
 
       // Ghosts waiting out the dead-return penalty are not currently active and
