@@ -32,7 +32,7 @@ This document is the single source of truth for requirement-to-audit-to-ticket-t
 
 ## Alignment Verification Summary
 
-1. REQ-01 through REQ-14 are mapped to owning tickets and audit IDs below.
+1. REQ-01 through REQ-15 are mapped to owning tickets and audit IDs below.
 2. AUDIT-F-01 through AUDIT-F-21 and AUDIT-B-01 through AUDIT-B-06 are mapped to ticket anchors and test/evidence anchors below.
 3. Audit verification follows `AGENTS.md` categories: Fully Automatable, Semi-Automatable, and Manual-With-Evidence.
 
@@ -54,6 +54,7 @@ This document is the single source of truth for requirement-to-audit-to-ticket-t
 | REQ-12 | No frameworks (vanilla JS/DOM only) | A-01 | AUDIT-F-05 | CI dependency gate + `tests/e2e/audit/audit.e2e.test.js` | Mapped, Planned, Pending |
 | REQ-13 | Single-player only | B-02, C-04, A-06 | AUDIT-F-03 | `tests/e2e/audit/audit.e2e.test.js` | Mapped, Planned, Pending |
 | REQ-14 | Genre aligns with pre-approved list | B-03, B-06, B-07, B-08, D-10 | AUDIT-F-06, AUDIT-F-13 | `tests/e2e/audit/audit.e2e.test.js` | Mapped, Planned, Pending |
+| REQ-15 | Ghost spawn timing follows `docs/game-description.md` §5.4 with deterministic stagger, FIFO release, map-driven cap enforcement, and 5000ms respawn delay | C-03, B-08, A-06 | AUDIT-F-13 | `src/ecs/systems/spawn-system.js` + `tests/unit/systems/spawn-system.test.js` | Mapped, Covered, Executable (C-03 system logic implemented and passing; ghost-entity/runtime integration remains deferred) |
 
 ## Audit Coverage Matrix (Canonical)
 
@@ -73,7 +74,7 @@ This document is the single source of truth for requirement-to-audit-to-ticket-t
 | AUDIT-F-10 | While paused, no dropped frames and rAF unaffected? | REQ-02, REQ-09 | Fully Automatable | A-03, C-04, D-05, A-06 | Same as above + pause trace evidence | Mapped, Planned, Pending |
 | AUDIT-F-11 | Does player obey movement commands? | REQ-07 | Fully Automatable | B-02, B-03 | Same as above | Mapped, Planned, Pending |
 | AUDIT-F-12 | Does player move without spamming keys? | REQ-07, REQ-08 | Fully Automatable | B-02, B-03 | Same as above | Mapped, Planned, Pending |
-| AUDIT-F-13 | Does game behave like pre-approved genre? | REQ-14 | Fully Automatable | B-03, B-06, B-07, B-08 | Same as above | Mapped, Planned, Pending |
+| AUDIT-F-13 | Does game behave like pre-approved genre, including deterministic ghost-house stagger/respawn timing from `game-description.md` §5.4? | REQ-14, REQ-15 | Fully Automatable | B-03, B-06, B-07, B-08, C-03 | `tests/e2e/audit/audit.e2e.test.js` + `src/ecs/systems/spawn-system.js` + `tests/unit/systems/spawn-system.test.js` | Mapped, Covered, Executable (C-03 covers stagger timing, FIFO ordering, cap enforcement, and respawn delay at the system-test level) |
 | AUDIT-F-14 | Does timer/countdown work? | REQ-04 | Fully Automatable | C-02, C-05 | `tests/unit/systems/timer-system.test.js` | Mapped, Covered, Executable (system logic only — HUD coverage pending C-05) |
 | AUDIT-F-15 | Does the score HUD remain present during gameplay, with runtime-visible score increments deferred to later integration? | REQ-05 | Fully Automatable | C-01, C-05, A-06 | `tests/e2e/audit/audit.e2e.test.js` + `tests/unit/systems/scoring-system.test.js` | Mapped, Planned, Pending (`hud-contract` currently covers score HUD presence; deterministic `C-01` scoring values are verified in system tests until runtime-visible scoring lands in `C-05` / `A-06`) |
 | AUDIT-F-16 | Do lives decrease on life-loss events? | REQ-06 | Fully Automatable | C-02, C-05 | `tests/unit/systems/life-system.test.js` | Mapped, Covered, Executable (system logic only — HUD coverage pending C-05) |
