@@ -102,6 +102,7 @@ export function createInputSystem(options = {}) {
         inputState.right[entityId] = heldKeys.has('right') ? 1 : 0;
         inputState.bomb[entityId] = pressedKeys.has('bomb') ? 1 : 0;
         inputState.pause[entityId] = pressedKeys.has('pause') ? 1 : 0;
+        inputState.restart[entityId] = pressedKeys.has('restart') ? 1 : 0;
         // Confirm is intentionally edge-triggered like other one-shot actions.
         inputState.confirm[entityId] = pressedKeys.has('confirm') ? 1 : 0;
       }

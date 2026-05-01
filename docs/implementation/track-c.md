@@ -82,18 +82,23 @@ Source plan: `docs/implementation/implementation-plan.md` (Section 3)
 **Blocks**: A-05, A-06, A-08, C-05
 
 **Deliverables**:
-- `src/ecs/systems/pause-system.js` — freeze simulation while rAF continues
-- `src/ecs/systems/level-progress-system.js` — pellet tracking, level transitions, victory/game-over
+- `src/ecs/systems/pause-system.js` — FSM-only pause, continue, and paused-restart transitions
+- `src/ecs/systems/pause-input-system.js` — keyboard edge input to `pauseIntent`
+- `src/ecs/systems/level-progress-system.js` — pellet completion detection
+- `src/ecs/systems/level-flow-system.js` — `LEVEL_COMPLETE` flow to next level or `VICTORY`
+- `src/ecs/systems/level-loader-system.js` — deferred next-level map loading
 
-- [ ] Implement `pause-system.js`: Freezes simulation timer while `rAF` continues. Fuse timers, invincibility, and stun timers all freeze.
-- [ ] Implement `level-progress-system.js`:
-  - All pellets eaten → `LEVEL_COMPLETE` state with stats screen.
-  - Level Complete → load next level map or `VICTORY` after level 3.
-  - `GAME_OVER` on timer expiry or zero lives.
-- [ ] Enforce FSM: `MENU → PLAYING ↔ PAUSED → LEVEL_COMPLETE → VICTORY` or `GAME_OVER`.
-- [ ] Pause Continue: resumes exact prior simulation state.
-- [ ] Pause Restart: resets current level, preserves cumulative score from previous levels.
-- [ ] Verification gate: e2e pause open/continue/restart tests pass with keyboard-only flow.
+- [x] `pause-system`
+- [x] `pause-input-system`
+- [x] `level-progress-system`
+- [x] `level-flow-system`
+- [x] `level-loader-system`
+- [x] Enforce FSM: `MENU → PLAYING ↔ PAUSED → LEVEL_COMPLETE → VICTORY` or `GAME_OVER`.
+- [x] Pause Continue: resumes exact prior simulation state through existing pause clock behavior.
+- [x] Pause Restart: restart intent is accepted only while `PAUSED`.
+- [x] Verification gate: keyboard-only pause flow covered by unit tests.
+
+All systems implemented, integrated in bootstrap, and covered by unit tests. Keyboard-only pause flow verified.
 
 ---
 

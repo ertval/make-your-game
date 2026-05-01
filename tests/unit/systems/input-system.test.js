@@ -51,7 +51,7 @@ describe('input-system', () => {
       'inputAdapter',
       createAdapterStub({
         heldKeys: ['up', 'left'],
-        pressedKeys: ['bomb', 'pause', 'confirm'],
+        pressedKeys: ['bomb', 'pause', 'restart', 'confirm'],
       }),
     );
     world.setResource('inputState', inputState);
@@ -64,6 +64,7 @@ describe('input-system', () => {
     expect(inputState.right[player.id]).toBe(0);
     expect(inputState.bomb[player.id]).toBe(1);
     expect(inputState.pause[player.id]).toBe(1);
+    expect(inputState.restart[player.id]).toBe(1);
     expect(inputState.confirm[player.id]).toBe(1);
   });
 
@@ -113,6 +114,7 @@ describe('input-system', () => {
     expect(inputState.right[player.id]).toBe(0);
     expect(inputState.bomb[player.id]).toBe(0);
     expect(inputState.pause[player.id]).toBe(0);
+    expect(inputState.restart[player.id]).toBe(0);
     expect(inputState.confirm[player.id]).toBe(0);
   });
 
@@ -155,6 +157,7 @@ describe('input-system', () => {
     inputState.right[player.id] = 1;
     inputState.bomb[player.id] = 1;
     inputState.pause[player.id] = 1;
+    inputState.restart[player.id] = 1;
     inputState.confirm[player.id] = 1;
 
     inputSystem.update({ world });
@@ -165,6 +168,7 @@ describe('input-system', () => {
     expect(inputState.right[player.id]).toBe(0);
     expect(inputState.bomb[player.id]).toBe(0);
     expect(inputState.pause[player.id]).toBe(0);
+    expect(inputState.restart[player.id]).toBe(0);
     expect(inputState.confirm[player.id]).toBe(0);
   });
 

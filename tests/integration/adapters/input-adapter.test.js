@@ -56,8 +56,10 @@ describe('keyboard input adapter', () => {
     expect(normalizeKeyboardIntent({ code: 'Space' })).toBe(INPUT_INTENT.BOMB);
     expect(normalizeKeyboardIntent({ code: 'Escape' })).toBe(INPUT_INTENT.PAUSE);
     expect(normalizeKeyboardIntent({ code: 'KeyP' })).toBe(INPUT_INTENT.PAUSE);
+    expect(normalizeKeyboardIntent({ code: 'KeyR' })).toBe(INPUT_INTENT.RESTART);
     expect(normalizeKeyboardIntent({ code: 'Enter' })).toBe(INPUT_INTENT.CONFIRM);
     expect(normalizeKeyboardIntent({ key: 'P' })).toBe(INPUT_INTENT.PAUSE);
+    expect(normalizeKeyboardIntent({ key: 'R' })).toBe(INPUT_INTENT.RESTART);
     expect(normalizeKeyboardIntent({ key: ' ' })).toBe(INPUT_INTENT.BOMB);
     expect(normalizeKeyboardIntent({ key: 'Esc' })).toBe(INPUT_INTENT.PAUSE);
     expect(normalizeKeyboardIntent({ key: 'Spacebar' })).toBe(INPUT_INTENT.BOMB);

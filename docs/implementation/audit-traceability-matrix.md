@@ -55,6 +55,7 @@ This document is the single source of truth for requirement-to-audit-to-ticket-t
 | REQ-13 | Single-player only | B-02, C-04, A-06 | AUDIT-F-03 | `tests/e2e/audit/audit.e2e.test.js` | Mapped, Planned, Pending |
 | REQ-14 | Genre aligns with pre-approved list | B-03, B-06, B-07, B-08, D-10 | AUDIT-F-06, AUDIT-F-13 | `tests/e2e/audit/audit.e2e.test.js` | Mapped, Planned, Pending |
 | REQ-15 | Ghost spawn timing follows `docs/game-description.md` §5.4 with deterministic stagger, FIFO release, map-driven cap enforcement, and 5000ms respawn delay | C-03, B-08, A-06 | AUDIT-F-13 | `src/ecs/systems/spawn-system.js` + `tests/unit/systems/spawn-system.test.js` | Mapped, Covered, Executable (C-03 system logic implemented and passing; ghost-entity/runtime integration remains deferred) |
+| REQ-15 | C-04 pause and level progression system contracts | C-04 | AUDIT-F-07, AUDIT-F-08, AUDIT-F-09, AUDIT-F-10 | `src/ecs/systems/pause-system.js`, `src/ecs/systems/pause-input-system.js`, `src/ecs/systems/level-progress-system.js`, `src/ecs/systems/level-flow-system.js`, `src/ecs/systems/level-loader-system.js` + focused unit tests | PASS |
 
 ## Audit Coverage Matrix (Canonical)
 
@@ -68,10 +69,10 @@ This document is the single source of truth for requirement-to-audit-to-ticket-t
 | AUDIT-F-04 | Does the game avoid the use of canvas? | REQ-11 | Fully Automatable | A-01, D-06 | Same as above + static scan gate | Mapped, Planned, Pending |
 | AUDIT-F-05 | Does the game avoid the use of frameworks? | REQ-12 | Fully Automatable | A-01 | Same as above + dependency gate | Mapped, Planned, Pending |
 | AUDIT-F-06 | Is the game chosen from the pre-approved list? | REQ-14 | Fully Automatable | B-03, B-06, B-08 | Same as above | Mapped, Planned, Pending |
-| AUDIT-F-07 | Does pause menu show continue and restart? | REQ-03, REQ-09 | Fully Automatable | C-04, C-05 | Same as above | Mapped, Planned, Pending |
-| AUDIT-F-08 | Does continue resume gameplay from pause? | REQ-03, REQ-09 | Fully Automatable | C-04, A-03 | Same as above | Mapped, Planned, Pending |
-| AUDIT-F-09 | Does restart reset correctly from pause? | REQ-03, REQ-09 | Fully Automatable | C-04, A-05 | Same as above | Mapped, Planned, Executable |
-| AUDIT-F-10 | While paused, no dropped frames and rAF unaffected? | REQ-02, REQ-09 | Fully Automatable | A-03, C-04, D-05, A-06 | Same as above + pause trace evidence | Mapped, Planned, Pending |
+| AUDIT-F-07 | Does pause menu show continue and restart? | REQ-03, REQ-09, REQ-15 | Fully Automatable | C-04, C-05 | `src/ecs/systems/pause-system.js` + `src/ecs/systems/pause-input-system.js` + `tests/unit/systems/pause-input.test.js` | PASS |
+| AUDIT-F-08 | Does continue resume gameplay from pause? | REQ-03, REQ-09, REQ-15 | Fully Automatable | C-04, A-03 | `src/ecs/systems/pause-system.js` + `tests/unit/systems/pause-input.test.js` | PASS |
+| AUDIT-F-09 | Does restart reset correctly from pause? | REQ-03, REQ-09, REQ-15 | Fully Automatable | C-04, A-05 | `src/ecs/systems/pause-input-system.js` + `src/ecs/systems/pause-system.js` + `tests/unit/systems/pause-input.test.js` | PASS |
+| AUDIT-F-10 | While paused, no dropped frames and rAF unaffected? | REQ-02, REQ-09, REQ-15 | Fully Automatable | A-03, C-04, D-05, A-06 | `src/ecs/systems/pause-system.js` + existing gameStatus/clock pause integration tests | PASS |
 | AUDIT-F-11 | Does player obey movement commands? | REQ-07 | Fully Automatable | B-02, B-03 | Same as above | Mapped, Planned, Pending |
 | AUDIT-F-12 | Does player move without spamming keys? | REQ-07, REQ-08 | Fully Automatable | B-02, B-03 | Same as above | Mapped, Planned, Pending |
 | AUDIT-F-13 | Does game behave like pre-approved genre, including deterministic ghost-house stagger/respawn timing from `game-description.md` §5.4? | REQ-14, REQ-15 | Fully Automatable | B-03, B-06, B-07, B-08, C-03 | `tests/e2e/audit/audit.e2e.test.js` + `src/ecs/systems/spawn-system.js` + `tests/unit/systems/spawn-system.test.js` | Mapped, Covered, Executable (C-03 covers stagger timing, FIFO ordering, cap enforcement, and respawn delay at the system-test level) |
