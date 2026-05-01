@@ -22,6 +22,7 @@
 import { enqueue } from '../resources/event-queue.js';
 
 export const GAMEPLAY_EVENT_TYPE = Object.freeze({
+  BOMB_DETONATED: 'BombDetonated',
   PELLET_COLLECTED: 'PelletCollected',
   PLAYER_GHOST_CONTACT: 'PlayerGhostContact',
   PLAYER_POSITION_CHANGED: 'PlayerPositionChanged',
@@ -31,6 +32,7 @@ export const GAMEPLAY_EVENT_TYPE = Object.freeze({
 
 export const GAMEPLAY_EVENT_SOURCE = Object.freeze({
   COLLISION: 'collision-system',
+  EXPLOSION: 'explosion-system',
   PLAYER_MOVE: 'player-move-system',
 });
 
@@ -117,6 +119,14 @@ export function validateGameplayEventPayload(type, payload) {
 
     if (!isFiniteTile(payload.position)) {
       throw new TypeError(`Gameplay event "${type}" requires a finite position.`);
+    }
+
+    return true;
+  }
+
+  if (type === GAMEPLAY_EVENT_TYPE.BOMB_DETONATED) {
+    if (!isNonNegativeInteger(payload.chainDepth)) {
+      throw new TypeError(`Gameplay event "${type}" requires a non-negative integer chainDepth.`);
     }
 
     return true;
