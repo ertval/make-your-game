@@ -85,20 +85,16 @@ Source plan: `docs/implementation/implementation-plan.md` (Section 3)
 - `src/ecs/systems/pause-system.js` — FSM-only pause, continue, and paused-restart transitions
 - `src/ecs/systems/pause-input-system.js` — keyboard edge input to `pauseIntent`
 - `src/ecs/systems/level-progress-system.js` — pellet completion detection
-- `src/ecs/systems/level-flow-system.js` — `LEVEL_COMPLETE` flow to next level or `VICTORY`
-- `src/ecs/systems/level-loader-system.js` — deferred next-level map loading
 
 - [x] `pause-system`
 - [x] `pause-input-system`
 - [x] `level-progress-system`
-- [x] `level-flow-system`
-- [x] `level-loader-system`
 - [x] Enforce FSM: `MENU → PLAYING ↔ PAUSED → LEVEL_COMPLETE → VICTORY` or `GAME_OVER`.
 - [x] Pause Continue: resumes exact prior simulation state through existing pause clock behavior.
 - [x] Pause Restart: restart intent is accepted only while `PAUSED`.
 - [x] Verification gate: keyboard-only pause flow covered by unit tests.
 
-All systems implemented, integrated in bootstrap, and covered by unit tests. Keyboard-only pause flow verified.
+Scoped Track C systems are implemented and covered by unit tests. Runtime bootstrap wiring, level loading, and visible pause overlays remain deferred to their owning integration/UI scopes.
 
 ---
 

@@ -40,7 +40,6 @@ export const INPUT_INTENT = Object.freeze({
   RIGHT: 'right',
   BOMB: 'bomb',
   PAUSE: 'pause',
-  RESTART: 'restart',
   CONFIRM: 'confirm',
 });
 
@@ -56,7 +55,6 @@ export const KEYBOARD_CODE_BINDINGS = Object.freeze({
   Space: INPUT_INTENT.BOMB,
   Escape: INPUT_INTENT.PAUSE,
   KeyP: INPUT_INTENT.PAUSE,
-  KeyR: INPUT_INTENT.RESTART,
   Enter: INPUT_INTENT.CONFIRM,
 });
 
@@ -74,8 +72,6 @@ export const KEYBOARD_KEY_BINDINGS = Object.freeze({
   Esc: INPUT_INTENT.PAUSE,
   p: INPUT_INTENT.PAUSE,
   P: INPUT_INTENT.PAUSE,
-  r: INPUT_INTENT.RESTART,
-  R: INPUT_INTENT.RESTART,
   Enter: INPUT_INTENT.CONFIRM,
 });
 

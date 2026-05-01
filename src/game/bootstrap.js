@@ -35,18 +35,10 @@ import { FIXED_DT_MS, MAX_STEPS_PER_FRAME, TOTAL_LEVELS } from '../ecs/resources
 import { createEventQueue } from '../ecs/resources/event-queue.js';
 import { createGameStatus } from '../ecs/resources/game-status.js';
 import { createInputSystem } from '../ecs/systems/input-system.js';
-import { createLevelFlowSystem } from '../ecs/systems/level-flow-system.js';
-import { createLevelLoaderSystem } from '../ecs/systems/level-loader-system.js';
-import { createLevelProgressSystem } from '../ecs/systems/level-progress-system.js';
-import { createLifeSystem } from '../ecs/systems/life-system.js';
-import { createPauseInputSystem } from '../ecs/systems/pause-input-system.js';
-import { createPauseSystem } from '../ecs/systems/pause-system.js';
 import {
   createPlayerMoveSystem,
   PLAYER_MOVE_REQUIRED_MASK,
 } from '../ecs/systems/player-move-system.js';
-import { createSpawnSystem } from '../ecs/systems/spawn-system.js';
-import { createTimerSystem } from '../ecs/systems/timer-system.js';
 import { DEFAULT_PHASE_ORDER, World } from '../ecs/world/world.js';
 import { createGameFlow } from './game-flow.js';
 import { createLevelLoader } from './level-loader.js';
@@ -228,26 +220,9 @@ function createDefaultSystemsByPhase(options = {}) {
     positionResourceKey,
     velocityResourceKey,
   });
-  const pauseSystem = createPauseSystem();
-  const pauseInputSystem = createPauseInputSystem();
-  const timerSystem = createTimerSystem();
-  const lifeSystem = createLifeSystem();
-  const spawnSystem = createSpawnSystem();
-  const levelProgressSystem = createLevelProgressSystem();
-  const levelFlowSystem = createLevelFlowSystem();
-  const levelLoaderSystem = createLevelLoaderSystem();
 
   return {
-    input: [inputSystem, pauseInputSystem],
-    logic: [
-      pauseSystem,
-      timerSystem,
-      lifeSystem,
-      spawnSystem,
-      levelProgressSystem,
-      levelFlowSystem,
-      levelLoaderSystem,
-    ],
+    input: [inputSystem],
     physics: [playerMoveSystem],
   };
 }

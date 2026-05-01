@@ -2,8 +2,8 @@
  * Unit tests for the C-04 pause input intent bridge.
  *
  * These checks verify keyboard input snapshots become pauseIntent resource
- * updates without mutating game status directly. Edge behavior is covered by
- * running input-system first, which drains one-shot pressed intents.
+ * updates without mutating game status directly. Input snapshots are set
+ * directly so this Track C test stays inside pause-system ownership.
  */
 
 import { describe, expect, it } from 'vitest';
@@ -11,52 +11,37 @@ import { describe, expect, it } from 'vitest';
 import { createInputStateStore } from '../../../src/ecs/components/actors.js';
 import { COMPONENT_MASK } from '../../../src/ecs/components/registry.js';
 import { createGameStatus, GAME_STATE } from '../../../src/ecs/resources/game-status.js';
-import { createInputSystem } from '../../../src/ecs/systems/input-system.js';
 import { createPauseInputSystem } from '../../../src/ecs/systems/pause-input-system.js';
 import { World } from '../../../src/ecs/world/world.js';
 
-function createAdapterStub({ pressedKeys = [] } = {}) {
-  const adapter = {
-    heldKeys: new Set(),
-    pressedKeys: new Set(pressedKeys),
-  };
-
-  adapter.getHeldKeys = () => adapter.heldKeys;
-  adapter.drainPressedKeys = () => {
-    const drainedKeys = new Set(adapter.pressedKeys);
-    adapter.pressedKeys.clear();
-    return drainedKeys;
-  };
-
-  return adapter;
-}
-
-function createHarness(gameState, pressedKeys = []) {
+function createHarness(gameState) {
   const world = new World();
   const player = world.createEntity(COMPONENT_MASK.PLAYER | COMPONENT_MASK.INPUT_STATE);
+  const inputState = createInputStateStore(4);
+  // Restart input is a future-facing optional snapshot field consumed only when present.
+  inputState.restart = new Uint8Array(4);
 
   world.setResource('gameStatus', createGameStatus(gameState));
-  world.setResource('inputState', createInputStateStore(4));
-  world.setResource('inputAdapter', createAdapterStub({ pressedKeys }));
+  world.setResource('inputState', inputState);
 
   return {
-    inputSystem: createInputSystem(),
+    inputState,
     pauseInputSystem: createPauseInputSystem(),
     player,
     world,
   };
 }
 
-function runInputPipeline(harness) {
-  harness.inputSystem.update({ world: harness.world });
+function updatePauseInput(harness) {
   harness.pauseInputSystem.update({ world: harness.world });
 }
 
 describe('pause-input-system', () => {
   it('sets pauseIntent.toggle when pause is pressed', () => {
-    const harness = createHarness(GAME_STATE.PLAYING, ['pause']);
+    const harness = createHarness(GAME_STATE.PLAYING);
 
-    runInputPipeline(harness);
+    harness.inputState.pause[harness.player.id] = 1;
+    updatePauseInput(harness);
 
     expect(harness.world.getResource('pauseIntent')).toEqual({
       restart: false,
@@ -66,11 +51,13 @@ describe('pause-input-system', () => {
   });
 
   it('sets restart only when the game is paused', () => {
-    const playingHarness = createHarness(GAME_STATE.PLAYING, ['restart']);
-    const pausedHarness = createHarness(GAME_STATE.PAUSED, ['restart']);
+    const playingHarness = createHarness(GAME_STATE.PLAYING);
+    const pausedHarness = createHarness(GAME_STATE.PAUSED);
 
-    runInputPipeline(playingHarness);
-    runInputPipeline(pausedHarness);
+    playingHarness.inputState.restart[playingHarness.player.id] = 1;
+    pausedHarness.inputState.restart[pausedHarness.player.id] = 1;
+    updatePauseInput(playingHarness);
+    updatePauseInput(pausedHarness);
 
     expect(playingHarness.world.getResource('pauseIntent')).toEqual({
       restart: false,
@@ -83,9 +70,10 @@ describe('pause-input-system', () => {
   });
 
   it('uses drained input edges so held keys trigger only once', () => {
-    const harness = createHarness(GAME_STATE.PLAYING, ['pause']);
+    const harness = createHarness(GAME_STATE.PLAYING);
 
-    runInputPipeline(harness);
+    harness.inputState.pause[harness.player.id] = 1;
+    updatePauseInput(harness);
     expect(harness.world.getResource('pauseIntent')).toEqual({
       restart: false,
       toggle: true,
@@ -95,7 +83,8 @@ describe('pause-input-system', () => {
       restart: false,
       toggle: false,
     });
-    runInputPipeline(harness);
+    harness.inputState.pause[harness.player.id] = 0;
+    updatePauseInput(harness);
 
     expect(harness.world.getResource('pauseIntent')).toEqual({
       restart: false,

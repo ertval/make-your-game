@@ -152,7 +152,6 @@ describe('actor component stores', () => {
     expect(store.right).toBeInstanceOf(Uint8Array);
     expect(store.bomb).toBeInstanceOf(Uint8Array);
     expect(store.pause).toBeInstanceOf(Uint8Array);
-    expect(store.restart).toBeInstanceOf(Uint8Array);
     expect(store.confirm).toBeInstanceOf(Uint8Array);
 
     expect(store.up).toHaveLength(maxEntities);
@@ -161,7 +160,6 @@ describe('actor component stores', () => {
     expect(store.right).toHaveLength(maxEntities);
     expect(store.bomb).toHaveLength(maxEntities);
     expect(store.pause).toHaveLength(maxEntities);
-    expect(store.restart).toHaveLength(maxEntities);
     expect(store.confirm).toHaveLength(maxEntities);
   });
 
@@ -176,7 +174,6 @@ describe('actor component stores', () => {
     store.right[entityId] = 1;
     store.bomb[entityId] = 1;
     store.pause[entityId] = 1;
-    store.restart[entityId] = 1;
     store.confirm[entityId] = 1;
     store.right[untouchedEntityId] = 1;
 
@@ -188,7 +185,6 @@ describe('actor component stores', () => {
     expect(store.right[entityId]).toBe(0);
     expect(store.bomb[entityId]).toBe(0);
     expect(store.pause[entityId]).toBe(0);
-    expect(store.restart[entityId]).toBe(0);
     expect(store.confirm[entityId]).toBe(0);
 
     expect(store.right[untouchedEntityId]).toBe(1);
