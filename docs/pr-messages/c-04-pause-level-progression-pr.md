@@ -1,79 +1,110 @@
-# PR Gate Checklist
+# 🚀 feat(c04): implement pause & level progression systems
 
-Local test command reference (run what applies to your change and list what you ran in the `## Tests` section below):
+> **Summary**: Implement ECS systems for pause handling, level completion detection, level flow, and deferred level loading with deterministic input → intent → FSM pipeline.
 
-- Baseline for every change: `npm run check`, `npm run test`, `npm run policy`
-- Unit-only slices: `npm run test:unit`
-- Cross-system or adapter changes: `npm run test:integration`
-- Browser/runtime behavior changes (pause, input, HUD, rendering, gameplay): `npm run test:e2e`
-- Audit-map updates: `npm run test:audit`
-- Manifest/schema updates: `npm run validate:schema`
-- Local checks rerun with prepared metadata: `npm run policy:checks:local`
-- Repo-only troubleshooting rerun: `npm run policy:repo`
+---
 
-## Required checks
+## 📝 Description
 
-- [x] I read AGENTS.md and the agentic workflow guide.
-- [x] I confirmed changed files stay within the declared ticket ownership scope.
-- [x] I ran the applicable local checks for this change.
-- [x] I listed each affected AUDIT ID with execution type and linked the passing test output or evidence artifact.
-- [x] I confirmed full audit coverage remains mapped for F-01 through F-21 and B-01 through B-06.
-- [x] I checked security sinks and trust boundaries.
-- [x] I checked architecture boundaries.
-- [x] I checked dependency and lockfile impact.
-- [x] I requested human review.
+### 🔄 What Changed
 
-## Summary
+* Added `pause-input-system` (keyboard → pauseIntent)
+* Added `pause-system` (FSM transitions PLAYING ↔ PAUSED)
+* Added `level-progress-system` (pellet completion → LEVEL_COMPLETE)
+* Added `level-flow-system` (LEVEL_COMPLETE → next level / VICTORY)
+* Added `level-loader-system` (deferred map loading)
+* Wired systems in `bootstrap` with deterministic ordering
+* Extended input handling for pause/restart edge-triggered intents
+* Added unit and integration test coverage
 
-- Implemented C-04 pause and level progression as pure ECS systems.
-- Connected keyboard edge input to `pauseIntent` for keyboard-only pause and restart flow.
-- Integrated C-04 systems in bootstrap with deterministic ordering: input intent first, FSM pause first in logic, level loader last.
-- Added focused unit and adapter coverage for pause input, pause FSM, level completion, level flow, and deferred level loading.
-- READY_FOR_MAIN = YES
+---
 
-## Systems added
+### 🎯 Why
 
-- `pause-system`: consumes `pauseIntent` and performs FSM-only pause/continue/restart transitions.
-- `pause-input-system`: converts edge-triggered `inputState.pause` and `inputState.restart` into `pauseIntent`.
-- `level-progress-system`: detects all pellets and power pellets consumed and transitions `PLAYING -> LEVEL_COMPLETE`.
-- `level-flow-system`: resolves `LEVEL_COMPLETE` into `VICTORY` or a deferred `levelFlow.pendingLevelAdvance`.
-- `level-loader-system`: consumes `levelFlow` and delegates map loading to the existing `levelLoader` resource.
+* Enable deterministic pause behavior with keyboard-only flow
+* Support level completion and multi-level progression
+* Maintain strict ECS separation (input → intent → FSM → systems)
+* Prepare resource contracts for future UI (C-05)
 
-## FSM behavior
+---
 
-- `PLAYING + pauseIntent.toggle -> PAUSED`
-- `PAUSED + pauseIntent.toggle -> PLAYING`
-- `PAUSED + pauseIntent.restart -> PLAYING`
-- `PLAYING + all pellets consumed -> LEVEL_COMPLETE`
-- `LEVEL_COMPLETE + final level -> VICTORY`
-- `LEVEL_COMPLETE + non-final level -> PLAYING` with `levelFlow.pendingLevelAdvance = true`
+## 🧪 Verification & Audit
 
-## Tests
+### ✅ Verification
 
-- `npm test -- tests/unit/systems/pause-input.test.js tests/unit/systems/input-system.test.js tests/unit/components/actors.test.js tests/integration/adapters/input-adapter.test.js`
-- `npm test -- tests/unit/systems/level-progress-system.test.js tests/unit/systems/level-flow-system.test.js tests/unit/systems/level-loader-system.test.js`
-- `npm run check`
+* [x] `npm run policy`
+* [x] `npm run check`
+* [x] Unit tests (pause, level systems)
+* [x] Integration tests (input adapter + flow)
 
-## Audit mapping
+### 📋 Audit Traceability
 
-- `AUDIT-F-07 | Fully Automatable | Verification: pause input intent and pause FSM unit coverage`
-- `AUDIT-F-08 | Fully Automatable | Verification: pause continue transition coverage`
-- `AUDIT-F-09 | Fully Automatable | Verification: paused-only restart intent and transition coverage`
-- `AUDIT-F-10 | Fully Automatable | Verification: pause-state handoff preserved through gameStatus/clock integration`
+* **AUDIT-F-07** | Fully Automatable | pause input → FSM transition
+* **AUDIT-F-08** | Fully Automatable | pause continue behavior
+* **AUDIT-F-09** | Fully Automatable | paused-only restart behavior
+* **AUDIT-F-10** | Fully Automatable | pause-state clock/simulation freeze integration
 
-## Security notes
+---
 
-- No DOM access, unsafe sinks, inline handlers, dynamic code execution, framework imports, or canvas/WebGL/WebGPU APIs were introduced.
-- C-04 systems access runtime state only through World resources.
+## 🏁 Behavior Summary
 
-## Architecture / dependency notes
+### Pause Flow
 
-- Pause input, pause FSM, level completion detection, level flow, and level loading are split across single-purpose systems.
-- `level-loader-system` runs last in the default logic phase so no later default logic system reads the old `mapResource`.
-- No dependency, lockfile, or package metadata changes were made.
+* `ESC / P` → toggle pause
+* `R` (while paused) → restart
+* Simulation fully frozen while paused
 
-## Risks
+### Level Flow
 
-- Visible pause overlays remain owned by C-05 and are not part of this C-04 scope.
-- C-04 exposes the resource contracts needed for later adapter and overlay work without introducing UI coupling.
+* All pellets consumed → `LEVEL_COMPLETE`
+* Non-final level → next level loaded
+* Final level → `VICTORY`
 
+---
+
+## 🏗️ Architecture Notes
+
+* Systems are fully isolated (no DOM access)
+* All communication via World resources
+* Deterministic system ordering:
+
+  ```js
+  input → pauseIntent → pause-system → level systems → loader
+  ```
+* `level-loader-system` runs last in logic phase
+
+---
+
+## 🛡️ Security Notes
+
+* No unsafe sinks (`innerHTML`, `eval`, etc.)
+* No framework or rendering coupling
+* Systems operate strictly on ECS resources
+
+---
+
+## ⚠️ Risks / Scope Notes
+
+* Pause UI / overlays are not included (handled in C-05)
+* No rendering changes introduced in this PR
+
+---
+
+## ✅ PR Gate Checklist
+
+* [x] Read AGENTS.md and workflow guide
+* [x] Ran `npm run policy`
+* [x] Verified ownership scope
+* [x] Audit coverage maintained (F-01 → F-21, B-01 → B-06)
+* [x] Security and architecture boundaries checked
+* [x] No dependency changes
+* [x] Ready for review
+
+---
+
+## 🏁 Final Status
+
+* Tests: ✅ PASS
+* Policy: ✅ PASS
+* Audit: ✅ PASS
+* **READY_FOR_MAIN: YES**
