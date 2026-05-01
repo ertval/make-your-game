@@ -37,10 +37,10 @@ Local test command reference (run what applies to your change and list what you 
 ## What changed
 
 - Implemented `src/ecs/systems/pause-system.js` as the C-04 FSM-only pause transition system using a dedicated `pauseIntent` world resource.
-- Implemented `src/ecs/systems/pause-input-system.js` as the Track C pause intent bridge over existing input snapshots.
+- Implemented `src/ecs/systems/pause-input-system.js` as the Track C pause-toggle intent bridge over existing input snapshots.
 - Implemented `src/ecs/systems/level-progress-system.js` to detect when all pellets and power pellets are consumed and transition `PLAYING -> LEVEL_COMPLETE`.
 - Added focused unit coverage in `tests/unit/systems/pause-input.test.js` and `tests/unit/systems/level-progress-system.test.js`.
-- Updated Track C implementation docs and audit traceability text so C-04 is marked complete for the scoped Track C systems.
+- Updated Track C implementation docs and audit traceability text so C-04 is marked partial for scoped Track C system-layer coverage only.
 
 ## Why
 
@@ -55,10 +55,10 @@ Local test command reference (run what applies to your change and list what you 
 
 ## Audit questions affected
 
-- `AUDIT-F-07 | Execution type: Fully Automatable | Verification: pause intent and FSM coverage in tests/unit/systems/pause-input.test.js | Evidence path/link: tests/unit/systems/pause-input.test.js`
-- `AUDIT-F-08 | Execution type: Fully Automatable | Verification: pause continue transition handled in src/ecs/systems/pause-system.js | Evidence path/link: src/ecs/systems/pause-system.js`
-- `AUDIT-F-09 | Execution type: Fully Automatable | Verification: restart intent accepted only while PAUSED in tests/unit/systems/pause-input.test.js | Evidence path/link: tests/unit/systems/pause-input.test.js`
-- `AUDIT-F-10 | Execution type: Fully Automatable | Verification: pause FSM remains resource-only and compatible with existing gameStatus/clock pause integration | Evidence path/link: src/ecs/systems/pause-system.js`
+- `AUDIT-F-07 | Status: PARTIAL (system-layer only) | C-04 evidence: pause intent and FSM resources in tests/unit/systems/pause-input.test.js | Deferred: visible pause menu UI and focus behavior to C-05/A-06`
+- `AUDIT-F-08 | Status: PARTIAL (system-layer only) | C-04 evidence: pause continue transition handled in src/ecs/systems/pause-system.js | Deferred: runtime bootstrap/browser validation to Track A/B integration`
+- `AUDIT-F-09 | Status: PARTIAL (system-layer only) | C-04 evidence: pause-system preserves optional future pauseIntent.restart handling | Deferred: restart intent production and actual reset/reload behavior to integration/flow owner`
+- `AUDIT-F-10 | Status: PARTIAL (system-layer only) | C-04 evidence: pause FSM remains resource-only | Deferred: rAF/browser freeze validation to Track A/B integration`
 
 ## Security notes
 
@@ -69,10 +69,11 @@ Local test command reference (run what applies to your change and list what you 
 
 - `pause-system`, `pause-input-system`, and `level-progress-system` are single-purpose systems.
 - Map loading and visible pause overlays remain outside this Track C ownership scope.
+- Runtime integration and UI behavior are not part of this PR.
+- Restart intent production is optional/future integration and is not guaranteed by the current input resource contract.
 - No dependency, lockfile, or package metadata changes were made.
 
 ## Risks
 
 - Runtime bootstrap integration is deferred to the owning integration track after policy ownership is updated.
 - Level-flow and level-loader systems were removed from this PR because current policy does not assign those filenames to Track C.
-

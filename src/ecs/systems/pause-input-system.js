@@ -12,8 +12,9 @@
  *
  * Implementation notes:
  * - The input-system already drains one-shot keyboard edges into inputState,
- *   so this system can treat inputState.pause/restart as per-step edges.
- * - Restart intent is accepted only while the FSM is already PAUSED.
+ *   so this system can treat inputState.pause as a per-step edge.
+ * - Restart intent remains an optional future integration path produced by
+ *   another resource writer; this system does not assume inputState owns it.
  * - Existing pauseIntent values are preserved and OR-ed with newly observed
  *   input so multiple intent producers can coexist.
  */
@@ -53,18 +54,16 @@ function isPauseInputAllowed(gameStatus) {
 
 function collectPauseInput(inputState, entityIds) {
   let toggle = false;
-  let restart = false;
 
   for (const entityId of entityIds) {
     toggle ||= inputState?.pause?.[entityId] === 1;
-    restart ||= inputState?.restart?.[entityId] === 1;
 
-    if (toggle && restart) {
+    if (toggle) {
       break;
     }
   }
 
-  return { restart, toggle };
+  return { toggle };
 }
 
 export function createPauseInputSystem(options = {}) {
@@ -98,10 +97,9 @@ export function createPauseInputSystem(options = {}) {
       }
 
       const input = collectPauseInput(inputState, world.query(requiredMask));
-      const restart = input.restart && gameStatus.currentState === GAME_STATE.PAUSED;
 
       world.setResource(pauseIntentResourceKey, {
-        restart: currentIntent.restart || restart,
+        restart: currentIntent.restart,
         toggle: currentIntent.toggle || input.toggle,
       });
     },

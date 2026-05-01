@@ -32,7 +32,7 @@ This document is the single source of truth for requirement-to-audit-to-ticket-t
 
 ## Alignment Verification Summary
 
-1. REQ-01 through REQ-15 are mapped to owning tickets and audit IDs below.
+1. REQ-01 through REQ-16 are mapped to owning tickets and audit IDs below.
 2. AUDIT-F-01 through AUDIT-F-21 and AUDIT-B-01 through AUDIT-B-06 are mapped to ticket anchors and test/evidence anchors below.
 3. Audit verification follows `AGENTS.md` categories: Fully Automatable, Semi-Automatable, and Manual-With-Evidence.
 
@@ -55,7 +55,7 @@ This document is the single source of truth for requirement-to-audit-to-ticket-t
 | REQ-13 | Single-player only | B-02, C-04, A-06 | AUDIT-F-03 | `tests/e2e/audit/audit.e2e.test.js` | Mapped, Planned, Pending |
 | REQ-14 | Genre aligns with pre-approved list | B-03, B-06, B-07, B-08, D-10 | AUDIT-F-06, AUDIT-F-13 | `tests/e2e/audit/audit.e2e.test.js` | Mapped, Planned, Pending |
 | REQ-15 | Ghost spawn timing follows `docs/game-description.md` §5.4 with deterministic stagger, FIFO release, map-driven cap enforcement, and 5000ms respawn delay | C-03, B-08, A-06 | AUDIT-F-13 | `src/ecs/systems/spawn-system.js` + `tests/unit/systems/spawn-system.test.js` | Mapped, Covered, Executable (C-03 system logic implemented and passing; ghost-entity/runtime integration remains deferred) |
-| REQ-15 | C-04 pause and level progression system contracts | C-04 | AUDIT-F-07, AUDIT-F-08, AUDIT-F-09, AUDIT-F-10 | `src/ecs/systems/pause-system.js`, `src/ecs/systems/pause-input-system.js`, `src/ecs/systems/level-progress-system.js` + focused unit tests | PASS |
+| REQ-16 | C-04 pause and level progression system contracts | C-04 | AUDIT-F-07, AUDIT-F-08, AUDIT-F-09, AUDIT-F-10 | `src/ecs/systems/pause-system.js`, `src/ecs/systems/pause-input-system.js`, `src/ecs/systems/level-progress-system.js` + focused unit tests | Partial (system-layer only; runtime/UI integration deferred) |
 
 ## Audit Coverage Matrix (Canonical)
 
@@ -69,10 +69,10 @@ This document is the single source of truth for requirement-to-audit-to-ticket-t
 | AUDIT-F-04 | Does the game avoid the use of canvas? | REQ-11 | Fully Automatable | A-01, D-06 | Same as above + static scan gate | Mapped, Planned, Pending |
 | AUDIT-F-05 | Does the game avoid the use of frameworks? | REQ-12 | Fully Automatable | A-01 | Same as above + dependency gate | Mapped, Planned, Pending |
 | AUDIT-F-06 | Is the game chosen from the pre-approved list? | REQ-14 | Fully Automatable | B-03, B-06, B-08 | Same as above | Mapped, Planned, Pending |
-| AUDIT-F-07 | Does pause menu show continue and restart? | REQ-03, REQ-09, REQ-15 | Fully Automatable | C-04, C-05 | `src/ecs/systems/pause-system.js` + `src/ecs/systems/pause-input-system.js` + `tests/unit/systems/pause-input.test.js` | PASS |
-| AUDIT-F-08 | Does continue resume gameplay from pause? | REQ-03, REQ-09, REQ-15 | Fully Automatable | C-04, A-03 | `src/ecs/systems/pause-system.js` + `tests/unit/systems/pause-input.test.js` | PASS |
-| AUDIT-F-09 | Does restart reset correctly from pause? | REQ-03, REQ-09, REQ-15 | Fully Automatable | C-04, A-05 | `src/ecs/systems/pause-input-system.js` + `src/ecs/systems/pause-system.js` + `tests/unit/systems/pause-input.test.js` | PASS |
-| AUDIT-F-10 | While paused, no dropped frames and rAF unaffected? | REQ-02, REQ-09, REQ-15 | Fully Automatable | A-03, C-04, D-05, A-06 | `src/ecs/systems/pause-system.js` + existing gameStatus/clock pause integration tests | PASS |
+| AUDIT-F-07 | Does pause menu show continue and restart? | REQ-03, REQ-09, REQ-16 | Fully Automatable | C-04, C-05 | `src/ecs/systems/pause-system.js` + `src/ecs/systems/pause-input-system.js` + `tests/unit/systems/pause-input.test.js` | Partial (C-04 system-layer only; visible UI deferred to C-05/A-06) |
+| AUDIT-F-08 | Does continue resume gameplay from pause? | REQ-03, REQ-09, REQ-16 | Fully Automatable | C-04, A-03 | `src/ecs/systems/pause-system.js` + `tests/unit/systems/pause-input.test.js` | Partial (C-04 system-layer only; runtime integration deferred to Track A/B) |
+| AUDIT-F-09 | Does restart reset correctly from pause? | REQ-03, REQ-09, REQ-16 | Fully Automatable | C-04, A-05 | `src/ecs/systems/pause-system.js` + `tests/unit/systems/pause-input.test.js` | Partial (C-04 system-layer only; restart intent production and reset/reload behavior deferred) |
+| AUDIT-F-10 | While paused, no dropped frames and rAF unaffected? | REQ-02, REQ-09, REQ-16 | Fully Automatable | A-03, C-04, D-05, A-06 | `src/ecs/systems/pause-system.js` + existing gameStatus/clock pause integration tests | Partial (C-04 system-layer only; browser/rAF validation deferred to integration evidence) |
 | AUDIT-F-11 | Does player obey movement commands? | REQ-07 | Fully Automatable | B-02, B-03 | Same as above | Mapped, Planned, Pending |
 | AUDIT-F-12 | Does player move without spamming keys? | REQ-07, REQ-08 | Fully Automatable | B-02, B-03 | Same as above | Mapped, Planned, Pending |
 | AUDIT-F-13 | Does game behave like pre-approved genre, including deterministic ghost-house stagger/respawn timing from `game-description.md` §5.4? | REQ-14, REQ-15 | Fully Automatable | B-03, B-06, B-07, B-08, C-03 | `tests/e2e/audit/audit.e2e.test.js` + `src/ecs/systems/spawn-system.js` + `tests/unit/systems/spawn-system.test.js` | Mapped, Covered, Executable (C-03 covers stagger timing, FIFO ordering, cap enforcement, and respawn delay at the system-test level) |
@@ -94,7 +94,7 @@ This document is the single source of truth for requirement-to-audit-to-ticket-t
 | AUDIT-B-03 | Does program reuse memory to avoid jank? | REQ-01 | Fully Automatable | A-02, B-06, D-09, D-08 | `tests/integration/adapters/sprite-pool-adapter.test.js` (D-09 pool allocation) + `tests/e2e/audit/audit.e2e.test.js` + allocation evidence (D-08 pending) | Mapped, Covered, Pending |
 | AUDIT-B-04 | Does game use SVG? | REQ-14 | Fully Automatable | D-09, D-11 | Static SVG scan + runtime DOM/assertion checks | Mapped, Planned, Pending |
 | AUDIT-B-05 | Is code using asynchronicity for performance? | REQ-01 | Semi-Automatable | C-06, C-09, A-09 | Playwright `page.evaluate()` + Performance API threshold checks | Mapped, Planned, Pending |
-| AUDIT-B-06 | Is project well done overall? | REQ-01 through REQ-14 | Manual-With-Evidence | All tracks, A-09 | All audit assertions + evidence bundle + review sign-off | Mapped, Planned, Pending |
+| AUDIT-B-06 | Is project well done overall? | REQ-01 through REQ-16 | Manual-With-Evidence | All tracks, A-09 | All audit assertions + evidence bundle + review sign-off | Mapped, Planned, Pending |
 
 ## Completion Criteria For This Matrix
 

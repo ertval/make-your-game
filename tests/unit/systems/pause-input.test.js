@@ -18,8 +18,6 @@ function createHarness(gameState) {
   const world = new World();
   const player = world.createEntity(COMPONENT_MASK.PLAYER | COMPONENT_MASK.INPUT_STATE);
   const inputState = createInputStateStore(4);
-  // Restart input is a future-facing optional snapshot field consumed only when present.
-  inputState.restart = new Uint8Array(4);
 
   world.setResource('gameStatus', createGameStatus(gameState));
   world.setResource('inputState', inputState);
@@ -50,25 +48,6 @@ describe('pause-input-system', () => {
     expect(harness.world.getResource('gameStatus').currentState).toBe(GAME_STATE.PLAYING);
   });
 
-  it('sets restart only when the game is paused', () => {
-    const playingHarness = createHarness(GAME_STATE.PLAYING);
-    const pausedHarness = createHarness(GAME_STATE.PAUSED);
-
-    playingHarness.inputState.restart[playingHarness.player.id] = 1;
-    pausedHarness.inputState.restart[pausedHarness.player.id] = 1;
-    updatePauseInput(playingHarness);
-    updatePauseInput(pausedHarness);
-
-    expect(playingHarness.world.getResource('pauseIntent')).toEqual({
-      restart: false,
-      toggle: false,
-    });
-    expect(pausedHarness.world.getResource('pauseIntent')).toEqual({
-      restart: true,
-      toggle: false,
-    });
-  });
-
   it('uses drained input edges so held keys trigger only once', () => {
     const harness = createHarness(GAME_STATE.PLAYING);
 
@@ -88,6 +67,21 @@ describe('pause-input-system', () => {
 
     expect(harness.world.getResource('pauseIntent')).toEqual({
       restart: false,
+      toggle: false,
+    });
+  });
+
+  it('preserves optional restart intent from other resource producers', () => {
+    const harness = createHarness(GAME_STATE.PAUSED);
+
+    harness.world.setResource('pauseIntent', {
+      restart: true,
+      toggle: false,
+    });
+    updatePauseInput(harness);
+
+    expect(harness.world.getResource('pauseIntent')).toEqual({
+      restart: true,
       toggle: false,
     });
   });
