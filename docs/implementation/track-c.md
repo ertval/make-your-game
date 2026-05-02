@@ -80,22 +80,23 @@ Source plan: `docs/implementation/implementation-plan.md` (Section 3)
 **Depends On**: `D-01` (clock/game-status), `D-03` (map resource), `C-02` (timer/lives), `A-03` (game loop), `A-11` (audit gate, non-blocking)
 **Impacts**: Pause menu behavior and level/game state transitions (`AUDIT-F-07..F-10`)
 **Blocks**: A-05, A-06, A-08, C-05
-**READY_FOR_MAIN**: PARTIAL (SYSTEM LAYER COMPLETE)
+**READY_FOR_MAIN**: YES
+
+C-04 is complete at the ECS system-layer level and is safe to merge into main. Full runtime integration (bootstrap wiring, UI overlays, restart/reset behavior) is handled in subsequent tickets (`C-05`, `A-05`, and related follow-up work).
 
 **Deliverables**:
 - `src/ecs/systems/pause-system.js` — FSM-only pause, continue, and paused-restart transitions
 - `src/ecs/systems/pause-input-system.js` — pause-key edge input to `pauseIntent`
 - `src/ecs/systems/level-progress-system.js` — pellet completion detection
 
-- [x] `pause-system`
-- [x] `pause-input-system`
-- [x] `level-progress-system`
+- [x] Implements ECS system-layer logic for pause and level progression.
+- [x] Implemented in this PR: `pause-input-system`, `pause-system`, and `level-progress-system`.
 - [x] System-layer FSM intents: `PLAYING ↔ PAUSED` and `PLAYING → LEVEL_COMPLETE`.
 - [x] Pause Continue intent: `PAUSED → PLAYING` transition is implemented at the ECS resource layer.
-- [x] Pause Restart intent: optional future `pauseIntent.restart` handling remains in `pause-system`; production of restart intent and actual level reset remain deferred.
-- [x] Verification gate: system-layer pause intent and level-completion logic covered by unit tests.
+- [x] Pause Restart intent: `pause-system` accepts `pauseIntent.restart`, but restart intent production and actual reset/reload behavior remain deferred.
+- [x] Verification gate: focused unit tests cover `pause-input-system`, `pause-system`, and `level-progress-system` system-layer behavior.
 
-Scoped Track C systems are implemented and covered by unit tests. C-04 ECS systems implemented. Integration, UI, and runtime behavior handled in later tickets. `AUDIT-F-07` through `AUDIT-F-10` are partial for C-04 at the system layer only. Runtime bootstrap wiring, visible pause overlays, pause focus behavior, restart reset, rAF/browser validation, and level loading remain deferred to their owning integration/UI scopes.
+C-04 is system-layer complete only. Runtime integration, UI, and restart/reset behavior are handled in later tickets. `AUDIT-F-07` through `AUDIT-F-10` remain PARTIAL for C-04 because this PR does not include default runtime registration/bootstrap wiring, visible pause menu/overlays, restart reset/reload behavior, level-flow/level-loader runtime advancement, or browser rAF/performance/manual evidence.
 
 ---
 
