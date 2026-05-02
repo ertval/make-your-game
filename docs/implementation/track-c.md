@@ -29,7 +29,7 @@ Source plan: `docs/implementation/implementation-plan.md` (Section 3)
 - [x] Implement `scoring-system.js` with exact canonical values:
   - Pellet: +10, Power Pellet: +50, Ghost kill (normal): +200, Ghost kill (stunned): +400.
   - Chain multiplier: `200 * 2^(n-1)` per ghost. Power-up pickup: +100. Retain full authority over all pointing and combo logic here in C-01.
-  - Level clear: +1000 + (remainingSeconds × 10) is implemented as a pure helper and will be integrated in `C-04`.
+  - Level clear: +1000 + (remainingSeconds × 10) is implemented as a pure helper. Runtime integration is deferred to a later scoring/flow integration ticket.
 - [x] Consume collision intents (B-04) for the current scoring pipeline.
 - [x] C-01 scoring authority is implemented for the current collision-intent pipeline. Explosion-event scoring is not part of C-01 and will be integrated in a later ticket once event-queue usage is established through `B-09` or later runtime event consumers such as `C-07`.
 - [ ] Runtime integration into the default bootstrap / system stack is deferred to later integration tickets (`A-05`, `C-05`, `B-09`) and is not completed in C-01.
@@ -80,9 +80,9 @@ Source plan: `docs/implementation/implementation-plan.md` (Section 3)
 **Depends On**: `D-01` (clock/game-status), `D-03` (map resource), `C-02` (timer/lives), `A-03` (game loop), `A-11` (audit gate, non-blocking)
 **Impacts**: Pause menu behavior and level/game state transitions (`AUDIT-F-07..F-10`)
 **Blocks**: A-05, A-06, A-08, C-05
-**READY_FOR_MAIN**: YES
+**READY_FOR_MAIN**: NO
 
-C-04 is complete at the ECS system-layer level and is safe to merge into main. Full runtime integration (bootstrap wiring, UI overlays, restart/reset behavior) is handled in subsequent tickets (`C-05`, `A-05`, and related follow-up work).
+C-04 is complete at ECS system layer only. Runtime wiring, UI overlays, restart/reset behavior, and level-flow/loader integration are implemented in later tickets (`C-05+` / Track A integration).
 
 **Deliverables**:
 - `src/ecs/systems/pause-system.js` — FSM-only pause, continue, and paused-restart transitions
@@ -92,6 +92,7 @@ C-04 is complete at the ECS system-layer level and is safe to merge into main. F
 - [x] Implements ECS system-layer logic for pause and level progression.
 - [x] Implemented in this PR: `pause-input-system`, `pause-system`, and `level-progress-system`.
 - [x] System-layer FSM intents: `PLAYING ↔ PAUSED` and `PLAYING → LEVEL_COMPLETE`.
+- [x] C-04 does NOT apply level-clear scoring. It only transitions `PLAYING → LEVEL_COMPLETE`. Score integration is handled separately.
 - [x] Pause Continue intent: `PAUSED → PLAYING` transition is implemented at the ECS resource layer.
 - [x] Pause Restart intent: `pause-system` accepts `pauseIntent.restart`, but restart intent production and actual reset/reload behavior remain deferred.
 - [x] Verification gate: focused unit tests cover `pause-input-system`, `pause-system`, and `level-progress-system` system-layer behavior.

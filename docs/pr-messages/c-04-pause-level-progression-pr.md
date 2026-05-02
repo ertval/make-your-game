@@ -52,7 +52,7 @@ Local test command reference (run what applies to your change and list what you 
 
 ## Tests
 
-- `npm test -- tests/unit/systems/pause-input.test.js tests/unit/systems/level-progress-system.test.js`
+- `npm test -- tests/unit/systems/pause-input.test.js tests/unit/systems/pause-system.test.js tests/unit/systems/level-progress-system.test.js`
 - `npm run check`
 
 ## Audit questions affected

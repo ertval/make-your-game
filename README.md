@@ -41,7 +41,10 @@ The repository is currently in a **prototype / partial runtime** state.
 
 - ECS gameplay systems exist for core logic such as input handling, movement, collisions, scoring, timer/lives, spawn timing, pause-system logic, and level-progression detection.
 - The shipped browser runtime is still minimal and does **not** yet include the full gameplay/UI loop described in the target design docs.
+- The default runtime currently wires only a subset of ECS systems.
+- Track C systems for pause and progression are implemented but not yet connected to the default runtime loop.
 - Runtime/UI work such as live HUD updates, screen overlays, a visible pause menu, restart/reset flows, and the full player-facing feedback loop remains **planned** or **deferred** to later tickets.
+- UI features such as pause menu, HUD updates, overlays, and restart flows are deferred to later tickets (`C-05+`).
 - When this README describes the full game experience below, treat that as the intended roadmap unless a section explicitly says the behavior is already present in the shipped runtime.
 
 ### 🧠 What Is ECS?
@@ -253,6 +256,8 @@ For a free GitHub account, the repository must be public to publish a Pages site
 
 ## ⚙️ Frame Pipeline
 
+> Note: Some pipeline stages (`render-collect`, render-DOM batching, full ECS loop wiring) are part of target architecture and may not yet be fully implemented in current runtime.
+
 1. **rAF Start**: `requestAnimationFrame` initiates the frame.
 2. **Input Sync**: Input adapter snapshots key states into world resources.
 3. **Simulation (Fixed-Step)**:
@@ -295,7 +300,7 @@ For a free GitHub account, the repository must be public to publish a Pages site
 | Layer usage | Layers must be as few as possible but non-zero, with intentional promotion justified by audit evidence |
 | GC pauses | < 1ms target (object pooling, in-place component mutation) |
 | JS heap | < 10MB |
-| Layout thrashing | Zero (batch reads → writes via `render-dom-system.js`) |
+| Layout thrashing | Zero target (batch reads → writes via planned `render-dom-system.js`) |
 
 ---
 

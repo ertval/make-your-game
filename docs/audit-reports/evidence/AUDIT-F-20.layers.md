@@ -1,8 +1,10 @@
 # AUDIT-F-20 Logic Evidence: Layers
 
+- **Status Note**: PARTIAL — Manual evidence is deferred to later phases (performance/UI integration). This file is a placeholder and not final audit evidence.
+
 - **Status**: **Logic Verified (Integration Deferred)**
 - **Reason**: Full game loop wiring is owned by Track A. Manual browser capture is deferred until Milestone 2.
-- **Logic Proof**: `tests/unit/adapters/dom-renderer.test.js`
+- **Logic Proof**: `tests/integration/adapters/renderer-dom.test.js`
 - **Verification**: 
     - `DomRenderer` instantiates one `div` per entity ID.
     - Vitest stubs verify that these elements are appended to the `appRoot` and managed via a stable `elementMap`.
