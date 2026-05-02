@@ -10,7 +10,6 @@
  * - registerSystemsByPhase(world, systemsByPhase)
  */
 
-import { createSpritePool } from '../adapters/dom/sprite-pool-adapter.js';
 import {
   createInputStateStore,
   createPlayerStore,
@@ -345,34 +344,16 @@ export function createBootstrap(options = {}) {
   const world = options.world || new World();
   const playerEntityResourceKey =
     options.playerEntityResourceKey || DEFAULT_PLAYER_ENTITY_RESOURCE_KEY;
-  const spritePoolResourceKey = options.spritePoolResourceKey || 'spritePool';
   const clock = createClock(nowMs);
   const gameStatus = createGameStatus();
 
   // Movement systems need their component stores present before fixed-step work begins.
   initializeMovementResources(world, options);
 
-  // Pre-allocate the sprite pool if a container element is provided. The pool
-  // is warmed up once here and reset on every level load so active elements
-  // are reclaimed before entity state is rebuilt from the new map.
-  const spritePool = options.spriteContainer
-    ? createSpritePool({ document: options.document ?? globalThis.document, dev: options.dev })
-    : null;
-
-  if (spritePool && options.spriteContainer) {
-    spritePool.warmUp(options.spriteContainer);
-    world.setResource(spritePoolResourceKey, spritePool);
-  }
-
   const levelLoader = createLevelLoader({
     loadMapForLevel: options.loadMapForLevel,
     mapResourceKey: options.mapResourceKey || 'mapResource',
     onLevelLoaded: (mapResource) => {
-      // Reclaim all active sprite elements before entities are rebuilt from the
-      // new map so the pool starts each level in a fully-idle state.
-      if (spritePool) {
-        spritePool.reset();
-      }
       syncPlayerEntityFromMap(world, mapResource, options);
     },
     totalLevels: TOTAL_LEVELS,
