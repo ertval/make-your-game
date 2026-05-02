@@ -51,6 +51,8 @@ Track A needs to update `src/game/bootstrap.js` to:
    - `bombDetonationQueue`
    - `rng`
 2. Preallocate pooled bomb/fire entities before fixed-step systems run.
+   - Use `POOL_FIRE` from `src/ecs/resources/constants.js`; it is sized from the upgraded-radius fire pool budget, not from the starting default radius.
+   - If Track A already has a runtime wiring branch, rebase it after this B6 hardening patch so the fire pool uses the updated `MAX_FIRE_RADIUS`/`POOL_FIRE_PER_BOMB` constants.
 3. Register B6 logic systems in deterministic order:
    - `bomb-tick-system`
    - `explosion-system`
@@ -353,4 +355,3 @@ The skeleton will need to match the existing test helper patterns in this reposi
 Suggested wording:
 
 > This Track A integration branch wires the already implemented Track B B6 bomb/explosion systems into the default runtime bootstrap path. It does not change bomb/explosion simulation behavior; it registers required resources, preallocates pooled bomb/fire entities, and proves the runtime `Space → bomb → explosion → fire expiry` path with integration tests.
-

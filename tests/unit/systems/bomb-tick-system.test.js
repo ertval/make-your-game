@@ -239,6 +239,44 @@ describe('bomb-tick-system placement', () => {
     expect(bombStore.radius[activeBomb.id]).toBe(2);
   });
 
+  it('does not place a bomb when every pooled bomb slot is already active', () => {
+    const { bombStore, bombs, colliderStore, inputState, player, playerStore, system, world } =
+      createBombTickHarness();
+
+    playerStore.maxBombs[player.id] = bombs.length + 1;
+    for (const [index, bomb] of bombs.entries()) {
+      colliderStore.type[bomb.id] = COLLIDER_TYPE.BOMB;
+      bombStore.ownerId[bomb.id] = -1;
+      bombStore.row[bomb.id] = 1;
+      bombStore.col[bomb.id] = index + 1;
+    }
+    inputState.bomb[player.id] = 1;
+
+    system.update({ dtMs: FIXED_DT_MS, frame: 0, world });
+
+    expect(bombs.every((bomb) => colliderStore.type[bomb.id] === COLLIDER_TYPE.BOMB)).toBe(true);
+    expect(bombs.some((bomb) => bombStore.row[bomb.id] === 2 && bombStore.col[bomb.id] === 2)).toBe(
+      false,
+    );
+  });
+
+  it('places bombs on the rounded tile when the player position is fractional', () => {
+    const { bombStore, bombs, colliderStore, inputState, player, positionStore, system, world } =
+      createBombTickHarness();
+
+    positionStore.row[player.id] = 2.7;
+    positionStore.col[player.id] = 1.2;
+    inputState.bomb[player.id] = 1;
+
+    system.update({ dtMs: FIXED_DT_MS, frame: 0, world });
+
+    const activeBomb = bombs.find((bomb) => colliderStore.type[bomb.id] === COLLIDER_TYPE.BOMB);
+
+    expect(activeBomb).toBeDefined();
+    expect(bombStore.row[activeBomb.id]).toBe(3);
+    expect(bombStore.col[activeBomb.id]).toBe(1);
+  });
+
   it('ignores duplicate placement on a cell that already contains an active bomb', () => {
     const { bombStore, bombs, colliderStore, inputState, player, system, world } =
       createBombTickHarness();

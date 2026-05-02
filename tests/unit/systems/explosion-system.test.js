@@ -21,6 +21,7 @@ import {
   DEFAULT_FIRE_RADIUS,
   FIRE_DURATION_MS,
   MAX_CHAIN_DEPTH,
+  POWER_UP_DROP_CHANCES,
 } from '../../../src/ecs/resources/constants.js';
 import { createEventQueue, drain } from '../../../src/ecs/resources/event-queue.js';
 import { createMapResource, getCell } from '../../../src/ecs/resources/map-resource.js';
@@ -150,6 +151,7 @@ function addInactiveFireSlot(world, colliderStore) {
  * Build a minimal world harness for explosion-system tests.
  *
  * @param {Array<[number, number, number]>} [mapOverrides] - Optional map cell overrides.
+ * @param {{ fireSlotCount?: number }} [options] - Optional pool sizing overrides.
  * @returns {{
  *   bombDetonationQueue: Array<object>,
  *   bombStore: BombStore,
@@ -163,7 +165,7 @@ function addInactiveFireSlot(world, colliderStore) {
  *   world: World,
  * }} Ready-to-run explosion harness.
  */
-function createExplosionHarness(mapOverrides = []) {
+function createExplosionHarness(mapOverrides = [], options = {}) {
   const world = new World();
   const system = createExplosionSystem();
   const mapResource = createMapResource(createExplosionRawMap(mapOverrides));
@@ -175,7 +177,9 @@ function createExplosionHarness(mapOverrides = []) {
   const eventQueue = createEventQueue();
   const fireSlots = [];
 
-  for (let index = 0; index < 20; index += 1) {
+  const fireSlotCount = options.fireSlotCount ?? 20;
+
+  for (let index = 0; index < fireSlotCount; index += 1) {
     fireSlots.push(addInactiveFireSlot(world, colliderStore));
   }
 
@@ -325,6 +329,30 @@ describe('explosion-system geometry and map interaction', () => {
     ]);
   });
 
+  it('clips explosion arms at map edges without creating out-of-bounds fire', () => {
+    const {
+      bombDetonationQueue,
+      bombStore,
+      colliderStore,
+      fireSlots,
+      positionStore,
+      system,
+      world,
+    } = createExplosionHarness();
+    const bomb = addActiveBomb(world, positionStore, colliderStore, bombStore, 1, 1, 2);
+
+    queueDetonation(bombDetonationQueue, bomb, bombStore);
+    system.update({ dtMs: 0, frame: 0, world });
+
+    expect(readActiveFireTiles(fireSlots, colliderStore, positionStore)).toEqual([
+      { row: 1, col: 1 },
+      { row: 1, col: 2 },
+      { row: 1, col: 3 },
+      { row: 2, col: 1 },
+      { row: 3, col: 1 },
+    ]);
+  });
+
   it('stops before indestructible walls and does not create fire on the wall cell', () => {
     const {
       bombDetonationQueue,
@@ -403,22 +431,30 @@ describe('explosion-system geometry and map interaction', () => {
     });
   });
 
-  it('destroys power-ups hit by fire without collecting them', () => {
-    const {
-      bombDetonationQueue,
-      bombStore,
-      colliderStore,
-      mapResource,
-      positionStore,
-      system,
-      world,
-    } = createExplosionHarness([[3, 4, CELL_TYPE.POWER_UP_FIRE]]);
-    const bomb = addActiveBomb(world, positionStore, colliderStore, bombStore, 3, 3, 2);
+  it('destroys every power-up type hit by fire without collecting it', () => {
+    const powerUpCellTypes = [
+      CELL_TYPE.POWER_UP_BOMB,
+      CELL_TYPE.POWER_UP_FIRE,
+      CELL_TYPE.POWER_UP_SPEED,
+    ];
 
-    queueDetonation(bombDetonationQueue, bomb, bombStore);
-    system.update({ dtMs: 0, frame: 0, world });
+    for (const powerUpCellType of powerUpCellTypes) {
+      const {
+        bombDetonationQueue,
+        bombStore,
+        colliderStore,
+        mapResource,
+        positionStore,
+        system,
+        world,
+      } = createExplosionHarness([[3, 4, powerUpCellType]]);
+      const bomb = addActiveBomb(world, positionStore, colliderStore, bombStore, 3, 3, 2);
 
-    expect(getCell(mapResource, 3, 4)).toBe(CELL_TYPE.EMPTY);
+      queueDetonation(bombDetonationQueue, bomb, bombStore);
+      system.update({ dtMs: 0, frame: 0, world });
+
+      expect(getCell(mapResource, 3, 4)).toBe(CELL_TYPE.EMPTY);
+    }
   });
 });
 
@@ -432,6 +468,29 @@ describe('explosion-system drops and cleanup', () => {
     expect(resolvePowerUpDropCellType(0.949_999)).toBe(CELL_TYPE.POWER_UP_FIRE);
     expect(resolvePowerUpDropCellType(0.95)).toBe(CELL_TYPE.POWER_UP_SPEED);
     expect(resolvePowerUpDropCellType(0.999_999)).toBe(CELL_TYPE.POWER_UP_SPEED);
+  });
+
+  it('derives drop-rate thresholds from the canonical chance table', () => {
+    const originalChances = { ...POWER_UP_DROP_CHANCES };
+
+    try {
+      POWER_UP_DROP_CHANCES.NONE = 0.5;
+      POWER_UP_DROP_CHANCES.BOMB = 0.25;
+      POWER_UP_DROP_CHANCES.FIRE = 0.15;
+      POWER_UP_DROP_CHANCES.SPEED = 0.1;
+
+      expect(resolvePowerUpDropCellType(0.49)).toBe(CELL_TYPE.EMPTY);
+      expect(resolvePowerUpDropCellType(0.5)).toBe(CELL_TYPE.POWER_UP_BOMB);
+      expect(resolvePowerUpDropCellType(0.74)).toBe(CELL_TYPE.POWER_UP_BOMB);
+      expect(resolvePowerUpDropCellType(0.75)).toBe(CELL_TYPE.POWER_UP_FIRE);
+      expect(resolvePowerUpDropCellType(0.89)).toBe(CELL_TYPE.POWER_UP_FIRE);
+      expect(resolvePowerUpDropCellType(0.9)).toBe(CELL_TYPE.POWER_UP_SPEED);
+    } finally {
+      POWER_UP_DROP_CHANCES.NONE = originalChances.NONE;
+      POWER_UP_DROP_CHANCES.BOMB = originalChances.BOMB;
+      POWER_UP_DROP_CHANCES.FIRE = originalChances.FIRE;
+      POWER_UP_DROP_CHANCES.SPEED = originalChances.SPEED;
+    }
   });
 
   it('produces deterministic wall-drop outcomes for identical seeded runs', () => {
@@ -480,6 +539,25 @@ describe('explosion-system drops and cleanup', () => {
     expect(colliderStore.type[fire.id]).toBe(COLLIDER_TYPE.NONE);
     expect(fireStore.sourceBombId[fire.id]).toBe(-1);
     expect(fireStore.chainDepth[fire.id]).toBe(0);
+  });
+
+  it('does not allocate extra fire entities when the fire pool is exhausted', () => {
+    const {
+      bombDetonationQueue,
+      bombStore,
+      colliderStore,
+      fireSlots,
+      positionStore,
+      system,
+      world,
+    } = createExplosionHarness([], { fireSlotCount: 3 });
+    const bomb = addActiveBomb(world, positionStore, colliderStore, bombStore, 3, 3, 2);
+
+    queueDetonation(bombDetonationQueue, bomb, bombStore);
+
+    expect(() => system.update({ dtMs: 0, frame: 0, world })).not.toThrow();
+    expect(readActiveFireTiles(fireSlots, colliderStore, positionStore)).toHaveLength(3);
+    expect(world.query(EXPLOSION_FIRE_REQUIRED_MASK)).toHaveLength(3);
   });
 });
 

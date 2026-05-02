@@ -51,6 +51,20 @@ const EXPLOSION_DIRECTIONS = Object.freeze([
 ]);
 
 /**
+ * Add drop-rate bands without letting binary floating-point drift move exact boundaries.
+ *
+ * Threshold tests rely on exact 5% boundaries from the design table, so the
+ * cumulative sum is rounded to a safe decimal precision after each band.
+ *
+ * @param {number} left - Current cumulative threshold.
+ * @param {number} right - Next probability band.
+ * @returns {number} Stable cumulative threshold.
+ */
+function addDropThreshold(left, right) {
+  return Number((left + right).toFixed(12));
+}
+
+/**
  * Map a seeded RNG chance value to the tile revealed by a destroyed wall.
  *
  * The thresholds encode the exact B-06 drop table: 85% empty, then 5% bomb+,
@@ -62,8 +76,8 @@ const EXPLOSION_DIRECTIONS = Object.freeze([
 export function resolvePowerUpDropCellType(chance) {
   const normalizedChance = Number.isFinite(chance) ? chance : 0;
   const emptyThreshold = POWER_UP_DROP_CHANCES.NONE;
-  const bombThreshold = 0.9;
-  const fireThreshold = 0.95;
+  const bombThreshold = addDropThreshold(emptyThreshold, POWER_UP_DROP_CHANCES.BOMB);
+  const fireThreshold = addDropThreshold(bombThreshold, POWER_UP_DROP_CHANCES.FIRE);
 
   if (normalizedChance < emptyThreshold) {
     return CELL_TYPE.EMPTY;
@@ -641,10 +655,11 @@ function resolveDetonationGeometry({
  * being processed again if a later system inspects the same resource.
  *
  * @param {Array<object>} bombDetonationQueue - Shared detonation queue resource.
+ * @param {Array<object>} workQueue - Reusable local work queue scratch array.
  * @returns {Array<object>} Local work queue seeded with pending detonations.
  */
-function takeDetonationWorkQueue(bombDetonationQueue) {
-  const workQueue = [];
+function takeDetonationWorkQueue(bombDetonationQueue, workQueue) {
+  workQueue.length = 0;
 
   for (const detonation of bombDetonationQueue) {
     workQueue.push(detonation);
@@ -669,6 +684,8 @@ function takeDetonationWorkQueue(bombDetonationQueue) {
  * @param {FireStore} params.fireStore - Mutable fire component store.
  * @param {MapResource} params.mapResource - Mutable map resource.
  * @param {PositionStore} params.positionStore - Mutable position component store.
+ * @param {Set<number>} params.processedBombIds - Reusable processed bomb scratch set.
+ * @param {Set<number>} params.queuedBombIds - Reusable queued bomb scratch set.
  * @param {RNG | null | undefined} params.rng - Seeded RNG resource.
  * @param {Array<object>} params.workQueue - Local detonation work queue.
  */
@@ -681,11 +698,13 @@ function processDetonationWorkQueue({
   fireStore,
   mapResource,
   positionStore,
+  processedBombIds,
+  queuedBombIds,
   rng,
   workQueue,
 }) {
-  const processedBombIds = new Set();
-  const queuedBombIds = new Set();
+  processedBombIds.clear();
+  queuedBombIds.clear();
 
   for (const detonation of workQueue) {
     queuedBombIds.add(detonation.bombEntityId);
@@ -751,6 +770,9 @@ export function createExplosionSystem(options = {}) {
   const eventQueueResourceKey = options.eventQueueResourceKey || 'eventQueue';
   const bombRequiredMask = options.bombRequiredMask ?? EXPLOSION_BOMB_REQUIRED_MASK;
   const fireRequiredMask = options.fireRequiredMask ?? EXPLOSION_FIRE_REQUIRED_MASK;
+  const reusableWorkQueue = [];
+  const processedBombIds = new Set();
+  const queuedBombIds = new Set();
 
   return {
     name: 'explosion-system',
@@ -807,8 +829,10 @@ export function createExplosionSystem(options = {}) {
         fireStore,
         mapResource,
         positionStore,
+        processedBombIds,
+        queuedBombIds,
         rng,
-        workQueue: takeDetonationWorkQueue(bombDetonationQueue),
+        workQueue: takeDetonationWorkQueue(bombDetonationQueue, reusableWorkQueue),
       });
     },
   };

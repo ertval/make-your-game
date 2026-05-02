@@ -26,6 +26,7 @@ import {
   LEVEL_MAX_GHOSTS,
   LEVEL_TIMERS,
   MAX_CHAIN_DEPTH,
+  MAX_FIRE_RADIUS,
   MAX_RENDER_INTENTS,
   MAX_STEPS_PER_FRAME,
   PINKY_TARGET_OFFSET,
@@ -74,6 +75,7 @@ describe('constants', () => {
     expect(BOMB_FUSE_MS).toBe(3000);
     expect(FIRE_DURATION_MS).toBe(500);
     expect(DEFAULT_FIRE_RADIUS).toBe(2);
+    expect(MAX_FIRE_RADIUS).toBe(4);
     expect(MAX_CHAIN_DEPTH).toBe(10);
   });
 
@@ -152,7 +154,8 @@ describe('constants', () => {
   });
 
   it('defines pool sizes consistent with constants', () => {
-    expect(POOL_FIRE_PER_BOMB).toBe(DEFAULT_FIRE_RADIUS * 4 + 1);
+    expect(POOL_FIRE_PER_BOMB).toBe(MAX_FIRE_RADIUS * 4 + 1);
+    expect(POOL_FIRE_PER_BOMB).toBeGreaterThan(DEFAULT_FIRE_RADIUS * 4 + 1);
     expect(POOL_FIRE).toBe(POOL_MAX_BOMBS * POOL_FIRE_PER_BOMB);
   });
 
