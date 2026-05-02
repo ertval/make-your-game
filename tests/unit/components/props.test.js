@@ -83,17 +83,25 @@ describe('prop component stores', () => {
     expect(store.burnTimerMs).toBeInstanceOf(Float64Array);
     expect(store.row).toBeInstanceOf(Int32Array);
     expect(store.col).toBeInstanceOf(Int32Array);
+    expect(store.sourceBombId).toBeInstanceOf(Int32Array);
+    expect(store.chainDepth).toBeInstanceOf(Uint8Array);
     expect(store.burnTimerMs[entityId]).toBe(FIRE_DURATION_MS);
+    expect(store.sourceBombId[entityId]).toBe(-1);
+    expect(store.chainDepth[entityId]).toBe(0);
 
     store.burnTimerMs[entityId] = 100;
     store.row[entityId] = 3;
     store.col[entityId] = 4;
+    store.sourceBombId[entityId] = 12;
+    store.chainDepth[entityId] = 2;
 
     resetFire(store, entityId);
 
     expect(store.burnTimerMs[entityId]).toBe(FIRE_DURATION_MS);
     expect(store.row[entityId]).toBe(0);
     expect(store.col[entityId]).toBe(0);
+    expect(store.sourceBombId[entityId]).toBe(-1);
+    expect(store.chainDepth[entityId]).toBe(0);
   });
 
   it('creates and resets a power-up store with NONE defaults', () => {

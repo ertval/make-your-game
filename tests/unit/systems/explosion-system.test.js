@@ -228,6 +228,27 @@ function readActiveFireTiles(fireSlots, colliderStore, positionStore) {
 }
 
 /**
+ * Find an active fire entity occupying one tile.
+ *
+ * @param {Array<{ id: number }>} fireSlots - Pooled fire handles.
+ * @param {ColliderStore} colliderStore - Collider component store.
+ * @param {PositionStore} positionStore - Position component store.
+ * @param {number} row - Tile row.
+ * @param {number} col - Tile column.
+ * @returns {{ id: number } | null} Matching fire handle, or null.
+ */
+function findActiveFireAtTile(fireSlots, colliderStore, positionStore, row, col) {
+  return (
+    fireSlots.find(
+      (fire) =>
+        colliderStore.type[fire.id] === COLLIDER_TYPE.FIRE &&
+        Math.round(positionStore.row[fire.id]) === row &&
+        Math.round(positionStore.col[fire.id]) === col,
+    ) || null
+  );
+}
+
+/**
  * Queue one bomb detonation request using the B6 chain metadata shape.
  *
  * @param {Array<object>} queue - Mutable bomb detonation queue resource.
@@ -450,11 +471,15 @@ describe('explosion-system drops and cleanup', () => {
 
     colliderStore.type[fire.id] = COLLIDER_TYPE.FIRE;
     fireStore.burnTimerMs[fire.id] = FIRE_DURATION_MS;
+    fireStore.sourceBombId[fire.id] = 7;
+    fireStore.chainDepth[fire.id] = 2;
     placeEntity(positionStore, fire.id, 3, 3);
 
     system.update({ dtMs: FIRE_DURATION_MS, frame: 1, world });
 
     expect(colliderStore.type[fire.id]).toBe(COLLIDER_TYPE.NONE);
+    expect(fireStore.sourceBombId[fire.id]).toBe(-1);
+    expect(fireStore.chainDepth[fire.id]).toBe(0);
   });
 });
 
@@ -478,6 +503,34 @@ describe('explosion-system chain reactions', () => {
     expect(colliderStore.type[firstBomb.id]).toBe(COLLIDER_TYPE.NONE);
     expect(colliderStore.type[chainedBomb.id]).toBe(COLLIDER_TYPE.NONE);
     expect(drain(eventQueue).map((event) => event.payload.chainDepth)).toEqual([1, 2]);
+  });
+
+  it('stores source bomb and chain depth metadata on active fire tiles', () => {
+    const {
+      bombDetonationQueue,
+      bombStore,
+      colliderStore,
+      fireSlots,
+      fireStore,
+      positionStore,
+      system,
+      world,
+    } = createExplosionHarness();
+    const firstBomb = addActiveBomb(world, positionStore, colliderStore, bombStore, 3, 3, 2);
+    const chainedBomb = addActiveBomb(world, positionStore, colliderStore, bombStore, 3, 5, 1);
+
+    queueDetonation(bombDetonationQueue, firstBomb, bombStore);
+    system.update({ dtMs: 0, frame: 0, world });
+
+    const rootFire = findActiveFireAtTile(fireSlots, colliderStore, positionStore, 3, 3);
+    const chainedFire = findActiveFireAtTile(fireSlots, colliderStore, positionStore, 2, 5);
+
+    expect(rootFire).not.toBeNull();
+    expect(chainedFire).not.toBeNull();
+    expect(fireStore.sourceBombId[rootFire.id]).toBe(firstBomb.id);
+    expect(fireStore.chainDepth[rootFire.id]).toBe(1);
+    expect(fireStore.sourceBombId[chainedFire.id]).toBe(chainedBomb.id);
+    expect(fireStore.chainDepth[chainedFire.id]).toBe(2);
   });
 
   it('caps chain reactions at MAX_CHAIN_DEPTH and leaves deeper bombs active', () => {

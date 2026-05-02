@@ -17,8 +17,8 @@
  *   when its collider type is FIRE or BOMB respectively.
  * - Chain reactions use an indexed work queue rather than recursion so long
  *   chains cannot grow the JavaScript call stack.
- * - Scoring remains out of scope for B-06. The system emits `chainDepth` only
- *   so the scoring system can apply combo rules later.
+ * - Scoring remains out of scope for B-06. The system emits `chainDepth` and
+ *   stores source metadata on fire tiles so scoring can apply combo rules later.
  */
 
 import { COMPONENT_MASK } from '../components/registry.js';
@@ -223,11 +223,24 @@ function hasActiveFireAtTile(fireEntityIds, colliderStore, positionStore, row, c
  * @param {number} fireEntityId - Inactive fire slot to activate.
  * @param {number} row - Fire tile row.
  * @param {number} col - Fire tile column.
+ * @param {number} sourceBombId - Bomb entity that produced this fire tile.
+ * @param {number} chainDepth - Chain depth associated with this fire tile.
  */
-function activateFireSlot(fireStore, positionStore, colliderStore, fireEntityId, row, col) {
+function activateFireSlot(
+  fireStore,
+  positionStore,
+  colliderStore,
+  fireEntityId,
+  row,
+  col,
+  sourceBombId,
+  chainDepth,
+) {
   fireStore.burnTimerMs[fireEntityId] = FIRE_DURATION_MS;
   fireStore.row[fireEntityId] = row;
   fireStore.col[fireEntityId] = col;
+  fireStore.sourceBombId[fireEntityId] = sourceBombId;
+  fireStore.chainDepth[fireEntityId] = chainDepth;
 
   positionStore.row[fireEntityId] = row;
   positionStore.col[fireEntityId] = col;
@@ -250,8 +263,19 @@ function activateFireSlot(fireStore, positionStore, colliderStore, fireEntityId,
  * @param {ColliderStore} colliderStore - Mutable collider component store.
  * @param {number} row - Fire tile row.
  * @param {number} col - Fire tile column.
+ * @param {number} sourceBombId - Bomb entity that produced this fire tile.
+ * @param {number} chainDepth - Chain depth associated with this fire tile.
  */
-function ensureFireAtTile(fireEntityIds, fireStore, positionStore, colliderStore, row, col) {
+function ensureFireAtTile(
+  fireEntityIds,
+  fireStore,
+  positionStore,
+  colliderStore,
+  row,
+  col,
+  sourceBombId,
+  chainDepth,
+) {
   if (hasActiveFireAtTile(fireEntityIds, colliderStore, positionStore, row, col)) {
     return;
   }
@@ -261,7 +285,16 @@ function ensureFireAtTile(fireEntityIds, fireStore, positionStore, colliderStore
     return;
   }
 
-  activateFireSlot(fireStore, positionStore, colliderStore, fireEntityId, row, col);
+  activateFireSlot(
+    fireStore,
+    positionStore,
+    colliderStore,
+    fireEntityId,
+    row,
+    col,
+    sourceBombId,
+    chainDepth,
+  );
 }
 
 /**
@@ -273,6 +306,8 @@ function ensureFireAtTile(fireEntityIds, fireStore, positionStore, colliderStore
  */
 function deactivateFire(fireStore, colliderStore, fireEntityId) {
   fireStore.burnTimerMs[fireEntityId] = 0;
+  fireStore.sourceBombId[fireEntityId] = -1;
+  fireStore.chainDepth[fireEntityId] = 0;
   colliderStore.type[fireEntityId] = COLLIDER_TYPE.NONE;
 }
 
@@ -462,6 +497,7 @@ function queueChainedBombAtTile({
  * @param {number} params.row - Tile row.
  * @param {number} params.col - Tile column.
  * @param {number} params.chainDepth - Current chain depth.
+ * @param {number} params.sourceBombId - Bomb entity that produced this fire tile.
  * @param {number} params.frame - Fixed-step frame index.
  * @returns {boolean} True when the explosion arm may keep propagating.
  */
@@ -480,12 +516,22 @@ function resolveExplosionTile({
   queuedBombIds,
   rng,
   row,
+  sourceBombId,
   workQueue,
 }) {
   const result = resolveMapHit(mapResource, rng, row, col);
 
   if (result.createFire) {
-    ensureFireAtTile(fireEntityIds, fireStore, positionStore, colliderStore, row, col);
+    ensureFireAtTile(
+      fireEntityIds,
+      fireStore,
+      positionStore,
+      colliderStore,
+      row,
+      col,
+      sourceBombId,
+      chainDepth,
+    );
     queueChainedBombAtTile({
       bombEntityIds,
       bombStore,
@@ -556,6 +602,7 @@ function resolveDetonationGeometry({
     queuedBombIds,
     rng,
     row: detonation.row,
+    sourceBombId: detonation.bombEntityId,
     workQueue,
   });
 
@@ -576,6 +623,7 @@ function resolveDetonationGeometry({
         queuedBombIds,
         rng,
         row: detonation.row + direction.rowDelta * distance,
+        sourceBombId: detonation.bombEntityId,
         workQueue,
       });
 
