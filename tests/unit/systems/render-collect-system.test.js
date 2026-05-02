@@ -35,7 +35,7 @@ function createHarness() {
   world.setResource('position', position);
   world.setResource('renderable', renderable);
   world.setResource('visualState', visualState);
-  world.setResource('renderIntentBuffer', buffer);
+  world.setResource('renderIntent', buffer);
 
   function addRenderableEntity({
     kind = RENDERABLE_KIND.PLAYER,
@@ -241,7 +241,7 @@ describe('render-collect-system', () => {
     it('returns early without throwing when required resources are missing', () => {
       const world = new World();
       const buffer = createRenderIntentBuffer(10);
-      world.setResource('renderIntentBuffer', buffer);
+      world.setResource('renderIntent', buffer);
       const system = createRenderCollectSystem();
       expect(() => system.update({ world, alpha: 1 })).not.toThrow();
       expect(getRenderIntentView(buffer)).toHaveLength(0);

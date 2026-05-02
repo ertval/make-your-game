@@ -35,7 +35,7 @@ import { VISUAL_FLAGS } from '../resources/constants.js';
 const DEFAULT_RENDERABLE_RESOURCE_KEY = 'renderable';
 const DEFAULT_VISUAL_STATE_RESOURCE_KEY = 'visualState';
 const DEFAULT_POSITION_RESOURCE_KEY = 'position';
-const DEFAULT_RENDER_INTENT_BUFFER_RESOURCE_KEY = 'renderIntentBuffer';
+const DEFAULT_RENDER_INTENT_BUFFER_RESOURCE_KEY = 'renderIntent';
 
 const OPACITY_FULL = 255;
 const OPACITY_INVINCIBLE = 128;
