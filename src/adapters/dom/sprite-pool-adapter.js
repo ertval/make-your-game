@@ -114,8 +114,12 @@ export function createSpritePool({ document: doc = globalThis.document, dev = fa
     if (!activePool) throw new Error(`Unknown sprite type: ${type}`);
 
     const idx = activePool.indexOf(element);
-    if (idx !== -1) activePool.splice(idx, 1);
+    // Guard against double-release or foreign elements: only return elements
+    // that are actually tracked as active. Silently skip unknown elements to
+    // avoid inflating the idle pool with duplicates or foreign references.
+    if (idx === -1) return;
 
+    activePool.splice(idx, 1);
     element.style.transform = OFFSCREEN_TRANSFORM;
     idle.get(type).push(element);
   }
