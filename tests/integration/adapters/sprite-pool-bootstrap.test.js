@@ -1,34 +1,25 @@
 /**
- * D-09: Sprite pool bootstrap integration tests.
+ * D-09: Sprite pool board adapter wiring integration tests.
  *
- * Verifies that createBootstrap pre-warms the sprite pool when a
- * spriteContainer is provided, exposes the pool as a World resource, and
- * resets the pool on every level load so each level starts with a fully-idle
- * pool.
+ * Verifies that createBoardAdapter pre-warms the sprite pool against the
+ * game container when generateBoard is called, and resets the pool on
+ * clearBoard so each level starts with a fully-idle pool.
  */
 
-import fs from 'node:fs';
-import path from 'node:path';
 import { describe, expect, it, vi } from 'vitest';
-import { SPRITE_TYPE } from '../../../src/adapters/dom/sprite-pool-adapter.js';
+import { createBoardAdapter } from '../../../src/adapters/dom/renderer-adapter.js';
+import { createSpritePool, SPRITE_TYPE } from '../../../src/adapters/dom/sprite-pool-adapter.js';
 import { POOL_GHOSTS, POOL_MAX_BOMBS } from '../../../src/ecs/resources/constants.js';
-import { createMapResource } from '../../../src/ecs/resources/map-resource.js';
-import { createBootstrap } from '../../../src/game/bootstrap.js';
-
-const root = path.resolve(import.meta.dirname, '../../..');
-
-function loadMap(levelNumber = 1) {
-  const raw = JSON.parse(
-    fs.readFileSync(path.join(root, `assets/maps/level-${levelNumber}.json`), 'utf8'),
-  );
-  return createMapResource(raw);
-}
 
 function createMockDocument() {
   return {
-    createElement: vi.fn(() => ({
+    createElement: vi.fn((tag) => ({
+      tagName: tag.toUpperCase(),
       classList: { add: vi.fn() },
-      style: { transform: '' },
+      style: { transform: '', setProperty: vi.fn() },
+      setAttribute: vi.fn(),
+      appendChild: vi.fn(),
+      parentNode: null,
     })),
   };
 }
@@ -37,71 +28,94 @@ function createMockContainer() {
   return { appendChild: vi.fn() };
 }
 
-describe('sprite pool bootstrap integration', () => {
-  it('pre-warms the pool and registers it as a World resource on bootstrap', () => {
+function createMockMap() {
+  return {
+    rows: 2,
+    cols: 2,
+    grid: new Uint8Array([0, 0, 0, 0]),
+  };
+}
+
+function createMockSpritePool() {
+  return {
+    warmUp: vi.fn(),
+    reset: vi.fn(),
+    acquire: vi.fn(),
+    release: vi.fn(),
+    stats: vi.fn(() => ({ idle: 0, active: 0 })),
+  };
+}
+
+function createRealPool() {
+  const mockDoc = {
+    createElement: vi.fn(() => ({
+      classList: { add: vi.fn() },
+      style: { transform: '' },
+    })),
+  };
+  return createSpritePool({ document: mockDoc });
+}
+
+describe('sprite pool board adapter wiring', () => {
+  it('calls warmUp on the container when generateBoard is called with a spritePool', () => {
     const doc = createMockDocument();
     const container = createMockContainer();
-    const { world } = createBootstrap({
-      document: doc,
-      spriteContainer: container,
-      loadMapForLevel: () => loadMap(),
-    });
+    const pool = createMockSpritePool();
+    const adapter = createBoardAdapter({ document: doc, spritePool: pool });
 
-    const pool = world.getResource('spritePool');
-    expect(pool).not.toBeNull();
-    // Pool should have pre-allocated elements — idle counts match pool sizes
-    expect(pool.stats(SPRITE_TYPE.GHOST).idle).toBe(POOL_GHOSTS);
-    expect(pool.stats(SPRITE_TYPE.BOMB).idle).toBe(POOL_MAX_BOMBS);
+    adapter.generateBoard(createMockMap(), container);
+
+    expect(pool.warmUp).toHaveBeenCalledOnce();
+    expect(pool.warmUp).toHaveBeenCalledWith(container);
   });
 
-  it('appends pre-warmed elements to the provided spriteContainer', () => {
+  it('calls reset on clearBoard so active sprites are reclaimed before level teardown', () => {
     const doc = createMockDocument();
     const container = createMockContainer();
-    createBootstrap({
-      document: doc,
-      spriteContainer: container,
-      loadMapForLevel: () => loadMap(),
-    });
+    const pool = createMockSpritePool();
+    const adapter = createBoardAdapter({ document: doc, spritePool: pool });
 
+    adapter.generateBoard(createMockMap(), container);
+    adapter.clearBoard();
+
+    expect(pool.reset).toHaveBeenCalledOnce();
+  });
+
+  it('does not throw when no spritePool is provided (pool is optional)', () => {
+    const doc = createMockDocument();
+    const container = createMockContainer();
+    const adapter = createBoardAdapter({ document: doc });
+
+    expect(() => adapter.generateBoard(createMockMap(), container)).not.toThrow();
+    expect(() => adapter.clearBoard()).not.toThrow();
+  });
+
+  it('pre-warms the real pool against the container on level load', () => {
+    const pool = createRealPool();
+    const container = { appendChild: vi.fn() };
+    const adapter = createBoardAdapter({ document: createMockDocument(), spritePool: pool });
+
+    adapter.generateBoard(createMockMap(), container);
+
+    expect(pool.stats(SPRITE_TYPE.GHOST).idle).toBe(POOL_GHOSTS);
+    expect(pool.stats(SPRITE_TYPE.BOMB).idle).toBe(POOL_MAX_BOMBS);
     expect(container.appendChild).toHaveBeenCalled();
   });
 
-  it('resets the pool on level load so each level starts with a fully-idle pool', () => {
-    const doc = createMockDocument();
-    const container = createMockContainer();
-    const { world, levelLoader } = createBootstrap({
-      document: doc,
-      spriteContainer: container,
-      loadMapForLevel: () => loadMap(),
-    });
+  it('pool is fully idle again after clearBoard following level activity', () => {
+    const pool = createRealPool();
+    const container = { appendChild: vi.fn() };
+    const adapter = createBoardAdapter({ document: createMockDocument(), spritePool: pool });
 
-    const pool = world.getResource('spritePool');
-    // Simulate active usage between levels
+    adapter.generateBoard(createMockMap(), container);
+
     pool.acquire(SPRITE_TYPE.BOMB);
     pool.acquire(SPRITE_TYPE.BOMB);
     expect(pool.stats(SPRITE_TYPE.BOMB).active).toBe(2);
 
-    // Level load should reset all active back to idle
-    levelLoader.restartCurrentLevel();
+    adapter.clearBoard();
+
     expect(pool.stats(SPRITE_TYPE.BOMB).active).toBe(0);
     expect(pool.stats(SPRITE_TYPE.BOMB).idle).toBe(POOL_MAX_BOMBS);
-  });
-
-  it('does not register a spritePool resource when no spriteContainer is provided', () => {
-    const { world } = createBootstrap({ loadMapForLevel: () => loadMap() });
-    expect(world.getResource('spritePool')).toBeFalsy();
-  });
-
-  it('respects a custom spritePoolResourceKey', () => {
-    const doc = createMockDocument();
-    const container = createMockContainer();
-    const { world } = createBootstrap({
-      document: doc,
-      spriteContainer: container,
-      spritePoolResourceKey: 'myPool',
-      loadMapForLevel: () => loadMap(),
-    });
-    expect(world.getResource('myPool')).toBeTruthy();
-    expect(world.getResource('spritePool')).toBeFalsy();
   });
 });

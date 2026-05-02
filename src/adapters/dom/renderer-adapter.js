@@ -8,6 +8,10 @@
  * - This adapter generates the initial board structure once per level load.
  * - Uses textContent and explicit attribute APIs for all dynamic content.
  * - CSP compliance: no eval, no new Function, no document.write.
+ * - Optionally accepts a spritePool (D-09) via options. When provided,
+ *   generateBoard pre-warms the pool against the container element so sprites
+ *   are pre-allocated before the first render frame. clearBoard resets the
+ *   pool so active elements are reclaimed on level transitions.
  *
  * Public API:
  * - createBoardAdapter(options) — factory for board adapter.
@@ -40,7 +44,11 @@ const BOARD_CLASSES = ['game-board', 'board-grid'];
  * @param {Document} [options.document=globalThis.document] — Document reference for testing.
  * @returns {BoardAdapter}
  */
-export function createBoardAdapter({ cellTag = 'div', document: doc = globalThis.document } = {}) {
+export function createBoardAdapter({
+  cellTag = 'div',
+  document: doc = globalThis.document,
+  spritePool = null,
+} = {}) {
   const docRef = doc;
   let boardElement = null;
 
@@ -90,14 +98,30 @@ export function createBoardAdapter({ cellTag = 'div', document: doc = globalThis
     }
 
     containerElement.appendChild(boardElement);
+
+    // Pre-warm the sprite pool against the container so all dynamic sprite
+    // elements are allocated before the first render frame. Must run after the
+    // board is appended so sprites share the same DOM subtree as the board.
+    if (spritePool) {
+      spritePool.warmUp(containerElement);
+    }
   }
 
   /**
    * Remove the board DOM from the document.
    */
   function clearBoard() {
-    if (boardElement?.parentNode) {
-      boardElement.parentNode.removeChild(boardElement);
+    if (boardElement !== null) {
+      // Reclaim active sprite elements before tearing down the board so the
+      // pool is fully idle and ready to be re-warmed on the next generateBoard.
+      if (spritePool) {
+        spritePool.reset();
+      }
+
+      if (boardElement.parentNode) {
+        boardElement.parentNode.removeChild(boardElement);
+      }
+
       boardElement = null;
     }
   }
