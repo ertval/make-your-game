@@ -56,9 +56,6 @@ export const BOMB_FUSE_MS = 3000;
 /** Default explosion radius in tiles (cross pattern, each arm). */
 export const DEFAULT_FIRE_RADIUS = 2;
 
-/** Radius budget used to size fire pools for upgraded bombs. */
-export const MAX_FIRE_RADIUS = 4;
-
 /** Duration fire tiles remain visible after detonation (ms). */
 export const FIRE_DURATION_MS = 500;
 
@@ -197,7 +194,7 @@ export const VISUAL_FLAGS = {
 export const POOL_MAX_BOMBS = 10;
 
 /** Maximum fire tiles per bomb explosion (radius * 4 arms + center). */
-export const POOL_FIRE_PER_BOMB = MAX_FIRE_RADIUS * 4 + 1;
+export const POOL_FIRE_PER_BOMB = DEFAULT_FIRE_RADIUS * 4 + 1;
 
 /** Total fire tile pool size (max bombs * fire per bomb). */
 export const POOL_FIRE = POOL_MAX_BOMBS * POOL_FIRE_PER_BOMB;

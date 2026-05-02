@@ -51,12 +51,68 @@ Track A needs to update `src/game/bootstrap.js` to:
    - `bombDetonationQueue`
    - `rng`
 2. Preallocate pooled bomb/fire entities before fixed-step systems run.
-   - Use `POOL_FIRE` from `src/ecs/resources/constants.js`; it is sized from the upgraded-radius fire pool budget, not from the starting default radius.
-   - If Track A already has a runtime wiring branch, rebase it after this B6 hardening patch so the fire pool uses the updated `MAX_FIRE_RADIUS`/`POOL_FIRE_PER_BOMB` constants.
+   - Use `POOL_FIRE` from `src/ecs/resources/constants.js` for the initial wiring, but note the current constant is still sized from `DEFAULT_FIRE_RADIUS`.
+   - Track A should coordinate with Track D before runtime merge so upgraded fire-radius gameplay has enough pooled fire slots.
 3. Register B6 logic systems in deterministic order:
    - `bomb-tick-system`
    - `explosion-system`
 4. Add tests proving the default runtime path can place a bomb and turn it into fire.
+
+## Track D-Owned Changes
+
+These changes are explicitly **not Track B-owned** and should be handled by Track D, or by an integration branch with Track D approval.
+
+### Fire Pool Constants
+
+`src/ecs/resources/constants.js` is Track D-owned, so B6 does not change it directly. Track A runtime wiring should not merge with the current fire pool budget if upgraded fire radius can reach 4, because `POOL_FIRE_PER_BOMB = DEFAULT_FIRE_RADIUS * 4 + 1` only budgets 9 fire tiles per bomb.
+
+Recommended Track D diff:
+
+```diff
+diff --git a/src/ecs/resources/constants.js b/src/ecs/resources/constants.js
+--- a/src/ecs/resources/constants.js
++++ b/src/ecs/resources/constants.js
+@@
+ /** Default explosion radius in tiles (cross pattern, each arm). */
+ export const DEFAULT_FIRE_RADIUS = 2;
+ 
++/** Radius budget used to size fire pools for upgraded bombs. */
++export const MAX_FIRE_RADIUS = 4;
++
+ /** Duration fire tiles remain visible after detonation (ms). */
+ export const FIRE_DURATION_MS = 500;
+@@
+ /** Maximum fire tiles per bomb explosion (radius * 4 arms + center). */
+-export const POOL_FIRE_PER_BOMB = DEFAULT_FIRE_RADIUS * 4 + 1;
++export const POOL_FIRE_PER_BOMB = MAX_FIRE_RADIUS * 4 + 1;
+```
+
+Recommended Track D test update:
+
+```diff
+diff --git a/tests/unit/resources/constants.test.js b/tests/unit/resources/constants.test.js
+--- a/tests/unit/resources/constants.test.js
++++ b/tests/unit/resources/constants.test.js
+@@
+   LEVEL_MAX_GHOSTS,
+   LEVEL_TIMERS,
+   MAX_CHAIN_DEPTH,
++  MAX_FIRE_RADIUS,
+   MAX_RENDER_INTENTS,
+@@
+     expect(BOMB_FUSE_MS).toBe(3000);
+     expect(FIRE_DURATION_MS).toBe(500);
+     expect(DEFAULT_FIRE_RADIUS).toBe(2);
++    expect(MAX_FIRE_RADIUS).toBe(4);
+     expect(MAX_CHAIN_DEPTH).toBe(10);
+@@
+   it('defines pool sizes consistent with constants', () => {
+-    expect(POOL_FIRE_PER_BOMB).toBe(DEFAULT_FIRE_RADIUS * 4 + 1);
++    expect(POOL_FIRE_PER_BOMB).toBe(MAX_FIRE_RADIUS * 4 + 1);
++    expect(POOL_FIRE_PER_BOMB).toBeGreaterThan(DEFAULT_FIRE_RADIUS * 4 + 1);
+     expect(POOL_FIRE).toBe(POOL_MAX_BOMBS * POOL_FIRE_PER_BOMB);
+   });
+```
 
 ## Proposed Diff
 
