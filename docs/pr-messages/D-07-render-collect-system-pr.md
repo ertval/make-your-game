@@ -38,7 +38,7 @@ Local test command reference (run what applies to your change and list what you 
 ## What changed
 - Added `src/ecs/systems/render-collect-system.js` — uses `world.query(RENDER_COLLECT_REQUIRED_MASK)` to query entities with Position + Renderable component bits, computes interpolated tile-space coordinates using the frame alpha, and writes one render intent per entity into the preallocated render-intent buffer (D-04). Runs in `phase: 'render'` via `World.runRenderCommit()`.
 - Added `tests/unit/systems/render-collect-system.test.js` — unit tests covering interpolation math, deterministic ordering, buffer reset, classBits passthrough, opacity encoding, and the ECS membership contract (Position + Renderable required)
-- Added `tests/integration/gameplay/d07-render-collect-scheduler.test.js` — integration tests proving the system registers in the real World scheduler, populates the intent buffer via `runRenderCommit`, runs before a downstream render system, and wires into `createBootstrap` via `systemsByPhase.render`
+- Added `tests/integration/gameplay/d-07-render-collect-scheduler.test.js` — integration tests proving the system registers in the real World scheduler, populates the intent buffer via `runRenderCommit`, and runs before a downstream render system registered after it (bootstrap-level wiring deferred to a dedicated integration branch)
 
 ## Why
 - D-07 is a P1 blocker required before D-08 (Render DOM Batcher) can be completed
@@ -47,7 +47,7 @@ Local test command reference (run what applies to your change and list what you 
 
 ## Tests
 - `npm run check` — passed (Biome lint + format)
-- `npm run test:coverage` — 444 tests passed
+- `npm run test:coverage` — 538 tests passed
 - `npm run policy` — ALL CLEAR
 
 ## Audit questions affected
@@ -61,7 +61,7 @@ Local test command reference (run what applies to your change and list what you 
 ## Architecture / dependency notes
 - System runs in `phase: 'render'` via `World.runRenderCommit()` — after all fixed-step simulation phases, before any DOM commit system registered later in the same render phase
 - Entity selection driven by `world.query(RENDER_COLLECT_REQUIRED_MASK)` — only entities with both Position and Renderable component bits are collected
-- Reads from `renderable`, `visualState`, and `position` resources; writes only to `renderIntentBuffer`
+- Reads from `renderable`, `visualState`, and `position` resources; writes only to `renderIntent` (canonical resource key)
 - Ascending entity ID order from query for stable, deterministic output every frame
 - Invincible entities render at opacity 128 (half) so the player blinks without disappearing
 - No wiring into the game loop bootstrap — that happens in D-08
