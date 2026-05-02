@@ -196,19 +196,77 @@ function activateBombSlot(
 }
 
 /**
- * Resolve the player's current bomb radius.
+ * Normalize a bomb radius value to the positive integer used by explosion geometry.
+ *
+ * Radius can come from mutable player state, so invalid or zero values fall
+ * back to the design default before map-specific validation is applied.
+ *
+ * @param {number} radius - Raw radius value to normalize.
+ * @returns {number} Positive integer radius.
+ */
+function normalizeBombRadius(radius) {
+  const numericRadius = Number(radius);
+
+  if (!Number.isFinite(numericRadius) || numericRadius <= 0) {
+    return DEFAULT_FIRE_RADIUS;
+  }
+
+  return Math.floor(numericRadius);
+}
+
+/**
+ * Resolve the largest meaningful bomb radius for a tile inside the current map.
+ *
+ * Explosion arms stop at walls and bounds later, but clamping to the furthest
+ * in-bounds cardinal direction prevents malformed upgrade state from creating
+ * huge traversal loops or Uint8Array wraparound when copied into bomb storage.
+ *
+ * @param {MapResource} mapResource - Map dimensions source.
+ * @param {number} row - Bomb tile row.
+ * @param {number} col - Bomb tile column.
+ * @returns {number} Maximum useful radius from this tile.
+ */
+function resolveMaxBombRadiusForMapTile(mapResource, row, col) {
+  if (
+    !mapResource ||
+    !Number.isFinite(mapResource.rows) ||
+    !Number.isFinite(mapResource.cols) ||
+    !Number.isFinite(row) ||
+    !Number.isFinite(col)
+  ) {
+    return DEFAULT_FIRE_RADIUS;
+  }
+
+  const maxRow = mapResource.rows - 1;
+  const maxCol = mapResource.cols - 1;
+
+  if (maxRow < 0 || maxCol < 0 || row < 0 || row > maxRow || col < 0 || col > maxCol) {
+    return 0;
+  }
+
+  return Math.max(row, maxRow - row, col, maxCol - col);
+}
+
+/**
+ * Resolve the player's current bomb radius against the active map bounds.
  *
  * Missing or zero player fire radius falls back to the canonical default so
- * partially wired tests and recycled slots still place valid bombs.
+ * partially wired tests and recycled slots still place valid bombs. The final
+ * value is clamped to the map because B6 explosions cannot affect tiles beyond
+ * the loaded level dimensions.
  *
  * @param {PlayerStore | null | undefined} playerStore - Player component store.
  * @param {number} entityId - Player entity slot to inspect.
- * @returns {number} Positive explosion radius.
+ * @param {MapResource} mapResource - Map dimensions source.
+ * @param {number} row - Bomb tile row.
+ * @param {number} col - Bomb tile column.
+ * @returns {number} Map-bounded non-negative explosion radius.
  */
-function readPlayerBombRadius(playerStore, entityId) {
-  const radius = playerStore?.fireRadius?.[entityId] ?? DEFAULT_FIRE_RADIUS;
+function readPlayerBombRadius(playerStore, entityId, mapResource, row, col) {
+  const radius = normalizeBombRadius(playerStore?.fireRadius?.[entityId] ?? DEFAULT_FIRE_RADIUS);
+  const maxRadius = resolveMaxBombRadiusForMapTile(mapResource, row, col);
 
-  return radius > 0 ? radius : DEFAULT_FIRE_RADIUS;
+  return Math.max(0, Math.min(radius, maxRadius));
 }
 
 /**
@@ -236,6 +294,7 @@ function readPlayerMaxBombs(playerStore, entityId) {
  * @param {BombStore} params.bombStore - Mutable bomb component store.
  * @param {ColliderStore} params.colliderStore - Mutable collider component store.
  * @param {InputStateStore} params.inputState - Input snapshot store.
+ * @param {MapResource} params.mapResource - Map resource used to bound bomb radius.
  * @param {PlayerStore} params.playerStore - Player component store.
  * @param {PositionStore} params.positionStore - Mutable position component store.
  * @param {number} params.playerEntityId - Player entity slot attempting placement.
@@ -247,6 +306,7 @@ function placeBombForPlayer({
   bombStore,
   colliderStore,
   inputState,
+  mapResource,
   playerEntityId,
   playerStore,
   positionStore,
@@ -288,7 +348,7 @@ function placeBombForPlayer({
     playerEntityId,
     tile.row,
     tile.col,
-    readPlayerBombRadius(playerStore, playerEntityId),
+    readPlayerBombRadius(playerStore, playerEntityId, mapResource, tile.row, tile.col),
   );
   return bombEntityId;
 }
@@ -447,6 +507,7 @@ export function createBombTickSystem(options = {}) {
           bombStore,
           colliderStore,
           inputState,
+          mapResource,
           playerEntityId,
           playerStore,
           positionStore,

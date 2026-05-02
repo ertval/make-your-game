@@ -224,6 +224,21 @@ describe('bomb-tick-system placement', () => {
     expect(positionStore.col[activeBomb.id]).toBe(2);
   });
 
+  it('clamps oversized player fire radius to the active map bounds when placing a bomb', () => {
+    const { bombStore, bombs, colliderStore, inputState, player, playerStore, system, world } =
+      createBombTickHarness();
+
+    playerStore.fireRadius[player.id] = 99;
+    inputState.bomb[player.id] = 1;
+
+    system.update({ dtMs: FIXED_DT_MS, frame: 0, world });
+
+    const activeBomb = bombs.find((bomb) => colliderStore.type[bomb.id] === COLLIDER_TYPE.BOMB);
+
+    expect(activeBomb).toBeDefined();
+    expect(bombStore.radius[activeBomb.id]).toBe(2);
+  });
+
   it('ignores duplicate placement on a cell that already contains an active bomb', () => {
     const { bombStore, bombs, colliderStore, inputState, player, system, world } =
       createBombTickHarness();
