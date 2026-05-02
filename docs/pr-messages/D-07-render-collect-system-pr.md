@@ -36,8 +36,9 @@ Local test command reference (run what applies to your change and list what you 
 - [x] No framework imports or canvas APIs were introduced in this change
 
 ## What changed
-- Added `src/ecs/systems/render-collect-system.js` — uses `world.query(RENDER_COLLECT_REQUIRED_MASK)` to query entities with Position + Renderable component bits, computes interpolated tile-space coordinates using the frame alpha, and writes one render intent per entity into the preallocated render-intent buffer (D-04)
+- Added `src/ecs/systems/render-collect-system.js` — uses `world.query(RENDER_COLLECT_REQUIRED_MASK)` to query entities with Position + Renderable component bits, computes interpolated tile-space coordinates using the frame alpha, and writes one render intent per entity into the preallocated render-intent buffer (D-04). Runs in `phase: 'render'` via `World.runRenderCommit()`.
 - Added `tests/unit/systems/render-collect-system.test.js` — unit tests covering interpolation math, deterministic ordering, buffer reset, classBits passthrough, opacity encoding, and the ECS membership contract (Position + Renderable required)
+- Added `tests/integration/gameplay/d07-render-collect-scheduler.test.js` — integration tests proving the system registers in the real World scheduler, populates the intent buffer via `runRenderCommit`, runs before a downstream render system, and wires into `createBootstrap` via `systemsByPhase.render`
 
 ## Why
 - D-07 is a P1 blocker required before D-08 (Render DOM Batcher) can be completed
@@ -46,7 +47,7 @@ Local test command reference (run what applies to your change and list what you 
 
 ## Tests
 - `npm run check` — passed (Biome lint + format)
-- `npm run test:unit` — 375 tests passed
+- `npm run test:coverage` — 444 tests passed
 - `npm run policy` — ALL CLEAR
 
 ## Audit questions affected
@@ -58,7 +59,7 @@ Local test command reference (run what applies to your change and list what you 
 - File correctly placed in `src/ecs/systems/` — ECS boundary maintained
 
 ## Architecture / dependency notes
-- System runs in `phase: 'collect'` — after simulation, before DOM write
+- System runs in `phase: 'render'` via `World.runRenderCommit()` — after all fixed-step simulation phases, before any DOM commit system registered later in the same render phase
 - Entity selection driven by `world.query(RENDER_COLLECT_REQUIRED_MASK)` — only entities with both Position and Renderable component bits are collected
 - Reads from `renderable`, `visualState`, and `position` resources; writes only to `renderIntentBuffer`
 - Ascending entity ID order from query for stable, deterministic output every frame
@@ -66,4 +67,4 @@ Local test command reference (run what applies to your change and list what you 
 - No wiring into the game loop bootstrap — that happens in D-08
 
 ## Risks
-- None — system is not yet wired into the runtime loop, so no gameplay regressions are possible from this PR
+- The system is schedulable and bootstrap-wired via `systemsByPhase.render`. D-08 must register it before `render-dom-system` to maintain collect → commit ordering — this is documented in the system's file header and enforced by the scheduler integration test.
