@@ -3,8 +3,8 @@
 ## What changed
 - Added `src/adapters/dom/sprite-pool-adapter.js` — pre-allocates DOM element pools for all dynamic sprite types (player, ghost, bomb, fire, pellet) sized from `constants.js`
 - Added `tests/integration/adapters/sprite-pool-adapter.test.js` — 17 tests covering pool sizing, offscreen-hiding strategy, acquire/release API, double-release/foreign-element guards, exhaustion behavior, and reset
-- Added `tests/integration/adapters/sprite-pool-bootstrap.test.js` — 5 tests proving level-load prewarm, container append, pool reset on level transition, no-container guard, and custom resource key
-- Updated `src/game/bootstrap.js` — wires pool creation, `warmUp()`, and level-load `reset()` into the bootstrap when `spriteContainer` is provided; registers pool as `'spritePool'` World resource
+- Added `tests/integration/adapters/sprite-pool-bootstrap.test.js` — 5 tests proving level-load prewarm via board adapter, container append, pool reset on level teardown, optional pool guard, and post-clearBoard idle recovery
+- Updated `src/adapters/dom/renderer-adapter.js` — `createBoardAdapter` now accepts an optional `spritePool`; `generateBoard` calls `warmUp(containerElement)` after board creation; `clearBoard` calls `reset()` when a board exists so the pool is fully idle before the next level load
 - Updated `docs/implementation/track-d.md` — D-09 checklist items marked complete
 - Updated `docs/implementation/ticket-tracker.md` — D-09 marked `[x]`
 - Updated `docs/implementation/audit-traceability-matrix.md` — AUDIT-B-03 updated to reference `sprite-pool-adapter.test.js` as partial coverage; status updated to `Covered, Pending` (full coverage pending D-08)
@@ -38,7 +38,7 @@
 - Exhaustion: `console.warn` in dev mode, silent oldest-recycle in production
 
 ## Risks
-- `bootstrap.js` now imports `sprite-pool-adapter.js`. Callers that don't pass `spriteContainer` are unaffected — pool creation is fully opt-in and guarded by the option presence check.
+- `renderer-adapter.js` now has an optional `spritePool` parameter. All existing callers that omit it are unaffected — the pool wiring is fully opt-in and guarded by null checks. No changes to Track A files.
 
 ## PR checklist
 - [x] I read AGENTS.md and the agentic workflow guide
