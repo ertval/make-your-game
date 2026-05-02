@@ -35,6 +35,15 @@ Ms. Ghostman is a single-player arcade game with a Pac-Man-first loop and Bomber
 
 The result is a strategic game where every move matters. Block off ghost routes, set bomb traps, chain explosions, and race against the clock.
 
+## ⚠️ Current Implementation Status
+
+The repository is currently in a **prototype / partial runtime** state.
+
+- ECS gameplay systems exist for core logic such as input handling, movement, collisions, scoring, timer/lives, spawn timing, pause-system logic, and level-progression detection.
+- The shipped browser runtime is still minimal and does **not** yet include the full gameplay/UI loop described in the target design docs.
+- Runtime/UI work such as live HUD updates, screen overlays, a visible pause menu, restart/reset flows, and the full player-facing feedback loop remains **planned** or **deferred** to later tickets.
+- When this README describes the full game experience below, treat that as the intended roadmap unless a section explicitly says the behavior is already present in the shipped runtime.
+
 ### 🧠 What Is ECS?
 
 **ECS** means **Entity-Component-System**:
@@ -57,7 +66,11 @@ Why this project uses ECS: it keeps gameplay logic modular, deterministic, and f
 - 📊 **3 difficulty levels** — increasing maze density, ghost count, and speed.
 - 🎨 **60 FPS DOM rendering** — no canvas, pure CSS Grid + transform animations via a dedicated Render Batcher.
 
+> This list is the target feature set for the full game. Several items are still planned or deferred and are not yet part of the shipped default runtime path.
+
 ## 🎮 Gameplay
+
+> The gameplay description in this section is the intended full experience. The current checked-in runtime remains partial and does not yet expose every gameplay system or UI flow described below.
 
 ### ⌨️ Controls
 
@@ -250,7 +263,7 @@ For a free GitHub account, the repository must be public to publish a Pages site
     - Timer systems handle level countdowns and transitions.
 4. **Visual Pre-processing**: Render collect system computes transform intents based on interpolation.
 5. **DOM Commit**: Render DOM system applies a single batched style-write phase.
-6. **HUD Update**: HUD adapter updates text metrics using `textContent` only.
+6. **HUD Update**: Planned. A future HUD adapter will update text metrics using `textContent` only.
 
 ### ⏸️ Pause Behavior
 - `requestAnimationFrame` continues running to keep menus responsive.
@@ -268,7 +281,7 @@ For a free GitHub account, the repository must be public to publish a Pages site
 
 ### 🎨 DOM Strategy
 - **Static Grid**: Persistent board elements created once at startup.
-- **Node Pooling**: Transient entities (bombs, fire, effects) use recycled DOM nodes. Prevent GC pauses.
+- **Node Pooling**: Planned target. Transient entities (bombs, fire, effects) are intended to use recycled DOM nodes to prevent GC pauses.
 - **Compositor Friendly**: All movement updates restricted to `transform` and `opacity`.
 - **Minimal Jank**: Strict avoidance of layout thrashing through batched read/write phases.
 
@@ -280,7 +293,7 @@ For a free GitHub account, the repository must be public to publish a Pages site
 | Frame budget | p95 <= 16.7ms over representative 60s scenarios |
 | DOM elements | ≤ 500 |
 | Layer usage | Layers must be as few as possible but non-zero, with intentional promotion justified by audit evidence |
-| GC pauses | < 1ms (object pooling, in-place component mutation) |
+| GC pauses | < 1ms target (object pooling, in-place component mutation) |
 | JS heap | < 10MB |
 | Layout thrashing | Zero (batch reads → writes via `render-dom-system.js`) |
 

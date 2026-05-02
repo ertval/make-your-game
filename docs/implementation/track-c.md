@@ -96,7 +96,7 @@ C-04 is complete at the ECS system-layer level and is safe to merge into main. F
 - [x] Pause Restart intent: `pause-system` accepts `pauseIntent.restart`, but restart intent production and actual reset/reload behavior remain deferred.
 - [x] Verification gate: focused unit tests cover `pause-input-system`, `pause-system`, and `level-progress-system` system-layer behavior.
 
-C-04 is system-layer complete only. Runtime integration, UI, and restart/reset behavior are handled in later tickets. `AUDIT-F-07` through `AUDIT-F-10` remain PARTIAL for C-04 because this PR does not include default runtime registration/bootstrap wiring, visible pause menu/overlays, restart reset/reload behavior, level-flow/level-loader runtime advancement, or browser rAF/performance/manual evidence.
+C-04 is system-layer complete only. Runtime integration, HUD, overlays, and full gameplay behavior are implemented in later tickets. `AUDIT-F-07` through `AUDIT-F-10` remain PARTIAL for C-04 because this PR does not include default runtime registration/bootstrap wiring, visible pause menu/overlays, restart reset/reload behavior, level-flow/level-loader runtime advancement, or browser rAF/performance/manual evidence.
 
 ---
 
