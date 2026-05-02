@@ -2,7 +2,9 @@
 
 ## What changed
 - Added `src/adapters/dom/sprite-pool-adapter.js` — pre-allocates DOM element pools for all dynamic sprite types (player, ghost, bomb, fire, pellet) sized from `constants.js`
-- Added `tests/integration/adapters/sprite-pool-adapter.test.js` — 15 tests covering pool sizing, offscreen-hiding strategy, acquire/release API, exhaustion behavior, and reset
+- Added `tests/integration/adapters/sprite-pool-adapter.test.js` — 17 tests covering pool sizing, offscreen-hiding strategy, acquire/release API, double-release/foreign-element guards, exhaustion behavior, and reset
+- Added `tests/integration/adapters/sprite-pool-bootstrap.test.js` — 5 tests proving level-load prewarm, container append, pool reset on level transition, no-container guard, and custom resource key
+- Updated `src/game/bootstrap.js` — wires pool creation, `warmUp()`, and level-load `reset()` into the bootstrap when `spriteContainer` is provided; registers pool as `'spritePool'` World resource
 - Updated `docs/implementation/track-d.md` — D-09 checklist items marked complete
 - Updated `docs/implementation/ticket-tracker.md` — D-09 marked `[x]`
 - Updated `docs/implementation/audit-traceability-matrix.md` — AUDIT-B-03 updated to reference `sprite-pool-adapter.test.js` as partial coverage; status updated to `Covered, Pending` (full coverage pending D-08)
@@ -14,7 +16,7 @@
 
 ## Tests
 - `npm run check` — passed (Biome lint + format)
-- `npm run test:coverage` — 435 tests passed, 100% statement/function coverage on sprite-pool-adapter.js
+- `npm run test:coverage` — 442 tests passed, 100% statement/function coverage on sprite-pool-adapter.js
 - `npm run test:e2e` — 12 tests passed (all browser/audit specs)
 - `npm run policy` — ALL CLEAR
 
@@ -36,7 +38,7 @@
 - Exhaustion: `console.warn` in dev mode, silent oldest-recycle in production
 
 ## Risks
-- None for this PR — adapter is not yet wired into the game loop (that happens in D-08)
+- `bootstrap.js` now imports `sprite-pool-adapter.js`. Callers that don't pass `spriteContainer` are unaffected — pool creation is fully opt-in and guarded by the option presence check.
 
 ## PR checklist
 - [x] I read AGENTS.md and the agentic workflow guide
