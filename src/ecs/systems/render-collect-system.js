@@ -19,6 +19,10 @@
  *   player-move-system.
  * - world.query() returns entity IDs in ascending order, giving stable and
  *   deterministic intent ordering across frames.
+ * - This system runs in the 'render' phase (via World.runRenderCommit) so it
+ *   executes after all fixed-step simulation phases and before any DOM commit
+ *   system registered later in the same render phase. Register this system
+ *   before render-dom-system to guarantee collect → commit ordering.
  * - This system never touches the DOM. All output is plain data in the buffer.
  * - Opacity encodes invincibility: invincible entities render at half opacity
  *   (128/255) so the player blinks visually without hiding completely.
@@ -53,7 +57,7 @@ export function createRenderCollectSystem(options = {}) {
 
   return {
     name: 'render-collect-system',
-    phase: 'collect',
+    phase: 'render',
     resourceCapabilities: {
       read: [renderableResourceKey, visualStateResourceKey, positionResourceKey],
       write: [renderIntentBufferResourceKey],
