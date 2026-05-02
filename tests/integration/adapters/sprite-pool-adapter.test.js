@@ -111,6 +111,24 @@ describe('sprite-pool-adapter', () => {
       const { pool } = makePool();
       expect(() => pool.release('unknown', {})).toThrow();
     });
+
+    it('is a no-op for a foreign element not tracked as active (double-release guard)', () => {
+      const { pool } = makePool();
+      const idleBefore = pool.stats(SPRITE_TYPE.BOMB).idle;
+      const foreignEl = { style: { transform: '' } };
+      // Should not throw and should not inflate the idle pool
+      expect(() => pool.release(SPRITE_TYPE.BOMB, foreignEl)).not.toThrow();
+      expect(pool.stats(SPRITE_TYPE.BOMB).idle).toBe(idleBefore);
+    });
+
+    it('is a no-op on double-release of the same element', () => {
+      const { pool } = makePool();
+      const el = pool.acquire(SPRITE_TYPE.BOMB);
+      pool.release(SPRITE_TYPE.BOMB, el);
+      const idleAfterFirst = pool.stats(SPRITE_TYPE.BOMB).idle;
+      pool.release(SPRITE_TYPE.BOMB, el);
+      expect(pool.stats(SPRITE_TYPE.BOMB).idle).toBe(idleAfterFirst);
+    });
   });
 
   describe('exhaustion behavior', () => {
