@@ -16,9 +16,19 @@ import {
   resetCollider,
   resetPosition,
   resetVelocity,
+  SPATIAL_STORE_RUNTIME_STATUS,
 } from '../../../src/ecs/components/spatial.js';
 
 describe('spatial component stores', () => {
+  it('documents which spatial stores are active versus planned in the runtime path', () => {
+    expect(SPATIAL_STORE_RUNTIME_STATUS).toEqual({
+      collider: 'planned',
+      position: 'active',
+      velocity: 'active',
+    });
+    expect(Object.isFrozen(SPATIAL_STORE_RUNTIME_STATUS)).toBe(true);
+  });
+
   it('creates a position store with one Float64Array per position field', () => {
     const maxEntities = 8;
     const store = createPositionStore(maxEntities);

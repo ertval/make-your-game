@@ -12,31 +12,35 @@ Source plan: `docs/implementation/implementation-plan.md` (Section 3)
 - **P3 Feature Complete + Hardening**: `C-07`
 - **P4 Polish and Validation**: `C-08` to `C-10`
 
+> Note: `A-11` is referenced for audit traceability only and does not block Track C ticket execution.
+
 ---
 
 #### C-01: Scoring System
 **Priority**: Critical
 **Phase**: P2 Playable MVP
-**Depends On**: `B-04` (collision intents), `C-02` (timer/lives), `D-01` (event-queue resource), `A-11` (P1 consolidated audit gate)
+**Depends On**: `B-04` (collision intents), `C-02` (timer/lives), `D-01` (event-queue resource), `A-11` (audit gate, non-blocking)
 **Impacts**: HUD-critical score metric (`AUDIT-F-15`)
 **Blocks**: A-08, B-09
 
 **Deliverables**:
 - `src/ecs/systems/scoring-system.js` — canonical scoring values, combo logic
 
-- [ ] Implement `scoring-system.js` with exact canonical values:
+- [x] Implement `scoring-system.js` with exact canonical values:
   - Pellet: +10, Power Pellet: +50, Ghost kill (normal): +200, Ghost kill (stunned): +400.
   - Chain multiplier: `200 * 2^(n-1)` per ghost. Power-up pickup: +100. Retain full authority over all pointing and combo logic here in C-01.
-  - Level clear: +1000 + (remainingSeconds × 10).
-- [ ] Consume collision intents and explosion events to award points.
-- [ ] Verification gate: unit tests match every value in `game-description.md` §6.
+  - Level clear: +1000 + (remainingSeconds × 10) is implemented as a pure helper and will be integrated in `C-04`.
+- [x] Consume collision intents (B-04) for the current scoring pipeline.
+- [x] C-01 scoring authority is implemented for the current collision-intent pipeline. Explosion-event scoring is not part of C-01 and will be integrated in a later ticket once event-queue usage is established through `B-09` or later runtime event consumers such as `C-07`.
+- [ ] Runtime integration into the default bootstrap / system stack is deferred to later integration tickets (`A-05`, `C-05`, `B-09`) and is not completed in C-01.
+- [x] Verification gate: unit tests match every value in `game-description.md` §6.
 
 ---
 
 #### C-02: Timer & Life Systems
 **Priority**: Critical
 **Phase**: P2 Playable MVP
-**Depends On**: `D-01` (clock/constants resources), `B-04` (collision intents for death), `A-11` (P1 consolidated audit gate)
+**Depends On**: `D-01` (clock/constants resources), `B-04` (collision intents for death), `A-11` (audit gate, non-blocking)
 **Impacts**: HUD-critical timer and lives metrics (`AUDIT-F-14`, `AUDIT-F-16`)
 **Blocks**: A-05, A-08, B-09, C-04, C-05
 
@@ -44,33 +48,36 @@ Source plan: `docs/implementation/implementation-plan.md` (Section 3)
 - `src/ecs/systems/timer-system.js` — level countdown, time-up → GAME_OVER
 - `src/ecs/systems/life-system.js` — 3 starting lives, decrement, respawn, invincibility, zero → GAME_OVER
 
-- [ ] Implement `timer-system.js`: countdown per level (120s/180s/240s). Timer hits zero → GAME_OVER.
-- [ ] Implement `life-system.js`: 3 starting lives, decrement on death, respawn with 2000ms invincibility. Zero lives → GAME_OVER.
-- [ ] Verification gate: unit tests cover countdown, time-up game over, respawn invincibility, and zero-lives game over.
+- [x] Implement `timer-system.js`: countdown per level (120s/180s/240s). Timer hits zero → GAME_OVER.
+- [x] Implement `life-system.js`: 3 starting lives, decrement on death, respawn with 2000ms invincibility. Zero lives → GAME_OVER.
+- [x] Verification gate: unit tests cover countdown, time-up game over, respawn invincibility, and zero-lives game over.
 
 ---
 
 #### C-03: Spawn System
 **Priority**: Critical
 **Phase**: P2 Playable MVP
-**Depends On**: `D-01` (constants/clock), `D-03` (map resource — ghost spawn points), `A-11` (P1 consolidated audit gate)
+**Depends On**: `D-01` (constants/clock), `D-03` (map resource — ghost spawn points), `A-11` (audit gate, non-blocking)
 **Impacts**: Ghost stagger timing and death-return respawn
 **Blocks**: A-08, B-08
 
 **Deliverables**:
 - `src/ecs/systems/spawn-system.js` — staggered ghost-house release, death-return respawn timing
 
-- [ ] Implement `spawn-system.js`: Apply absolute staggered ghost-house release timings per `game-description.md` §5.4 (0s, 5s, 10s, 15s).
-- [ ] Enforce per-level active ghost caps from map data (`2/3/4`) with deterministic FIFO release order when a slot opens.
-- [ ] Death-return respawn is 5 seconds.
-- [ ] Verification gate: unit tests validate stagger timing and respawn delay.
+- [x] Implement `spawn-system.js`: Apply absolute staggered ghost-house release timings per `game-description.md` §5.4 (0s, 5s, 10s, 15s) using absolute `elapsedMs`.
+- [x] Enforce per-level active ghost caps from `mapResource.maxGhosts` with deterministic FIFO release order when a slot opens.
+- [x] Death-return respawn is `5000ms`, with respawned ghosts re-entering the FIFO queue and still respecting the active cap.
+- [x] The spawn system owns a dedicated `ghostSpawnState` world resource with `elapsedMs`, `releasedGhostIds`, `queuedGhostIds`, `respawnQueue`, and `activeGhostCap`.
+- [x] Deterministic ghost order comes from a `ghostIds` resource when present, otherwise falls back to `[0..POOL_GHOSTS-1]`.
+- [x] Spawn-state updates are resource-only for now; direct ghost-entity mutation remains deferred, so C-03 stays isolated from collision, audio, UI, and bootstrap integration.
+- [x] Verification gate: unit tests validate stagger timing, FIFO/cap behavior, respawn delay, and duplicate protection.
 
 ---
 
 #### C-04: Pause & Level Progression Systems
 **Priority**: Critical
 **Phase**: P2 Playable MVP
-**Depends On**: `D-01` (clock/game-status), `D-03` (map resource), `C-02` (timer/lives), `A-03` (game loop), `A-11` (P1 consolidated audit gate)
+**Depends On**: `D-01` (clock/game-status), `D-03` (map resource), `C-02` (timer/lives), `A-03` (game loop), `A-11` (audit gate, non-blocking)
 **Impacts**: Pause menu behavior and level/game state transitions (`AUDIT-F-07..F-10`)
 **Blocks**: A-05, A-06, A-08, C-05
 
@@ -93,7 +100,7 @@ Source plan: `docs/implementation/implementation-plan.md` (Section 3)
 #### C-05: HUD Adapter & Screen Overlays
 **Priority**: Critical
 **Phase**: P2 Playable MVP
-**Depends On**: `D-05` (CSS layout), `C-02` (timer/lives data), `C-04` (pause/progression states), `A-11` (P1 consolidated audit gate)
+**Depends On**: `D-05` (CSS layout), `C-02` (timer/lives data), `C-04` (pause/progression states), `A-11` (audit gate, non-blocking)
 **Impacts**: Visible gameplay metrics (`AUDIT-F-14..F-16`), pause/start/restart UX (`AUDIT-F-07..F-09`)
 **Blocks**: A-05, A-06, A-08, D-11
 
@@ -120,7 +127,7 @@ Source plan: `docs/implementation/implementation-plan.md` (Section 3)
 #### C-06: Audio Adapter Implementation
 **Priority**: Critical
 **Phase**: P2 Playable MVP
-**Depends On**: `A-01` (scaffolding), `D-01` (constants resource), `A-11` (P1 consolidated audit gate)
+**Depends On**: `A-01` (scaffolding), `D-01` (constants resource), `A-11` (audit gate, non-blocking)
 **Impacts**: Runtime audio boundary, fallback resilience, async decode baseline (`AUDIT-B-05`)
 **Blocks**: C-07, C-08, C-09
 

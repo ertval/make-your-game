@@ -6,7 +6,12 @@
  * and use typed arrays because the represented values are numeric, enum-like,
  * or grid-aligned.
  *
+ * Runtime status:
+ * - All stores in this module are planned gameplay scaffolding.
+ * - None of them are registered by the current bootstrap path yet.
+ *
  * Public API:
+ * - PROP_STORE_RUNTIME_STATUS: runtime/bootstrap status for each prop store.
  * - PROP_POWER_UP_TYPE: ticket-aligned power-up type enum values.
  * - createBombStore(maxEntities): allocate typed arrays for bomb state.
  * - resetBomb(store, entityId): clear one bomb slot back to defaults.
@@ -41,7 +46,20 @@ export const PROP_POWER_UP_TYPE = Object.freeze({
 });
 
 /**
+ * Declarative runtime/bootstrap status for prop stores.
+ * This metadata is descriptive only and must not be treated as a registration API.
+ */
+export const PROP_STORE_RUNTIME_STATUS = Object.freeze({
+  bomb: 'planned',
+  fire: 'planned',
+  pellet: 'planned',
+  powerUp: 'planned',
+});
+
+/**
  * Allocate the typed-array store for bomb gameplay state.
+ * This store is planned scaffolding and is not part of the active runtime
+ * bootstrap contract yet.
  *
  * @param {number} maxEntities - Total entity capacity for the world.
  * @returns {BombStore} Fresh bomb store with canonical defaults.
@@ -75,6 +93,8 @@ export function resetBomb(store, entityId) {
 
 /**
  * Allocate the typed-array store for fire-tile gameplay state.
+ * This store is planned scaffolding and is not part of the active runtime
+ * bootstrap contract yet.
  *
  * @param {number} maxEntities - Total entity capacity for the world.
  * @returns {FireStore} Fresh fire store with canonical defaults.
@@ -103,6 +123,8 @@ export function resetFire(store, entityId) {
 
 /**
  * Allocate the typed-array store for power-up state.
+ * This store is planned scaffolding and is not part of the active runtime
+ * bootstrap contract yet.
  *
  * @param {number} maxEntities - Total entity capacity for the world.
  * @returns {PowerUpStore} Fresh power-up store with canonical defaults.
@@ -126,6 +148,8 @@ export function resetPowerUp(store, entityId) {
 
 /**
  * Allocate the typed-array store for pellet state.
+ * This store is planned scaffolding and is not part of the active runtime
+ * bootstrap contract yet.
  *
  * @param {number} maxEntities - Total entity capacity for the world.
  * @returns {PelletStore} Fresh pellet store with "regular pellet" defaults.

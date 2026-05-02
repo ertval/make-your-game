@@ -17,7 +17,14 @@ import {
 } from '../../../src/ecs/components/spatial.js';
 import { createHealthStore } from '../../../src/ecs/components/stats.js';
 import { CELL_TYPE, GHOST_STATE } from '../../../src/ecs/resources/constants.js';
+import { createEventQueue, drain } from '../../../src/ecs/resources/event-queue.js';
 import { createMapResource, getCell } from '../../../src/ecs/resources/map-resource.js';
+import {
+  emitGameplayEvent,
+  GAMEPLAY_EVENT_SOURCE,
+  GAMEPLAY_EVENT_TYPE,
+  validateGameplayEventPayload,
+} from '../../../src/ecs/systems/collision-gameplay-events.js';
 import {
   appendCollisionIntent,
   COLLISION_ENTITY_REQUIRED_MASK,
@@ -220,11 +227,91 @@ describe('collision-system contract', () => {
       'position',
       'ghost',
       'collisionIntents',
+      'eventQueue',
     ]);
   });
 });
 
 describe('collision-system helpers', () => {
+  it('accepts canonical B-05 collectible event payloads', () => {
+    expect(
+      validateGameplayEventPayload(GAMEPLAY_EVENT_TYPE.PELLET_COLLECTED, {
+        entityId: 1,
+        sourceSystem: GAMEPLAY_EVENT_SOURCE.COLLISION,
+        tile: { row: 2, col: 3 },
+      }),
+    ).toBe(true);
+  });
+
+  it('rejects malformed B-05 payloads before they reach the queue', () => {
+    expect(() =>
+      validateGameplayEventPayload(GAMEPLAY_EVENT_TYPE.PELLET_COLLECTED, {
+        entityId: -1,
+        sourceSystem: GAMEPLAY_EVENT_SOURCE.COLLISION,
+        tile: { row: 2, col: 3 },
+      }),
+    ).toThrow(/entityId/);
+  });
+
+  it('rejects power-up event payloads without a valid powerUpType', () => {
+    expect(() =>
+      validateGameplayEventPayload(GAMEPLAY_EVENT_TYPE.POWER_UP_COLLECTED, {
+        entityId: 1,
+        powerUpType: 'unknown',
+        sourceSystem: GAMEPLAY_EVENT_SOURCE.COLLISION,
+        tile: { row: 2, col: 3 },
+      }),
+    ).toThrow(/powerUpType/);
+  });
+
+  it('rejects player-ghost contact payloads without a ghost source entity', () => {
+    expect(() =>
+      validateGameplayEventPayload(GAMEPLAY_EVENT_TYPE.PLAYER_GHOST_CONTACT, {
+        entityId: 1,
+        ghostState: GHOST_STATE.NORMAL,
+        sourceSystem: GAMEPLAY_EVENT_SOURCE.COLLISION,
+        tile: { row: 2, col: 3 },
+      }),
+    ).toThrow(/sourceEntityId/);
+  });
+
+  it('rejects movement event payloads without previousTile and exact position', () => {
+    expect(() =>
+      validateGameplayEventPayload(GAMEPLAY_EVENT_TYPE.PLAYER_POSITION_CHANGED, {
+        entityId: 1,
+        sourceSystem: GAMEPLAY_EVENT_SOURCE.PLAYER_MOVE,
+        tile: { row: 2, col: 3 },
+      }),
+    ).toThrow(/previousTile/);
+  });
+
+  it('enqueues validated B-05 events with deterministic frame and order envelope fields', () => {
+    const queue = createEventQueue();
+
+    const event = emitGameplayEvent(
+      queue,
+      GAMEPLAY_EVENT_TYPE.POWER_PELLET_COLLECTED,
+      {
+        entityId: 4,
+        sourceSystem: GAMEPLAY_EVENT_SOURCE.COLLISION,
+        tile: { row: 1, col: 2 },
+      },
+      9,
+    );
+
+    expect(event).toEqual({
+      frame: 9,
+      order: 0,
+      payload: {
+        entityId: 4,
+        sourceSystem: GAMEPLAY_EVENT_SOURCE.COLLISION,
+        tile: { row: 1, col: 2 },
+      },
+      type: GAMEPLAY_EVENT_TYPE.POWER_PELLET_COLLECTED,
+    });
+    expect(drain(queue)).toEqual([event]);
+  });
+
   it('converts in-bounds tile coordinates into flat cell indices', () => {
     const mapResource = createMapResource(createCollisionRawMap());
 

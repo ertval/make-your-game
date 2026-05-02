@@ -8,8 +8,15 @@
  * Public API:
  * - createBootstrap(options)
  * - registerSystemsByPhase(world, systemsByPhase)
+ *
+ * B-05 note: The default runtime registers an `eventQueue` resource so Track B
+ * systems that support event emission (collision-system, player-move-system)
+ * can enqueue events without importing bootstrap or adapter modules directly.
+ * The resource key can be customised via `options.eventQueueResourceKey`.
  */
 
+import { updateBoardCss } from '../adapters/dom/renderer-board-css.js';
+import { assertValidInputAdapter } from '../adapters/io/input-adapter.js';
 import {
   createInputStateStore,
   createPlayerStore,
@@ -22,8 +29,10 @@ import {
   resetPosition,
   resetVelocity,
 } from '../ecs/components/spatial.js';
+import { createRenderIntentBuffer, resetRenderIntentBuffer } from '../ecs/render-intent.js';
 import { advanceSimTime, createClock, resetClock, tickClock } from '../ecs/resources/clock.js';
 import { FIXED_DT_MS, MAX_STEPS_PER_FRAME, TOTAL_LEVELS } from '../ecs/resources/constants.js';
+import { createEventQueue } from '../ecs/resources/event-queue.js';
 import { createGameStatus } from '../ecs/resources/game-status.js';
 import { createInputSystem } from '../ecs/systems/input-system.js';
 import {
@@ -37,8 +46,36 @@ import { createLevelLoader } from './level-loader.js';
 const DEFAULT_PLAYER_RESOURCE_KEY = 'player';
 const DEFAULT_POSITION_RESOURCE_KEY = 'position';
 const DEFAULT_VELOCITY_RESOURCE_KEY = 'velocity';
+const DEFAULT_INPUT_ADAPTER_RESOURCE_KEY = 'inputAdapter';
 const DEFAULT_INPUT_STATE_RESOURCE_KEY = 'inputState';
 const DEFAULT_PLAYER_ENTITY_RESOURCE_KEY = 'playerEntity';
+// D-01 canonical resource key for the cross-system deterministic event queue.
+const DEFAULT_EVENT_QUEUE_RESOURCE_KEY = 'eventQueue';
+
+/**
+ * Resolve the input adapter resource key from bootstrap options.
+ *
+ * Both `inputAdapterResourceKey` and the older `adapterResourceKey` names are
+ * honored so callers that wire the system directly do not silently break while
+ * we migrate everything to the explicit bootstrap API.
+ *
+ * @param {object} [options={}] - Bootstrap options.
+ * @returns {string} Resolved resource key for the input adapter slot.
+ */
+function resolveInputAdapterResourceKey(options = {}) {
+  if (
+    typeof options.inputAdapterResourceKey === 'string' &&
+    options.inputAdapterResourceKey.length > 0
+  ) {
+    return options.inputAdapterResourceKey;
+  }
+
+  if (typeof options.adapterResourceKey === 'string' && options.adapterResourceKey.length > 0) {
+    return options.adapterResourceKey;
+  }
+
+  return DEFAULT_INPUT_ADAPTER_RESOURCE_KEY;
+}
 
 function normalizeManifest(manifest) {
   const version =
@@ -153,12 +190,15 @@ function normalizeSystemRegistration(phase, registration, index) {
  * @returns {Record<string, Array<object>>} Phase-keyed ECS system registrations.
  */
 function createDefaultSystemsByPhase(options = {}) {
-  const adapterResourceKey = options.adapterResourceKey || 'inputAdapter';
+  const adapterResourceKey = resolveInputAdapterResourceKey(options);
   const inputStateResourceKey = options.inputStateResourceKey || DEFAULT_INPUT_STATE_RESOURCE_KEY;
   const playerResourceKey = options.playerResourceKey || DEFAULT_PLAYER_RESOURCE_KEY;
   const positionResourceKey = options.positionResourceKey || DEFAULT_POSITION_RESOURCE_KEY;
   const velocityResourceKey = options.velocityResourceKey || DEFAULT_VELOCITY_RESOURCE_KEY;
   const mapResourceKey = options.mapResourceKey || 'mapResource';
+  // B-05: thread the event queue key so Track B systems can enqueue events
+  // through the world resource API without importing bootstrap or adapters.
+  const eventQueueResourceKey = options.eventQueueResourceKey || DEFAULT_EVENT_QUEUE_RESOURCE_KEY;
 
   const inputSystem = createInputSystem({
     adapterResourceKey,
@@ -169,23 +209,17 @@ function createDefaultSystemsByPhase(options = {}) {
     write: [inputStateResourceKey],
   };
 
+  // The player-move system declares its own resourceCapabilities (including
+  // the conditional `write` capability on the event queue when wired), so we
+  // pass the keys in and trust the system's own declaration.
   const playerMoveSystem = createPlayerMoveSystem({
+    eventQueueResourceKey,
     inputStateResourceKey,
     mapResourceKey,
     playerResourceKey,
     positionResourceKey,
     velocityResourceKey,
   });
-  playerMoveSystem.resourceCapabilities = {
-    read: [
-      inputStateResourceKey,
-      mapResourceKey,
-      playerResourceKey,
-      positionResourceKey,
-      velocityResourceKey,
-    ],
-    write: [playerResourceKey, positionResourceKey, velocityResourceKey],
-  };
 
   return {
     input: [inputSystem],
@@ -340,20 +374,75 @@ export function registerSystemsByPhase(world, systemsByPhase = {}) {
 }
 
 export function createBootstrap(options = {}) {
+  let registeredRenderer = null;
+
+  /**
+   * Register (or clear) the frame renderer driven by the bootstrap step loop.
+   *
+   * The bootstrap calls `renderer.update(renderIntent)` once per `stepFrame`
+   * after `runRenderCommit`. Passing `null` or `undefined` clears the slot and
+   * invokes `previous.destroy()` if defined, mirroring `setInputAdapter`'s
+   * teardown semantics so test runtimes can be cleanly stopped and restarted.
+   *
+   * @typedef {{ update(buffer: object): void, destroy?: () => void }} BootstrapRenderer
+   * @param {BootstrapRenderer | null | undefined} renderer - Renderer to install,
+   *   or null/undefined to clear the slot.
+   * @returns {BootstrapRenderer | null} The renderer now stored in the slot.
+   */
+  function registerRenderer(renderer) {
+    if (renderer === null || renderer === undefined) {
+      const previous = registeredRenderer;
+      registeredRenderer = null;
+      if (previous && typeof previous.destroy === 'function') {
+        previous.destroy();
+      }
+      return null;
+    }
+
+    if (typeof renderer.update !== 'function') {
+      throw new Error('registerRenderer requires a renderer with an update(buffer) method.');
+    }
+
+    if (
+      registeredRenderer &&
+      registeredRenderer !== renderer &&
+      typeof registeredRenderer.destroy === 'function'
+    ) {
+      registeredRenderer.destroy();
+    }
+
+    registeredRenderer = renderer;
+    return renderer;
+  }
+
   const nowMs = toFiniteTimestamp(options.now ?? 0);
   const world = options.world || new World();
+  const inputAdapterResourceKey = resolveInputAdapterResourceKey(options);
   const playerEntityResourceKey =
     options.playerEntityResourceKey || DEFAULT_PLAYER_ENTITY_RESOURCE_KEY;
   const clock = createClock(nowMs);
   const gameStatus = createGameStatus();
 
+  // Resolve a single now-source for restart resyncs. Tests wire a synthetic
+  // `nowProvider` so the restart path stays deterministic; production falls
+  // back to `performance.now` (or `Date.now` in non-browser hosts) only when
+  // no provider is supplied.
+  const nowProvider =
+    typeof options.nowProvider === 'function'
+      ? options.nowProvider
+      : () => (typeof performance !== 'undefined' ? performance.now() : Date.now());
+
   // Movement systems need their component stores present before fixed-step work begins.
   initializeMovementResources(world, options);
+  // Pre-register the adapter slot so runtime wiring has one explicit resource key
+  // and systems never have to distinguish "never registered" from "registered null".
+  ensureWorldResource(world, inputAdapterResourceKey, () => null);
 
   const levelLoader = createLevelLoader({
     loadMapForLevel: options.loadMapForLevel,
     mapResourceKey: options.mapResourceKey || 'mapResource',
     onLevelLoaded: (mapResource) => {
+      updateBoardCss(mapResource);
       syncPlayerEntityFromMap(world, mapResource, options);
     },
     totalLevels: TOTAL_LEVELS,
@@ -364,8 +453,10 @@ export function createBootstrap(options = {}) {
     gameStatus,
     levelLoader,
     onRestart: () => {
-      // Reset simulation clock to zero so timers/counters start fresh.
-      resetClock(clock, clock.realTimeMs);
+      // BUG-01: use the injected nowProvider so synthetic test clocks remain
+      // deterministic across restarts, falling back to the real wall clock
+      // only when no provider is supplied.
+      resetClock(clock, toFiniteTimestamp(nowProvider()));
     },
     world,
   });
@@ -373,13 +464,25 @@ export function createBootstrap(options = {}) {
 
   world.setResource('assetPipeline', assetPipeline);
   world.setResource('clock', clock);
+  // B-05: Register the canonical event queue resource so Track B simulation
+  // systems can emit deterministic cross-system events without importing
+  // bootstrap or adapter modules. Systems access this only via world.getResource.
+  const eventQueueResourceKey = options.eventQueueResourceKey || DEFAULT_EVENT_QUEUE_RESOURCE_KEY;
+  ensureWorldResource(world, eventQueueResourceKey, createEventQueue);
   world.setResource('gameFlow', gameFlow);
   world.setResource('gameStatus', gameStatus);
   world.setResource('levelLoader', levelLoader);
+  world.setResource('renderIntent', createRenderIntentBuffer());
 
   registerSystemsByPhase(
     world,
-    mergeSystemsByPhase(createDefaultSystemsByPhase(options), options.systemsByPhase),
+    mergeSystemsByPhase(
+      createDefaultSystemsByPhase({
+        ...options,
+        inputAdapterResourceKey,
+      }),
+      options.systemsByPhase,
+    ),
   );
 
   function stepFrame(
@@ -400,6 +503,15 @@ export function createBootstrap(options = {}) {
       });
     }
 
+    // Reset the render-intent buffer at the start of the render commit phase
+    // so render-collect systems append into a clean buffer each frame. Without
+    // this, intents from previous frames pile up until capacity is hit and new
+    // intents are silently dropped.
+    const renderIntent = world.getResource('renderIntent');
+    if (renderIntent) {
+      resetRenderIntentBuffer(renderIntent);
+    }
+
     world.runRenderCommit({
       alpha: clock.alpha,
       dtMs: fixedDtMs,
@@ -407,6 +519,10 @@ export function createBootstrap(options = {}) {
       simTimeMs: clock.simTimeMs,
       stepsThisFrame: steps,
     });
+
+    if (registeredRenderer && typeof registeredRenderer.update === 'function') {
+      registeredRenderer.update(renderIntent);
+    }
 
     return {
       alpha: clock.alpha,
@@ -424,17 +540,57 @@ export function createBootstrap(options = {}) {
   }
 
   function getInputAdapter() {
-    return world.getResource('inputAdapter') || null;
+    return world.getResource(inputAdapterResourceKey) || null;
+  }
+
+  /**
+   * Validate and register the browser-facing input adapter resource.
+   *
+   * Passing `null` or `undefined` clears the registration and destroys any
+   * previously stored adapter so blur/visibility teardown is explicit.
+   * Any non-null value must satisfy the `assertValidInputAdapter` contract.
+   *
+   * @param {InputAdapter | null} adapter - Explicit adapter contract or null to clear it.
+   * @returns {InputAdapter | null} The stored adapter resource, or null after clearing.
+   */
+  function setInputAdapter(adapter) {
+    const previousAdapter = world.getResource(inputAdapterResourceKey) || null;
+
+    if (adapter === null || adapter === undefined) {
+      if (previousAdapter && typeof previousAdapter.destroy === 'function') {
+        previousAdapter.destroy();
+      }
+      world.setResource(inputAdapterResourceKey, null);
+      return null;
+    }
+
+    // Validate before any side effects so a bad adapter never replaces a good one.
+    assertValidInputAdapter(adapter);
+
+    if (
+      previousAdapter &&
+      previousAdapter !== adapter &&
+      typeof previousAdapter.destroy === 'function'
+    ) {
+      previousAdapter.destroy();
+    }
+
+    world.setResource(inputAdapterResourceKey, adapter);
+    return adapter;
   }
 
   return {
     clock,
+    eventQueueResourceKey,
     gameFlow,
     gameStatus,
     getInputAdapter,
+    inputAdapterResourceKey,
     levelLoader,
     playerEntityResourceKey,
+    registerRenderer,
     resyncTime,
+    setInputAdapter,
     stepFrame,
     world,
   };

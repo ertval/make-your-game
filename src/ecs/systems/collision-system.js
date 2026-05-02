@@ -15,7 +15,7 @@
  * - clearCollisionIntents(collisionIntents): empty the injected intent buffer in place.
  * - appendCollisionIntent(collisionIntents, intent): append one deterministic intent with monotonic order.
  * - isPlayerInvincible(playerStore, healthStore, entityId): resolve the current invincibility state.
- * - collectStaticPickup(mapResource, collisionIntents, entityId, row, col): resolve one static pickup tile.
+ * - collectStaticPickup(mapResource, collisionIntents, entityId, row, col, eventContext): resolve one static pickup tile.
  * - createCollisionSystem(options): create the logic-phase ECS collision system.
  *
  * Implementation notes:
@@ -29,6 +29,11 @@
  *   player lives directly; later tickets consume these intents.
  * - Shared-cell bomb push-back is inferred from bomb movement between the
  *   previous and current fixed-step tiles so the rule stays local to B-04.
+ * - B-05 wiring: accepts `eventQueueResourceKey` so bootstrap can thread the
+ *   D-01 event-queue resource key in for later emission code. We declare the
+ *   key as a `write` capability (matching the B-05 branch's emit calls) but
+ *   do not look it up here — that lookup lives next to the actual emit calls
+ *   in B-05.
  */
 
 import { COMPONENT_MASK } from '../components/registry.js';
@@ -40,6 +45,11 @@ import {
   isPassableForGhost,
   setCell,
 } from '../resources/map-resource.js';
+import {
+  emitGameplayEvent,
+  GAMEPLAY_EVENT_SOURCE,
+  GAMEPLAY_EVENT_TYPE,
+} from './collision-gameplay-events.js';
 
 /**
  * Dynamic entities with tile positions are queried through position + collider.
@@ -581,6 +591,42 @@ function readPowerUpTypeFromCell(cellType) {
 }
 
 /**
+ * Build the canonical B-05 tile payload for gameplay events.
+ *
+ * @param {number} row - Tile row.
+ * @param {number} col - Tile column.
+ * @returns {{ row: number, col: number }} Fresh tile payload.
+ */
+function createEventTile(row, col) {
+  return { row, col };
+}
+
+/**
+ * Emit one pickup event through the optional event queue resource.
+ *
+ * @param {object | null | undefined} eventContext - Optional event queue context.
+ * @param {string} type - Canonical gameplay event type.
+ * @param {number} entityId - Collecting entity id.
+ * @param {number} row - Pickup tile row.
+ * @param {number} col - Pickup tile column.
+ * @param {object} [extraPayload] - Event-specific payload fields.
+ * @returns {GameEvent | null} Enqueued event or null when no queue is registered.
+ */
+function emitPickupEvent(eventContext, type, entityId, row, col, extraPayload = {}) {
+  return emitGameplayEvent(
+    eventContext?.eventQueue,
+    type,
+    {
+      entityId,
+      sourceSystem: eventContext?.sourceSystem || GAMEPLAY_EVENT_SOURCE.COLLISION,
+      tile: createEventTile(row, col),
+      ...extraPayload,
+    },
+    eventContext?.frame,
+  );
+}
+
+/**
  * Resolve and record collectible map-cell collisions for one player entity.
  *
  * The map is mutated immediately after a successful pickup so the same tile
@@ -591,13 +637,22 @@ function readPowerUpTypeFromCell(cellType) {
  * @param {number} entityId - Player entity that may collect the tile.
  * @param {number} row - Player tile row.
  * @param {number} col - Player tile col.
+ * @param {object} [eventContext] - Optional event queue context for B-05 emission.
  * @returns {object | null} The appended collection intent, or null when nothing collectible exists.
  */
-export function collectStaticPickup(mapResource, collisionIntents, entityId, row, col) {
+export function collectStaticPickup(
+  mapResource,
+  collisionIntents,
+  entityId,
+  row,
+  col,
+  eventContext,
+) {
   const cellType = getCell(mapResource, row, col);
 
   if (cellType === CELL_TYPE.PELLET) {
     setCell(mapResource, row, col, CELL_TYPE.EMPTY);
+    emitPickupEvent(eventContext, GAMEPLAY_EVENT_TYPE.PELLET_COLLECTED, entityId, row, col);
     return appendCollisionIntent(collisionIntents, {
       type: 'pellet-collected',
       entityId,
@@ -608,6 +663,7 @@ export function collectStaticPickup(mapResource, collisionIntents, entityId, row
 
   if (cellType === CELL_TYPE.POWER_PELLET) {
     setCell(mapResource, row, col, CELL_TYPE.EMPTY);
+    emitPickupEvent(eventContext, GAMEPLAY_EVENT_TYPE.POWER_PELLET_COLLECTED, entityId, row, col);
     return appendCollisionIntent(collisionIntents, {
       type: 'power-pellet-collected',
       entityId,
@@ -622,6 +678,9 @@ export function collectStaticPickup(mapResource, collisionIntents, entityId, row
   }
 
   setCell(mapResource, row, col, CELL_TYPE.EMPTY);
+  emitPickupEvent(eventContext, GAMEPLAY_EVENT_TYPE.POWER_UP_COLLECTED, entityId, row, col, {
+    powerUpType,
+  });
   return appendCollisionIntent(collisionIntents, {
     type: 'power-up-collected',
     entityId,
@@ -684,6 +743,7 @@ function buildActorOccupancy(
  * @param {HealthStore | null | undefined} healthStore - Health gameplay store.
  * @param {GhostStore | null | undefined} ghostStore - Ghost gameplay store.
  * @param {{ row: number, col: number }} reusableTile - Shared temporary tile object.
+ * @param {object} [eventContext] - Optional event queue context for B-05 emission.
  */
 function resolveDynamicCellCollisions(
   mapResource,
@@ -694,6 +754,7 @@ function resolveDynamicCellCollisions(
   healthStore,
   ghostStore,
   reusableTile,
+  eventContext,
 ) {
   const playerId = scratch.playerByCell[cellIndex];
   const fireId = scratch.fireByCell[cellIndex];
@@ -761,6 +822,19 @@ function resolveDynamicCellCollisions(
       sourceEntityId: ghostId,
       ghostState,
     });
+
+    emitGameplayEvent(
+      eventContext?.eventQueue,
+      GAMEPLAY_EVENT_TYPE.PLAYER_GHOST_CONTACT,
+      {
+        entityId: playerId,
+        ghostState,
+        sourceEntityId: ghostId,
+        sourceSystem: eventContext?.sourceSystem || GAMEPLAY_EVENT_SOURCE.COLLISION,
+        tile: createEventTile(tile.row, tile.col),
+      },
+      eventContext?.frame,
+    );
     return;
   }
 }
@@ -776,6 +850,7 @@ function resolveDynamicCellCollisions(
  *   healthResourceKey?: string,
  *   ghostResourceKey?: string,
  *   collisionIntentsResourceKey?: string,
+ *   eventQueueResourceKey?: string,
  *   requiredMask?: number,
  *   maxGhostsPerCell?: number,
  * }} [options] - Optional resource-key overrides for tests and later wiring.
@@ -789,6 +864,7 @@ export function createCollisionSystem(options = {}) {
   const healthResourceKey = options.healthResourceKey || 'health';
   const ghostResourceKey = options.ghostResourceKey || 'ghost';
   const collisionIntentsResourceKey = options.collisionIntentsResourceKey || 'collisionIntents';
+  const eventQueueResourceKey = options.eventQueueResourceKey || 'eventQueue';
   const requiredMask = options.requiredMask ?? COLLISION_ENTITY_REQUIRED_MASK;
   const maxGhostsPerCell = options.maxGhostsPerCell ?? DEFAULT_GHOST_SLOTS_PER_CELL;
   let scratch = null;
@@ -803,7 +879,13 @@ export function createCollisionSystem(options = {}) {
     phase: 'logic',
     resourceCapabilities: {
       read: [colliderResourceKey, playerResourceKey, healthResourceKey],
-      write: [mapResourceKey, positionResourceKey, ghostResourceKey, collisionIntentsResourceKey],
+      write: [
+        mapResourceKey,
+        positionResourceKey,
+        ghostResourceKey,
+        collisionIntentsResourceKey,
+        eventQueueResourceKey,
+      ],
     },
     update(context) {
       const world = context.world;
@@ -814,6 +896,7 @@ export function createCollisionSystem(options = {}) {
       const healthStore = world.getResource(healthResourceKey);
       const ghostStore = world.getResource(ghostResourceKey);
       const collisionIntents = world.getResource(collisionIntentsResourceKey);
+      const eventQueue = world.getResource(eventQueueResourceKey);
 
       // The shell is intentionally tolerant during early integration so tests
       // and downstream systems can inject resources incrementally.
@@ -824,6 +907,12 @@ export function createCollisionSystem(options = {}) {
       if (Array.isArray(collisionIntents)) {
         clearCollisionIntents(collisionIntents);
       }
+
+      const eventContext = {
+        eventQueue,
+        frame: context.frame,
+        sourceSystem: GAMEPLAY_EVENT_SOURCE.COLLISION,
+      };
 
       scratch = ensureCollisionScratch(
         scratch,
@@ -874,7 +963,14 @@ export function createCollisionSystem(options = {}) {
           continue;
         }
 
-        collectStaticPickup(mapResource, collisionIntents, entityId, tile.row, tile.col);
+        collectStaticPickup(
+          mapResource,
+          collisionIntents,
+          entityId,
+          tile.row,
+          tile.col,
+          eventContext,
+        );
       }
 
       for (let cellIndex = 0; cellIndex < scratch.cellCount; cellIndex += 1) {
@@ -893,6 +989,7 @@ export function createCollisionSystem(options = {}) {
           healthStore,
           ghostStore,
           reusableCellTile,
+          eventContext,
         );
       }
     },
