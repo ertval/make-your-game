@@ -14,7 +14,11 @@ import {
   createVisualStateStore,
   RENDERABLE_KIND,
 } from '../../../src/ecs/components/visual.js';
-import { createRenderIntentBuffer, getRenderIntentView } from '../../../src/ecs/render-intent.js';
+import {
+  createRenderIntentBuffer,
+  getRenderIntentView,
+  resetRenderIntentBuffer,
+} from '../../../src/ecs/render-intent.js';
 import { VISUAL_FLAGS } from '../../../src/ecs/resources/constants.js';
 import {
   createRenderCollectSystem,
@@ -69,6 +73,8 @@ function createHarness() {
   }
 
   function run(alpha = 1) {
+    // Simulate bootstrap's pre-render reset — the collect system appends only.
+    resetRenderIntentBuffer(buffer);
     system.update({ world, alpha });
     return getRenderIntentView(buffer);
   }
@@ -187,23 +193,28 @@ describe('render-collect-system', () => {
       addRenderableEntity({ kind: RENDERABLE_KIND.PLAYER });
       system.update({ world, alpha: 1 });
       const first = getRenderIntentView(buffer).map((i) => i.entityId);
+      resetRenderIntentBuffer(buffer);
       system.update({ world, alpha: 0.5 });
       const second = getRenderIntentView(buffer).map((i) => i.entityId);
       expect(first).toEqual(second);
     });
   });
 
-  describe('buffer reset', () => {
-    it('resets the buffer at the start of each frame', () => {
+  describe('buffer ownership', () => {
+    it('appends only — does not reset the buffer itself (bootstrap owns the reset)', () => {
       const { addRenderableEntity, system, world, buffer, renderable } = createHarness();
       const entity = addRenderableEntity({ kind: RENDERABLE_KIND.PLAYER });
+
+      // Frame 1: bootstrap resets, then collect runs
+      resetRenderIntentBuffer(buffer);
       system.update({ world, alpha: 1 });
       expect(getRenderIntentView(buffer)).toHaveLength(1);
 
-      // Remove component membership — buffer should reflect new state
+      // Frame 2: bootstrap resets, then collect runs with entity removed
       renderable.kind[entity.id] = RENDERABLE_KIND.NONE;
       world.deferSetEntityMask(entity, COMPONENT_MASK.POSITION);
       world.flushDeferredMutations();
+      resetRenderIntentBuffer(buffer);
       system.update({ world, alpha: 1 });
       expect(getRenderIntentView(buffer)).toHaveLength(0);
     });

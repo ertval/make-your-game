@@ -29,7 +29,7 @@
  */
 
 import { COMPONENT_MASK } from '../components/registry.js';
-import { appendRenderIntent, resetRenderIntentBuffer } from '../render-intent.js';
+import { appendRenderIntentDirect } from '../render-intent.js';
 import { VISUAL_FLAGS } from '../resources/constants.js';
 
 const DEFAULT_RENDERABLE_RESOURCE_KEY = 'renderable';
@@ -74,7 +74,8 @@ export function createRenderCollectSystem(options = {}) {
       const visualState = context.world.getResource(visualStateResourceKey);
       const alpha = Number.isFinite(context.alpha) ? Math.max(0, Math.min(1, context.alpha)) : 1;
 
-      resetRenderIntentBuffer(buffer);
+      // Buffer reset is owned by the bootstrap frame setup (resetRenderIntentBuffer
+      // is called before world.runRenderCommit). The collect system appends only.
 
       // Use the ECS query index to select only entities with Position + Renderable.
       // world.query() returns IDs in ascending order for stable, deterministic output.
@@ -93,15 +94,17 @@ export function createRenderCollectSystem(options = {}) {
         const isInvincible = (classBits & VISUAL_FLAGS.INVINCIBLE) !== 0;
         const opacity = isInvincible ? OPACITY_INVINCIBLE : OPACITY_FULL;
 
-        appendRenderIntent(buffer, {
-          entityId: id,
-          kind: renderable.kind[id],
-          spriteId: renderable.spriteId[id],
+        // Use allocation-free direct write to avoid per-entity object creation.
+        appendRenderIntentDirect(
+          buffer,
+          id,
+          renderable.kind[id],
+          renderable.spriteId[id],
           x,
           y,
           classBits,
           opacity,
-        });
+        );
       }
     },
   };
