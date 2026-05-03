@@ -15,7 +15,8 @@ import { createPauseSystem } from '../../../src/ecs/systems/pause-system.js';
 import { World } from '../../../src/ecs/world/world.js';
 
 const CLEARED_PAUSE_INTENT = {
-  action: null,
+  restart: false,
+  toggle: false,
 };
 
 function createHarness(gameState, pauseIntent, options = {}) {
@@ -52,7 +53,8 @@ function expectPauseIntentCleared(world) {
 describe('pause-system', () => {
   it('transitions PLAYING + toggle to PAUSED and clears intent', () => {
     const harness = createHarness(GAME_STATE.PLAYING, {
-      action: 'toggle',
+      restart: false,
+      toggle: true,
     });
     const previousClock = harness.world.getResource('clock');
 
@@ -71,7 +73,8 @@ describe('pause-system', () => {
     const harness = createHarness(
       GAME_STATE.PAUSED,
       {
-        action: 'continue',
+        restart: false,
+        toggle: true,
       },
       {
         clock: {
@@ -95,7 +98,8 @@ describe('pause-system', () => {
 
   it('transitions PAUSED + restart to fresh PLAYING, sets pendingRestart, and clears intent', () => {
     const harness = createHarness(GAME_STATE.PAUSED, {
-      action: 'restart',
+      restart: true,
+      toggle: false,
     });
     const previousGameStatus = harness.world.getResource('gameStatus');
 
@@ -118,7 +122,8 @@ describe('pause-system', () => {
     GAME_STATE.VICTORY,
   ])('ignores pause and restart intent in %s and only clears intent', (gameState) => {
     const harness = createHarness(gameState, {
-      action: 'restart',
+      restart: true,
+      toggle: false,
     });
 
     updatePauseSystem(harness);
@@ -142,7 +147,8 @@ describe('pause-system', () => {
 
   it('clears pauseIntent and returns when gameStatus is missing', () => {
     const harness = createHarness(null, {
-      action: 'restart',
+      restart: true,
+      toggle: true,
     });
 
     expect(() => updatePauseSystem(harness)).not.toThrow();
@@ -155,7 +161,8 @@ describe('pause-system', () => {
     const harness = createHarness(
       GAME_STATE.PLAYING,
       {
-        action: 'toggle',
+        restart: false,
+        toggle: true,
       },
       { clock: undefined },
     );
@@ -170,7 +177,8 @@ describe('pause-system', () => {
 
   it('clears pauseIntent after publishing restart intent', () => {
     const harness = createHarness(GAME_STATE.PAUSED, {
-      action: 'restart',
+      restart: true,
+      toggle: false,
     });
 
     updatePauseSystem(harness);
@@ -183,7 +191,8 @@ describe('pause-system', () => {
 
   it('does not publish restart intent when restart is requested outside PAUSED', () => {
     const harness = createHarness(GAME_STATE.PLAYING, {
-      action: 'restart',
+      restart: true,
+      toggle: false,
     });
     const previousGameStatus = harness.world.getResource('gameStatus');
 
@@ -200,7 +209,8 @@ describe('pause-system', () => {
     const harness = createHarness(
       GAME_STATE.PAUSED,
       {
-        action: 'toggle',
+        restart: false,
+        toggle: true,
       },
       {
         clock: {

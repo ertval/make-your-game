@@ -20,12 +20,18 @@
 
 import { COMPONENT_MASK } from '../components/registry.js';
 import { GAME_STATE } from '../resources/game-status.js';
-import { createDefaultPauseIntent } from '../resources/pause-intent.js';
 
 const DEFAULT_GAME_STATUS_RESOURCE_KEY = 'gameStatus';
 const DEFAULT_INPUT_STATE_RESOURCE_KEY = 'inputState';
 const DEFAULT_PAUSE_INTENT_RESOURCE_KEY = 'pauseIntent';
 const DEFAULT_REQUIRED_MASK = COMPONENT_MASK.PLAYER | COMPONENT_MASK.INPUT_STATE;
+
+function createDefaultPauseIntent() {
+  return {
+    restart: false,
+    toggle: false,
+  };
+}
 
 function normalizePauseIntent(pauseIntent) {
   if (!pauseIntent || typeof pauseIntent !== 'object') {
@@ -33,12 +39,8 @@ function normalizePauseIntent(pauseIntent) {
   }
 
   return {
-    action:
-      pauseIntent.action === 'toggle' ||
-      pauseIntent.action === 'continue' ||
-      pauseIntent.action === 'restart'
-        ? pauseIntent.action
-        : null,
+    restart: pauseIntent.restart === true,
+    toggle: pauseIntent.toggle === true,
   };
 }
 
@@ -96,7 +98,8 @@ export function createPauseInputSystem(options = {}) {
       }
 
       world.setResource(pauseIntentResourceKey, {
-        action: gameStatus.currentState === GAME_STATE.PAUSED ? 'continue' : 'toggle',
+        restart: currentIntent.restart,
+        toggle: true,
       });
     },
   };

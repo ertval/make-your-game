@@ -29,12 +29,18 @@ import {
   GAME_STATE,
   transitionTo,
 } from '../resources/game-status.js';
-import { createDefaultPauseIntent } from '../resources/pause-intent.js';
 
 const DEFAULT_GAME_STATUS_RESOURCE_KEY = 'gameStatus';
 const DEFAULT_PAUSE_INTENT_RESOURCE_KEY = 'pauseIntent';
 const DEFAULT_CLOCK_RESOURCE_KEY = 'clock';
 const DEFAULT_LEVEL_FLOW_RESOURCE_KEY = 'levelFlow';
+
+function createDefaultPauseIntent() {
+  return {
+    restart: false,
+    toggle: false,
+  };
+}
 
 function ensurePauseIntent(pauseIntent) {
   if (!pauseIntent || typeof pauseIntent !== 'object') {
@@ -42,12 +48,8 @@ function ensurePauseIntent(pauseIntent) {
   }
 
   return {
-    action:
-      pauseIntent.action === 'toggle' ||
-      pauseIntent.action === 'continue' ||
-      pauseIntent.action === 'restart'
-        ? pauseIntent.action
-        : null,
+    restart: pauseIntent.restart === true,
+    toggle: pauseIntent.toggle === true,
   };
 }
 
@@ -116,20 +118,17 @@ export function createPauseSystem(options = {}) {
       }
 
       if (gameStatus.currentState === GAME_STATE.PAUSED) {
-        if (pauseIntent.action === 'restart') {
+        if (pauseIntent.restart) {
           world.setResource(gameStatusResourceKey, createGameStatus(GAME_STATE.PLAYING));
           syncClockPauseState(world, clockResourceKey, false);
           publishPendingRestart(world, levelFlowResourceKey);
-        } else if (pauseIntent.action === 'continue' || pauseIntent.action === 'toggle') {
+        } else if (pauseIntent.toggle) {
           const transitioned = tryTransition(gameStatus, GAME_STATE.PLAYING);
           if (transitioned) {
             syncClockPauseState(world, clockResourceKey, false);
           }
         }
-      } else if (
-        gameStatus.currentState === GAME_STATE.PLAYING &&
-        pauseIntent.action === 'toggle'
-      ) {
+      } else if (gameStatus.currentState === GAME_STATE.PLAYING && pauseIntent.toggle) {
         const transitioned = tryTransition(gameStatus, GAME_STATE.PAUSED);
         if (transitioned) {
           syncClockPauseState(world, clockResourceKey, true);
