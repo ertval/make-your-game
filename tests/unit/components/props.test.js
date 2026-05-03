@@ -25,10 +25,10 @@ import {
 } from '../../../src/ecs/resources/constants.js';
 
 describe('prop component stores', () => {
-  it('documents all prop stores as planned runtime scaffolding', () => {
+  it('documents which prop stores are active versus planned in the runtime path', () => {
     expect(PROP_STORE_RUNTIME_STATUS).toEqual({
-      bomb: 'planned',
-      fire: 'planned',
+      bomb: 'active',
+      fire: 'active',
       pellet: 'planned',
       powerUp: 'planned',
     });
