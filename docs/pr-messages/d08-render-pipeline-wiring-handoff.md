@@ -107,15 +107,6 @@ world.setResource('spritePool', spritePool);
 gameFlow.startGame();
 ```
 
-### 8. Remove Debug Logs
-The onLevelLoaded callback currently has console.log statements that should be removed:
-```js
-// REMOVE THESE:
-console.log('[BOOTSTRAP] onLevelLoaded called, mapResource:', mapResource.level);
-console.log('[BOOTSTRAP] gameBoard children BEFORE:', gameBoard?.children.length);
-console.log('[BOOTSTRAP] gameBoard children AFTER:', gameBoard?.children.length);
-```
-
 ---
 
 ## Why Track A Owned
