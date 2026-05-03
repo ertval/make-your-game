@@ -125,8 +125,8 @@ export function createRenderDomSystem(options = {}) {
 
         const el = spritePool.acquire(spriteType);
 
-        // Clear previous classes before adding new ones
-        el.className = '';
+        // Clear previous classes but keep the base sprite class for width/height
+        el.className = 'sprite';
         el.style.display = '';
 
         const pixelX = x * TILE_SIZE_PX;
