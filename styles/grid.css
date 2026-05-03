@@ -21,7 +21,9 @@
 /* --- Game Grid Container --- */
 
 /** Main game board grid with fixed dimensions matching map layout. */
-.game-grid {
+.game-grid,
+.game-board,
+.board-grid {
   display: grid;
   grid-template-columns: repeat(var(--board-columns), var(--tile-size));
   grid-template-rows: repeat(var(--board-rows), var(--tile-size));
@@ -36,29 +38,41 @@
 /* --- Grid Cells --- */
 
 /** Base grid cell for all static elements (walls, empty spaces, spawn points). */
-.grid-cell {
+.cell {
   width: var(--tile-size);
   height: var(--tile-size);
   position: relative;
   z-index: var(--z-grid);
 }
 
+/** Empty cell (walkable space). */
+.cell-empty {
+  background: #111122;
+}
+
 /** Indestructible wall cell with brick pattern styling. */
-.grid-cell--indestructible {
+.cell-wall {
   background: var(--color-wall-indestructible);
   border: 1px solid color-mix(in srgb, var(--color-wall-indestructible) 70%, #000 30%);
   border-radius: var(--radius-xs, 2px);
 }
 
 /** Destructible wall cell with crate/box styling. */
-.grid-cell--destructible {
+.cell-destructible {
   background: var(--color-wall-destructible);
   border: 1px solid color-mix(in srgb, var(--color-wall-destructible) 70%, #000 30%);
   border-radius: var(--radius-xs, 2px);
 }
 
+/** Door cell styling. */
+.cell-door {
+  background: var(--color-accent);
+  border: 1px solid var(--color-ink);
+  opacity: 0.7;
+}
+
 /** Ghost house cell with subtle background indicator. */
-.grid-cell--ghost-house {
+.cell-ghost-house {
   background: color-mix(in srgb, var(--color-surface) 50%, transparent 50%);
   border: 1px dashed color-mix(in srgb, var(--color-accent) 30%, transparent 70%);
 }
@@ -66,7 +80,8 @@
 /* --- Collectibles --- */
 
 /** Regular pellet (small dot). */
-.collectible--pellet {
+.cell-pellet::after {
+  content: "";
   position: absolute;
   top: 50%;
   left: 50%;
@@ -79,7 +94,8 @@
 }
 
 /** Power pellet (larger, pulsing). */
-.collectible--power-pellet {
+.cell-power-pellet::after {
+  content: "";
   position: absolute;
   top: 50%;
   left: 50%;
@@ -110,12 +126,16 @@
 .sprite--player {
   z-index: var(--z-player);
   will-change: transform;
+  background: red;
+  border-radius: 50%;
 }
 
 /** Ghost sprites with layer promotion (always moving, need compositor layers). */
 .sprite--ghost {
   z-index: var(--z-ghosts);
   will-change: transform;
+  background: orange;
+  border-radius: 50%;
 }
 
 /** Ghost type-specific color classes. */
