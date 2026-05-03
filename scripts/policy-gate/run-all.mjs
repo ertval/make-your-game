@@ -15,6 +15,7 @@ import {
   inferProcessModeFromSources,
   inferTicketIdsFromSources,
   isBugfixBranch,
+  isIntegrationBranch,
   parseArgs,
   readJson,
   resolveBranchName,
@@ -105,6 +106,8 @@ function resolvePolicyContext() {
     metadata.commitMessages || '',
   );
   const isBugfixMode = isBugfixBranch(branchName);
+  // Integration branches are an alias of bugfix mode — detect both here for forwarding to policy path.
+  const isIntegrationMode = isIntegrationBranch(branchName);
 
   return {
     metadata,
@@ -115,6 +118,7 @@ function resolvePolicyContext() {
     hasPrMetadata,
     hasProcessMode,
     isBugfixMode,
+    isIntegrationMode,
     ticketIds,
   };
 }
@@ -135,8 +139,9 @@ if (scope === 'pr' || scope === 'all') {
   console.log('🚀 Phase 2: Starting Policy Enforcements');
   console.log('========================================================================\n');
 
-  // We parse the extracted git metadata file to infer PR intent and verify traceability.
-  const { branchTicketIds, commitTicketIds, hasProcessMode, isBugfixMode } = resolvePolicyContext();
+  // Process-marker branches must still run PR checks so process-scope violations are enforced.
+  const { branchTicketIds, commitTicketIds, hasProcessMode, isBugfixMode, isIntegrationMode } =
+    resolvePolicyContext();
 
   // Process-marker branches must still run PR checks so process-scope violations are enforced.
   const policyPath = resolvePrPolicyPath({
@@ -144,6 +149,7 @@ if (scope === 'pr' || scope === 'all') {
     commitTicketIds,
     hasProcessMode,
     isBugfixMode,
+    isIntegrationMode,
   });
 
   // The describePolicyResolution call was removed from here because run-checks.mjs
@@ -214,9 +220,12 @@ if ((scope === 'repo' || scope === 'all') && !(scope === 'all' && ranRepoFallbac
     commitTicketIds,
     hasProcessMode,
     isBugfixMode,
+    isIntegrationMode,
     ticketIds,
   } = resolvePolicyContext();
-  const auditMode = isBugfixMode
+  // Integration mode is an alias of bugfix mode; treat them equivalently for audit reporting.
+  const effectiveBugfixMode = isBugfixMode || isIntegrationMode;
+  const auditMode = effectiveBugfixMode
     ? 'BUGFIX'
     : hasProcessMode
       ? 'GENERAL_DOCS_PROCESS'

@@ -147,9 +147,9 @@
 **Deliverables**:
 - `src/ecs/systems/render-collect-system.js` — interpolation, render-intent buffer
 
-- [ ] Implement `render-collect-system.js`: Called after simulation but before DOM write. Matches all entities with Position + Renderable. Computes intended transforms using interpolation factor (`alpha`). Outputs a preallocated render-intent buffer.
-- [ ] Use stable intent ordering for deterministic commits.
-- [ ] Verification gate: unit tests validate interpolation math and deterministic intent ordering.
+- [x] Implement `render-collect-system.js`: Called after simulation but before DOM write. Matches all entities with Position + Renderable. Computes intended transforms using interpolation factor (`alpha`). Outputs a preallocated render-intent buffer.
+- [x] Use stable intent ordering for deterministic commits.
+- [x] Verification gate: unit tests validate interpolation math and deterministic intent ordering.
 
 ---
 
@@ -190,13 +190,13 @@
 **Deliverables**:
 - `src/adapters/dom/sprite-pool-adapter.js` — pre-allocated pools, offscreen-transform hiding, pool acquire/release API
 
-- [ ] Implement `sprite-pool-adapter.js`:
+- [x] Implement `sprite-pool-adapter.js`:
   - Pre-allocates pools sized from `constants.js` (e.g., `POOL_FIRE = maxBombs * fireRadius * 4`, `POOL_BOMBS = MAX_BOMBS`, `POOL_PELLETS = maxPellets`).
   - Hidden elements MUST use `transform: translate(-9999px, -9999px)` — never `display:none` (triggers layout).
   - When pool exhausted: log `console.warn` in development; silently recycle oldest active element in production.
-- [ ] Pool acquire/release API for render-dom-system consumption.
-- [ ] Pre-warm pools during level load to avoid runtime allocation bursts.
-- [ ] Verification gate: pool tests validate sizing, hiding strategy, and exhaustion behavior.
+- [x] Pool acquire/release API for render-dom-system consumption.
+- [x] Pre-warm pools during level load to avoid runtime allocation bursts.
+- [x] Verification gate: pool tests validate sizing, hiding strategy, and exhaustion behavior.
 
 ---
 
