@@ -27,15 +27,15 @@ Date: 2026-04-07
 - npm run test:integration
 - npm run test:e2e
 - npm run test:audit
-- npm run check:forbidden
+- npm run policy:forbidden
 - npm run policy -- --require-approval=false
 - npm run policy:repo
 - npm run policy:quality
 - npm run policy:checks
-- npm run policy:forbid
+- npm run policy:forbidden
 - npm run policy:header
 - npm run policy:approve -- --require-approval=false
-- npm run policy:forbidrepo
+- npm run policy:forbiddenrepo
 - npm run policy:headerrepo
 - npm run policy:trace
 
@@ -51,15 +51,15 @@ Date: 2026-04-07
 - npm run test:integration: PASS (exit=0, duration=1s) - integration tests passed.
 - npm run test:e2e: PASS (exit=0, duration=2s) - e2e command passed.
 - npm run test:audit: PASS (exit=0, duration=1s) - audit inventory tests passed.
-- npm run check:forbidden: PASS (exit=0, duration=0s) - forbidden tech check passed.
+- npm run policy:forbidden: PASS (exit=0, duration=0s) - forbidden tech check passed.
 - npm run policy -- --require-approval=false: FAIL (exit=1, duration=1s) - failed at quality gate due npm run check errors.
 - npm run policy:repo: PASS (exit=0, duration=0s) - repo policy gate passed.
 - npm run policy:quality: FAIL (exit=1, duration=1s) - project quality gate failed from npm run check errors.
 - npm run policy:checks: FAIL (exit=1, duration=0s) - standalone invocation failed without prepared metadata.
-- npm run policy:forbid: PASS (exit=0, duration=0s) - changed-file forbidden scan passed.
+- npm run policy:forbidden: PASS (exit=0, duration=0s) - changed-file forbidden scan passed.
 - npm run policy:header: PASS (exit=0, duration=0s) - changed-file source-header scan passed.
 - npm run policy:approve -- --require-approval=false: PASS (exit=0, duration=0s) - approval gate intentionally skipped by configuration.
-- npm run policy:forbidrepo: PASS (exit=0, duration=1s) - repo forbidden scan passed.
+- npm run policy:forbiddenrepo: PASS (exit=0, duration=1s) - repo forbidden scan passed.
 - npm run policy:headerrepo: PASS (exit=0, duration=0s) - repo header scan passed.
 - npm run policy:trace: PASS (exit=0, duration=0s) - repo traceability/integrity checks passed.
 

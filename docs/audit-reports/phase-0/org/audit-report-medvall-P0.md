@@ -316,9 +316,9 @@ return cloneMap(baseMap);
 ### DEAD-05: `package.json` has duplicate/overlapping policy scripts ⬆ Low
 **Origin:** 2. Dead Code & Unused References
 **Files:** Ownership: Track A (Tickets: A-01)
-- `package.json` (~L26-35) — `policy`, `policy:repo`, `policy:quality`, `policy:checks`, `policy:checks:local`, `policy:trace`, `policy:forbid`, `policy:forbidrepo`, `policy:header`, `policy:headerrepo`, `policy:approve`, `policy:prep`
+- `package.json` (~L26-35) — `policy`, `policy:repo`, `policy:quality`, `policy:checks`, `policy:checks:local`, `policy:trace`, `policy:forbidden`, `policy:forbiddenrepo`, `policy:header`, `policy:headerrepo`, `policy:approve`, `policy:prep`
 
-**Problem:** Many scripts are internal sub-steps (e.g., `policy:forbidrepo`, `policy:headerrepo`) that are not referenced by CI or documented for developers.
+**Problem:** Many scripts are internal sub-steps (e.g., `policy:forbiddenrepo`, `policy:headerrepo`) that are not referenced by CI or documented for developers.
 **Impact:** Script sprawl increases maintenance burden.
 
 **Fix:** Document which scripts are user-facing vs. internal. Consider consolidating under `npm run policy -- --scope=repo`.

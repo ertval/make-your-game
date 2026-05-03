@@ -6,7 +6,13 @@
  * into separate data-only records so later systems can query only the fields
  * they need while keeping numeric simulation data in typed arrays.
  *
+ * Runtime status:
+ * - `position` and `velocity` are part of the active runtime bootstrap path.
+ * - `collider` is planned scaffolding for later collision tickets and is not
+ *   registered by the current bootstrap path yet.
+ *
  * Public API:
+ * - SPATIAL_STORE_RUNTIME_STATUS: runtime/bootstrap status for each spatial store.
  * - COLLIDER_TYPE: canonical collider enum values used by collision systems.
  * - createPositionStore(maxEntities): allocate typed arrays for grid position.
  * - resetPosition(store, entityId): clear one entity slot back to defaults.
@@ -40,7 +46,18 @@ export const COLLIDER_TYPE = Object.freeze({
 });
 
 /**
+ * Declarative runtime/bootstrap status for spatial stores.
+ * This metadata is descriptive only and must not be treated as a registration API.
+ */
+export const SPATIAL_STORE_RUNTIME_STATUS = Object.freeze({
+  collider: 'planned',
+  position: 'active',
+  velocity: 'active',
+});
+
+/**
  * Allocate the typed-array store for position data.
+ * This store is part of the active runtime contract today.
  *
  * @param {number} maxEntities - Total entity capacity for the world.
  * @returns {PositionStore} Fresh position store with zero-initialized arrays.
@@ -76,6 +93,7 @@ export function resetPosition(store, entityId) {
 
 /**
  * Allocate the typed-array store for velocity data.
+ * This store is part of the active runtime contract today.
  *
  * @param {number} maxEntities - Total entity capacity for the world.
  * @returns {VelocityStore} Fresh velocity store with zero-initialized arrays.
@@ -104,6 +122,8 @@ export function resetVelocity(store, entityId) {
 
 /**
  * Allocate the typed-array store for collider type data.
+ * This store is planned scaffolding for later collision tickets and is not
+ * registered by the current bootstrap path yet.
  *
  * @param {number} maxEntities - Total entity capacity for the world.
  * @returns {ColliderStore} Fresh collider store with zero-initialized arrays.

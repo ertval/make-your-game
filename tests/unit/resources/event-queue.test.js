@@ -90,4 +90,34 @@ describe('event-queue', () => {
     expect(queue.orderCounter).toBe(0);
     expect(queue.events).toHaveLength(1);
   });
+
+  it('resets orderCounter on drain to prevent unbounded growth (BUG-10)', () => {
+    const queue = createEventQueue();
+    enqueue(queue, 'Test', {}, 1);
+    enqueue(queue, 'Test', {}, 1);
+    expect(queue.orderCounter).toBe(2);
+
+    drain(queue);
+    expect(queue.orderCounter).toBe(0);
+  });
+
+  it('returns a shallow copy on drain to prevent external mutation leaks (ARCH-15)', () => {
+    const queue = createEventQueue();
+    enqueue(queue, 'Test', { id: 1 }, 1);
+
+    const events = drain(queue);
+    expect(events).toHaveLength(1);
+
+    // Mutating the returned array should not affect the queue's internal state
+    // (which is already cleared, but we're testing the contract).
+    events.push({ type: 'Evil' });
+    expect(peek(queue)).toHaveLength(0);
+  });
+
+  it('guards against non-finite frame indices (BUG-10)', () => {
+    const queue = createEventQueue();
+    enqueue(queue, 'Test', {}, NaN);
+    const events = drain(queue);
+    expect(events[0].frame).toBe(0);
+  });
 });

@@ -31,7 +31,7 @@ Date: 2026-04-11
 - PASS: npm run test:integration (exit=0, duration=1, integration suite passed)
 - PASS: npm run test:e2e (exit=0, duration=3, playwright suite passed)
 - PASS: npm run test:audit (exit=0, duration=1, audit-map suite passed)
-- PASS: npm run check:forbidden (exit=0, duration=0, forbidden scan passed)
+- PASS: npm run policy:forbidden (exit=0, duration=0, forbidden scan passed)
 - PASS: npm run policy -- --require-approval=false (exit=0, duration=7, process fallback + repo policy passed)
 - PASS: npm run policy:repo (exit=0, duration=1, repo policy umbrella passed)
 

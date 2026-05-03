@@ -36,14 +36,14 @@
 - `npm run policy:repo` (passed)
 - `npm run policy:quality` (passed)
 - `npm run policy:checks` (passed)
-- `npm run policy:forbid` (passed)
+- `npm run policy:forbidden` (passed)
 - `npm run policy:header` (passed)
 - `npm run policy:approve` (passed; approval API check skipped in local mode)
-- `npm run policy:forbidrepo` (passed)
+- `npm run policy:forbiddenrepo` (passed)
 - `npm run policy:headerrepo` (passed)
 - `npm run policy:trace` (passed)
 - `npm run test:unit` (passed)
-- `npm run check:forbidden` (passed)
+- `npm run policy:forbidden` (passed)
 
 ## Audit questions affected
 - AUDIT-B-03 (memory reuse / deterministic ECS foundation via entity ID recycling and stale-handle semantics).
@@ -66,10 +66,10 @@
 - Added a troubleshooting table that points to the narrower commands for quality, forbidden-tech, source-header, checklist, approval, and traceability failures.
 - Aligned the docs entry guide and agent workflow guide with the same PR/repo/quality command names.
 - Added explicit package-level aliases for the narrow policy checks so failure messages can point to a concrete rerun command.
-- Added a simplified command model where `npm run policy` is the default all-in-one gate and one-word policy subcommands are used for drill-down (`policy:checks`, `policy:forbid`, `policy:header`, `policy:approve`, `policy:forbidrepo`, `policy:headerrepo`, `policy:trace`).
+- Added a simplified command model where `npm run policy` is the default all-in-one gate and one-word policy subcommands are used for drill-down (`policy:checks`, `policy:forbidden`, `policy:header`, `policy:approve`, `policy:forbiddenrepo`, `policy:headerrepo`, `policy:trace`).
 - Renamed the policy command surface to keep subcommands one-word and removed multi-segment names in favor of `policy:headerrepo`.
 - Updated GitHub/Gitea policy workflows to run the single all-in-one policy command.
 - Removed the duplicate all-in-one alias so `npm run policy` is now the single canonical all-in-one gate command.
 - Updated GitHub/Gitea policy workflows to run `npm run policy`.
 - Verified `npm run policy` and `npm run policy:repo` both pass after formatting drift cleanup.
-- Verified all one-word narrow reruns pass: `policy:quality`, `policy:checks`, `policy:forbid`, `policy:header`, `policy:approve`, `policy:forbidrepo`, `policy:headerrepo`, and `policy:trace`.
+- Verified all one-word narrow reruns pass: `policy:quality`, `policy:checks`, `policy:forbidden`, `policy:header`, `policy:approve`, `policy:forbiddenrepo`, `policy:headerrepo`, and `policy:trace`.

@@ -6,29 +6,39 @@
  */
 
 import fs from 'node:fs';
-import { GATE_PASS, runCommand } from './lib/policy-utils.mjs';
+import { GATE_FAIL, GATE_PASS, runCommand } from './lib/policy-utils.mjs';
 
 if (!fs.existsSync('package.json')) {
   console.log('package.json not present; skipping npm project gate.');
   process.exit(0);
 }
 
+console.log('\n========================================================================');
+console.log('🚀 Phase 1: Project Quality Gates (Linters, Tests, Security)');
+console.log('========================================================================\n');
+
 const pkg = JSON.parse(fs.readFileSync('package.json', 'utf8'));
 const scripts = pkg.scripts ?? {};
 
-const commands = ['check', 'test'];
-if (scripts['test:e2e']) {
-  commands.push('test:e2e');
-}
-
-if (scripts['test:audit']) {
-  commands.push('test:audit');
-}
-
+const commands = ['check'];
+// test:coverage implies a vitest run, which covers unit, integration, and audit unit tests.
 if (scripts['test:coverage']) {
   commands.push('test:coverage');
 } else if (scripts.coverage) {
   commands.push('coverage');
+} else if (scripts.test) {
+  commands.push('test');
+}
+
+// We only run the e2e part of audit tests here to avoid running vitest audit tests twice.
+if (scripts['test:audit:e2e']) {
+  commands.push('test:audit:e2e');
+} else if (scripts['test:audit']) {
+  commands.push('test:audit');
+}
+
+if (scripts['test:e2e']) {
+  commands.push('test:e2e');
 }
 
 if (scripts['validate:schema']) {
@@ -39,9 +49,24 @@ if (scripts.sbom) {
   commands.push('sbom');
 }
 
+const errors = [];
+
 for (const script of commands) {
   console.log(`Running npm run ${script}`);
-  runCommand('npm', ['run', script], { stdio: 'inherit' });
+  try {
+    runCommand('npm', ['run', script], { stdio: 'inherit' });
+  } catch {
+    console.error(`\n${GATE_FAIL} — npm run ${script} failed.`);
+    errors.push(`npm run ${script}`);
+  }
+}
+
+if (errors.length > 0) {
+  console.error(`\n${GATE_FAIL} — Project gate checks completed with ${errors.length} failure(s):`);
+  for (const err of errors) {
+    console.error(` - ${err}`);
+  }
+  process.exit(1);
 }
 
 console.log(`${GATE_PASS} — Project gate checks completed.`);

@@ -1,4 +1,6 @@
-## ✅ Audit Source Of Truth
+-## ✅ Audit Source Of Truth
+
+- Note: The canonical audit ID → test mapping is maintained in `tests/e2e/audit/audit-question-map.js` and `docs/implementation/audit-traceability-matrix.md`. Use those files as the canonical anchors when referencing audit IDs in automation or CI.
 
 - Note: The canonical audit ID → test mapping is maintained in `tests/e2e/audit/audit-question-map.js` and `docs/implementation/audit-traceability-matrix.md`. Use those files as the canonical anchors when referencing audit IDs in automation or CI.
 

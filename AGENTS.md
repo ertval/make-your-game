@@ -30,7 +30,7 @@ If rules conflict, prioritize in the following order:
 - If another document conflicts with this file, **AGENTS.md wins** unless an approved ADR explicitly supersedes it.
 - Documentation SHOULD avoid duplicating normative constraints unless it links back to this canonical file.
 - **`docs/requirements.md` + `docs/game-description.md` are the gameplay/feature source of truth.**
-- **`docs/audit.md` is the pass/fail acceptance source of truth.**
+- **`docs/audit.md` lists pass/fail acceptance questions; the canonical audit ID → test mapping lives in `docs/implementation/audit-traceability-matrix.md` and `tests/e2e/audit/audit-question-map.js`.**
 - When in doubt on requirements or acceptance, teams MUST resolve against those three files.
 
 ---

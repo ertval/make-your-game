@@ -37,15 +37,15 @@ Date: 2026-04-09
 - npm run test:integration
 - npm run test:e2e
 - npm run test:audit
-- npm run check:forbidden
+- npm run policy:forbidden
 - npm run policy -- --require-approval=false
 - npm run policy:repo
 - npm run policy:quality
 - npm run policy:checks
-- npm run policy:forbid
+- npm run policy:forbidden
 - npm run policy:header
 - npm run policy:approve -- --require-approval=false
-- npm run policy:forbidrepo
+- npm run policy:forbiddenrepo
 - npm run policy:headerrepo
 - npm run policy:trace
 
@@ -61,15 +61,15 @@ Date: 2026-04-09
 - PASS: npm run test:integration (exit=0, duration=0.80s, 8 tests passed)
 - PASS: npm run test:e2e (exit=0, duration=4.94s, 2 Playwright tests passed)
 - PASS: npm run test:audit (exit=0, duration=0.84s, audit inventory passed)
-- PASS: npm run check:forbidden (exit=0, duration=0.20s, 56 files scanned)
+- PASS: npm run policy:forbidden (exit=0, duration=0.20s, 56 files scanned)
 - PASS: npm run policy --require-approval=false (exit=0, duration=7.44s, full PR gate)
 - PASS: npm run policy:repo (exit=0, duration=0.74s, repo scope passed)
 - PASS: npm run policy:quality (exit=0, duration=5.42s, project quality gate)
 - PASS: npm run policy:checks (exit=0, duration=0.18s, D-03 tracked)
-- PASS: npm run policy:forbid (exit=0, duration=0.17s, 0 changed files scanned)
+- PASS: npm run policy:forbidden (exit=0, duration=0.17s, 0 changed files scanned)
 - PASS: npm run policy:header (exit=0, duration=0.17s, 0 changed files checked)
 - PASS: npm run policy:approve --require-approval=false (exit=0, duration=0.17s, skipped by config)
-- PASS: npm run policy:forbidrepo (exit=0, duration=0.18s, 56 files scanned)
+- PASS: npm run policy:forbiddenrepo (exit=0, duration=0.18s, 56 files scanned)
 - PASS: npm run policy:headerrepo (exit=0, duration=0.18s, 28 source files checked)
 - PASS: npm run policy:trace (exit=0, duration=0.18s, completed)
 

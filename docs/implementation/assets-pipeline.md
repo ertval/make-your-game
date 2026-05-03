@@ -16,11 +16,13 @@ assets/
     visual/
     audio/
   generated/
+    alternatives/
+    visuals/
     sprites/
     ui/
     sfx/
     music/
-    ambience/
+    ambience/ (optional)
   manifests/
     visual-manifest.json
     audio-manifest.json

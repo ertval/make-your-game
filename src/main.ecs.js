@@ -36,12 +36,14 @@
  * - startBrowserApplication(options)
  */
 
+import { createDomRenderer } from './adapters/dom/renderer-dom.js';
 import { createInputAdapter } from './adapters/io/input-adapter.js';
 import { percentileFromSorted, toSortedNumericArray } from './debug/frame-stats.js';
 import { FIXED_DT_MS, MAX_STEPS_PER_FRAME, TOTAL_LEVELS } from './ecs/resources/constants.js';
 import { createMapResource } from './ecs/resources/map-resource.js';
 import { createBootstrap } from './game/bootstrap.js';
 import { createSyncMapLoader } from './game/level-loader.js';
+import { isDevelopment } from './shared/env.js';
 
 const DEFAULT_FRAME_SAMPLE_SIZE = 600;
 const FRAME_PROBE_KEY = '__MS_GHOSTMAN_FRAME_PROBE__';
@@ -111,14 +113,15 @@ function clearHeldInputState(bootstrap) {
     return;
   }
 
-  if (typeof adapter.clearHeldKeys === 'function') {
-    adapter.clearHeldKeys();
-    return;
+  // The explicit adapter contract requires clearHeldKeys(); fall-through to
+  // field probing would hide a malformed adapter registration, so throw loudly.
+  if (typeof adapter.clearHeldKeys !== 'function') {
+    throw new Error(
+      'Input adapter resource must expose clearHeldKeys(). Register it through bootstrap.setInputAdapter().',
+    );
   }
 
-  if (adapter.heldKeys instanceof Set) {
-    adapter.heldKeys.clear();
-  }
+  adapter.clearHeldKeys();
 }
 
 /**
@@ -257,7 +260,13 @@ export function createGameRuntime({
     }),
     getLevelIndex: () => bootstrap.levelLoader.getCurrentLevelIndex(),
     pause: () => bootstrap.gameFlow.pauseGame(),
-    restart: () => bootstrap.gameFlow.restartLevel(),
+    restart: () => {
+      const restarted = bootstrap.gameFlow.restartLevel();
+      if (restarted) {
+        bootstrap.resyncTime(normalizeNow(getNow()));
+      }
+      return restarted;
+    },
     resume: () => {
       const resumed = bootstrap.gameFlow.resumeGame();
       if (resumed) {
@@ -358,6 +367,18 @@ export function createGameRuntime({
     if (typeof cancelScheduledFrame === 'function') {
       cancelScheduledFrame(frameHandle);
     }
+
+    // Prefer the explicit bootstrap API so the resource slot is cleared and any
+    // previously-registered adapter is destroyed through one code path.
+    if (typeof bootstrap.setInputAdapter === 'function') {
+      bootstrap.setInputAdapter(null);
+    } else {
+      const adapter = bootstrap.getInputAdapter();
+      if (adapter && typeof adapter.destroy === 'function') {
+        adapter.destroy();
+      }
+    }
+
     if (targetWindow && typeof targetWindow.removeEventListener === 'function') {
       targetWindow.removeEventListener('blur', onBlur);
       targetWindow.removeEventListener('focus', onFocus);
@@ -414,6 +435,20 @@ export async function bootstrapApplication({
     throw new Error('Missing #app root.');
   }
 
+  const renderer = createDomRenderer({ appRoot });
+
+  const hudElements = {
+    timer: targetDocument.querySelector('[data-hud="timer"]'),
+    score: targetDocument.querySelector('[data-hud="score"]'),
+    lives: targetDocument.querySelector('[data-hud="lives"]'),
+  };
+
+  if (isDevelopment()) {
+    for (const [name, el] of Object.entries(hudElements)) {
+      if (!el) logger.warn(`HUD element "[data-hud="${name}"]" not found.`);
+    }
+  }
+
   const getNow = nowProvider || (() => targetWindow?.performance?.now?.() ?? Date.now());
   let inputAdapter = null;
 
@@ -436,8 +471,14 @@ export async function bootstrapApplication({
     const bootstrap = createBootstrap({
       loadMapForLevel: resolvedLoadMapForLevel,
       now: getNow(),
+      // Thread the resolved now-source through so onRestart resyncs stay on
+      // the same clock as the rAF loop (deterministic for tests).
+      nowProvider: getNow,
     });
-    bootstrap.world.setResource('inputAdapter', inputAdapter);
+    bootstrap.registerRenderer(renderer);
+    // Register through the explicit bootstrap API so the adapter contract is
+    // validated at injection time and teardown on stop is symmetric.
+    bootstrap.setInputAdapter(inputAdapter);
 
     installUnhandledRejectionHandler({
       logger,

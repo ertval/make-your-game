@@ -1,57 +1,70 @@
-# PR Gate Checklist
+# 🚀 [PR Title]
+> **Summary**: [A brief description of the work done in this PR.]
 
-Local test command reference (run what applies to your change and list what you ran in the `## Tests` section below):
+---
 
-- Baseline for every change: `npm run check`, `npm run fix`, `npm run test`, `npm run policy`
-- Unit-only slices: `npm run test:unit`
-- Cross-system or adapter changes: `npm run test:integration`
-- Browser/runtime behavior changes (pause, input, HUD, rendering, gameplay): `npm run test:e2e`
-- Audit-map updates: `npm run test:audit`
-- Manifest/schema updates: `npm run validate:schema`
-- Local checks rerun with prepared metadata: `npm run policy:checks:local`
-- Repo-only troubleshooting rerun: `npm run policy:repo`
+## 📝 Description
 
-## Required checks
+### 🔄 What Changed
+- [Component/System]: [Brief description of change]
+- [Component/System]: [Brief description of change]
 
-- [ ] I read AGENTS.md and the agentic workflow guide.
-- [ ] I ran `npm run policy` locally.
- - [ ] I verified my branch name follows `<owner-or-scope>/<TRACK>-<NN>[-<COMMENT>]` (for example `ekaramet/A-03` or `asmyrogl/B-03-runtime-integration`), or I marked the PR body with `process` for a GENERAL_DOCS_PROCESS branch.
-- [ ] I confirmed changed files stay within the declared ticket ownership scope.
-- [ ] I ran the applicable local checks for this change.
-- [ ] I listed each affected AUDIT ID with execution type (Fully Automatable, Semi-Automatable, or Manual-With-Evidence) and linked the passing test output or evidence artifact.
-- [ ] I confirmed full audit coverage remains mapped for F-01 through F-21 and B-01 through B-06.
-- [ ] If affected, I attached Manual-With-Evidence artifacts for F-19, F-20, F-21, and B-06.
-- [ ] I checked security sinks and trust boundaries.
-- [ ] I checked architecture boundaries.
-- [ ] I checked dependency and lockfile impact.
-- [ ] I requested human review.
+### 🎯 Why
+- [Rationale]: [Why was this change necessary? What problem does it solve?]
+- [Impact]: [How does this affect the rest of the system?]
 
-## Layer boundary confirmation
+---
 
-- [ ] `src/ecs/systems/` has no DOM references except `render-dom-system.js`
-- [ ] Simulation systems access adapters only through World resources (no direct adapter imports)
-- [ ] `src/adapters/` owns DOM and browser I/O side effects
-- [ ] Untrusted UI content uses safe sinks (`textContent` / explicit attributes), not HTML injection
-- [ ] No framework imports or canvas APIs were introduced in this change
+## 🧪 Verification & Audit
 
-## What changed
-- 
+### ✅ Verification
+- [ ] **Master Check**: `npm run policy`
+> *Note: This command includes linting, all test suites (unit, integration, e2e), and policy gate validations.*
 
-## Why
-- 
+### 📋 Audit Traceability
+- **AUDIT-XX** | `[Execution Type]` | Verification: `[Test Name]` | Evidence: `[Path/Link]`
+- **AUDIT-YY** | `[Execution Type]` | Verification: `[Test Name]` | Evidence: `[Path/Link]`
 
-## Tests
-- 
+---
 
-## Audit questions affected
-- AUDIT-XX | Execution type: Fully Automatable or Semi-Automatable or Manual-With-Evidence | Verification: test name or evidence note | Evidence path/link:
-- AUDIT-YY | Execution type: Fully Automatable or Semi-Automatable or Manual-With-Evidence | Verification: test name or evidence note | Evidence path/link:
+## ✅ PR Gate Checklist
 
-## Security notes
-- 
+### 📋 Required Checks
+- [ ] **Read Standards**: I have reviewed [AGENTS.md](file:///AGENTS.md) and the agentic workflow guide.
+- [ ] **Policy Compliance**: Ran `npm run policy` locally; all checks pass.
+- [ ] **Ownership**: Verified files remain within declared ticket ownership scope.
+- [ ] **Branching**: Branch name follows `<owner>/<TRACK>-<NN>` convention.
+- [ ] **Audit Coverage**: Confirmed full coverage for F-01 through F-21 and B-01 through B-06.
+- [ ] **Evidence**: Attached Manual-With-Evidence artifacts for F-19, F-20, F-21, and B-06 (if applicable).
 
-## Architecture / dependency notes
-- 
+### 🏗️ Architecture & Security
+- [ ] **ECS Isolation**: `src/ecs/systems/` has no DOM references (except `render-dom-system.js`).
+- [ ] **Adapter Injection**: Simulation systems access adapters only through World resources.
+- [ ] **Safe Sinks**: Untrusted content uses `textContent` or explicit attribute APIs.
+- [ ] **No Bloat**: No framework imports or canvas APIs introduced.
+- [ ] **Dependencies**: Checked dependency and lockfile impact.
 
-## Risks
-- 
+---
+
+## 🛡️ Security & Architecture Notes
+- **Security**: [Notes on trust boundaries or potential sinks]
+- **Architecture**: [Notes on system interactions or dependency changes]
+- **Risks**: [Potential regressions or performance considerations]
+
+---
+
+<details>
+<summary>📖 <b>Local Command Reference</b> (Click to expand)</summary>
+
+| Command | Purpose |
+| :--- | :--- |
+| **`npm run policy`** | **Primary gate (runs all checks and tests)** |
+| `npm run check` | Linting & formatting check |
+| `npm run test` | Run all vitest suites |
+| `npm run test:unit` | Debug: Unit tests only |
+| `npm run test:integration` | Debug: Integration tests only |
+| `npm run test:e2e` | Debug: Playwright browser tests |
+| `npm run test:audit` | Debug: Audit map validation |
+| `npm run validate:schema` | Schema validation |
+
+</details>

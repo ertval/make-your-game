@@ -12,9 +12,9 @@ import {
   describePolicyResolution,
   extractOwnerFromBranch,
   GATE_FAIL,
-  GATE_PASS,
   inferProcessModeFromSources,
   inferTicketIdsFromSources,
+  isBugfixBranch,
   parseArgs,
   readJson,
   resolveBranchName,
@@ -65,6 +65,8 @@ for (const [key, value] of Object.entries(args)) {
   passThrough.push(`--${key}=${value}`);
 }
 
+const aggregatedErrors = [];
+
 // We wrap shell execution to unify error propagation and consistently hint the user on how to reproduce the step locally.
 function runStep(label, command, commandArgs, retryHint) {
   try {
@@ -72,7 +74,9 @@ function runStep(label, command, commandArgs, retryHint) {
   } catch (error) {
     const hint = retryHint ? ` Retry with: ${retryHint}.` : '';
     const detail = error instanceof Error ? error.message : String(error);
-    throw new Error(`${GATE_FAIL} — ${label} failed.${hint} Original error: ${detail}`);
+    const msg = `${label} failed.${hint}\n  Error details: ${detail}`;
+    console.error(`\n${GATE_FAIL} — ${msg}\n`);
+    aggregatedErrors.push(msg);
   }
 }
 
@@ -100,6 +104,7 @@ function resolvePolicyContext() {
     metadata.branchName || '',
     metadata.commitMessages || '',
   );
+  const isBugfixMode = isBugfixBranch(branchName);
 
   return {
     metadata,
@@ -109,6 +114,7 @@ function resolvePolicyContext() {
     commitTicketIds,
     hasPrMetadata,
     hasProcessMode,
+    isBugfixMode,
     ticketIds,
   };
 }
@@ -125,38 +131,22 @@ if (scope === 'pr' || scope === 'all') {
   });
   contextPrepared = true;
 
+  console.log('\n========================================================================');
+  console.log('🚀 Phase 2: Starting Policy Enforcements');
+  console.log('========================================================================\n');
+
   // We parse the extracted git metadata file to infer PR intent and verify traceability.
-  const {
-    metadata,
-    branchOwner,
-    branchOwnerTrack,
-    branchTicketIds,
-    commitTicketIds,
-    hasProcessMode,
-    ticketIds,
-  } = resolvePolicyContext();
+  const { branchTicketIds, commitTicketIds, hasProcessMode, isBugfixMode } = resolvePolicyContext();
 
   // Process-marker branches must still run PR checks so process-scope violations are enforced.
   const policyPath = resolvePrPolicyPath({
     branchTicketIds,
     commitTicketIds,
     hasProcessMode,
+    isBugfixMode,
   });
 
-  console.log(
-    describePolicyResolution({
-      auditMode: policyPath.auditMode,
-      branchTicketIds,
-      commitTicketIds,
-      owner: branchOwner,
-      ownerTrack: branchOwnerTrack,
-      processMarkerDetected: hasProcessMode,
-      selectedPath: policyPath.selectedPath,
-      ticketIds: policyPath.shouldRunPrChecks ? ticketIds : [],
-      trackCode: branchOwnerTrack || metadata.trackCode || 'GENERAL',
-    }),
-  );
-
+  // The describePolicyResolution call was removed from here because run-checks.mjs
   if (policyPath.shouldRunPrChecks) {
     runStep(
       'PR checklist and traceability checks',
@@ -168,8 +158,8 @@ if (scope === 'pr' || scope === 'all') {
     runStep(
       'Changed-file forbidden-tech scan',
       'npm',
-      ['run', 'policy:forbid', '--', ...passThrough],
-      'npm run policy:forbid',
+      ['run', 'policy:forbidden', '--', ...passThrough],
+      'npm run policy:forbidden',
     );
 
     runStep(
@@ -223,29 +213,38 @@ if ((scope === 'repo' || scope === 'all') && !(scope === 'all' && ranRepoFallbac
     branchTicketIds,
     commitTicketIds,
     hasProcessMode,
+    isBugfixMode,
     ticketIds,
   } = resolvePolicyContext();
-  const auditMode = hasProcessMode
-    ? 'GENERAL_DOCS_PROCESS'
-    : ticketIds.length > 0
-      ? 'TICKET'
-      : 'GENERAL_DOCS_PROCESS';
-
-  console.log(
-    describePolicyResolution({
-      auditMode,
-      branchTicketIds,
-      commitTicketIds,
-      owner: branchOwner,
-      ownerTrack: branchOwnerTrack,
-      processMarkerDetected: hasProcessMode,
-      selectedPath: 'repo-wide validation',
-      ticketIds,
-      trackCode: branchOwnerTrack || metadata.trackCode || 'GENERAL',
-    }),
-  );
+  const auditMode = isBugfixMode
+    ? 'BUGFIX'
+    : hasProcessMode
+      ? 'GENERAL_DOCS_PROCESS'
+      : ticketIds.length > 0
+        ? 'TICKET'
+        : 'GENERAL_DOCS_PROCESS';
 
   // We execute repo-wide policies for deeper validation when specifically requested or on merge to main.
+  // Suppress the duplicate resolution log if we're running all scopes, as PR already printed context.
+  if (scope !== 'all') {
+    console.log(
+      describePolicyResolution({
+        auditMode,
+        branchTicketIds,
+        commitTicketIds,
+        owner: branchOwner,
+        ownerTrack: branchOwnerTrack,
+        processMarkerDetected: hasProcessMode,
+        selectedPath: 'repo-wide validation',
+        ticketIds,
+        trackCode: branchOwnerTrack || metadata.trackCode || 'GENERAL',
+      }),
+    );
+  } else {
+    console.log('\n========================================================================');
+    console.log('🚀 Phase 3: Repo-Wide Validations');
+    console.log('========================================================================\n');
+  }
   runStep(
     'Repo-wide forbidden-tech scan',
     'node',
@@ -277,4 +276,16 @@ if ((scope === 'repo' || scope === 'all') && !(scope === 'all' && ranRepoFallbac
   }
 }
 
-console.log(`${GATE_PASS} — Policy gate completed in ${mode} mode for ${scope} scope.`);
+if (aggregatedErrors.length > 0) {
+  console.error(
+    `\n${GATE_FAIL} — Policy gate finished with ${aggregatedErrors.length} failure(s):`,
+  );
+  for (const err of aggregatedErrors) {
+    console.error(` - ${err}`);
+  }
+  process.exit(1);
+}
+
+console.log(
+  `\n🎉 🏁 ALL CLEAR: Policy gate successfully completed in ${mode} mode for ${scope} scope. 🏁 🎉\n`,
+);

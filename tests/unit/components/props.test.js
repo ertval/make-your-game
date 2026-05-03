@@ -12,6 +12,7 @@ import {
   createPelletStore,
   createPowerUpStore,
   PROP_POWER_UP_TYPE,
+  PROP_STORE_RUNTIME_STATUS,
   resetBomb,
   resetFire,
   resetPellet,
@@ -24,6 +25,16 @@ import {
 } from '../../../src/ecs/resources/constants.js';
 
 describe('prop component stores', () => {
+  it('documents all prop stores as planned runtime scaffolding', () => {
+    expect(PROP_STORE_RUNTIME_STATUS).toEqual({
+      bomb: 'planned',
+      fire: 'planned',
+      pellet: 'planned',
+      powerUp: 'planned',
+    });
+    expect(Object.isFrozen(PROP_STORE_RUNTIME_STATUS)).toBe(true);
+  });
+
   it('creates a bomb store with canonical defaults', () => {
     const maxEntities = 4;
     const store = createBombStore(maxEntities);

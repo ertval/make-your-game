@@ -143,7 +143,7 @@ Source plan: `docs/implementation/implementation-plan.md` (Section 3)
 - [ ] Write integration tests for pause invariants: rAF active, simulation frozen, HUD responsive, timer/fuse frozen.
 - [ ] Write integration tests for `tests/integration/adapters/`: adapter boundary tests using jsdom.
   - `input-adapter.js`: keydown/keyup mapping, blur clearing, no OS key-repeat dependency.
-  - `renderer-adapter.js`: safe DOM sinks (no innerHTML), createElementNS.
+  - `renderer-dom.js`: safe DOM sinks (no innerHTML), createElementNS.
   - `sprite-pool-adapter.js`: pool sizing, offscreen-transform hiding (not display:none), pool exhaustion.
   - `hud-adapter.js`: textContent updates, no unsafe sinks.
   - `screens-adapter.js`: overlay toggling, keyboard focus transfer.

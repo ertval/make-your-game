@@ -1,4 +1,4 @@
-/*
+/**
  * D-04 render-intent buffer.
  *
  * Defines the frame-local batch structure consumed by render-dom-system.js
@@ -26,8 +26,33 @@
  *   DOM system converts them to pixel translate3d values.
  */
 
+import { isDevelopment } from '../shared/env.js';
 import { RENDERABLE_KIND } from './components/visual.js';
 import { MAX_RENDER_INTENTS } from './resources/constants.js';
+
+/**
+ * @typedef {Object} RenderIntentBuffer
+ * @property {Uint32Array} entityId - Entity IDs for DOM node mapping.
+ * @property {Uint8Array} kind - RENDERABLE_KIND enum values.
+ * @property {Int32Array} spriteId - Asset manifest sprite IDs (-1 for none).
+ * @property {Float32Array} x - Interpolated tile-space X positions.
+ * @property {Float32Array} y - Interpolated tile-space Y positions.
+ * @property {Uint8Array} classBits - VISUAL_FLAGS bitmasks.
+ * @property {Uint8Array} opacity - Opacity bytes (0-255).
+ * @property {number} _count - Current population count.
+ * @property {number} _capacity - Maximum capacity.
+ */
+
+/**
+ * @typedef {Object} RenderIntentEntry
+ * @property {number} entityId
+ * @property {number} kind
+ * @property {number} spriteId
+ * @property {number} x
+ * @property {number} y
+ * @property {number} classBits
+ * @property {number} opacity
+ */
 
 /**
  * Contract schema version — bumped when the intent field layout changes so
@@ -84,6 +109,10 @@ export function resetRenderIntentBuffer(buffer) {
  * Append a render intent entry into the next available slot. If the buffer is
  * full, the entry is silently dropped and a development warning is logged.
  *
+ * NOTE: This helper accepts an object and is suitable for low-frequency paths
+ * (tests, tooling). Use appendRenderIntentDirect for hot per-entity loops to
+ * avoid per-frame object allocations.
+ *
  * @param {RenderIntentBuffer} buffer - Mutable intent buffer to write into.
  * @param {object} entry - Intent data object.
  * @param {number} entry.entityId - Entity that owns this visual.
@@ -96,7 +125,7 @@ export function resetRenderIntentBuffer(buffer) {
  */
 export function appendRenderIntent(buffer, entry) {
   if (buffer._count >= buffer._capacity) {
-    if (process?.env?.NODE_ENV === 'development') {
+    if (isDevelopment()) {
       console.warn(
         `Render intent buffer full (${buffer._capacity}/${buffer._capacity}). ` +
           `Intent for entity ${entry.entityId} dropped.`,
@@ -113,6 +142,51 @@ export function appendRenderIntent(buffer, entry) {
   buffer.y[idx] = entry.y ?? 0;
   buffer.classBits[idx] = entry.classBits || 0;
   buffer.opacity[idx] = entry.opacity ?? 255;
+  buffer._count += 1;
+}
+
+/**
+ * Allocation-free variant of appendRenderIntent for use in hot per-entity
+ * loops. Accepts individual primitive fields instead of an object so no
+ * intermediate allocation occurs on the collect hot path.
+ *
+ * @param {RenderIntentBuffer} buffer - Mutable intent buffer to write into.
+ * @param {number} entityId - Entity that owns this visual.
+ * @param {number} kind - RENDERABLE_KIND enum value.
+ * @param {number} spriteId - Asset manifest sprite ID (-1 for none).
+ * @param {number} x - Interpolated tile-space X position.
+ * @param {number} y - Interpolated tile-space Y position.
+ * @param {number} classBits - VISUAL_FLAGS bitmask.
+ * @param {number} opacity - Opacity byte (0–255).
+ */
+export function appendRenderIntentDirect(
+  buffer,
+  entityId,
+  kind,
+  spriteId,
+  x,
+  y,
+  classBits,
+  opacity,
+) {
+  if (buffer._count >= buffer._capacity) {
+    if (isDevelopment()) {
+      console.warn(
+        `Render intent buffer full (${buffer._capacity}/${buffer._capacity}). ` +
+          `Intent for entity ${entityId} dropped.`,
+      );
+    }
+    return;
+  }
+
+  const idx = buffer._count;
+  buffer.entityId[idx] = entityId;
+  buffer.kind[idx] = kind || RENDERABLE_KIND.NONE;
+  buffer.spriteId[idx] = spriteId;
+  buffer.x[idx] = x;
+  buffer.y[idx] = y;
+  buffer.classBits[idx] = classBits;
+  buffer.opacity[idx] = opacity;
   buffer._count += 1;
 }
 
