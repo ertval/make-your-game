@@ -123,7 +123,16 @@ export function createRenderDomSystem(options = {}) {
         const spriteType = KIND_TO_SPRITE_TYPE[kind];
         if (!spriteType) continue; // skip if no mapping (e.g., WALL)
 
-        const el = spritePool.acquire(spriteType);
+        let el;
+        const existingInfo = entityElementMap.get(entityId);
+        if (existingInfo && existingInfo.type === spriteType) {
+          el = existingInfo.element;
+        } else {
+          if (existingInfo) {
+            spritePool.release(existingInfo.type, existingInfo.element);
+          }
+          el = spritePool.acquire(spriteType);
+        }
 
         // Clear previous classes but keep the base sprite class for width/height
         el.className = 'sprite';
