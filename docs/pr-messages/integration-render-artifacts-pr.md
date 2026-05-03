@@ -1,6 +1,7 @@
 ## What changed
 - Added browser-only check (`typeof window !== 'undefined'`) around `gameFlow.startGame()` to prevent test failures in Node.js environment
 - Fixed biome import ordering in `src/game/bootstrap.js`
+- Fixed sprite pool exhaustion bug in `render-dom-system.js` - was acquiring new sprite each frame instead of reusing existing
 
 ## Why
 - D-08 was merged but bootstrap.js auto-start was breaking some integration tests that run in Node.js
