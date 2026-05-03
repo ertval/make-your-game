@@ -37,7 +37,9 @@ Local test command reference (run what applies to your change and list what you 
 
 ## What changed
 - Added `src/ecs/systems/render-collect-system.js` — uses `world.query(RENDER_COLLECT_REQUIRED_MASK)` to query entities with Position + Renderable component bits, computes interpolated tile-space coordinates using the frame alpha, and writes one render intent per entity into the preallocated render-intent buffer (D-04). Runs in `phase: 'render'` via `World.runRenderCommit()`.
-- Added `tests/unit/systems/render-collect-system.test.js` — unit tests covering interpolation math, deterministic ordering, buffer reset, classBits passthrough, opacity encoding, and the ECS membership contract (Position + Renderable required)
+- Added `src/ecs/render-intent.js` — extended with `appendRenderIntentDirect()`, an allocation-free variant that accepts individual primitives instead of an object; the collect system's hot per-entity loop uses this to avoid creating a temporary object on every frame.
+- Clarified buffer-reset ownership: `resetRenderIntentBuffer` is called by bootstrap before `world.runRenderCommit` each frame; the collect system only appends. Removed redundant reset from collect system and documented the ownership boundary with a comment.
+- Added `tests/unit/systems/render-collect-system.test.js` — unit tests covering interpolation math, deterministic ordering, buffer ownership (bootstrap-simulated reset), classBits passthrough, opacity encoding, and the ECS membership contract (Position + Renderable required)
 - Added `tests/integration/gameplay/d-07-render-collect-scheduler.test.js` — integration tests proving the system registers in the real World scheduler, populates the intent buffer via `runRenderCommit`, and runs before a downstream render system registered after it (bootstrap-level wiring deferred to a dedicated integration branch)
 
 ## Why
@@ -47,7 +49,7 @@ Local test command reference (run what applies to your change and list what you 
 
 ## Tests
 - `npm run check` — passed (Biome lint + format)
-- `npm run test:coverage` — 538 tests passed
+- `npm run test:coverage` — 538 tests passed (all 19 unit tests and 4 scheduler integration tests green)
 - `npm run policy` — ALL CLEAR
 
 ## Audit questions affected
@@ -64,6 +66,8 @@ Local test command reference (run what applies to your change and list what you 
 - Reads from `renderable`, `visualState`, and `position` resources; writes only to `renderIntent` (canonical resource key)
 - Ascending entity ID order from query for stable, deterministic output every frame
 - Invincible entities render at opacity 128 (half) so the player blinks without disappearing
+- Hot path is allocation-free: `appendRenderIntentDirect()` writes primitives directly into typed arrays with no intermediate object
+- Buffer reset ownership: bootstrap calls `resetRenderIntentBuffer` before `world.runRenderCommit`; the collect system appends only
 - No wiring into the game loop bootstrap — that happens in D-08
 
 ## Risks
