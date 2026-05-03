@@ -116,7 +116,7 @@ Canonical ticket ID ranges used by policy checks:
 - [ ] **C-04** P2 - Pause & Level Progression Systems (Depends on: D-01, D-03, C-02, A-03, A-11 audit gate, non-blocking) | Blocks: A-05; A-06; A-08; B-09; C-05; A-12
 - [ ] **C-05** P2 - HUD Adapter & Screen Overlays (Depends on: D-05, C-02, C-04, A-11 audit gate, non-blocking) | Blocks: A-05; A-06; A-08; D-11; A-12
 - [x] **B-05** P2 - Core Gameplay Event Surface (Depends on: B-04, D-01, A-11) | Blocks: A-08; B-09; A-12
-- [ ] **A-07** P2 - CI, Schema Validation & Asset Gates (Depends on: A-01, D-03, A-11) | Blocks: A-09; C-10; D-11; A-12
+- [x] **A-07** P2 - CI, Schema Validation & Asset Gates (Depends on: A-01, D-03, A-11) | Blocks: A-09, C-10, D-11, A-12
 - [ ] **C-06** P2 - Audio Adapter Implementation (Depends on: A-01, D-01, A-11 audit gate, non-blocking) | Blocks: C-07; C-08; C-09; A-12
 - [ ] **A-12** P2 - Consolidate P2 audits + publish 4 deduplicated track fix reports (Depends on: B-04, C-02, C-01, C-03, C-04, C-05, B-05, A-07, C-06) | Blocks: B-06; B-07; B-08; B-09; C-07; A-04; A-05; A-06; A-08
 

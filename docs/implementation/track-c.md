@@ -119,6 +119,8 @@ Source plan: `docs/implementation/implementation-plan.md` (Section 3)
   - **Game Over Screen** (`game-description.md` §11): Final score, Play Again button.
   - **Victory Screen** (`game-description.md` §11): Final score, ghosts killed, total time, Play Again button.
 - [ ] Implement keyboard focus transfer: Arrow keys for menu navigation, Enter for confirm. Focus enters overlay on open, restores to gameplay on close.
+- [ ] GAP-02: Ensure `hud-adapter.js` handles both current level score and cumulative score accurately.
+- [ ] GAP-03: Focus enters overlays on open and restores to the canvas/viewport upon close for accessibility/keyboard invariants.
 - [ ] Implement `adapters/io/storage-adapter.js`: High score saving/reading from `localStorage` with untrusted data validation on read.
 - [ ] Verification gate: adapter tests confirm HUD metrics update correctly via safe sinks; e2e tests confirm keyboard-only navigation across all screens.
 

@@ -177,6 +177,7 @@
   - Only player + 4 ghost sprites carry `will-change: transform` (target ~5 promoted layers).
   - Bombs, fire tiles, static grid cells, and HUD elements do NOT create compositor layers.
   - Paint rectangles are minimal and confined to moving sprite bounds during normal gameplay.
+- [ ] GAP-01: Verify that player and ghost entities are assigned the correct component masks and properties (including COMPONENT_MASK.RENDERABLE) in bootstrap so the render collect system sees them properly.
 
 ---
 
