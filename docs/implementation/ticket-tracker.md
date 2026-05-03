@@ -38,22 +38,44 @@ Coverage mapping remains canonical in `audit-traceability-matrix.md`.
 - In Progress: `0`
 - Not Started: `23`
 
-## 🧮 Phase Audit Remediation Ledger
+## ✅ Phase 0 — Fully Implemented and Audited
 
-Use this ledger to keep phase-audit publication and remediation traceable.
+All P0 tickets complete. Audit reports published and remediation verified.
 
-- P0 reports published:
-	- `docs/audit-reports/phase-0/audit-report-p0-track-a-deduplicated-2026-04-14.md`
-	- `docs/audit-reports/phase-0/audit-report-p0-track-b-deduplicated-2026-04-14.md`
-	- `docs/audit-reports/phase-0/audit-report-p0-track-c-deduplicated-2026-04-14.md`
-	- `docs/audit-reports/phase-0/audit-report-p0-track-d-deduplicated-2026-04-14.md`
-- P0 remediation mapping status:
-	- Track A issues: mapped to `A-03`, `A-04`, `A-05`, `A-06`, `A-07`, `A-10` (and follow-up tickets as required).
-	- Track A follow-up ticket executed (2026-04-18): restored strict post-merge expectations in temporary compatibility tests (`tests/unit/resources/game-status.test.js`, `tests/unit/resources/map-resource.test.js`) and removed loader compatibility fallback in `src/game/level-loader.js` with strict runtime map-resource validation.
-	- Track A Tests/CI gap closures in this phase: `CI-01`, `CI-02`, `CI-03`, `CI-04`, `CI-05`, `CI-06`, `CI-07`, `CI-08`, `CI-09`, `CI-10`, `CI-X01`, `CI-X02`, `CI-X03` via executable audit suites, policy-gate obligations, and merge workflow hardening.
-	- Track B issues: mapped to `B-02`, `B-03`.
-	- Track C issues: mapped to `C-06` and Track C documentation/dependency updates.
-	- Track D issues: mapped to `D-01`, `D-03`, `D-04`, `D-05`, `D-06`, `D-07`, `D-08`, `D-09`.
+- **Reports published:**
+  - `docs/audit-reports/phase-0/audit-report-p0-track-a-deduplicated-2026-04-14.md`
+  - `docs/audit-reports/phase-0/audit-report-p0-track-b-deduplicated-2026-04-14.md`
+  - `docs/audit-reports/phase-0/audit-report-p0-track-c-deduplicated-2026-04-14.md`
+  - `docs/audit-reports/phase-0/audit-report-p0-track-d-deduplicated-2026-04-14.md`
+- **Remediation status:** All Track A/B/C/D issues mapped and resolved. Loader fallback removed (`level-loader.js`), strict map-resource validation active. CI gates (CI-01 through CI-X03) enforced via policy-gate and executable audit suites.
+
+## 🔲 Phase 1 — Visual Prototype (P1)
+
+**Status:** In Progress — Tickets D-08 and A-11 pending.
+
+- **Audit reports published:** *Pending A-11 completion*
+- **Remediation status:** D-05 ✅, D-06 ✅, B-02 ✅, B-03 ✅, D-07 ✅, D-09 ✅, D-08 ⏳, A-11 ⏳
+
+## 🔲 Phase 2 — Playable MVP (P2)
+
+**Status:** Not Started — Blocks on P1 completion (A-11).
+
+- **Audit reports published:** *Pending A-12 completion*
+- **Remediation status:** B-04 ✅, C-02 ✅, C-01 ✅, C-03 ✅, B-05 ✅, A-07 ✅, C-04 ⏳, C-05 ⏳, C-06 ⏳, A-12 ⏳
+
+## 🔲 Phase 3 — Feature Complete + Hardening (P3)
+
+**Status:** Not Started — Blocks on P2 completion (A-12).
+
+- **Audit reports published:** *Pending A-13 completion*
+- **Remediation status:** A-04 ✅, B-06 ⏳, B-07 ⏳, B-08 ⏳, B-09 ⏳, C-07 ⏳, A-05 ⏳, A-06 ⏳, A-08 ⏳, A-13 ⏳
+
+## 🔲 Phase 4 — Polish + Validation (P4)
+
+**Status:** Not Started — Blocks on P3 completion (A-13).
+
+- **Audit reports published:** *Pending A-14 completion*
+- **Remediation status:** C-08 ⏳, C-09 ⏳, C-10 ⏳, D-10 ⏳, D-11 ⏳, A-09 ⏳, A-14 ⏳
 
 ## 🛣️ Prototype-First Claim Queue (Global)
 

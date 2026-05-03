@@ -44,11 +44,12 @@ function normalizeLoadedMapPayload(payload) {
     return createMapResource(payload);
   }
 
-  // Keep loader compatibility while Track D map-resource guard export is integrating.
+  // Payload is assumed to be a MapResource; validate to fail-closed.
   if (assertValidMapResource) {
     assertValidMapResource(payload);
   }
 
+  // Clone to avoid mutating cached/preloaded map references.
   return cloneMap(payload);
 }
 
