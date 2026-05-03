@@ -261,12 +261,16 @@ describe('World', () => {
 
   it('rejects registering system without update function', () => {
     const world = new World();
-    expect(() => world.registerSystem({ phase: 'logic', name: 'bad' })).toThrow('must provide an update function');
+    expect(() => world.registerSystem({ phase: 'logic', name: 'bad' })).toThrow(
+      'must provide an update function',
+    );
   });
 
   it('rejects registering system to unknown phase', () => {
     const world = new World();
-    expect(() => world.registerSystem({ phase: 'unknown', name: 'bad', update: () => {} })).toThrow('Unknown system phase');
+    expect(() => world.registerSystem({ phase: 'unknown', name: 'bad', update: () => {} })).toThrow(
+      'Unknown system phase',
+    );
   });
 
   it('quarantines failing systems when fault budget is exceeded', () => {
@@ -310,7 +314,7 @@ describe('World', () => {
     world.runFixedStep();
     expect(world.getEntityCount()).toBe(0);
   });
-  
+
   it('protects against mid-tick deletions and handle destruction edge cases', () => {
     const world = new World();
     const handle = world.createEntity();
