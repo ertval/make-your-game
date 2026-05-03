@@ -32,9 +32,9 @@ Coverage mapping remains canonical in `audit-traceability-matrix.md`.
 ## 📈 Summary Snapshot
 
 - Total tickets: `44`
-- Done: `12`
+- Done: `21`
 - In Progress: `0`
-- Not Started: `32`
+- Not Started: `23`
 
 ## 🧮 Phase Audit Remediation Ledger
 
