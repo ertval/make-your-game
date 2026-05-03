@@ -69,6 +69,39 @@ Branches named `<owner>/bugfix-<slug>` (for example `ekaramet/bugfix-ghost-colli
 - `lib/policy-utils.mjs` — exports `BUGFIX_BRANCH_PATTERN` and `isBugfixBranch()`.
 - `run-checks.mjs` — detects `bugfixMode` at startup and short-circuits both ownership functions.
 
+## Integration Branch Mode
+
+Branches named `<owner>/integration<slug>` (for example `ekaramet/integration-phase2-merge`) activate **integration mode**, which is a **named alias of bugfix mode**. It provides identical ownership-bypass semantics and is intended for cross-track integration or merge PRs rather than defect fixes.
+
+- **Bypasses** track ownership checks (`assertTrackOwnership` and `assertOwnerScopedOwnership`) — same as bugfix mode.
+- **Does not bypass** any other gates: security sink and ECS DOM boundary scans, forbidden-API checks, traceability coverage, lockfile pairing, and all quality gates still run normally.
+
+### Rules and Constraints
+
+| Rule | Requirement |
+|---|---|
+| **Registered Owner required** | The `<owner>` prefix MUST be present and MUST be one of the registered developers in `OWNER_TRACK_MAPPING` (ekaramet, asmyrogl, chbaikas, medvall). |
+| **`integration` keyword mandatory** | The path segment after the `/` must start exactly with `integration` (case-sensitive). The remainder of the slug is free-form (including an empty slug). |
+| **Ownership Relaxed** | Track ownership checks are bypassed, allowing the developer to touch files outside their assigned track. |
+| **Ticket association Relaxed** | Ticket association is NOT a blocking factor. Integration branches can have no tickets or cross-track tickets. |
+| **All other gates active** | Security, traceability, lockfile, and quality gates run unchanged. |
+
+### Pattern
+
+```
+<owner>/integration<slug>
+```
+
+**Examples:**
+- `ekaramet/integration-phase2-merge`
+- `asmyrogl/integration`
+- `chbaikas/integration-audio-and-hud`
+
+### Implementation reference
+
+- `lib/policy-utils.mjs` — exports `INTEGRATION_BRANCH_PATTERN` and `isIntegrationBranch()`.
+- `run-checks.mjs` — detects `integrationMode` at startup and folds it into `bypassOwnershipMode` alongside `bugfixMode`.
+
 ## Repo Trace Behavior
 
 - `npm run policy:trace` (`run-checks.mjs --check-set=repo`) always validates:
