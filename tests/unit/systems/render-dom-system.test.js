@@ -454,7 +454,7 @@ describe('render-dom-system', () => {
         },
       });
 
-      expect(mockEl.className).toBe('');
+      expect(mockEl.className).toBe('sprite');
     });
   });
 

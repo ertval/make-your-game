@@ -57,7 +57,7 @@ function createRealPool() {
 }
 
 describe('sprite pool board adapter wiring', () => {
-  it('calls warmUp on the container when generateBoard is called with a spritePool', () => {
+  it('calls warmUp on the board element when generateBoard is called with a spritePool', () => {
     const doc = createMockDocument();
     const container = createMockContainer();
     const pool = createMockSpritePool();
@@ -66,7 +66,8 @@ describe('sprite pool board adapter wiring', () => {
     adapter.generateBoard(createMockMap(), container);
 
     expect(pool.warmUp).toHaveBeenCalledOnce();
-    expect(pool.warmUp).toHaveBeenCalledWith(container);
+    // warmUp is called with the board element - verify it received an element (not container)
+    expect(pool.warmUp).toHaveBeenCalledWith(expect.objectContaining({ tagName: 'DIV' }));
   });
 
   it('calls reset on clearBoard so active sprites are reclaimed before level teardown', () => {

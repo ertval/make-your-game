@@ -81,7 +81,7 @@
 
 /** Regular pellet (small dot). */
 .cell-pellet::after {
-  content: '';
+  content: "";
   position: absolute;
   top: 50%;
   left: 50%;
@@ -95,7 +95,7 @@
 
 /** Power pellet (larger, pulsing). */
 .cell-power-pellet::after {
-  content: '';
+  content: "";
   position: absolute;
   top: 50%;
   left: 50%;
