@@ -8,6 +8,12 @@
  * Branches matching the pattern <owner>/bugfix-<slug> bypass track ownership checks so a single
  * developer can touch files across multiple tracks during a cross-cutting bug fix. All other gates
  * (security boundaries, forbidden APIs, traceability, lockfile pairing) still run normally.
+ *
+ * Integration Branch Policy:
+ * Branches matching the pattern <owner>/integration<slug> (e.g. ekaramet/integration-phase2-merge)
+ * are an alias of bugfix mode — they receive identical ownership-bypass semantics. Use this pattern
+ * when integrating work across tracks rather than fixing a specific defect. All non-ownership gates
+ * still run normally.
  */
 
 import { spawnSync } from 'node:child_process';
@@ -138,6 +144,29 @@ export const BUGFIX_BRANCH_PATTERN = /^[A-Za-z0-9._-]+\/bugfix-[A-Za-z0-9._-]+$/
  */
 export function isBugfixBranch(branchName) {
   if (!BUGFIX_BRANCH_PATTERN.test(String(branchName || '').trim())) {
+    return false;
+  }
+
+  const owner = extractOwnerFromBranch(branchName).toLowerCase();
+  return Object.keys(OWNER_TRACK_MAPPING).some((key) => key.toLowerCase() === owner);
+}
+
+// Integration branches are an alias of bugfix mode — the slug begins with "integration" instead of
+// "bugfix-". They bypass track ownership checks in the same way, enabling cross-track merge/integration
+// PRs without requiring a per-track branch split.
+export const INTEGRATION_BRANCH_PATTERN = /^[A-Za-z0-9._-]+\/integration[A-Za-z0-9._-]*$/;
+
+/**
+ * Return true when the branch follows the cross-track integration convention.
+ * Format: <owner>/integration<slug> (e.g. ekaramet/integration-phase2-merge)
+ * The <owner> part MUST be a registered developer in OWNER_TRACK_MAPPING.
+ * This is a named alias of bugfix mode — it receives identical ownership-bypass semantics.
+ *
+ * @param {string} branchName — The full branch name.
+ * @returns {boolean}
+ */
+export function isIntegrationBranch(branchName) {
+  if (!INTEGRATION_BRANCH_PATTERN.test(String(branchName || '').trim())) {
     return false;
   }
 
@@ -641,17 +670,27 @@ export function resolvePrPolicyPath({
   commitTicketIds = [],
   hasProcessMode = false,
   isBugfixMode = false,
+  // isIntegrationMode is a named alias of isBugfixMode — both activate identical ownership bypass.
+  isIntegrationMode = false,
 } = {}) {
+  // Merge integration mode into the bugfix flag so the rest of the function has a single branch.
+  const effectiveBugfixMode = isBugfixMode || isIntegrationMode;
   const hasPrMetadata = branchTicketIds.length > 0 || commitTicketIds.length > 0;
-  const shouldRunPrChecks = hasPrMetadata || hasProcessMode || isBugfixMode;
+  const shouldRunPrChecks = hasPrMetadata || hasProcessMode || effectiveBugfixMode;
 
   if (shouldRunPrChecks) {
     return {
       hasPrMetadata,
       shouldRunPrChecks,
-      auditMode: isBugfixMode ? 'BUGFIX' : hasProcessMode ? 'GENERAL_DOCS_PROCESS' : 'TICKET',
-      selectedPath: isBugfixMode
-        ? 'cross-track bugfix checks'
+      auditMode: effectiveBugfixMode
+        ? 'BUGFIX'
+        : hasProcessMode
+          ? 'GENERAL_DOCS_PROCESS'
+          : 'TICKET',
+      selectedPath: effectiveBugfixMode
+        ? isIntegrationMode
+          ? 'cross-track integration checks'
+          : 'cross-track bugfix checks'
         : hasProcessMode
           ? 'owner-scoped process checks'
           : 'PR ticket checks',

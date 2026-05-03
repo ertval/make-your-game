@@ -24,8 +24,7 @@
  *   stores booleans only and does not preserve press ordering.
  * - The helper layer exists so later movement logic can stay small and easy to
  *   test without re-deriving direction and speed rules in multiple places.
- * - The system shell intentionally performs no movement yet because Batch 1
- *   only freezes the contract; movement stepping arrives in the next batch.
+
  * - B-05 wiring: accepts an optional `eventQueueResourceKey` (default `null`)
  *   so bootstrap can thread the D-01 event-queue resource key in for later
  *   emission code. We deliberately do not look up the queue here — that lookup

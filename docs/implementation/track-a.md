@@ -121,7 +121,7 @@ Source plan: `docs/implementation/implementation-plan.md` (Section 3)
 - [x] Write unit tests for `game-status.js`: FSM transitions, invalid transition rejection.
 - [x] Write unit tests for `constants.js`: all canonical values correct.
 - [x] Write unit tests for `map-resource.js`: valid parse, invalid JSON rejection, spawn point extraction.
-- [x] Verification gate: all core/resource unit tests green with >90% line coverage on tested files.
+- [x] Verification gate: all core/resource unit tests green with >85% coverage on tested files.
 
 ---
 

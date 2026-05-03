@@ -9,6 +9,7 @@
  *   - main.ecs.js contains the engine logic and bootstrap functions without triggering execution.
  */
 
+import './security/trusted-types.js';
 import { startBrowserApplication } from './main.ecs.js';
 
 startBrowserApplication();
