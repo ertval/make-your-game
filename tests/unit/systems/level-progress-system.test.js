@@ -2,8 +2,9 @@
  * Unit tests for the C-04 level progression system.
  *
  * These checks verify deterministic pellet-clear detection and FSM-safe
- * progression into LEVEL_COMPLETE using only world resources with no DOM
- * or entity mutation dependencies.
+ * progression flow using only world resources with no DOM or entity mutation
+ * dependencies. Scoring is intentionally excluded here because score
+ * integration is owned by a later ticket.
  */
 
 import { describe, expect, it } from 'vitest';
@@ -123,5 +124,42 @@ describe('level-progress-system', () => {
     updateSystem(system, world);
 
     expect(gameStatus.currentState).toBe(GAME_STATE.LEVEL_COMPLETE);
+    expect(world.getResource('levelFlow')).toEqual({
+      pendingLevelAdvance: true,
+    });
+  });
+
+  it('sets pendingLevelAdvance when LEVEL_COMPLETE is reached on a non-final level', () => {
+    const world = new World();
+    const system = createLevelProgressSystem({ totalLevels: 3 });
+    const gameStatus = createGameStatus(GAME_STATE.LEVEL_COMPLETE);
+    const mapResource = createTestMapResource(1);
+
+    world.setResource('gameStatus', gameStatus);
+    world.setResource('mapResource', mapResource);
+
+    updateSystem(system, world);
+
+    expect(gameStatus.currentState).toBe(GAME_STATE.LEVEL_COMPLETE);
+    expect(gameStatus.previousState).toBeNull();
+    expect(world.getResource('levelFlow')).toEqual({
+      pendingLevelAdvance: true,
+    });
+  });
+
+  it('transitions to VICTORY when LEVEL_COMPLETE is reached on the final level', () => {
+    const world = new World();
+    const system = createLevelProgressSystem({ totalLevels: 3 });
+    const gameStatus = createGameStatus(GAME_STATE.LEVEL_COMPLETE);
+    const mapResource = createTestMapResource(3);
+
+    world.setResource('gameStatus', gameStatus);
+    world.setResource('mapResource', mapResource);
+
+    updateSystem(system, world);
+
+    expect(gameStatus.currentState).toBe(GAME_STATE.VICTORY);
+    expect(gameStatus.previousState).toBe(GAME_STATE.LEVEL_COMPLETE);
+    expect(world.getResource('levelFlow')).toBeUndefined();
   });
 });

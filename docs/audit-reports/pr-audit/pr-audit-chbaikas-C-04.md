@@ -1,5 +1,5 @@
 # 🛡️ Audit: `chbaikas/C-04`
-## 🏁 Verdict: `PASS`
+## 🏁 Verdict: `PARTIAL (System-layer complete)`
 
 ---
 
@@ -14,7 +14,7 @@
 - PASS: `level-progress-system` transitions `PLAYING -> LEVEL_COMPLETE` when pellets and power pellets are exhausted.
 - PASS: Focused unit coverage exists for `pause-input-system`, `pause-system`, and `level-progress-system`.
 - PASS: Level-clear scoring responsibility is no longer assigned to C-04; scoring integration is documented as deferred to a later scoring/flow integration ticket.
-- **Out-of-Scope Findings**: Runtime/bootstrap wiring, visible pause UI/overlays, restart reset/reload behavior, level-flow/level-loader runtime advancement, and browser/manual evidence remain outside C-04's scoped system-layer implementation.
+- **Out-of-Scope Findings**: Runtime/bootstrap wiring, visible pause UI/overlays, restart reset/reload behavior, level-flow/level-loader runtime advancement, and browser/manual evidence remain outside C-04's scoped system-layer implementation. Runtime/UI behavior is not implemented in this ticket.
 
 ---
 
@@ -28,7 +28,8 @@
 > [!IMPORTANT]
 > ### ⛑️ Deferred Scope Notes
 > 1. C-04 passes as system-layer complete only.
-> 2. Default runtime wiring, visible pause UI, restart/reset behavior, level-flow advancement, and final manual evidence remain deferred to later tickets/phases.
+> 2. Runtime/UI behavior is not implemented in this ticket.
+> 3. Default runtime wiring, visible pause UI, restart/reset behavior, level-flow advancement, and final manual evidence remain deferred to later tickets/phases.
 
 ---
 

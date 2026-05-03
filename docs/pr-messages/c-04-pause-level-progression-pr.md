@@ -42,7 +42,7 @@ Local test command reference (run what applies to your change and list what you 
 - Implemented `src/ecs/systems/level-progress-system.js` to detect when all pellets and power pellets are consumed and transition `PLAYING -> LEVEL_COMPLETE`.
 - Added focused unit coverage in `tests/unit/systems/pause-input.test.js`, `tests/unit/systems/pause-system.test.js`, and `tests/unit/systems/level-progress-system.test.js`.
 - Updated Track C implementation docs and audit traceability text so C-04 is marked partial for scoped Track C system-layer coverage only.
-- C-04 is system-layer complete and ready for integration.
+- C-04 is system-layer complete only. Runtime/UI behavior is not implemented in this PR and remains deferred to later integration tickets.
 
 ## Why
 
@@ -72,7 +72,7 @@ Local test command reference (run what applies to your change and list what you 
 - `pause-system`, `pause-input-system`, and `level-progress-system` are single-purpose systems.
 - Map loading and visible pause overlays remain outside this Track C ownership scope.
 - Runtime integration and UI behavior are not part of this PR.
-- Restart intent production is optional/future integration and is not guaranteed by the current input resource contract.
+- Restart command production from the input bridge is intentionally limited to pause/continue; full restart UX remains a later integration concern.
 - No dependency, lockfile, or package metadata changes were made.
 
 ## Risks

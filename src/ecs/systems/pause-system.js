@@ -2,34 +2,39 @@
  * C-04 pause state transition system.
  *
  * This module implements pure ECS logic for pause-related FSM transitions.
- * It consumes a dedicated pause-intent resource, mutates only the shared
- * game-status resource, and always clears the one-step intent payload after
- * processing so pause actions are edge-triggered and deterministic.
+ * It consumes a dedicated pause-intent resource, synchronizes the clock
+ * resource with pause/resume transitions through World resource access,
+ * publishes restart intent through a dedicated level-flow resource, and always
+ * clears the one-step intent payload after processing so pause actions are
+ * edge-triggered and deterministic.
  *
  * Public API:
  * - createPauseSystem(options)
  *
  * Implementation notes:
- * - This system does not pause the simulation clock directly. The existing
- *   game-flow/clock integration already freezes simulation whenever the
- *   top-level game status is not PLAYING.
- * - Restart handling here is intentionally limited to the required FSM change:
- *   PAUSED -> PLAYING. Actual restart teardown/reload is handled elsewhere.
- * - The pause intent resource is always normalized to a plain object with
- *   `toggle` and `restart` booleans so other systems can rely on its shape.
+ * - Clock synchronization is handled via World resources only; the system does
+ *   not import clock helpers so ECS boundaries stay explicit.
+ * - Clock updates replace the resource with a cloned record instead of
+ *   mutating the existing object in place.
+ * - Restart handling replaces the game-status resource with a fresh PLAYING
+ *   record and publishes `levelFlow.pendingRestart = true` so orchestration can
+ *   perform the real reload outside this system.
+ * - The pause intent resource is always normalized to a plain object with a
+ *   single explicit `action` command so transitions remain readable.
  */
 
-import { canTransition, GAME_STATE, transitionTo } from '../resources/game-status.js';
+import {
+  canTransition,
+  createGameStatus,
+  GAME_STATE,
+  transitionTo,
+} from '../resources/game-status.js';
+import { createDefaultPauseIntent } from '../resources/pause-intent.js';
 
 const DEFAULT_GAME_STATUS_RESOURCE_KEY = 'gameStatus';
 const DEFAULT_PAUSE_INTENT_RESOURCE_KEY = 'pauseIntent';
-
-function createDefaultPauseIntent() {
-  return {
-    restart: false,
-    toggle: false,
-  };
-}
+const DEFAULT_CLOCK_RESOURCE_KEY = 'clock';
+const DEFAULT_LEVEL_FLOW_RESOURCE_KEY = 'levelFlow';
 
 function ensurePauseIntent(pauseIntent) {
   if (!pauseIntent || typeof pauseIntent !== 'object') {
@@ -37,19 +42,53 @@ function ensurePauseIntent(pauseIntent) {
   }
 
   return {
-    restart: pauseIntent.restart === true,
-    toggle: pauseIntent.toggle === true,
+    action:
+      pauseIntent.action === 'toggle' ||
+      pauseIntent.action === 'continue' ||
+      pauseIntent.action === 'restart'
+        ? pauseIntent.action
+        : null,
   };
 }
 
 function tryTransition(gameStatus, nextState) {
   if (gameStatus && canTransition(gameStatus, nextState)) {
     transitionTo(gameStatus, nextState);
+    return true;
   }
+
+  return false;
+}
+
+function syncClockPauseState(world, clockResourceKey, paused) {
+  const clock = world.getResource(clockResourceKey);
+  if (!clock || typeof clock !== 'object') {
+    return;
+  }
+
+  world.setResource(clockResourceKey, {
+    ...clock,
+    isPaused: paused,
+  });
+}
+
+function publishPendingRestart(world, levelFlowResourceKey) {
+  const levelFlow = world.getResource(levelFlowResourceKey);
+  const nextLevelFlow =
+    levelFlow && typeof levelFlow === 'object'
+      ? {
+          ...levelFlow,
+          pendingRestart: true,
+        }
+      : { pendingRestart: true };
+
+  world.setResource(levelFlowResourceKey, nextLevelFlow);
 }
 
 export function createPauseSystem(options = {}) {
+  const clockResourceKey = options.clockResourceKey || DEFAULT_CLOCK_RESOURCE_KEY;
   const gameStatusResourceKey = options.gameStatusResourceKey || DEFAULT_GAME_STATUS_RESOURCE_KEY;
+  const levelFlowResourceKey = options.levelFlowResourceKey || DEFAULT_LEVEL_FLOW_RESOURCE_KEY;
   const pauseIntentResourceKey =
     options.pauseIntentResourceKey || DEFAULT_PAUSE_INTENT_RESOURCE_KEY;
 
@@ -57,8 +96,13 @@ export function createPauseSystem(options = {}) {
     name: 'pause-system',
     phase: 'logic',
     resourceCapabilities: {
-      read: [gameStatusResourceKey, pauseIntentResourceKey],
-      write: [gameStatusResourceKey, pauseIntentResourceKey],
+      read: [clockResourceKey, gameStatusResourceKey, levelFlowResourceKey, pauseIntentResourceKey],
+      write: [
+        clockResourceKey,
+        gameStatusResourceKey,
+        levelFlowResourceKey,
+        pauseIntentResourceKey,
+      ],
     },
     update(context) {
       const world = context.world;
@@ -72,11 +116,24 @@ export function createPauseSystem(options = {}) {
       }
 
       if (gameStatus.currentState === GAME_STATE.PAUSED) {
-        if (pauseIntent.toggle || pauseIntent.restart) {
-          tryTransition(gameStatus, GAME_STATE.PLAYING);
+        if (pauseIntent.action === 'restart') {
+          world.setResource(gameStatusResourceKey, createGameStatus(GAME_STATE.PLAYING));
+          syncClockPauseState(world, clockResourceKey, false);
+          publishPendingRestart(world, levelFlowResourceKey);
+        } else if (pauseIntent.action === 'continue' || pauseIntent.action === 'toggle') {
+          const transitioned = tryTransition(gameStatus, GAME_STATE.PLAYING);
+          if (transitioned) {
+            syncClockPauseState(world, clockResourceKey, false);
+          }
         }
-      } else if (gameStatus.currentState === GAME_STATE.PLAYING && pauseIntent.toggle) {
-        tryTransition(gameStatus, GAME_STATE.PAUSED);
+      } else if (
+        gameStatus.currentState === GAME_STATE.PLAYING &&
+        pauseIntent.action === 'toggle'
+      ) {
+        const transitioned = tryTransition(gameStatus, GAME_STATE.PAUSED);
+        if (transitioned) {
+          syncClockPauseState(world, clockResourceKey, true);
+        }
       }
 
       world.setResource(pauseIntentResourceKey, createDefaultPauseIntent());

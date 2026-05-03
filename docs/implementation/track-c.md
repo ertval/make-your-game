@@ -2,7 +2,7 @@
 
 Source plan: `docs/implementation/implementation-plan.md` (Section 3)
 
-> **Scope**: Scoring/timer/lives systems, spawn timing, pause/progression gameplay flow systems, HUD and screen overlay adapters, storage adapter, audio adapter, audio cue mapping, SFX/music production, and audio manifest governance. Dev 3 owns the player-facing runtime feedback loop across gameplay state, UI feedback, and sound. Track C owns scoped tests that validate Track C-owned implementation files. Track A remains the global owner for `tests/**` and QA gates.
+> **Scope**: Scoring/timer/lives systems, spawn timing, pause/progression gameplay flow systems, HUD and screen overlay adapters, storage adapter, audio adapter, audio cue mapping, SFX/music production, and audio manifest governance. Track C owns scoped tests that validate Track C-owned implementation files. Track A remains the global owner for `tests/**` and QA gates.
 > **Execution model**: Deliver scoring/lives/timer + gameplay flow UI for MVP, then layer audio integration and polish.
 
 ## Phase Order (Prototype-First)
@@ -78,11 +78,11 @@ Source plan: `docs/implementation/implementation-plan.md` (Section 3)
 **Priority**: Critical
 **Phase**: P2 Playable MVP
 **Depends On**: `D-01` (clock/game-status), `D-03` (map resource), `C-02` (timer/lives), `A-03` (game loop), `A-11` (audit gate, non-blocking)
-**Impacts**: Pause menu behavior and level/game state transitions (`AUDIT-F-07..F-10`)
+**Impacts**: ECS pause/progression flow contracts and later pause menu/runtime integration (`AUDIT-F-07..F-10`)
 **Blocks**: A-05, A-06, A-08, C-05
 **READY_FOR_MAIN**: NO
 
-C-04 is complete at ECS system layer only. Runtime wiring, UI overlays, restart/reset behavior, and level-flow/loader integration are implemented in later tickets (`C-05+` / Track A integration).
+C-04 is complete at ECS system layer only. Runtime wiring, visible pause UI, restart/reset behavior, and level-flow/loader integration are handled in later tickets (`C-05+` / Track A integration).
 
 **Deliverables**:
 - `src/ecs/systems/pause-system.js` — FSM-only pause, continue, and paused-restart transitions
@@ -92,12 +92,13 @@ C-04 is complete at ECS system layer only. Runtime wiring, UI overlays, restart/
 - [x] Implements ECS system-layer logic for pause and level progression.
 - [x] Implemented in this PR: `pause-input-system`, `pause-system`, and `level-progress-system`.
 - [x] System-layer FSM intents: `PLAYING ↔ PAUSED` and `PLAYING → LEVEL_COMPLETE`.
+- [x] C-04 is limited to ECS resources and state transitions. It does not claim full runtime pause UX, visible pause menu behavior, or default bootstrap wiring.
 - [x] C-04 does NOT apply level-clear scoring. It only transitions `PLAYING → LEVEL_COMPLETE`. Score integration is handled separately.
-- [x] Pause Continue intent: `PAUSED → PLAYING` transition is implemented at the ECS resource layer.
-- [x] Pause Restart intent: `pause-system` accepts `pauseIntent.restart`, but restart intent production and actual reset/reload behavior remain deferred.
+- [x] Pause Continue intent: `PAUSED → PLAYING` transition is implemented at the ECS resource layer only.
+- [x] Pause Restart intent: `pause-system` accepts resource-layer restart intent, but visible restart UX and full runtime reset/reload behavior remain deferred.
 - [x] Verification gate: focused unit tests cover `pause-input-system`, `pause-system`, and `level-progress-system` system-layer behavior.
 
-C-04 is system-layer complete only. Runtime integration, HUD, overlays, and full gameplay behavior are implemented in later tickets. `AUDIT-F-07` through `AUDIT-F-10` remain PARTIAL for C-04 because this PR does not include default runtime registration/bootstrap wiring, visible pause menu/overlays, restart reset/reload behavior, level-flow/level-loader runtime advancement, or browser rAF/performance/manual evidence.
+C-04 is system-layer complete only. Runtime integration, HUD, overlays, visible pause UI, and full restart/player-facing behavior are implemented in later tickets. `AUDIT-F-07` through `AUDIT-F-10` remain PARTIAL for C-04 because this ticket does not include default runtime registration/bootstrap wiring, visible pause menu/overlays, restart reset/reload behavior, level-flow/level-loader runtime advancement, or browser rAF/performance/manual evidence.
 
 ---
 

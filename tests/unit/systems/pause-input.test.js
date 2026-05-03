@@ -35,15 +35,14 @@ function updatePauseInput(harness) {
 }
 
 describe('pause-input-system', () => {
-  it('sets pauseIntent.toggle when pause is pressed', () => {
+  it('publishes a toggle action when pause is pressed while PLAYING', () => {
     const harness = createHarness(GAME_STATE.PLAYING);
 
     harness.inputState.pause[harness.player.id] = 1;
     updatePauseInput(harness);
 
     expect(harness.world.getResource('pauseIntent')).toEqual({
-      restart: false,
-      toggle: true,
+      action: 'toggle',
     });
     expect(harness.world.getResource('gameStatus').currentState).toBe(GAME_STATE.PLAYING);
   });
@@ -54,20 +53,28 @@ describe('pause-input-system', () => {
     harness.inputState.pause[harness.player.id] = 1;
     updatePauseInput(harness);
     expect(harness.world.getResource('pauseIntent')).toEqual({
-      restart: false,
-      toggle: true,
+      action: 'toggle',
     });
 
     harness.world.setResource('pauseIntent', {
-      restart: false,
-      toggle: false,
+      action: null,
     });
     harness.inputState.pause[harness.player.id] = 0;
     updatePauseInput(harness);
 
     expect(harness.world.getResource('pauseIntent')).toEqual({
-      restart: false,
-      toggle: false,
+      action: null,
+    });
+  });
+
+  it('publishes a continue action when pause is pressed while PAUSED', () => {
+    const harness = createHarness(GAME_STATE.PAUSED);
+
+    harness.inputState.pause[harness.player.id] = 1;
+    updatePauseInput(harness);
+
+    expect(harness.world.getResource('pauseIntent')).toEqual({
+      action: 'continue',
     });
   });
 
@@ -75,14 +82,12 @@ describe('pause-input-system', () => {
     const harness = createHarness(GAME_STATE.PAUSED);
 
     harness.world.setResource('pauseIntent', {
-      restart: true,
-      toggle: false,
+      action: 'restart',
     });
     updatePauseInput(harness);
 
     expect(harness.world.getResource('pauseIntent')).toEqual({
-      restart: true,
-      toggle: false,
+      action: 'restart',
     });
   });
 });

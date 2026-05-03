@@ -7,32 +7,25 @@
  * world resource API.
  *
  * Public API:
- * - createDefaultPauseIntent()
  * - createPauseInputSystem(options)
  *
  * Implementation notes:
  * - The input-system already drains one-shot keyboard edges into inputState,
  *   so this system can treat inputState.pause as a per-step edge.
+ * - Pause commands are published as explicit action values so downstream
+ *   transition logic can remain readable and state-specific.
  * - Restart intent remains an optional future integration path produced by
- *   another resource writer; this system does not assume inputState owns it.
- * - Existing pauseIntent values are preserved and OR-ed with newly observed
- *   input so multiple intent producers can coexist.
+ *   another resource writer; this system does not synthesize restart commands.
  */
 
 import { COMPONENT_MASK } from '../components/registry.js';
 import { GAME_STATE } from '../resources/game-status.js';
+import { createDefaultPauseIntent } from '../resources/pause-intent.js';
 
 const DEFAULT_GAME_STATUS_RESOURCE_KEY = 'gameStatus';
 const DEFAULT_INPUT_STATE_RESOURCE_KEY = 'inputState';
 const DEFAULT_PAUSE_INTENT_RESOURCE_KEY = 'pauseIntent';
 const DEFAULT_REQUIRED_MASK = COMPONENT_MASK.PLAYER | COMPONENT_MASK.INPUT_STATE;
-
-export function createDefaultPauseIntent() {
-  return {
-    restart: false,
-    toggle: false,
-  };
-}
 
 function normalizePauseIntent(pauseIntent) {
   if (!pauseIntent || typeof pauseIntent !== 'object') {
@@ -40,8 +33,12 @@ function normalizePauseIntent(pauseIntent) {
   }
 
   return {
-    restart: pauseIntent.restart === true,
-    toggle: pauseIntent.toggle === true,
+    action:
+      pauseIntent.action === 'toggle' ||
+      pauseIntent.action === 'continue' ||
+      pauseIntent.action === 'restart'
+        ? pauseIntent.action
+        : null,
   };
 }
 
@@ -53,17 +50,13 @@ function isPauseInputAllowed(gameStatus) {
 }
 
 function collectPauseInput(inputState, entityIds) {
-  let toggle = false;
-
   for (const entityId of entityIds) {
-    toggle ||= inputState?.pause?.[entityId] === 1;
-
-    if (toggle) {
-      break;
+    if (inputState?.pause?.[entityId] === 1) {
+      return true;
     }
   }
 
-  return { toggle };
+  return false;
 }
 
 export function createPauseInputSystem(options = {}) {
@@ -96,11 +89,14 @@ export function createPauseInputSystem(options = {}) {
         return;
       }
 
-      const input = collectPauseInput(inputState, world.query(requiredMask));
+      const pausePressed = collectPauseInput(inputState, world.query(requiredMask));
+      if (!pausePressed) {
+        world.setResource(pauseIntentResourceKey, currentIntent);
+        return;
+      }
 
       world.setResource(pauseIntentResourceKey, {
-        restart: currentIntent.restart,
-        toggle: currentIntent.toggle || input.toggle,
+        action: gameStatus.currentState === GAME_STATE.PAUSED ? 'continue' : 'toggle',
       });
     },
   };

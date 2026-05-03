@@ -42,9 +42,8 @@ The repository is currently in a **prototype / partial runtime** state.
 - ECS gameplay systems exist for core logic such as input handling, movement, collisions, scoring, timer/lives, spawn timing, pause-system logic, and level-progression detection.
 - The shipped browser runtime is still minimal and does **not** yet include the full gameplay/UI loop described in the target design docs.
 - The default runtime currently wires only a subset of ECS systems.
-- Track C systems for pause and progression are implemented but not yet connected to the default runtime loop.
-- Runtime/UI work such as live HUD updates, screen overlays, a visible pause menu, restart/reset flows, and the full player-facing feedback loop remains **planned** or **deferred** to later tickets.
-- UI features such as pause menu, HUD updates, overlays, and restart flows are deferred to later tickets (`C-05+`).
+- C-04 covers **ECS system-layer only** for pause/progression resources and state transitions. It does **not** claim full runtime pause behavior, visible pause UI, restart reset/reload flow, or loader-driven level advancement.
+- Runtime wiring, visible overlays/menus, HUD updates, and restart/player-facing flow remain **planned** or **deferred** to later tickets (`C-05+`, Track A integration, and later flow wiring tickets).
 - When this README describes the full game experience below, treat that as the intended roadmap unless a section explicitly says the behavior is already present in the shipped runtime.
 
 ### 🧠 What Is ECS?
@@ -65,7 +64,7 @@ Why this project uses ECS: it keeps gameplay logic modular, deterministic, and f
 - ⚡ **Power-ups** — increased bomb range, extra bombs, speed boosts, ghost-stunning pellets.
 - ⏱️ **Countdown timer** — beat the clock for bonus points.
 - 🏆 **Scoring & combos** — chain-kill ghosts for exponential bonuses.
-- ⏸️ **Pause menu** — continue or restart without losing progress.
+- ⏸️ **Pause flow target** — the intended full game includes continue/restart UX, but visible pause UI and runtime wiring are deferred.
 - 📊 **3 difficulty levels** — increasing maze density, ghost count, and speed.
 - 🎨 **60 FPS DOM rendering** — no canvas, pure CSS Grid + transform animations via a dedicated Render Batcher.
 
