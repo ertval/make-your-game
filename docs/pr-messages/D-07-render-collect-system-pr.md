@@ -49,7 +49,7 @@ Local test command reference (run what applies to your change and list what you 
 
 ## Tests
 - `npm run check` — passed (Biome lint + format)
-- `npm run test:coverage` — 538 tests passed (all 19 unit tests and 4 scheduler integration tests green)
+- `npm run test:coverage` — 560 tests passed (all 19 unit tests and 4 scheduler integration tests green)
 - `npm run policy` — ALL CLEAR
 
 ## Audit questions affected
