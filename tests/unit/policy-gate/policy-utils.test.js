@@ -18,6 +18,7 @@ import {
   inferProcessModeFromSources,
   inferTicketIdsFromSources,
   isBugfixBranch,
+  isIntegrationBranch,
   resolveBranchName,
   resolveOwnerTrackFromBranch,
   resolvePrPolicyPath,
@@ -398,5 +399,40 @@ describe('policy-utils bugfix branch detection', () => {
     expect(isBugfixBranch('ekaramet/A-03')).toBe(false);
     expect(isBugfixBranch('ekaramet/process-audit')).toBe(false);
     expect(isBugfixBranch('ekaramet/bugfix-')).toBe(false);
+  });
+});
+
+describe('policy-utils integration branch detection', () => {
+  it('identifies integration branches for registered owners', () => {
+    expect(isIntegrationBranch('ekaramet/integration-phase2-merge')).toBe(true);
+    expect(isIntegrationBranch('asmyrogl/integration-B-07-timer-race')).toBe(true);
+    expect(isIntegrationBranch('chbaikas/integration')).toBe(true);
+    expect(isIntegrationBranch('medvall/integration-visuals')).toBe(true);
+  });
+
+  it('rejects integration branches for unregistered owners', () => {
+    expect(isIntegrationBranch('unknown/integration-test')).toBe(false);
+    expect(isIntegrationBranch('newdev/integration-something')).toBe(false);
+    expect(isIntegrationBranch('integration-no-owner')).toBe(false);
+  });
+
+  it('rejects branches without integration keyword or with invalid format', () => {
+    expect(isIntegrationBranch('ekaramet/fix-typo')).toBe(false);
+    expect(isIntegrationBranch('ekaramet/A-03')).toBe(false);
+    expect(isIntegrationBranch('ekaramet/process-audit')).toBe(false);
+  });
+
+  it('correctly resolves PR policy path for integration mode as a named alias of bugfix mode', () => {
+    const result = resolvePrPolicyPath({
+      branchTicketIds: [],
+      commitTicketIds: [],
+      hasProcessMode: false,
+      isBugfixMode: false,
+      isIntegrationMode: true,
+    });
+
+    expect(result.shouldRunPrChecks).toBe(true);
+    expect(result.auditMode).toBe('BUGFIX');
+    expect(result.selectedPath).toBe('cross-track integration checks');
   });
 });
