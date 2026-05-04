@@ -8,14 +8,8 @@
 
 import { expect, test } from '@playwright/test';
 
+import { bootRuntime, FIXED_DT_MS } from '../helpers/game-helpers.js';
 import { SEMI_AUTOMATABLE_THRESHOLDS } from './audit-question-map.js';
-
-async function bootRuntime(page) {
-  await page.goto('/');
-  await page.waitForFunction(() => {
-    return Boolean(window.__MS_GHOSTMAN_RUNTIME__ && window.__MS_GHOSTMAN_FRAME_PROBE__);
-  });
-}
 
 async function waitForFrameSamples(page, minimumSamples, timeout = 8_000) {
   await expect
@@ -98,10 +92,6 @@ test('AUDIT-F-07/AUDIT-F-08/AUDIT-F-09 pause, continue, and restart transitions 
     .poll(async () => page.evaluate(() => window.__MS_GHOSTMAN_RUNTIME__.getSnapshot().state))
     .toBe('PLAYING');
 
-  const simBeforeRestart = await page.evaluate(
-    () => window.__MS_GHOSTMAN_RUNTIME__.getSnapshot().simTimeMs,
-  );
-
   await page.evaluate(() => {
     const runtime = window.__MS_GHOSTMAN_RUNTIME__;
     runtime.pause();
@@ -113,7 +103,7 @@ test('AUDIT-F-07/AUDIT-F-08/AUDIT-F-09 pause, continue, and restart transitions 
   const afterRestart = await page.evaluate(() => window.__MS_GHOSTMAN_RUNTIME__.getSnapshot());
   expect(afterRestart.state).toBe('PAUSED');
   // simTimeMs should be near zero after restart reset + at most one frame tick.
-  expect(afterRestart.simTimeMs).toBeLessThanOrEqual(simBeforeRestart + 16.67);
+  expect(afterRestart.simTimeMs).toBeLessThanOrEqual(FIXED_DT_MS);
 });
 
 test('AUDIT-F-10 pause freezes simulation while rAF keeps sampling frames', async ({ page }) => {
