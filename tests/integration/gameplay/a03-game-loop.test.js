@@ -755,12 +755,23 @@ describe('game loop and runtime', () => {
     const immediateMutationErrors = [];
 
     bootstrap.gameFlow.startGame();
+    const entityCountBeforeStep = world.getEntityCount();
+    const velocityMaskEntityIdsBeforeStep = world.query(0b0010);
+
     bootstrap.stepFrame(FIXED_DT_MS);
 
     expect(immediateMutationErrors).toHaveLength(1);
     expect(immediateMutationErrors[0]).toContain('cannot be called during system dispatch');
-    expect(world.getEntityCount()).toBe(2); // bootstrap player + deferred entity
-    expect(world.query(0b0010)).toEqual([0, 1]);
+    expect(world.getEntityCount()).toBe(entityCountBeforeStep + 1);
+
+    const velocityMaskEntityIdsAfterStep = world.query(0b0010);
+    const previousIds = new Set(velocityMaskEntityIdsBeforeStep);
+    const deferredEntityIds = velocityMaskEntityIdsAfterStep.filter(
+      (entityId) => !previousIds.has(entityId),
+    );
+
+    expect(velocityMaskEntityIdsAfterStep).toHaveLength(velocityMaskEntityIdsBeforeStep.length + 1);
+    expect(deferredEntityIds).toHaveLength(1);
   });
 
   it('preloads the shipped maps and starts the browser runtime with an injected input adapter', async () => {
