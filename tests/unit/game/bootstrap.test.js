@@ -42,7 +42,7 @@ function createRuntimeRawMap() {
       activeGhostTypes: [0, 1],
       ghostSpeed: 4.0,
       maxGhosts: 2,
-      name: 'B6 Runtime Wiring Harness',
+      name: 'Bomb Runtime Wiring Harness',
       timerSeconds: 120,
     },
     dimensions: { columns: 7, rows: 7 },
@@ -299,7 +299,7 @@ describe('bootstrap event-queue registration', () => {
   });
 });
 
-describe('bootstrap B6 runtime wiring', () => {
+describe('bootstrap bomb and explosion runtime wiring', () => {
   it('registers bomb, fire, collider, detonation queue, and rng resources by default', () => {
     const bootstrap = createBootstrap({ now: 0 });
 
@@ -345,7 +345,7 @@ describe('bootstrap B6 runtime wiring', () => {
     }
   });
 
-  it('keeps preallocated B6 pools stable across repeated level loads', () => {
+  it('keeps preallocated bomb and fire pools stable across repeated level loads', () => {
     const bootstrap = createBootstrap({
       loadMapForLevel: () => createRuntimeMapResource(),
       now: 0,
@@ -366,7 +366,7 @@ describe('bootstrap B6 runtime wiring', () => {
     expect(bootstrap.world.getEntityCount()).toBe(entityCountAfterFirstLoad);
   });
 
-  it('registers B6 logic systems in deterministic detonation order', () => {
+  it('registers bomb and explosion logic systems in deterministic detonation order', () => {
     const bootstrap = createBootstrap({ now: 0 });
     const logicSystemNames = (bootstrap.world.systemsByPhase.get('logic') || []).map(
       (entry) => entry.system.name,

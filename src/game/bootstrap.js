@@ -446,7 +446,7 @@ export function createBootstrap(options = {}) {
 
   // Movement systems need their component stores present before fixed-step work begins.
   initializeMovementResources(world, options);
-  // B-06 systems need prop stores and pooled entities before logic-phase ticks.
+  // Bomb and explosion systems need prop stores and pooled entities before logic-phase ticks.
   initializeBombExplosionResources(world, options);
   // Pre-register the adapter slot so runtime wiring has one explicit resource key
   // and systems never have to distinguish "never registered" from "registered null".

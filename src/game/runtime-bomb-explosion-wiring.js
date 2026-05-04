@@ -1,12 +1,12 @@
 /*
- * B-06 runtime bomb/explosion wiring.
+ * Runtime bomb/explosion wiring.
  *
- * This module owns Track A's default runtime assembly for B-06 bomb and fire
+ * This module owns Track A's default runtime assembly for bomb and fire
  * gameplay. It keeps bootstrap.js focused on orchestration while the resource
- * keys, pooled prop entities, and B6 logic-system construction live together.
+ * keys, pooled prop entities, and logic-system construction live together.
  *
  * Public API:
- * - createBombExplosionLogicSystems(options): build logic-phase B6 systems.
+ * - createBombExplosionLogicSystems(options): build logic-phase bomb/explosion systems.
  * - initializeBombExplosionResources(world, options): register stores/resources
  *   and preallocate pooled bomb/fire entities before fixed-step dispatch.
  *
@@ -99,7 +99,7 @@ function ensurePooledPropEntities(world, poolResourceKey, colliderStore, count, 
 }
 
 /**
- * Build the default logic-phase systems for B6 bomb and explosion simulation.
+ * Build the default logic-phase systems for bomb and explosion simulation.
  *
  * @param {object} [options] - Optional resource-key overrides shared with bootstrap.
  * @returns {Array<object>} Ordered logic-phase system registrations.
@@ -141,7 +141,7 @@ export function createBombExplosionLogicSystems(options = {}) {
 }
 
 /**
- * Allocate the B6 prop stores and pooled bomb/fire entities used by runtime systems.
+ * Allocate the prop stores and pooled bomb/fire entities used by runtime systems.
  *
  * @param {World} world - ECS world receiving resources.
  * @param {object} [options] - Optional resource-key overrides shared with bootstrap.

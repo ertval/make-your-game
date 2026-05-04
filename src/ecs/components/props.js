@@ -7,8 +7,8 @@
  * or grid-aligned.
  *
  * Runtime status:
- * - All stores in this module are planned gameplay scaffolding.
- * - None of them are registered by the current bootstrap path yet.
+ * - `bomb` and `fire` are part of the active runtime bootstrap path.
+ * - `pellet` and `powerUp` remain planned gameplay scaffolding.
  *
  * Public API:
  * - PROP_STORE_RUNTIME_STATUS: runtime/bootstrap status for each prop store.
@@ -50,16 +50,15 @@ export const PROP_POWER_UP_TYPE = Object.freeze({
  * This metadata is descriptive only and must not be treated as a registration API.
  */
 export const PROP_STORE_RUNTIME_STATUS = Object.freeze({
-  bomb: 'planned',
-  fire: 'planned',
+  bomb: 'active',
+  fire: 'active',
   pellet: 'planned',
   powerUp: 'planned',
 });
 
 /**
  * Allocate the typed-array store for bomb gameplay state.
- * This store is planned scaffolding and is not part of the active runtime
- * bootstrap contract yet.
+ * This store is part of the active runtime contract today.
  *
  * @param {number} maxEntities - Total entity capacity for the world.
  * @returns {BombStore} Fresh bomb store with canonical defaults.
@@ -93,8 +92,7 @@ export function resetBomb(store, entityId) {
 
 /**
  * Allocate the typed-array store for fire-tile gameplay state.
- * This store is planned scaffolding and is not part of the active runtime
- * bootstrap contract yet.
+ * This store is part of the active runtime contract today.
  *
  * @param {number} maxEntities - Total entity capacity for the world.
  * @returns {FireStore} Fresh fire store with canonical defaults.
