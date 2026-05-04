@@ -367,7 +367,8 @@ function syncPlayerEntityFromMap(world, mapResource, options = {}) {
     playerHandle = world.createEntity(PLAYER_WITH_RENDERABLE_MASK);
     world.setResource(playerEntityResourceKey, playerHandle);
   } else {
-    playerHandle = world.setEntityMask(playerHandle, PLAYER_WITH_RENDERABLE_MASK);
+    // setEntityMask returns boolean (true/false), not the handle — do not reassign
+    world.setEntityMask(playerHandle, PLAYER_WITH_RENDERABLE_MASK);
   }
 
   const entityId = playerHandle.id;

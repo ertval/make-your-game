@@ -61,6 +61,26 @@ jobs:
           set -euo pipefail
           npx playwright install --with-deps chromium
 
+      - name: Run Biome check
+        run: |
+          set -euo pipefail
+          npm run check
+
+      - name: Run unit and integration tests with coverage
+        run: |
+          set -euo pipefail
+          npm run test:coverage
+
+      - name: Run E2E tests
+        run: |
+          set -euo pipefail
+          npm run test:e2e
+
+      - name: Validate map JSON Schema
+        run: |
+          set -euo pipefail
+          npm run validate:schema
+
       - name: Run Full-Repo Security Scan
         run: |
           set -euo pipefail

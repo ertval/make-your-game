@@ -453,3 +453,28 @@ describe('bootstrap onRestart deterministic time', () => {
     expect(bootstrap.clock.realTimeMs).toBe(5000);
   });
 });
+
+describe('BUG-01 regression: syncPlayerEntityFromMap handle corruption', () => {
+  it('preserves playerHandle with valid id after reloading a level where player entity already exists', () => {
+    const bootstrap = createBootstrap({
+      loadMapForLevel: () => createRuntimeMapResource(),
+      now: 0,
+    });
+
+    // First load creates the player entity from scratch
+    bootstrap.levelLoader.loadLevel(0);
+    const playerHandleFirst = bootstrap.world.getResource('playerEntity');
+    expect(playerHandleFirst).not.toBeNull();
+    expect(typeof playerHandleFirst.id).toBe('number');
+
+    // Second load reuses the existing player entity — this previously corrupted
+    // playerHandle because setEntityMask() returns a boolean, not the handle.
+    bootstrap.levelLoader.loadLevel(0);
+    const playerHandleSecond = bootstrap.world.getResource('playerEntity');
+    expect(playerHandleSecond).not.toBeNull();
+    expect(typeof playerHandleSecond.id).toBe('number');
+
+    // The handle identity should be preserved (same entity, recycled)
+    expect(playerHandleSecond.id).toBe(playerHandleFirst.id);
+  });
+});
