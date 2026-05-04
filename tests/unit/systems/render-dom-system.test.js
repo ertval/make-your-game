@@ -515,7 +515,10 @@ describe('render-dom-system', () => {
         { entityId: 1, kind: RENDERABLE_KIND.PLAYER, x: 0, y: 0, opacity: 255, classBits: 0 },
       ]);
       renderDomSystem.update({
-        world: { getResource: (k) => (k === 'renderIntent' ? buffer : k === 'spritePool' ? spritePool : null) },
+        world: {
+          getResource: (k) =>
+            k === 'renderIntent' ? buffer : k === 'spritePool' ? spritePool : null,
+        },
       });
       expect(spritePool.acquire).toHaveBeenCalledTimes(1);
 
@@ -524,7 +527,10 @@ describe('render-dom-system', () => {
         { entityId: 1, kind: RENDERABLE_KIND.PLAYER, x: 1, y: 0, opacity: 255, classBits: 0 },
       ]);
       renderDomSystem.update({
-        world: { getResource: (k) => (k === 'renderIntent' ? buffer : k === 'spritePool' ? spritePool : null) },
+        world: {
+          getResource: (k) =>
+            k === 'renderIntent' ? buffer : k === 'spritePool' ? spritePool : null,
+        },
       });
 
       // Reuse means acquire was called only once total (from first frame)
@@ -536,16 +542,17 @@ describe('render-dom-system', () => {
 
       const playerEl = { classList: { add: vi.fn(), remove: vi.fn() }, style: {} };
       const ghostEl = { classList: { add: vi.fn(), remove: vi.fn() }, style: {} };
-      spritePool.acquire
-        .mockReturnValueOnce(playerEl)
-        .mockReturnValueOnce(ghostEl);
+      spritePool.acquire.mockReturnValueOnce(playerEl).mockReturnValueOnce(ghostEl);
 
       // First frame — player
       fillBuffer([
         { entityId: 1, kind: RENDERABLE_KIND.PLAYER, x: 0, y: 0, opacity: 255, classBits: 0 },
       ]);
       renderDomSystem.update({
-        world: { getResource: (k) => (k === 'renderIntent' ? buffer : k === 'spritePool' ? spritePool : null) },
+        world: {
+          getResource: (k) =>
+            k === 'renderIntent' ? buffer : k === 'spritePool' ? spritePool : null,
+        },
       });
       expect(spritePool.acquire).toHaveBeenCalledWith('player');
 
@@ -554,7 +561,10 @@ describe('render-dom-system', () => {
         { entityId: 1, kind: RENDERABLE_KIND.GHOST, x: 0, y: 0, opacity: 255, classBits: 0 },
       ]);
       renderDomSystem.update({
-        world: { getResource: (k) => (k === 'renderIntent' ? buffer : k === 'spritePool' ? spritePool : null) },
+        world: {
+          getResource: (k) =>
+            k === 'renderIntent' ? buffer : k === 'spritePool' ? spritePool : null,
+        },
       });
 
       expect(spritePool.release).toHaveBeenCalledWith('player', playerEl);
@@ -566,9 +576,7 @@ describe('render-dom-system', () => {
 
       const playerEl = { classList: { add: vi.fn(), remove: vi.fn() }, style: {} };
       const ghostEl = { classList: { add: vi.fn(), remove: vi.fn() }, style: {} };
-      spritePool.acquire
-        .mockReturnValueOnce(playerEl)
-        .mockReturnValueOnce(ghostEl);
+      spritePool.acquire.mockReturnValueOnce(playerEl).mockReturnValueOnce(ghostEl);
 
       // First frame — two entities
       fillBuffer([
@@ -576,7 +584,10 @@ describe('render-dom-system', () => {
         { entityId: 2, kind: RENDERABLE_KIND.GHOST, x: 1, y: 0, opacity: 255, classBits: 0 },
       ]);
       renderDomSystem.update({
-        world: { getResource: (k) => (k === 'renderIntent' ? buffer : k === 'spritePool' ? spritePool : null) },
+        world: {
+          getResource: (k) =>
+            k === 'renderIntent' ? buffer : k === 'spritePool' ? spritePool : null,
+        },
       });
 
       expect(spritePool.release).not.toHaveBeenCalled();
@@ -586,7 +597,10 @@ describe('render-dom-system', () => {
         { entityId: 1, kind: RENDERABLE_KIND.PLAYER, x: 0, y: 0, opacity: 255, classBits: 0 },
       ]);
       renderDomSystem.update({
-        world: { getResource: (k) => (k === 'renderIntent' ? buffer : k === 'spritePool' ? spritePool : null) },
+        world: {
+          getResource: (k) =>
+            k === 'renderIntent' ? buffer : k === 'spritePool' ? spritePool : null,
+        },
       });
 
       expect(spritePool.release).toHaveBeenCalledWith('ghost', ghostEl);

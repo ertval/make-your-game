@@ -22,13 +22,13 @@ vi.mock('../../../src/shared/env.js', () => ({
   isDevelopment: vi.fn(() => true),
 }));
 
-import { isDevelopment } from '../../../src/shared/env.js';
 import {
   createRenderableStore,
   createVisualStateStore,
   RENDERABLE_KIND,
   VISUAL_FLAGS,
 } from '../../../src/ecs/components/visual.js';
+import { isDevelopment } from '../../../src/shared/env.js';
 
 describe('render-intent buffer', () => {
   it('exports a stable schema version', () => {

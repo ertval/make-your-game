@@ -65,10 +65,20 @@ describe('board-adapter', () => {
   it('removes the board element from the document when clearBoard is called', () => {
     const map = { rows: 2, cols: 3, grid: new Uint8Array(6), grid2D: [], activeGhostTypes: [] };
     const parent = { children: [], appendChild: vi.fn(), removeChild: vi.fn() };
-    const boardElement = { classList: { add: vi.fn() }, style: { setProperty: vi.fn() }, parentNode: parent, children: [], appendChild: vi.fn(), innerHTML: '', setAttribute: vi.fn() };
-    const adapterWithBoard = createBoardAdapter({ document: {
-      createElement: vi.fn(() => boardElement),
-    } });
+    const boardElement = {
+      classList: { add: vi.fn() },
+      style: { setProperty: vi.fn() },
+      parentNode: parent,
+      children: [],
+      appendChild: vi.fn(),
+      innerHTML: '',
+      setAttribute: vi.fn(),
+    };
+    const adapterWithBoard = createBoardAdapter({
+      document: {
+        createElement: vi.fn(() => boardElement),
+      },
+    });
 
     adapterWithBoard.generateBoard(map, container);
     adapterWithBoard.clearBoard();
@@ -78,9 +88,11 @@ describe('board-adapter', () => {
   });
 
   it('clearBoard does nothing when board is already null', () => {
-    const adapterWithNoBoard = createBoardAdapter({ document: {
-      createElement: vi.fn(() => ({ parentNode: null })),
-    } });
+    const adapterWithNoBoard = createBoardAdapter({
+      document: {
+        createElement: vi.fn(() => ({ parentNode: null })),
+      },
+    });
 
     adapterWithNoBoard.clearBoard();
     expect(adapterWithNoBoard.getBoard()).toBeNull();
@@ -134,7 +146,10 @@ describe('board-adapter', () => {
         parentNode: null,
       })),
     };
-    const adapterWithPool = createBoardAdapter({ document: mockDoc, spritePool: { warmUp, reset } });
+    const adapterWithPool = createBoardAdapter({
+      document: mockDoc,
+      spritePool: { warmUp, reset },
+    });
     const container3 = { firstChild: null, appendChild: vi.fn(), removeChild: vi.fn() };
     const map = { rows: 1, cols: 1, grid: new Uint8Array(1), grid2D: [], activeGhostTypes: [] };
 
@@ -157,7 +172,10 @@ describe('board-adapter', () => {
     const mockDoc = {
       createElement: vi.fn(() => boardEl),
     };
-    const adapterWithPool = createBoardAdapter({ document: mockDoc, spritePool: { warmUp, reset } });
+    const adapterWithPool = createBoardAdapter({
+      document: mockDoc,
+      spritePool: { warmUp, reset },
+    });
     const container4 = { firstChild: null, appendChild: vi.fn(), removeChild: vi.fn() };
     const map = { rows: 1, cols: 1, grid: new Uint8Array(1), grid2D: [], activeGhostTypes: [] };
 
