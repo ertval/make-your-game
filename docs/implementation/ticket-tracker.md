@@ -53,28 +53,28 @@ All P0 tickets complete. Audit reports published and remediation verified.
 
 **Status:** In Progress — Tickets D-08 and A-11 pending.
 
-- **Audit reports published:** *Pending A-11 completion*
+- **Audit reports published:** _Pending A-11 completion_
 - **Remediation status:** D-05 ✅, D-06 ✅, B-02 ✅, B-03 ✅, D-07 ✅, D-09 ✅, D-08 ⏳, A-11 ⏳
 
 ## 🔲 Phase 2 — Playable MVP (P2)
 
 **Status:** Not Started — Blocks on P1 completion (A-11).
 
-- **Audit reports published:** *Pending A-12 completion*
+- **Audit reports published:** _Pending A-12 completion_
 - **Remediation status:** B-04 ✅, C-02 ✅, C-01 ✅, C-03 ✅, B-05 ✅, A-07 ✅, C-04 ⏳, C-05 ⏳, C-06 ⏳, A-12 ⏳
 
 ## 🔲 Phase 3 — Feature Complete + Hardening (P3)
 
 **Status:** Not Started — Blocks on P2 completion (A-12).
 
-- **Audit reports published:** *Pending A-13 completion*
+- **Audit reports published:** _Pending A-13 completion_
 - **Remediation status:** A-04 ✅, B-06 ⏳, B-07 ⏳, B-08 ⏳, B-09 ⏳, C-07 ⏳, A-05 ⏳, A-06 ⏳, A-08 ⏳, A-13 ⏳
 
 ## 🔲 Phase 4 — Polish + Validation (P4)
 
 **Status:** Not Started — Blocks on P3 completion (A-13).
 
-- **Audit reports published:** *Pending A-14 completion*
+- **Audit reports published:** _Pending A-14 completion_
 - **Remediation status:** C-08 ⏳, C-09 ⏳, C-10 ⏳, D-10 ⏳, D-11 ⏳, A-09 ⏳, A-14 ⏳
 
 ## 🛣️ Prototype-First Claim Queue (Global)
