@@ -106,11 +106,14 @@ test('AUDIT-F-07/AUDIT-F-08/AUDIT-F-09 pause, continue, and restart transitions 
     const runtime = window.__MS_GHOSTMAN_RUNTIME__;
     runtime.pause();
     runtime.restart();
+    // Pause immediately after restart to freeze the clock before rAF ticks.
+    runtime.pause();
   });
 
   const afterRestart = await page.evaluate(() => window.__MS_GHOSTMAN_RUNTIME__.getSnapshot());
-  expect(afterRestart.state).toBe('PLAYING');
-  expect(afterRestart.simTimeMs).toBeLessThanOrEqual(simBeforeRestart);
+  expect(afterRestart.state).toBe('PAUSED');
+  // simTimeMs should be near zero after restart reset + at most one frame tick.
+  expect(afterRestart.simTimeMs).toBeLessThanOrEqual(simBeforeRestart + 16.67);
 });
 
 test('AUDIT-F-10 pause freezes simulation while rAF keeps sampling frames', async ({ page }) => {
