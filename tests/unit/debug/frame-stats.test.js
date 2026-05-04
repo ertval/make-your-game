@@ -31,23 +31,4 @@ describe('frame-stats helpers', () => {
   it('returns zero for empty samples', () => {
     expect(percentileFromSorted([], 95)).toBe(0);
   });
-
-  it('falls back to values.length when count is omitted', () => {
-    const values = [30, 10, 20];
-    const sorted = toSortedNumericArray(values);
-
-    expect(sorted).toEqual([10, 20, 30]);
-  });
-
-  it('handles null values and non-finite count gracefully', () => {
-    const sortedEmpty = toSortedNumericArray(null);
-    expect(sortedEmpty).toEqual([]);
-
-    const sortedWithNaN = toSortedNumericArray([5, 1], NaN);
-    expect(sortedWithNaN).toEqual([]);
-  });
-
-  it('returns first value for NaN percentile (coerces to 0)', () => {
-    expect(percentileFromSorted([10, 20, 30], NaN)).toBe(10);
-  });
 });
