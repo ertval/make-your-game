@@ -25,6 +25,8 @@ import {
   GAMEPLAY_EVENT_TYPE,
 } from '../../../src/ecs/systems/collision-gameplay-events.js';
 import {
+  advanceTowardTarget,
+  canStartMove,
   createPlayerMoveSystem,
   getPlayerMoveSpeed,
   hasReachedTarget,
@@ -314,6 +316,49 @@ describe('player-move-system contract', () => {
 
     expect(hasReachedTarget(positionStore, 1)).toBe(false);
   });
+
+  it('returns null when inputState is absent', () => {
+    expect(resolvePriorityDirection(null, 0)).toBeNull();
+  });
+
+  it('returns base speed when playerStore is absent', () => {
+    expect(getPlayerMoveSpeed(null, 0)).toBe(PLAYER_BASE_SPEED);
+  });
+
+  it('returns false when positionStore is absent', () => {
+    expect(hasReachedTarget(null, 0)).toBe(false);
+  });
+
+  it('returns false when map resource is absent', () => {
+    expect(canStartMove(null, 3, 3, 'up')).toBe(false);
+  });
+
+  it('returns false when direction is null', () => {
+    const mapResource = createMapResource(createMovementRawMap());
+    expect(canStartMove(mapResource, 3, 3, null)).toBe(false);
+  });
+
+  it('returns false for an unrecognized direction string', () => {
+    const mapResource = createMapResource(createMovementRawMap());
+    expect(canStartMove(mapResource, 3, 3, 'diagonal')).toBe(false);
+  });
+
+  it('returns the full distance unchanged when the entity is already at its target', () => {
+    const positionStore = createPositionStore(2);
+    const velocityStore = createVelocityStore(2);
+
+    positionStore.row[0] = 3;
+    positionStore.col[0] = 3;
+    positionStore.targetRow[0] = 3;
+    positionStore.targetCol[0] = 3;
+
+    expect(advanceTowardTarget(positionStore, velocityStore, 0, 0.5)).toBe(0.5);
+  });
+
+  it('omits the event queue from write capabilities when no key is configured', () => {
+    const system = createPlayerMoveSystem();
+    expect(system.resourceCapabilities.write).toEqual(['position', 'velocity']);
+  });
 });
 
 describe('player-move-system stepping behavior', () => {
@@ -575,6 +620,87 @@ describe('player-move-system stepping behavior', () => {
     expect(velocityStore.speedTilesPerSecond[player.id]).toBe(
       PLAYER_BASE_SPEED * SPEED_BOOST_MULTIPLIER,
     );
+  });
+
+  it('returns early without throwing when required resources are absent', () => {
+    const world = new World();
+    const system = createPlayerMoveSystem();
+    expect(() =>
+      system.update({ dtMs: FIXED_DT_MS, frame: 0, simTimeMs: 0, world }),
+    ).not.toThrow();
+  });
+
+  it('sets a move intent but does not advance position when dtMs is zero', () => {
+    const { inputState, player, positionStore, system, world } = createMovementHarness();
+
+    holdSingleDirection(inputState, player.id, 'right');
+    runMovementSteps({ system, world, dtMs: 0 });
+
+    // Target is updated but position stays on the tile center.
+    expect(positionStore.col[player.id]).toBe(3);
+    expect(positionStore.targetCol[player.id]).toBe(4);
+  });
+
+  it('snaps to the target tile and stops when a large dtMs overshoots the destination', () => {
+    const { inputState, player, positionStore, system, velocityStore, world } =
+      createMovementHarness();
+
+    holdSingleDirection(inputState, player.id, 'right');
+    // 2 000 ms gives 10 tiles of distance — far more than the 1-tile gap at spawn.
+    runMovementSteps({ system, world, dtMs: 2000 });
+
+    expect(positionStore.row[player.id]).toBe(3);
+    expect(positionStore.col[player.id]).toBe(4);
+    expect(velocityStore.rowDelta[player.id]).toBe(0);
+    expect(velocityStore.colDelta[player.id]).toBe(0);
+    expect(hasReachedTarget(positionStore, player.id)).toBe(true);
+  });
+
+  it('keeps the player stationary when the immediately adjacent tile is a wall', () => {
+    // (2,2) is INDESTRUCTIBLE in the base fixture; holding 'up' from (3,2)
+    // can never start a move so the player stays in place each step.
+    const { inputState, player, positionStore, system, velocityStore, world } =
+      createMovementHarness();
+
+    setPlayerTile(positionStore, player.id, 3, 2);
+    holdSingleDirection(inputState, player.id, 'up');
+    runMovementSteps({ system, world, steps: 5 });
+
+    expect(positionStore.row[player.id]).toBe(3);
+    expect(positionStore.col[player.id]).toBe(2);
+    expect(velocityStore.rowDelta[player.id]).toBe(0);
+    expect(velocityStore.colDelta[player.id]).toBe(0);
+  });
+
+  it('runs movement without error when no event queue key is configured', () => {
+    const world = new World();
+    const system = createPlayerMoveSystem(); // no eventQueueResourceKey → null branch
+    const mapResource = createMapResource(createMovementRawMap());
+    const playerStore = createPlayerStore(8);
+    const positionStore = createPositionStore(8);
+    const velocityStore = createVelocityStore(8);
+    const inputState = createInputStateStore(8);
+    const player = world.createEntity(PLAYER_MOVE_REQUIRED_MASK);
+
+    positionStore.row[player.id] = 3;
+    positionStore.col[player.id] = 3;
+    positionStore.prevRow[player.id] = 3;
+    positionStore.prevCol[player.id] = 3;
+    positionStore.targetRow[player.id] = 3;
+    positionStore.targetCol[player.id] = 3;
+    holdSingleDirection(inputState, player.id, 'right');
+
+    world.setResource('mapResource', mapResource);
+    world.setResource('player', playerStore);
+    world.setResource('position', positionStore);
+    world.setResource('velocity', velocityStore);
+    world.setResource('inputState', inputState);
+    // No eventQueue registered — exercises the `eventQueueResourceKey ? ... : null` branch.
+
+    expect(() =>
+      system.update({ dtMs: FIXED_DT_MS, frame: 0, simTimeMs: 0, world }),
+    ).not.toThrow();
+    expect(positionStore.col[player.id]).toBeGreaterThan(3);
   });
 
   it('produces identical movement traces for identical input sequences', () => {
