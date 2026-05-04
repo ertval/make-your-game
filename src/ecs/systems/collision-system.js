@@ -728,6 +728,33 @@ function buildActorOccupancy(
 }
 
 /**
+ * Read optional B6 chain metadata from a fire tile.
+ *
+ * The collision system still supports older tests and partial integration
+ * harnesses that do not register a fire store, so metadata is only attached
+ * when the source fire component exposes valid values.
+ *
+ * @param {FireStore | null | undefined} fireStore - Optional fire component store.
+ * @param {number} fireId - Fire entity id that caused the collision.
+ * @returns {{ sourceBombId?: number, chainDepth?: number }} Intent metadata fields.
+ */
+function readFireChainMetadata(fireStore, fireId) {
+  const metadata = {};
+  const sourceBombId = fireStore?.sourceBombId?.[fireId];
+  const chainDepth = fireStore?.chainDepth?.[fireId];
+
+  if (Number.isFinite(sourceBombId) && sourceBombId >= 0) {
+    metadata.sourceBombId = sourceBombId;
+  }
+
+  if (Number.isFinite(chainDepth) && chainDepth > 0) {
+    metadata.chainDepth = chainDepth;
+  }
+
+  return metadata;
+}
+
+/**
  * Resolve dynamic fire and ghost-contact collisions for one occupied cell.
  *
  * Collision priority is enforced here as:
@@ -742,6 +769,7 @@ function buildActorOccupancy(
  * @param {PlayerStore | null | undefined} playerStore - Player gameplay store.
  * @param {HealthStore | null | undefined} healthStore - Health gameplay store.
  * @param {GhostStore | null | undefined} ghostStore - Ghost gameplay store.
+ * @param {FireStore | null | undefined} fireStore - Optional fire metadata store.
  * @param {{ row: number, col: number }} reusableTile - Shared temporary tile object.
  * @param {object} [eventContext] - Optional event queue context for B-05 emission.
  */
@@ -753,6 +781,7 @@ function resolveDynamicCellCollisions(
   playerStore,
   healthStore,
   ghostStore,
+  fireStore,
   reusableTile,
   eventContext,
 ) {
@@ -789,6 +818,7 @@ function resolveDynamicCellCollisions(
         col: tile.col,
         cause: 'fire',
         sourceEntityId: fireId,
+        ...readFireChainMetadata(fireStore, fireId),
         ghostState,
       });
 
@@ -849,6 +879,7 @@ function resolveDynamicCellCollisions(
  *   playerResourceKey?: string,
  *   healthResourceKey?: string,
  *   ghostResourceKey?: string,
+ *   fireResourceKey?: string,
  *   collisionIntentsResourceKey?: string,
  *   eventQueueResourceKey?: string,
  *   requiredMask?: number,
@@ -863,6 +894,7 @@ export function createCollisionSystem(options = {}) {
   const playerResourceKey = options.playerResourceKey || 'player';
   const healthResourceKey = options.healthResourceKey || 'health';
   const ghostResourceKey = options.ghostResourceKey || 'ghost';
+  const fireResourceKey = options.fireResourceKey || 'fire';
   const collisionIntentsResourceKey = options.collisionIntentsResourceKey || 'collisionIntents';
   const eventQueueResourceKey = options.eventQueueResourceKey || 'eventQueue';
   const requiredMask = options.requiredMask ?? COLLISION_ENTITY_REQUIRED_MASK;
@@ -878,7 +910,7 @@ export function createCollisionSystem(options = {}) {
     name: 'collision-system',
     phase: 'logic',
     resourceCapabilities: {
-      read: [colliderResourceKey, playerResourceKey, healthResourceKey],
+      read: [colliderResourceKey, playerResourceKey, healthResourceKey, fireResourceKey],
       write: [
         mapResourceKey,
         positionResourceKey,
@@ -895,6 +927,7 @@ export function createCollisionSystem(options = {}) {
       const playerStore = world.getResource(playerResourceKey);
       const healthStore = world.getResource(healthResourceKey);
       const ghostStore = world.getResource(ghostResourceKey);
+      const fireStore = world.getResource(fireResourceKey);
       const collisionIntents = world.getResource(collisionIntentsResourceKey);
       const eventQueue = world.getResource(eventQueueResourceKey);
 
@@ -988,6 +1021,7 @@ export function createCollisionSystem(options = {}) {
           playerStore,
           healthStore,
           ghostStore,
+          fireStore,
           reusableCellTile,
           eventContext,
         );
