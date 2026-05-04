@@ -9,6 +9,7 @@
 import { describe, expect, it } from 'vitest';
 
 import { createGhostStore, createPlayerStore } from '../../../src/ecs/components/actors.js';
+import { createFireStore } from '../../../src/ecs/components/props.js';
 import { COMPONENT_MASK } from '../../../src/ecs/components/registry.js';
 import {
   COLLIDER_TYPE,
@@ -740,6 +741,48 @@ describe('collision-system update shell', () => {
         col: 1,
         cause: 'fire',
         sourceEntityId: 2,
+        ghostState: GHOST_STATE.NORMAL,
+      },
+    ]);
+    expect(ghostStore.state[ghost.id]).toBe(GHOST_STATE.DEAD);
+  });
+
+  it('copies fire chain metadata onto fire-caused ghost-death intents', () => {
+    const { colliderStore, collisionIntents, ghostStore, positionStore, system, world } =
+      createCollisionHarness([[1, 1, CELL_TYPE.EMPTY]]);
+    const fireStore = createFireStore(8);
+
+    const ghost = addCollisionEntity(
+      world,
+      positionStore,
+      colliderStore,
+      COLLIDER_TYPE.GHOST,
+      1,
+      1,
+    );
+    const fire = addCollisionEntity(world, positionStore, colliderStore, COLLIDER_TYPE.FIRE, 1, 1);
+
+    fireStore.sourceBombId[fire.id] = 42;
+    fireStore.chainDepth[fire.id] = 3;
+    world.setResource('fire', fireStore);
+
+    system.update({
+      dtMs: 16.6667,
+      frame: 0,
+      world,
+    });
+
+    expect(collisionIntents).toEqual([
+      {
+        order: 0,
+        type: 'ghost-death',
+        entityId: ghost.id,
+        row: 1,
+        col: 1,
+        cause: 'fire',
+        sourceEntityId: fire.id,
+        sourceBombId: 42,
+        chainDepth: 3,
         ghostState: GHOST_STATE.NORMAL,
       },
     ]);

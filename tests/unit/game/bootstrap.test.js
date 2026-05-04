@@ -8,7 +8,11 @@
 
 import { describe, expect, it, vi } from 'vitest';
 
+import { COMPONENT_MASK } from '../../../src/ecs/components/registry.js';
+import { COLLIDER_TYPE } from '../../../src/ecs/components/spatial.js';
+import { POOL_FIRE, POOL_MAX_BOMBS } from '../../../src/ecs/resources/constants.js';
 import { GAME_STATE } from '../../../src/ecs/resources/game-status.js';
+import { createMapResource } from '../../../src/ecs/resources/map-resource.js';
 import { createBootstrap } from '../../../src/game/bootstrap.js';
 
 function createAdapterStub({ heldKeys = ['left'], pressedKeys = [] } = {}) {
@@ -29,6 +33,43 @@ function createAdapterStub({ heldKeys = ['left'], pressedKeys = [] } = {}) {
     getHeldKeys: vi.fn(() => heldKeySet),
     heldKeys: heldKeySet,
   };
+}
+
+function createRuntimeRawMap() {
+  return {
+    level: 1,
+    metadata: {
+      activeGhostTypes: [0, 1],
+      ghostSpeed: 4.0,
+      maxGhosts: 2,
+      name: 'Bomb Runtime Wiring Harness',
+      timerSeconds: 120,
+    },
+    dimensions: { columns: 7, rows: 7 },
+    grid: [
+      [1, 1, 1, 1, 1, 1, 1],
+      [1, 3, 3, 3, 3, 3, 1],
+      [1, 3, 3, 3, 3, 3, 1],
+      [1, 3, 3, 6, 3, 3, 1],
+      [1, 3, 5, 5, 5, 3, 1],
+      [1, 3, 5, 5, 5, 3, 1],
+      [1, 1, 1, 1, 1, 1, 1],
+    ],
+    spawn: {
+      ghostHouse: {
+        bottomRow: 5,
+        leftCol: 2,
+        rightCol: 4,
+        topRow: 4,
+      },
+      ghostSpawnPoint: { col: 3, row: 4 },
+      player: { col: 3, row: 3 },
+    },
+  };
+}
+
+function createRuntimeMapResource() {
+  return createMapResource(createRuntimeRawMap());
 }
 
 describe('bootstrap input-adapter registration', () => {
@@ -255,6 +296,83 @@ describe('bootstrap event-queue registration', () => {
     expect(bootstrap.eventQueueResourceKey).toBe('customEventQueue');
     expect(bootstrap.world.hasResource('customEventQueue')).toBe(true);
     expect(bootstrap.world.hasResource('eventQueue')).toBe(false);
+  });
+});
+
+describe('bootstrap bomb and explosion runtime wiring', () => {
+  it('registers bomb, fire, collider, detonation queue, and rng resources by default', () => {
+    const bootstrap = createBootstrap({ now: 0 });
+
+    expect(bootstrap.world.hasResource('collider')).toBe(true);
+    expect(bootstrap.world.getResource('collider')?.type).toBeInstanceOf(Uint8Array);
+
+    expect(bootstrap.world.hasResource('bomb')).toBe(true);
+    expect(bootstrap.world.getResource('bomb')?.fuseMs).toBeInstanceOf(Float64Array);
+
+    expect(bootstrap.world.hasResource('fire')).toBe(true);
+    expect(bootstrap.world.getResource('fire')?.burnTimerMs).toBeInstanceOf(Float64Array);
+
+    expect(bootstrap.world.hasResource('bombDetonationQueue')).toBe(true);
+    expect(bootstrap.world.getResource('bombDetonationQueue')).toEqual([]);
+
+    expect(bootstrap.world.hasResource('rng')).toBe(true);
+    expect(typeof bootstrap.world.getResource('rng')?.state).toBe('number');
+  });
+
+  it('preallocates inactive bomb and fire entity pools before fixed-step systems run', () => {
+    const bootstrap = createBootstrap({ now: 0 });
+    const colliderStore = bootstrap.world.getResource('collider');
+    const bombPool = bootstrap.world.getResource('bombEntityPool');
+    const firePool = bootstrap.world.getResource('fireEntityPool');
+
+    expect(bombPool).toHaveLength(POOL_MAX_BOMBS);
+    expect(firePool).toHaveLength(POOL_FIRE);
+
+    expect(
+      bootstrap.world.query(
+        COMPONENT_MASK.BOMB | COMPONENT_MASK.POSITION | COMPONENT_MASK.COLLIDER,
+      ),
+    ).toHaveLength(POOL_MAX_BOMBS);
+    expect(
+      bootstrap.world.query(
+        COMPONENT_MASK.FIRE | COMPONENT_MASK.POSITION | COMPONENT_MASK.COLLIDER,
+      ),
+    ).toHaveLength(POOL_FIRE);
+
+    for (const handle of [...bombPool, ...firePool]) {
+      expect(bootstrap.world.entityStore.isAlive(handle)).toBe(true);
+      expect(colliderStore.type[handle.id]).toBe(COLLIDER_TYPE.NONE);
+    }
+  });
+
+  it('keeps preallocated bomb and fire pools stable across repeated level loads', () => {
+    const bootstrap = createBootstrap({
+      loadMapForLevel: () => createRuntimeMapResource(),
+      now: 0,
+    });
+    const bombPool = bootstrap.world.getResource('bombEntityPool');
+    const firePool = bootstrap.world.getResource('fireEntityPool');
+
+    expect(bombPool).toHaveLength(POOL_MAX_BOMBS);
+    expect(firePool).toHaveLength(POOL_FIRE);
+
+    bootstrap.levelLoader.loadLevel(0);
+    const entityCountAfterFirstLoad = bootstrap.world.getEntityCount();
+
+    bootstrap.levelLoader.loadLevel(0);
+
+    expect(bootstrap.world.getResource('bombEntityPool')).toBe(bombPool);
+    expect(bootstrap.world.getResource('fireEntityPool')).toBe(firePool);
+    expect(bootstrap.world.getEntityCount()).toBe(entityCountAfterFirstLoad);
+  });
+
+  it('registers bomb and explosion logic systems in deterministic detonation order', () => {
+    const bootstrap = createBootstrap({ now: 0 });
+    const logicSystemNames = (bootstrap.world.systemsByPhase.get('logic') || []).map(
+      (entry) => entry.system.name,
+    );
+
+    expect(logicSystemNames).toEqual(['bomb-tick-system', 'explosion-system']);
   });
 });
 
