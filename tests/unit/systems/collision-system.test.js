@@ -531,6 +531,134 @@ describe('collision-system helpers', () => {
     expect(isPlayerInvincible(playerStore, null, 0)).toBe(true);
     expect(isPlayerInvincible(playerStore, null, 1)).toBe(false);
   });
+
+  it('returns -1 from tileToCellIndex when mapResource is null', () => {
+    expect(tileToCellIndex(null, 0, 0)).toBe(-1);
+    expect(tileToCellIndex(undefined, 1, 2)).toBe(-1);
+  });
+
+  it('returns null from clearCollisionIntents when passed a non-array', () => {
+    expect(clearCollisionIntents(null)).toBeNull();
+    expect(clearCollisionIntents('invalid')).toBeNull();
+    expect(clearCollisionIntents(42)).toBeNull();
+  });
+
+  it('returns null from appendCollisionIntent when passed a non-array', () => {
+    expect(appendCollisionIntent(null, { type: 'pellet-collected' })).toBeNull();
+    expect(appendCollisionIntent(undefined, { type: 'pellet-collected' })).toBeNull();
+  });
+
+  it('rejects validateGameplayEventPayload with an empty type string', () => {
+    expect(() =>
+      validateGameplayEventPayload('', { entityId: 0, tile: { row: 0, col: 0 }, sourceSystem: 'x' }),
+    ).toThrow(/non-empty string/);
+  });
+
+  it('rejects validateGameplayEventPayload with a null payload', () => {
+    expect(() =>
+      validateGameplayEventPayload(GAMEPLAY_EVENT_TYPE.PELLET_COLLECTED, null),
+    ).toThrow(/payload must be an object/);
+  });
+
+  it('rejects validateGameplayEventPayload with an invalid tile shape', () => {
+    expect(() =>
+      validateGameplayEventPayload(GAMEPLAY_EVENT_TYPE.PELLET_COLLECTED, {
+        entityId: 0,
+        tile: { row: 'bad', col: 0 },
+        sourceSystem: 'x',
+      }),
+    ).toThrow(/finite tile/);
+  });
+
+  it('rejects validateGameplayEventPayload with an empty sourceSystem', () => {
+    expect(() =>
+      validateGameplayEventPayload(GAMEPLAY_EVENT_TYPE.PELLET_COLLECTED, {
+        entityId: 0,
+        tile: { row: 0, col: 0 },
+        sourceSystem: '',
+      }),
+    ).toThrow(/sourceSystem/);
+  });
+
+  it('rejects player-ghost contact payload when ghostState is not finite', () => {
+    expect(() =>
+      validateGameplayEventPayload(GAMEPLAY_EVENT_TYPE.PLAYER_GHOST_CONTACT, {
+        entityId: 0,
+        sourceEntityId: 1,
+        ghostState: 'not-a-number',
+        sourceSystem: 'x',
+        tile: { row: 0, col: 0 },
+      }),
+    ).toThrow(/ghostState/);
+  });
+
+  it('accepts a fully valid player-ghost contact payload', () => {
+    expect(
+      validateGameplayEventPayload(GAMEPLAY_EVENT_TYPE.PLAYER_GHOST_CONTACT, {
+        entityId: 0,
+        ghostState: GHOST_STATE.NORMAL,
+        sourceEntityId: 1,
+        sourceSystem: 'x',
+        tile: { row: 0, col: 0 },
+      }),
+    ).toBe(true);
+  });
+
+  it('rejects player-position-changed payload when position is missing', () => {
+    expect(() =>
+      validateGameplayEventPayload(GAMEPLAY_EVENT_TYPE.PLAYER_POSITION_CHANGED, {
+        entityId: 0,
+        previousTile: { row: 0, col: 0 },
+        position: null,
+        sourceSystem: 'x',
+        tile: { row: 1, col: 0 },
+      }),
+    ).toThrow(/position/);
+  });
+
+  it('accepts a fully valid player-position-changed payload', () => {
+    expect(
+      validateGameplayEventPayload(GAMEPLAY_EVENT_TYPE.PLAYER_POSITION_CHANGED, {
+        entityId: 0,
+        position: { row: 0.5, col: 0 },
+        previousTile: { row: 0, col: 0 },
+        sourceSystem: 'x',
+        tile: { row: 1, col: 0 },
+      }),
+    ).toBe(true);
+  });
+
+  it('rejects bomb-detonated payload when chainDepth is negative', () => {
+    expect(() =>
+      validateGameplayEventPayload(GAMEPLAY_EVENT_TYPE.BOMB_DETONATED, {
+        entityId: 0,
+        chainDepth: -1,
+        sourceSystem: 'x',
+        tile: { row: 0, col: 0 },
+      }),
+    ).toThrow(/chainDepth/);
+  });
+
+  it('accepts a fully valid bomb-detonated payload', () => {
+    expect(
+      validateGameplayEventPayload(GAMEPLAY_EVENT_TYPE.BOMB_DETONATED, {
+        entityId: 0,
+        chainDepth: 0,
+        sourceSystem: 'x',
+        tile: { row: 0, col: 0 },
+      }),
+    ).toBe(true);
+  });
+
+  it('throws for unsupported gameplay event type strings', () => {
+    expect(() =>
+      validateGameplayEventPayload('UnknownEvent', {
+        entityId: 0,
+        sourceSystem: 'x',
+        tile: { row: 0, col: 0 },
+      }),
+    ).toThrow(/Unsupported/);
+  });
 });
 
 describe('collision-system update shell', () => {
@@ -1161,5 +1289,346 @@ describe('collision-system update shell', () => {
     expect(mapResource.playerSpawnRow).toBe(2);
     expect(mapResource.playerSpawnCol).toBe(2);
     expect(mapResource.grid2D[3][2]).toBe(CELL_TYPE.GHOST_HOUSE);
+  });
+
+  it('skips hazard entities whose tile coordinates have crossed the map border', () => {
+    const { colliderStore, collisionIntents, player, positionStore, system, world } =
+      createCollisionHarness();
+
+    setEntityTile(positionStore, player.id, 1, 1);
+
+    const fire = world.createEntity(COLLISION_ENTITY_REQUIRED_MASK);
+    colliderStore.type[fire.id] = COLLIDER_TYPE.FIRE;
+    positionStore.row[fire.id] = -1;
+    positionStore.col[fire.id] = 1;
+    positionStore.prevRow[fire.id] = 0;
+    positionStore.prevCol[fire.id] = 1;
+
+    system.update({ dtMs: 16.6667, frame: 0, world });
+
+    expect(collisionIntents.some((i) => i.type === 'player-death')).toBe(false);
+    expect(collisionIntents.some((i) => i.type === 'pellet-collected')).toBe(true);
+  });
+
+  it('skips player entities with out-of-bounds tile positions during pickup and actor occupancy', () => {
+    const { collisionIntents, player, positionStore, system, world } = createCollisionHarness();
+
+    positionStore.row[player.id] = 6;
+    positionStore.col[player.id] = 0;
+    positionStore.prevRow[player.id] = 6;
+    positionStore.prevCol[player.id] = 0;
+
+    system.update({ dtMs: 16.6667, frame: 0, world });
+
+    expect(collisionIntents).toEqual([]);
+  });
+
+  it('allows a ghost to remain within the ghost house across consecutive steps', () => {
+    const { colliderStore, collisionIntents, player, positionStore, system, world } =
+      createCollisionHarness([[1, 1, CELL_TYPE.EMPTY]]);
+
+    setEntityTile(positionStore, player.id, 1, 1);
+    const ghost = addCollisionEntity(
+      world,
+      positionStore,
+      colliderStore,
+      COLLIDER_TYPE.GHOST,
+      3,
+      2,
+    );
+    setEntityPath(positionStore, ghost.id, 3, 2, 3, 2);
+
+    system.update({ dtMs: 16.6667, frame: 0, world });
+
+    expect(positionStore.row[ghost.id]).toBe(3);
+    expect(positionStore.col[ghost.id]).toBe(2);
+    expect(collisionIntents).toEqual([]);
+  });
+
+  it('records ghost-death intents for multiple ghosts sharing a fire tile', () => {
+    const { colliderStore, collisionIntents, ghostStore, positionStore, system, world } =
+      createCollisionHarness([[1, 1, CELL_TYPE.EMPTY]]);
+
+    const ghost1 = addCollisionEntity(
+      world,
+      positionStore,
+      colliderStore,
+      COLLIDER_TYPE.GHOST,
+      1,
+      1,
+    );
+    const ghost2 = addCollisionEntity(
+      world,
+      positionStore,
+      colliderStore,
+      COLLIDER_TYPE.GHOST,
+      1,
+      1,
+    );
+    addCollisionEntity(world, positionStore, colliderStore, COLLIDER_TYPE.FIRE, 1, 1);
+
+    system.update({ dtMs: 16.6667, frame: 0, world });
+
+    expect(collisionIntents).toHaveLength(2);
+    expect(collisionIntents.every((i) => i.type === 'ghost-death')).toBe(true);
+    expect(ghostStore.state[ghost1.id]).toBe(GHOST_STATE.DEAD);
+    expect(ghostStore.state[ghost2.id]).toBe(GHOST_STATE.DEAD);
+  });
+
+  it('does not exceed the ghost-per-cell cap when more ghosts than slots share a tile', () => {
+    const { colliderStore, collisionIntents, player, positionStore, system, world } =
+      createCollisionHarness([[1, 1, CELL_TYPE.EMPTY]]);
+
+    setEntityTile(positionStore, player.id, 2, 2);
+
+    for (let i = 0; i < 5; i += 1) {
+      addCollisionEntity(world, positionStore, colliderStore, COLLIDER_TYPE.GHOST, 1, 1);
+    }
+
+    expect(() => system.update({ dtMs: 16.6667, frame: 0, world })).not.toThrow();
+    expect(collisionIntents).toEqual([]);
+  });
+
+  it('runs without collisionIntents resource and does not throw', () => {
+    const world = new World();
+    const system = createCollisionSystem();
+    const mapResource = createMapResource(createCollisionRawMap());
+    const positionStore = createPositionStore(4);
+    const colliderStore = createColliderStore(4);
+
+    const player = world.createEntity(COLLISION_ENTITY_REQUIRED_MASK);
+    setEntityTile(positionStore, player.id, 1, 1);
+    colliderStore.type[player.id] = COLLIDER_TYPE.PLAYER;
+
+    world.setResource('mapResource', mapResource);
+    world.setResource('position', positionStore);
+    world.setResource('collider', colliderStore);
+
+    expect(() => system.update({ dtMs: 16.6667, frame: 0, world })).not.toThrow();
+  });
+
+  it('infers ghost push direction from target tile when ghost has not yet moved this step', () => {
+    const { colliderStore, collisionIntents, player, positionStore, system, world } =
+      createCollisionHarness([
+        [1, 2, CELL_TYPE.EMPTY],
+        [1, 3, CELL_TYPE.EMPTY],
+      ]);
+
+    setEntityTile(positionStore, player.id, 2, 2);
+    const ghost = addCollisionEntity(
+      world,
+      positionStore,
+      colliderStore,
+      COLLIDER_TYPE.GHOST,
+      1,
+      2,
+    );
+    positionStore.prevRow[ghost.id] = 1;
+    positionStore.prevCol[ghost.id] = 2;
+    positionStore.targetRow[ghost.id] = 1;
+    positionStore.targetCol[ghost.id] = 3;
+
+    const bomb = addCollisionEntity(world, positionStore, colliderStore, COLLIDER_TYPE.BOMB, 1, 2);
+    setEntityPath(positionStore, bomb.id, 0, 0, 1, 2);
+
+    system.update({ dtMs: 16.6667, frame: 0, world });
+
+    expect(positionStore.row[ghost.id]).toBe(1);
+    expect(positionStore.col[ghost.id]).toBe(3);
+    expect(collisionIntents).toEqual([]);
+  });
+
+  it('leaves a truly stationary ghost in place when a bomb is dropped and no push direction exists', () => {
+    const { colliderStore, collisionIntents, player, positionStore, system, world } =
+      createCollisionHarness([[1, 2, CELL_TYPE.EMPTY]]);
+
+    setEntityTile(positionStore, player.id, 2, 2);
+    const ghost = addCollisionEntity(
+      world,
+      positionStore,
+      colliderStore,
+      COLLIDER_TYPE.GHOST,
+      1,
+      2,
+    );
+    positionStore.prevRow[ghost.id] = 1;
+    positionStore.prevCol[ghost.id] = 2;
+    positionStore.targetRow[ghost.id] = 1;
+    positionStore.targetCol[ghost.id] = 2;
+
+    const bomb = addCollisionEntity(world, positionStore, colliderStore, COLLIDER_TYPE.BOMB, 1, 2);
+    setEntityPath(positionStore, bomb.id, 0, 0, 1, 2);
+
+    system.update({ dtMs: 16.6667, frame: 0, world });
+
+    expect(positionStore.row[ghost.id]).toBe(1);
+    expect(positionStore.col[ghost.id]).toBe(2);
+    expect(collisionIntents).toEqual([]);
+  });
+
+  it('falls back to the previous tile when the forward push direction is blocked by a wall', () => {
+    const { colliderStore, collisionIntents, player, positionStore, system, world } =
+      createCollisionHarness([
+        [1, 2, CELL_TYPE.EMPTY],
+        [1, 3, CELL_TYPE.EMPTY],
+      ]);
+
+    setEntityTile(positionStore, player.id, 2, 2);
+    const ghost = addCollisionEntity(
+      world,
+      positionStore,
+      colliderStore,
+      COLLIDER_TYPE.GHOST,
+      1,
+      3,
+    );
+    setEntityPath(positionStore, ghost.id, 1, 2, 1, 3);
+
+    const bomb = addCollisionEntity(world, positionStore, colliderStore, COLLIDER_TYPE.BOMB, 1, 3);
+    setEntityPath(positionStore, bomb.id, 0, 0, 1, 3);
+
+    system.update({ dtMs: 16.6667, frame: 0, world });
+
+    expect(positionStore.row[ghost.id]).toBe(1);
+    expect(positionStore.col[ghost.id]).toBe(2);
+    expect(collisionIntents).toEqual([]);
+  });
+
+  it('records ghost-death with default NORMAL state when the ghost store is absent', () => {
+    const world = new World();
+    const system = createCollisionSystem();
+    const mapResource = createMapResource(createCollisionRawMap([[1, 1, CELL_TYPE.EMPTY]]));
+    const positionStore = createPositionStore(8);
+    const colliderStore = createColliderStore(8);
+    const collisionIntents = [];
+
+    world.setResource('mapResource', mapResource);
+    world.setResource('position', positionStore);
+    world.setResource('collider', colliderStore);
+    world.setResource('collisionIntents', collisionIntents);
+
+    const ghost = world.createEntity(COLLISION_ENTITY_REQUIRED_MASK);
+    colliderStore.type[ghost.id] = COLLIDER_TYPE.GHOST;
+    setEntityTile(positionStore, ghost.id, 1, 1);
+
+    const fire = world.createEntity(COLLISION_ENTITY_REQUIRED_MASK);
+    colliderStore.type[fire.id] = COLLIDER_TYPE.FIRE;
+    setEntityTile(positionStore, fire.id, 1, 1);
+
+    system.update({ dtMs: 16.6667, frame: 0, world });
+
+    expect(collisionIntents).toEqual([
+      {
+        order: 0,
+        type: 'ghost-death',
+        entityId: ghost.id,
+        row: 1,
+        col: 1,
+        cause: 'fire',
+        sourceEntityId: fire.id,
+        ghostState: GHOST_STATE.NORMAL,
+      },
+    ]);
+  });
+
+  it('records player-death for ghost contact with default NORMAL state when ghost store is absent', () => {
+    const world = new World();
+    const system = createCollisionSystem();
+    const mapResource = createMapResource(createCollisionRawMap());
+    const positionStore = createPositionStore(8);
+    const colliderStore = createColliderStore(8);
+    const collisionIntents = [];
+
+    world.setResource('mapResource', mapResource);
+    world.setResource('position', positionStore);
+    world.setResource('collider', colliderStore);
+    world.setResource('collisionIntents', collisionIntents);
+
+    const player = world.createEntity(COLLISION_ENTITY_REQUIRED_MASK);
+    colliderStore.type[player.id] = COLLIDER_TYPE.PLAYER;
+    setEntityTile(positionStore, player.id, 1, 2);
+
+    const ghost = world.createEntity(COLLISION_ENTITY_REQUIRED_MASK);
+    colliderStore.type[ghost.id] = COLLIDER_TYPE.GHOST;
+    setEntityTile(positionStore, ghost.id, 1, 2);
+
+    system.update({ dtMs: 16.6667, frame: 0, world });
+
+    expect(collisionIntents.some((i) => i.type === 'player-death' && i.cause === 'ghost')).toBe(
+      true,
+    );
+    const deathIntent = collisionIntents.find((i) => i.type === 'player-death');
+    expect(deathIntent.ghostState).toBe(GHOST_STATE.NORMAL);
+  });
+
+  it('blocks ghost from entering ghost house when ghost store is absent, defaulting to NORMAL state', () => {
+    const world = new World();
+    const system = createCollisionSystem();
+    const mapResource = createMapResource(createCollisionRawMap([[1, 1, CELL_TYPE.EMPTY]]));
+    const positionStore = createPositionStore(8);
+    const colliderStore = createColliderStore(8);
+    const collisionIntents = [];
+
+    world.setResource('mapResource', mapResource);
+    world.setResource('position', positionStore);
+    world.setResource('collider', colliderStore);
+    world.setResource('collisionIntents', collisionIntents);
+
+    const player = world.createEntity(COLLISION_ENTITY_REQUIRED_MASK);
+    colliderStore.type[player.id] = COLLIDER_TYPE.PLAYER;
+    setEntityTile(positionStore, player.id, 1, 1);
+
+    const ghost = world.createEntity(COLLISION_ENTITY_REQUIRED_MASK);
+    colliderStore.type[ghost.id] = COLLIDER_TYPE.GHOST;
+    setEntityPath(positionStore, ghost.id, 2, 2, 3, 2);
+
+    system.update({ dtMs: 16.6667, frame: 0, world });
+
+    expect(positionStore.row[ghost.id]).toBe(2);
+    expect(positionStore.col[ghost.id]).toBe(2);
+  });
+
+  it('does not push ghost off-map when the forward push candidate tile is out of bounds', () => {
+    const { colliderStore, collisionIntents, player, positionStore, system, world } =
+      createCollisionHarness([[1, 1, CELL_TYPE.EMPTY]]);
+
+    setEntityTile(positionStore, player.id, 2, 2);
+
+    const ghost = world.createEntity(COLLISION_ENTITY_REQUIRED_MASK);
+    colliderStore.type[ghost.id] = COLLIDER_TYPE.GHOST;
+    setEntityPath(positionStore, ghost.id, 1, 1, 1, 0);
+
+    const bomb = world.createEntity(COLLISION_ENTITY_REQUIRED_MASK);
+    colliderStore.type[bomb.id] = COLLIDER_TYPE.BOMB;
+    setEntityPath(positionStore, bomb.id, 1, 1, 1, 0);
+
+    system.update({ dtMs: 16.6667, frame: 0, world });
+
+    expect(positionStore.row[ghost.id]).toBe(1);
+    expect(positionStore.col[ghost.id]).toBe(1);
+    expect(collisionIntents).toEqual([]);
+  });
+
+  it('does not push ghost toward ghost house when the forward direction leads there', () => {
+    const { colliderStore, player, positionStore, system, world } = createCollisionHarness([
+      [1, 1, CELL_TYPE.EMPTY],
+      [1, 2, CELL_TYPE.EMPTY],
+      [2, 2, CELL_TYPE.EMPTY],
+    ]);
+
+    setEntityTile(positionStore, player.id, 1, 1);
+
+    const ghost = world.createEntity(COLLISION_ENTITY_REQUIRED_MASK);
+    colliderStore.type[ghost.id] = COLLIDER_TYPE.GHOST;
+    setEntityPath(positionStore, ghost.id, 1, 2, 2, 2);
+
+    const bomb = world.createEntity(COLLISION_ENTITY_REQUIRED_MASK);
+    colliderStore.type[bomb.id] = COLLIDER_TYPE.BOMB;
+    setEntityPath(positionStore, bomb.id, 0, 0, 2, 2);
+
+    system.update({ dtMs: 16.6667, frame: 0, world });
+
+    expect(positionStore.row[ghost.id]).toBe(1);
+    expect(positionStore.col[ghost.id]).toBe(2);
   });
 });
