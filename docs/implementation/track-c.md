@@ -84,6 +84,14 @@ Source plan: `docs/implementation/implementation-plan.md` (Section 3)
 
 C-04 is complete at ECS system layer only. Runtime wiring, visible pause UI, restart/reset behavior, and level-flow/loader integration are handled in later tickets (`C-05+` / Track A integration).
 
+**C-04 Status**
+- Scope: ECS system-layer only
+- Pause: implemented via in-place resource mutation
+- Restart: emits intent only via `levelFlow.pendingRestart`
+- Level progression: emits intent only via `levelFlow.pendingLevelAdvance`
+
+Runtime integration (`bootstrap`, UI, level loader, visible pause menu) is out of scope for C-04.
+
 **Deliverables**:
 - `src/ecs/systems/pause-system.js` — FSM-only pause, continue, and paused-restart transitions
 - `src/ecs/systems/pause-input-system.js` — pause-key edge input to `pauseIntent`

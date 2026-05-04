@@ -24,12 +24,10 @@ import {
   GATE_PASS,
   GATE_WARN,
   getOwnersForTrack,
-  INTEGRATION_BRANCH_PATTERN,
   inferProcessModeFromSources,
   inferTicketIdsFromSources,
   inferTracksFromTicketIds,
   isBugfixBranch,
-  isIntegrationBranch,
   matchesOwnership,
   parseArgs,
   readJson,
@@ -66,12 +64,8 @@ const processMode =
   inferProcessModeFromSources(branchName, meta.commitMessages || '', meta.body || '');
 
 // Bugfix branches (format: <owner>/bugfix-<slug>) are exempt from track ownership checks.
-// Integration branches (format: <owner>/integration<slug>) are an alias of bugfix mode.
-// Both still run all security, traceability, lockfile, and quality gates.
+// They still run all security, traceability, lockfile, and quality gates.
 const bugfixMode = isBugfixBranch(branchName);
-const integrationMode = isIntegrationBranch(branchName);
-// bypassOwnershipMode is true whenever either bypass-eligible pattern matches.
-const bypassOwnershipMode = bugfixMode || integrationMode;
 
 // Ticket context resolution prioritizes explicit CLI and branch ticket IDs to keep checks deterministic.
 function deriveTicketContext() {
@@ -102,7 +96,7 @@ function deriveTicketContext() {
   if (
     requireBranchTicket &&
     !processMode &&
-    !bypassOwnershipMode &&
+    !bugfixMode &&
     branchName &&
     !EXPLICIT_TICKET_BRANCH_PATTERN.test(branchName)
   ) {
@@ -152,10 +146,9 @@ function assertTicketAssociation() {
     };
   }
 
-  if (bypassOwnershipMode) {
-    const modeLabel = integrationMode ? 'INTEGRATION MODE' : 'BUGFIX MODE';
-    const bypassWarning = `🐞 ${modeLabel} DETECTED: Branch "${branchName}" has relaxed policy checks allowing multitrack edits. Use with care.`;
-    console.warn(`\n${GATE_WARN} — POLICY WARNING: ${bypassWarning}\n`);
+  if (bugfixMode) {
+    const bugfixWarning = `🐞 BUGFIX MODE DETECTED: Branch "${branchName}" has relaxed policy checks allowing multitrack edits. Use with care.`;
+    console.warn(`\n${GATE_WARN} — POLICY WARNING: ${bugfixWarning}\n`);
     return createProcessFallback(
       context.branchTicketIds,
       context.commitTicketIds,
@@ -268,12 +261,10 @@ function formatOwnershipViolations(violations) {
 
 // Ownership enforcement uses path patterns instead of AST analysis to keep policy checks lightweight.
 function assertTrackOwnership(trackCode, ticketIds) {
-  // Bugfix and integration branches are exempt from single-track ownership; they may touch any path.
-  if (bypassOwnershipMode) {
-    const matchedPattern = integrationMode ? INTEGRATION_BRANCH_PATTERN : BUGFIX_BRANCH_PATTERN;
-    const modeLabel = integrationMode ? 'integration-mode' : 'bugfix-mode';
+  // Bugfix branches are exempt from single-track ownership; they may touch any path.
+  if (bugfixMode) {
     console.log(
-      `${GATE_PASS} — Ownership check skipped: branch "${branchName}" matches ${matchedPattern} (${modeLabel}, cross-track edits allowed).`,
+      `${GATE_PASS} — Ownership check skipped: branch "${branchName}" matches ${BUGFIX_BRANCH_PATTERN} (bugfix-mode, cross-track edits allowed).`,
     );
     return;
   }
@@ -311,12 +302,10 @@ function assertTrackOwnership(trackCode, ticketIds) {
 }
 
 function assertOwnerScopedOwnership(trackCode, ticketIds) {
-  // Bugfix and integration branches are exempt from single-owner track scoping; cross-track edits are intentional.
-  if (bypassOwnershipMode) {
-    const matchedPattern = integrationMode ? INTEGRATION_BRANCH_PATTERN : BUGFIX_BRANCH_PATTERN;
-    const modeLabel = integrationMode ? 'integration-mode' : 'bugfix-mode';
+  // Bugfix branches are exempt from single-owner track scoping; cross-track edits are intentional.
+  if (bugfixMode) {
     console.log(
-      `${GATE_PASS} — Owner-scoped ownership check skipped: branch "${branchName}" matches ${matchedPattern} (${modeLabel}, cross-track edits allowed).`,
+      `${GATE_PASS} — Owner-scoped ownership check skipped: branch "${branchName}" matches ${BUGFIX_BRANCH_PATTERN} (bugfix-mode, cross-track edits allowed).`,
     );
     return;
   }

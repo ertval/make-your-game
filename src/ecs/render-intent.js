@@ -109,10 +109,6 @@ export function resetRenderIntentBuffer(buffer) {
  * Append a render intent entry into the next available slot. If the buffer is
  * full, the entry is silently dropped and a development warning is logged.
  *
- * NOTE: This helper accepts an object and is suitable for low-frequency paths
- * (tests, tooling). Use appendRenderIntentDirect for hot per-entity loops to
- * avoid per-frame object allocations.
- *
  * @param {RenderIntentBuffer} buffer - Mutable intent buffer to write into.
  * @param {object} entry - Intent data object.
  * @param {number} entry.entityId - Entity that owns this visual.
@@ -142,51 +138,6 @@ export function appendRenderIntent(buffer, entry) {
   buffer.y[idx] = entry.y ?? 0;
   buffer.classBits[idx] = entry.classBits || 0;
   buffer.opacity[idx] = entry.opacity ?? 255;
-  buffer._count += 1;
-}
-
-/**
- * Allocation-free variant of appendRenderIntent for use in hot per-entity
- * loops. Accepts individual primitive fields instead of an object so no
- * intermediate allocation occurs on the collect hot path.
- *
- * @param {RenderIntentBuffer} buffer - Mutable intent buffer to write into.
- * @param {number} entityId - Entity that owns this visual.
- * @param {number} kind - RENDERABLE_KIND enum value.
- * @param {number} spriteId - Asset manifest sprite ID (-1 for none).
- * @param {number} x - Interpolated tile-space X position.
- * @param {number} y - Interpolated tile-space Y position.
- * @param {number} classBits - VISUAL_FLAGS bitmask.
- * @param {number} opacity - Opacity byte (0–255).
- */
-export function appendRenderIntentDirect(
-  buffer,
-  entityId,
-  kind,
-  spriteId,
-  x,
-  y,
-  classBits,
-  opacity,
-) {
-  if (buffer._count >= buffer._capacity) {
-    if (isDevelopment()) {
-      console.warn(
-        `Render intent buffer full (${buffer._capacity}/${buffer._capacity}). ` +
-          `Intent for entity ${entityId} dropped.`,
-      );
-    }
-    return;
-  }
-
-  const idx = buffer._count;
-  buffer.entityId[idx] = entityId;
-  buffer.kind[idx] = kind || RENDERABLE_KIND.NONE;
-  buffer.spriteId[idx] = spriteId;
-  buffer.x[idx] = x;
-  buffer.y[idx] = y;
-  buffer.classBits[idx] = classBits;
-  buffer.opacity[idx] = opacity;
   buffer._count += 1;
 }
 

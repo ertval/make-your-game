@@ -62,7 +62,7 @@ This document is the single source of truth for requirement-to-audit-to-ticket-t
 | REQ-13 | Single-player only | B-02, C-04, A-06 | AUDIT-F-03 | `tests/e2e/audit/audit.e2e.test.js` | Mapped, Planned, Pending |
 | REQ-14 | Genre aligns with pre-approved list | B-03, B-06, B-07, B-08, D-10 | AUDIT-F-06, AUDIT-F-13 | `tests/e2e/audit/audit.e2e.test.js` | Mapped, Planned, Pending |
 | REQ-15 | Ghost spawn timing follows `docs/game-description.md` §5.4 with deterministic stagger, FIFO release, map-driven cap enforcement, and 5000ms respawn delay | C-03, B-08, A-06 | AUDIT-F-13 | `src/ecs/systems/spawn-system.js` + `tests/unit/systems/spawn-system.test.js` | Mapped, Covered, Executable (C-03 system logic implemented and passing; ghost-entity/runtime integration remains deferred) |
-| REQ-16 | C-04 pause and level progression ECS system-layer contracts only | C-04 | AUDIT-F-07, AUDIT-F-08, AUDIT-F-09, AUDIT-F-10 | `src/ecs/systems/pause-system.js`, `src/ecs/systems/pause-input-system.js`, `src/ecs/systems/level-progress-system.js` + focused unit tests | Executable for ticket-scope audit; product-level audit remains PARTIAL until later runtime/UI integration tickets land |
+| REQ-16 | C-04 pause and level progression ECS system-layer contracts only | C-04 | AUDIT-F-07, AUDIT-F-08, AUDIT-F-09, AUDIT-F-10 | `REQ-03 -> src/ecs/systems/pause-system.js + tests/unit/systems/pause-system.test.js`; `REQ-09 -> src/ecs/systems/pause-input-system.js + tests/unit/systems/pause-input.test.js`; `REQ-16 -> src/ecs/systems/level-progress-system.js + tests/unit/systems/level-progress-system.test.js` | Executable for ticket-scope audit; product-level audit remains PARTIAL until later runtime/UI integration tickets land |
 
 ## Audit Coverage Matrix (Canonical)
 
