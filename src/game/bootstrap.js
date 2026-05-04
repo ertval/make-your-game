@@ -15,7 +15,9 @@
  * The resource key can be customised via `options.eventQueueResourceKey`.
  */
 
+import { createBoardAdapter } from '../adapters/dom/renderer-adapter.js';
 import { updateBoardCss } from '../adapters/dom/renderer-board-css.js';
+import { createSpritePool } from '../adapters/dom/sprite-pool-adapter.js';
 import { assertValidInputAdapter } from '../adapters/io/input-adapter.js';
 import {
   createInputStateStore,
@@ -23,12 +25,20 @@ import {
   resetInputState,
   resetPlayer,
 } from '../ecs/components/actors.js';
+import { COMPONENT_MASK } from '../ecs/components/registry.js';
 import {
   createPositionStore,
   createVelocityStore,
   resetPosition,
   resetVelocity,
 } from '../ecs/components/spatial.js';
+import {
+  createRenderableStore,
+  createVisualStateStore,
+  RENDERABLE_KIND,
+  resetRenderable,
+  resetVisualState,
+} from '../ecs/components/visual.js';
 import { createRenderIntentBuffer, resetRenderIntentBuffer } from '../ecs/render-intent.js';
 import { advanceSimTime, createClock, resetClock, tickClock } from '../ecs/resources/clock.js';
 import { FIXED_DT_MS, MAX_STEPS_PER_FRAME, TOTAL_LEVELS } from '../ecs/resources/constants.js';
@@ -39,7 +49,10 @@ import {
   createPlayerMoveSystem,
   PLAYER_MOVE_REQUIRED_MASK,
 } from '../ecs/systems/player-move-system.js';
+import { createRenderCollectSystem } from '../ecs/systems/render-collect-system.js';
+import { createRenderDomSystem } from '../ecs/systems/render-dom-system.js';
 import { DEFAULT_PHASE_ORDER, World } from '../ecs/world/world.js';
+import { isDevelopment } from '../shared/env.js';
 import { createGameFlow } from './game-flow.js';
 import { createLevelLoader } from './level-loader.js';
 import {
@@ -225,6 +238,9 @@ function createDefaultSystemsByPhase(options = {}) {
     velocityResourceKey,
   });
 
+  const renderCollectSystem = createRenderCollectSystem();
+  const renderDomSystem = createRenderDomSystem();
+
   return {
     input: [inputSystem],
     physics: [playerMoveSystem],
@@ -236,6 +252,7 @@ function createDefaultSystemsByPhase(options = {}) {
       playerResourceKey,
       positionResourceKey,
     }),
+    render: [renderCollectSystem, renderDomSystem],
   };
 }
 
@@ -294,6 +311,8 @@ function initializeMovementResources(world, options = {}) {
   ensureWorldResource(world, positionResourceKey, () => createPositionStore(maxEntities));
   ensureWorldResource(world, velocityResourceKey, () => createVelocityStore(maxEntities));
   ensureWorldResource(world, inputStateResourceKey, () => createInputStateStore(maxEntities));
+  ensureWorldResource(world, 'renderable', () => createRenderableStore(maxEntities));
+  ensureWorldResource(world, 'visualState', () => createVisualStateStore(maxEntities));
 
   if (!world.hasResource(playerEntityResourceKey)) {
     world.setResource(playerEntityResourceKey, null);
@@ -341,12 +360,14 @@ function syncPlayerEntityFromMap(world, mapResource, options = {}) {
     return null;
   }
 
+  const PLAYER_WITH_RENDERABLE_MASK = PLAYER_MOVE_REQUIRED_MASK | COMPONENT_MASK.RENDERABLE;
+
   let playerHandle = world.getResource(playerEntityResourceKey);
   if (!world.entityStore.isAlive(playerHandle)) {
-    playerHandle = world.createEntity(PLAYER_MOVE_REQUIRED_MASK);
+    playerHandle = world.createEntity(PLAYER_WITH_RENDERABLE_MASK);
     world.setResource(playerEntityResourceKey, playerHandle);
   } else {
-    playerHandle = world.setEntityMask(playerHandle, PLAYER_MOVE_REQUIRED_MASK);
+    playerHandle = world.setEntityMask(playerHandle, PLAYER_WITH_RENDERABLE_MASK);
   }
 
   const entityId = playerHandle.id;
@@ -354,6 +375,8 @@ function syncPlayerEntityFromMap(world, mapResource, options = {}) {
   const positionStore = world.getResource(positionResourceKey);
   const velocityStore = world.getResource(velocityResourceKey);
   const inputState = world.getResource(inputStateResourceKey);
+  const renderableStore = world.getResource('renderable');
+  const visualStateStore = world.getResource('visualState');
   const spawnRow = mapResource.playerSpawnRow;
   const spawnCol = mapResource.playerSpawnCol;
 
@@ -363,6 +386,12 @@ function syncPlayerEntityFromMap(world, mapResource, options = {}) {
   resetPosition(positionStore, entityId);
   resetVelocity(velocityStore, entityId);
   resetInputState(inputState, entityId);
+  resetRenderable(renderableStore, entityId);
+  resetVisualState(visualStateStore, entityId);
+
+  // Set renderable kind so player appears in render-collect-system queries
+  renderableStore.kind[entityId] = RENDERABLE_KIND.PLAYER;
+  renderableStore.spriteId[entityId] = 0;
 
   // The player begins centered on the map-defined spawn tile with no pending move.
   positionStore.row[entityId] = spawnRow;
@@ -452,10 +481,22 @@ export function createBootstrap(options = {}) {
   // and systems never have to distinguish "never registered" from "registered null".
   ensureWorldResource(world, inputAdapterResourceKey, () => null);
 
+  // Create sprite pool and board adapter early for onLevelLoaded callback.
+  // Headless tests have no document, so DOM rendering safely no-ops there.
+  const spritePool =
+    typeof document !== 'undefined' ? createSpritePool({ dev: isDevelopment() }) : null;
+  const boardAdapter = createBoardAdapter({ spritePool });
+
   const levelLoader = createLevelLoader({
     loadMapForLevel: options.loadMapForLevel,
     mapResourceKey: options.mapResourceKey || 'mapResource',
     onLevelLoaded: (mapResource) => {
+      if (typeof document !== 'undefined') {
+        const gameBoard = document.getElementById('game-board');
+        if (gameBoard) {
+          boardAdapter.generateBoard(mapResource, gameBoard);
+        }
+      }
       updateBoardCss(mapResource);
       syncPlayerEntityFromMap(world, mapResource, options);
     },
@@ -471,9 +512,16 @@ export function createBootstrap(options = {}) {
       // deterministic across restarts, falling back to the real wall clock
       // only when no provider is supplied.
       resetClock(clock, toFiniteTimestamp(nowProvider()));
+      // Restart destroys all entities, so runtime object pools must be rebuilt
+      // before bomb and explosion systems can query pooled prop entities again.
+      initializeBombExplosionResources(world, options);
     },
     world,
   });
+  // Auto-start in browser only to render the board for demo purposes
+  if (typeof window !== 'undefined') {
+    gameFlow.startGame();
+  }
   const assetPipeline = createAssetPipelineResource(options.assetPipeline || {});
 
   world.setResource('assetPipeline', assetPipeline);
@@ -487,6 +535,7 @@ export function createBootstrap(options = {}) {
   world.setResource('gameStatus', gameStatus);
   world.setResource('levelLoader', levelLoader);
   world.setResource('renderIntent', createRenderIntentBuffer());
+  world.setResource('spritePool', spritePool);
 
   registerSystemsByPhase(
     world,

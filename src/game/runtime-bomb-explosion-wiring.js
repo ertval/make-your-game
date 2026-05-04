@@ -85,7 +85,11 @@ function createInactivePooledPropEntity(world, colliderStore, mask) {
  */
 function ensurePooledPropEntities(world, poolResourceKey, colliderStore, count, mask) {
   const existingPool = world.getResource(poolResourceKey);
-  if (Array.isArray(existingPool) && existingPool.length === count) {
+  if (
+    Array.isArray(existingPool) &&
+    existingPool.length === count &&
+    existingPool.every((handle) => world.entityStore.isAlive(handle))
+  ) {
     return existingPool;
   }
 

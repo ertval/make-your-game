@@ -25,10 +25,11 @@
 const CELL_TYPE_CLASSES = {
   0: 'cell-empty',
   1: 'cell-wall',
-  2: 'cell-pellet',
-  3: 'cell-power-pellet',
-  4: 'cell-door',
+  2: 'cell-destructible',
+  3: 'cell-pellet',
+  4: 'cell-power-pellet',
   5: 'cell-ghost-house',
+  6: 'cell-empty',
 };
 
 /**
@@ -63,6 +64,12 @@ export function createBoardAdapter({
       throw new Error('generateBoard requires mapResource and containerElement.');
     }
 
+    // Clear any existing board children before generating new one
+    while (containerElement.firstChild) {
+      containerElement.removeChild(containerElement.firstChild);
+    }
+    boardElement = null;
+
     const { rows, cols, grid } = mapResource;
 
     if (!Number.isFinite(rows) || !Number.isFinite(cols)) {
@@ -82,11 +89,11 @@ export function createBoardAdapter({
         const cellType = grid[cellIndex];
         const cellElement = docRef.createElement(cellTag);
 
-        cellElement.classList.add('cell', 'cell-position');
+        cellElement.classList.add('cell');
         cellElement.style.setProperty('--cell-row', String(r));
         cellElement.style.setProperty('--cell-col', String(c));
 
-        const cellClass = CELL_TYPE_CLASSES[cellType] || 'cell-empty';
+        const cellClass = CELL_TYPE_CLASSES[cellType] || 'cell';
         cellElement.classList.add(cellClass);
 
         cellElement.setAttribute('data-row', String(r));
@@ -99,11 +106,10 @@ export function createBoardAdapter({
 
     containerElement.appendChild(boardElement);
 
-    // Pre-warm the sprite pool against the container so all dynamic sprite
-    // elements are allocated before the first render frame. Must run after the
-    // board is appended so sprites share the same DOM subtree as the board.
+    // Pre-warm the sprite pool against the board element so sprites are direct
+    // children of the grid container and position correctly within the CSS grid.
     if (spritePool) {
-      spritePool.warmUp(containerElement);
+      spritePool.warmUp(boardElement);
     }
   }
 

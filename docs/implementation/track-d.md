@@ -165,15 +165,15 @@
 **Deliverables**:
 - `src/ecs/systems/render-dom-system.js` — one-pass DOM commit, transform/opacity/class writes only
 
-- [ ] Implement `render-dom-system.js`: The ONLY system where DOM mutates.
-- [ ] Applies batched writes:
-  - Exclusively updates `.style.transform = "translate3d(x, y, 0)"` and `.style.opacity`.
-  - Swaps `classList` values based on states (stunned, invincible, speed-boosted, dead).
-  - Informs `sprite-pool-adapter` to reclaim/hide nodes not in current frame's render-intent set.
-- [ ] Enforce strict render commit phases: no layout reads interleaved with write loops.
-- [ ] Keep commit path write-only and pool reclaim in same commit window.
-- [ ] Verification gate: traces show no forced-layout thrash loops and no recurring long tasks > 50ms.
-- [ ] **DEFERRED from D-05**: DevTools layer/paint evidence confirms `AUDIT-F-20` (layer minimization) and `AUDIT-F-21` (layer promotion) compliance — capture DevTools Performance panel traces showing:
+- [x] Implement `render-dom-system.js`: The ONLY system where DOM mutates.
+- [x] Applies batched writes:
+- [x] Exclusively updates `.style.transform = "translate3d(x, y, 0)"` and `.style.opacity`.
+- [x] Swaps `classList` values based on states (stunned, invincible, speed-boosted, dead).
+- [x] Informs `sprite-pool-adapter` to reclaim/hide nodes not in current frame's render-intent set.
+- [x] Enforce strict render commit phases: no layout reads interleaved with write loops.
+- [x] Keep commit path write-only and pool reclaim in same commit window.
+- [x] Verification gate: traces show no forced-layout thrash loops and no recurring long tasks > 50ms.
+- [ ] **DEFERRED to D-10**: DevTools layer/paint evidence confirms `AUDIT-F-20` (layer minimization) and `AUDIT-F-21` (layer promotion) compliance — capture DevTools Performance panel traces showing:
   - Only player + 4 ghost sprites carry `will-change: transform` (target ~5 promoted layers).
   - Bombs, fire tiles, static grid cells, and HUD elements do NOT create compositor layers.
   - Paint rectangles are minimal and confined to moving sprite bounds during normal gameplay.
@@ -222,6 +222,8 @@
 - [ ] Ensure all sprites have declared dimensions in metadata for layout reservation.
 - [ ] Emit a sprite metadata handoff table (`spriteId`, `width`, `height`, `className`) consumed by `D-11` manifest mapping.
 - [ ] Verification gate: all sprites render correctly at target display size.
+- [ ] **DEFERRED from D-08**: DevTools layer/paint evidence confirms AUDIT-F-20 (layer minimization) and AUDIT-F-21 (layer promotion) compliance — capture DevTools Performance panel traces.
+- [ ] **DEFERRED from D-03/D-06**: Playwright e2e restart test proves canonical map reset (load level, trigger restart, verify board returns to initial state).
 
 ---
 

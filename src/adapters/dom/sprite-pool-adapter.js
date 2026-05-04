@@ -55,7 +55,7 @@ export function createSpritePool({ document: doc = globalThis.document, dev = fa
 
   function createElement(type) {
     const el = doc.createElement('div');
-    el.classList.add('sprite', `sprite-${type}`);
+    el.classList.add('sprite', `sprite--${type}`);
     el.style.transform = OFFSCREEN_TRANSFORM;
     return el;
   }
