@@ -4,7 +4,9 @@
  * These checks exercise createPauseSystem directly against World resources so
  * pause transitions stay deterministic and independent from DOM, adapters,
  * runtime adapters, or input wiring while still verifying clock-resource
- * synchronization through the ECS resource API.
+ * synchronization through the ECS resource API. The bootstrap runtime closes
+ * over canonical resource objects, so these tests also protect object-identity
+ * preservation for clock and game-status updates.
  */
 
 import { describe, expect, it } from 'vitest';
@@ -65,7 +67,7 @@ describe('pause-system', () => {
     expect(gameStatus.currentState).toBe(GAME_STATE.PAUSED);
     expect(gameStatus.previousState).toBe(GAME_STATE.PLAYING);
     expect(nextClock.isPaused).toBe(true);
-    expect(nextClock).not.toBe(previousClock);
+    expect(nextClock).toBe(previousClock);
     expectPauseIntentCleared(harness.world);
   });
 
@@ -92,11 +94,11 @@ describe('pause-system', () => {
     expect(gameStatus.currentState).toBe(GAME_STATE.PLAYING);
     expect(gameStatus.previousState).toBe(GAME_STATE.PAUSED);
     expect(nextClock.isPaused).toBe(false);
-    expect(nextClock).not.toBe(previousClock);
+    expect(nextClock).toBe(previousClock);
     expectPauseIntentCleared(harness.world);
   });
 
-  it('transitions PAUSED + restart to fresh PLAYING, sets pendingRestart, and clears intent', () => {
+  it('transitions PAUSED + restart to PLAYING in place, sets pendingRestart, and clears intent', () => {
     const harness = createHarness(GAME_STATE.PAUSED, {
       restart: true,
       toggle: false,
@@ -108,7 +110,7 @@ describe('pause-system', () => {
     const gameStatus = harness.world.getResource('gameStatus');
     expect(gameStatus.currentState).toBe(GAME_STATE.PLAYING);
     expect(gameStatus.previousState).toBeNull();
-    expect(gameStatus).not.toBe(previousGameStatus);
+    expect(gameStatus).toBe(previousGameStatus);
     expect(harness.world.getResource('levelFlow')).toEqual({
       pendingRestart: true,
     });

@@ -14,21 +14,16 @@
  * Implementation notes:
  * - Clock synchronization is handled via World resources only; the system does
  *   not import clock helpers so ECS boundaries stay explicit.
- * - Clock updates replace the resource with a cloned record instead of
- *   mutating the existing object in place.
- * - Restart handling replaces the game-status resource with a fresh PLAYING
- *   record and publishes `levelFlow.pendingRestart = true` so orchestration can
- *   perform the real reload outside this system.
- * - The pause intent resource is always normalized to a plain object with a
- *   single explicit `action` command so transitions remain readable.
+ * - Clock and game-status updates preserve resource object identity so
+ *   bootstrap/runtime closures observing those resources stay synchronized.
+ * - Restart handling only publishes `levelFlow.pendingRestart = true` as a
+ *   pending orchestration signal; actual level reload/reset is owned by a
+ *   later integration path outside this system.
+ * - The pause intent resource is normalized to a plain `{ restart, toggle }`
+ *   object so transitions remain readable and deterministic.
  */
 
-import {
-  canTransition,
-  createGameStatus,
-  GAME_STATE,
-  transitionTo,
-} from '../resources/game-status.js';
+import { canTransition, GAME_STATE, transitionTo } from '../resources/game-status.js';
 
 const DEFAULT_GAME_STATUS_RESOURCE_KEY = 'gameStatus';
 const DEFAULT_PAUSE_INTENT_RESOURCE_KEY = 'pauseIntent';
@@ -68,10 +63,7 @@ function syncClockPauseState(world, clockResourceKey, paused) {
     return;
   }
 
-  world.setResource(clockResourceKey, {
-    ...clock,
-    isPaused: paused,
-  });
+  clock.isPaused = paused;
 }
 
 function publishPendingRestart(world, levelFlowResourceKey) {
@@ -119,7 +111,10 @@ export function createPauseSystem(options = {}) {
 
       if (gameStatus.currentState === GAME_STATE.PAUSED) {
         if (pauseIntent.restart) {
-          world.setResource(gameStatusResourceKey, createGameStatus(GAME_STATE.PLAYING));
+          // Preserve identity because bootstrap and game-flow hold canonical
+          // references to the shared game-status resource object.
+          gameStatus.previousState = null;
+          gameStatus.currentState = GAME_STATE.PLAYING;
           syncClockPauseState(world, clockResourceKey, false);
           publishPendingRestart(world, levelFlowResourceKey);
         } else if (pauseIntent.toggle) {

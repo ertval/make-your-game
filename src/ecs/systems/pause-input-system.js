@@ -12,8 +12,8 @@
  * Implementation notes:
  * - The input-system already drains one-shot keyboard edges into inputState,
  *   so this system can treat inputState.pause as a per-step edge.
- * - Pause commands are published as explicit action values so downstream
- *   transition logic can remain readable and state-specific.
+ * - Pause commands are published through the shared `{ restart, toggle }`
+ *   intent record so downstream transition logic can stay deterministic.
  * - Restart intent remains an optional future integration path produced by
  *   another resource writer; this system does not synthesize restart commands.
  */
