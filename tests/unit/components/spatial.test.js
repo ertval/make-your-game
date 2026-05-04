@@ -22,7 +22,7 @@ import {
 describe('spatial component stores', () => {
   it('documents which spatial stores are active versus planned in the runtime path', () => {
     expect(SPATIAL_STORE_RUNTIME_STATUS).toEqual({
-      collider: 'planned',
+      collider: 'active',
       position: 'active',
       velocity: 'active',
     });

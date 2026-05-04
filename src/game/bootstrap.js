@@ -55,6 +55,10 @@ import { DEFAULT_PHASE_ORDER, World } from '../ecs/world/world.js';
 import { isDevelopment } from '../shared/env.js';
 import { createGameFlow } from './game-flow.js';
 import { createLevelLoader } from './level-loader.js';
+import {
+  createBombExplosionLogicSystems,
+  initializeBombExplosionResources,
+} from './runtime-bomb-explosion-wiring.js';
 
 const DEFAULT_PLAYER_RESOURCE_KEY = 'player';
 const DEFAULT_POSITION_RESOURCE_KEY = 'position';
@@ -240,6 +244,14 @@ function createDefaultSystemsByPhase(options = {}) {
   return {
     input: [inputSystem],
     physics: [playerMoveSystem],
+    logic: createBombExplosionLogicSystems({
+      ...options,
+      eventQueueResourceKey,
+      inputStateResourceKey,
+      mapResourceKey,
+      playerResourceKey,
+      positionResourceKey,
+    }),
     render: [renderCollectSystem, renderDomSystem],
   };
 }
@@ -463,12 +475,16 @@ export function createBootstrap(options = {}) {
 
   // Movement systems need their component stores present before fixed-step work begins.
   initializeMovementResources(world, options);
+  // Bomb and explosion systems need prop stores and pooled entities before logic-phase ticks.
+  initializeBombExplosionResources(world, options);
   // Pre-register the adapter slot so runtime wiring has one explicit resource key
   // and systems never have to distinguish "never registered" from "registered null".
   ensureWorldResource(world, inputAdapterResourceKey, () => null);
 
-  // Create sprite pool and board adapter early for onLevelLoaded callback
-  const spritePool = createSpritePool({ dev: isDevelopment() });
+  // Create sprite pool and board adapter early for onLevelLoaded callback.
+  // Headless tests have no document, so DOM rendering safely no-ops there.
+  const spritePool =
+    typeof document !== 'undefined' ? createSpritePool({ dev: isDevelopment() }) : null;
   const boardAdapter = createBoardAdapter({ spritePool });
 
   const levelLoader = createLevelLoader({
@@ -496,6 +512,9 @@ export function createBootstrap(options = {}) {
       // deterministic across restarts, falling back to the real wall clock
       // only when no provider is supplied.
       resetClock(clock, toFiniteTimestamp(nowProvider()));
+      // Restart destroys all entities, so runtime object pools must be rebuilt
+      // before bomb and explosion systems can query pooled prop entities again.
+      initializeBombExplosionResources(world, options);
     },
     world,
   });
