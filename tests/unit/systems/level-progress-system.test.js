@@ -77,6 +77,18 @@ describe('level-progress-system', () => {
     expect(gameStatus.currentState).toBe(GAME_STATE.PLAYING);
   });
 
+  it('does not transition when mapResource is missing', () => {
+    const world = new World();
+    const system = createLevelProgressSystem();
+    const gameStatus = createGameStatus(GAME_STATE.PLAYING);
+
+    world.setResource('gameStatus', gameStatus);
+
+    updateSystem(system, world);
+
+    expect(gameStatus.currentState).toBe(GAME_STATE.PLAYING);
+  });
+
   it('transitions to LEVEL_COMPLETE when all pellets and power pellets are consumed', () => {
     const world = new World();
     const system = createLevelProgressSystem();
@@ -108,6 +120,17 @@ describe('level-progress-system', () => {
     updateSystem(system, world);
 
     expect(gameStatus.currentState).toBe(GAME_STATE.PAUSED);
+  });
+
+  it('does nothing when gameStatus is missing', () => {
+    const world = new World();
+    const system = createLevelProgressSystem();
+
+    world.setResource('mapResource', createTestMapResource(1));
+
+    updateSystem(system, world);
+
+    expect(world.getResource('levelFlow')).toBeUndefined();
   });
 
   it('does not re-trigger progression work while already LEVEL_COMPLETE', () => {
@@ -142,6 +165,58 @@ describe('level-progress-system', () => {
 
     expect(gameStatus.currentState).toBe(GAME_STATE.LEVEL_COMPLETE);
     expect(gameStatus.previousState).toBeNull();
+    expect(world.getResource('levelFlow')).toEqual({
+      pendingLevelAdvance: true,
+    });
+  });
+
+  it('treats invalid level as non-final level', () => {
+    const world = new World();
+    const system = createLevelProgressSystem({ totalLevels: 3 });
+    const gameStatus = createGameStatus(GAME_STATE.LEVEL_COMPLETE);
+    const mapResource = createTestMapResource(1);
+    mapResource.level = 'invalid';
+
+    world.setResource('gameStatus', gameStatus);
+    world.setResource('mapResource', mapResource);
+
+    updateSystem(system, world);
+
+    expect(world.getResource('levelFlow')).toEqual({
+      pendingLevelAdvance: true,
+    });
+  });
+
+  it('merges pendingLevelAdvance into existing levelFlow object', () => {
+    const world = new World();
+    const system = createLevelProgressSystem({ totalLevels: 3 });
+    const gameStatus = createGameStatus(GAME_STATE.LEVEL_COMPLETE);
+    const mapResource = createTestMapResource(1);
+
+    world.setResource('gameStatus', gameStatus);
+    world.setResource('mapResource', mapResource);
+    world.setResource('levelFlow', { existing: true });
+
+    updateSystem(system, world);
+
+    expect(world.getResource('levelFlow')).toEqual({
+      existing: true,
+      pendingLevelAdvance: true,
+    });
+  });
+
+  it('creates new levelFlow when existing one is invalid', () => {
+    const world = new World();
+    const system = createLevelProgressSystem({ totalLevels: 3 });
+    const gameStatus = createGameStatus(GAME_STATE.LEVEL_COMPLETE);
+    const mapResource = createTestMapResource(1);
+
+    world.setResource('gameStatus', gameStatus);
+    world.setResource('mapResource', mapResource);
+    world.setResource('levelFlow', null);
+
+    updateSystem(system, world);
+
     expect(world.getResource('levelFlow')).toEqual({
       pendingLevelAdvance: true,
     });

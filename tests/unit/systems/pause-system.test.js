@@ -159,6 +159,27 @@ describe('pause-system', () => {
     expectPauseIntentCleared(harness.world);
   });
 
+  it('does nothing when gameStatus is missing', () => {
+    const world = new World();
+    const system = createPauseSystem();
+
+    system.update({ world });
+
+    expect(world.getResource('levelFlow')).toBeUndefined();
+    expect(world.getResource('pauseIntent')).toEqual(CLEARED_PAUSE_INTENT);
+  });
+
+  it('does nothing when no intent is provided', () => {
+    const harness = createHarness(GAME_STATE.PLAYING, {});
+
+    updatePauseSystem(harness);
+
+    const gameStatus = harness.world.getResource('gameStatus');
+    expect(gameStatus.currentState).toBe(GAME_STATE.PLAYING);
+    expect(gameStatus.previousState).toBeNull();
+    expectPauseIntentCleared(harness.world);
+  });
+
   it('does not throw when the clock resource is missing during PLAYING -> PAUSED', () => {
     const harness = createHarness(
       GAME_STATE.PLAYING,
@@ -182,6 +203,37 @@ describe('pause-system', () => {
       restart: true,
       toggle: false,
     });
+
+    updatePauseSystem(harness);
+
+    expect(harness.world.getResource('levelFlow')).toEqual({
+      pendingRestart: true,
+    });
+    expectPauseIntentCleared(harness.world);
+  });
+
+  it('merges pendingRestart into existing levelFlow object', () => {
+    const harness = createHarness(GAME_STATE.PAUSED, {
+      restart: true,
+      toggle: false,
+    });
+    harness.world.setResource('levelFlow', { existing: true });
+
+    updatePauseSystem(harness);
+
+    expect(harness.world.getResource('levelFlow')).toEqual({
+      existing: true,
+      pendingRestart: true,
+    });
+    expectPauseIntentCleared(harness.world);
+  });
+
+  it('creates new levelFlow when existing one is invalid', () => {
+    const harness = createHarness(GAME_STATE.PAUSED, {
+      restart: true,
+      toggle: false,
+    });
+    harness.world.setResource('levelFlow', null);
 
     updatePauseSystem(harness);
 
