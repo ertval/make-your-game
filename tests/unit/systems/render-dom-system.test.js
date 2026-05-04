@@ -502,4 +502,94 @@ describe('render-dom-system', () => {
       expect(() => renderDomSystem.update({ world })).not.toThrow();
     });
   });
+
+  describe('entity element reuse and type swap', () => {
+    it('reuses existing element when entity kind has the same sprite type across frames', async () => {
+      const { buffer, fillBuffer, spritePool } = createHarness();
+
+      const mockEl = { classList: { add: vi.fn(), remove: vi.fn() }, style: {} };
+      spritePool.acquire.mockReturnValue(mockEl);
+
+      // First frame — acquires element
+      fillBuffer([
+        { entityId: 1, kind: RENDERABLE_KIND.PLAYER, x: 0, y: 0, opacity: 255, classBits: 0 },
+      ]);
+      renderDomSystem.update({
+        world: { getResource: (k) => (k === 'renderIntent' ? buffer : k === 'spritePool' ? spritePool : null) },
+      });
+      expect(spritePool.acquire).toHaveBeenCalledTimes(1);
+
+      // Second frame — same kind, should reuse (no new acquire)
+      fillBuffer([
+        { entityId: 1, kind: RENDERABLE_KIND.PLAYER, x: 1, y: 0, opacity: 255, classBits: 0 },
+      ]);
+      renderDomSystem.update({
+        world: { getResource: (k) => (k === 'renderIntent' ? buffer : k === 'spritePool' ? spritePool : null) },
+      });
+
+      // Reuse means acquire was called only once total (from first frame)
+      expect(spritePool.acquire).toHaveBeenCalledTimes(1);
+    });
+
+    it('releases old element and acquires new one when entity sprite type changes', async () => {
+      const { buffer, fillBuffer, spritePool } = createHarness();
+
+      const playerEl = { classList: { add: vi.fn(), remove: vi.fn() }, style: {} };
+      const ghostEl = { classList: { add: vi.fn(), remove: vi.fn() }, style: {} };
+      spritePool.acquire
+        .mockReturnValueOnce(playerEl)
+        .mockReturnValueOnce(ghostEl);
+
+      // First frame — player
+      fillBuffer([
+        { entityId: 1, kind: RENDERABLE_KIND.PLAYER, x: 0, y: 0, opacity: 255, classBits: 0 },
+      ]);
+      renderDomSystem.update({
+        world: { getResource: (k) => (k === 'renderIntent' ? buffer : k === 'spritePool' ? spritePool : null) },
+      });
+      expect(spritePool.acquire).toHaveBeenCalledWith('player');
+
+      // Second frame — same entity but now a ghost (type swap)
+      fillBuffer([
+        { entityId: 1, kind: RENDERABLE_KIND.GHOST, x: 0, y: 0, opacity: 255, classBits: 0 },
+      ]);
+      renderDomSystem.update({
+        world: { getResource: (k) => (k === 'renderIntent' ? buffer : k === 'spritePool' ? spritePool : null) },
+      });
+
+      expect(spritePool.release).toHaveBeenCalledWith('player', playerEl);
+      expect(spritePool.acquire).toHaveBeenCalledWith('ghost');
+    });
+
+    it('releases sprites for entities not rendered this frame', async () => {
+      const { buffer, fillBuffer, spritePool } = createHarness();
+
+      const playerEl = { classList: { add: vi.fn(), remove: vi.fn() }, style: {} };
+      const ghostEl = { classList: { add: vi.fn(), remove: vi.fn() }, style: {} };
+      spritePool.acquire
+        .mockReturnValueOnce(playerEl)
+        .mockReturnValueOnce(ghostEl);
+
+      // First frame — two entities
+      fillBuffer([
+        { entityId: 1, kind: RENDERABLE_KIND.PLAYER, x: 0, y: 0, opacity: 255, classBits: 0 },
+        { entityId: 2, kind: RENDERABLE_KIND.GHOST, x: 1, y: 0, opacity: 255, classBits: 0 },
+      ]);
+      renderDomSystem.update({
+        world: { getResource: (k) => (k === 'renderIntent' ? buffer : k === 'spritePool' ? spritePool : null) },
+      });
+
+      expect(spritePool.release).not.toHaveBeenCalled();
+
+      // Second frame — only entity 1 is rendered; entity 2 should be released
+      fillBuffer([
+        { entityId: 1, kind: RENDERABLE_KIND.PLAYER, x: 0, y: 0, opacity: 255, classBits: 0 },
+      ]);
+      renderDomSystem.update({
+        world: { getResource: (k) => (k === 'renderIntent' ? buffer : k === 'spritePool' ? spritePool : null) },
+      });
+
+      expect(spritePool.release).toHaveBeenCalledWith('ghost', ghostEl);
+    });
+  });
 });
