@@ -124,4 +124,9 @@ describe('dom-renderer', () => {
     expect(appRoot.removeChild).toHaveBeenCalled();
     expect(appRoot.children.length).toBe(0);
   });
+
+  it('throws when appRoot is missing', () => {
+    expect(() => createDomRenderer({})).toThrow('DomRenderer requires an appRoot element.');
+    expect(() => createDomRenderer({ appRoot: null })).toThrow('DomRenderer requires an appRoot element.');
+  });
 });

@@ -48,4 +48,41 @@ describe('board-adapter', () => {
     expect(() => adapter.generateBoard(null, container)).toThrow();
     expect(() => adapter.generateBoard({}, container)).toThrow();
   });
+
+  it('returns the generated board element via getBoard', () => {
+    const map = { rows: 2, cols: 3, grid: new Uint8Array(6), grid2D: [], activeGhostTypes: [] };
+    adapter.generateBoard(map, container);
+
+    const board = adapter.getBoard();
+    expect(board).not.toBeNull();
+    expect(typeof board).toBe('object');
+  });
+
+  it('returns null from getBoard before any board is generated', () => {
+    expect(adapter.getBoard()).toBeNull();
+  });
+
+  it('removes the board element from the document when clearBoard is called', () => {
+    const map = { rows: 2, cols: 3, grid: new Uint8Array(6), grid2D: [], activeGhostTypes: [] };
+    const parent = { children: [], appendChild: vi.fn(), removeChild: vi.fn() };
+    const boardElement = { classList: { add: vi.fn() }, style: { setProperty: vi.fn() }, parentNode: parent, children: [], appendChild: vi.fn(), innerHTML: '', setAttribute: vi.fn() };
+    const adapterWithBoard = createBoardAdapter({ document: {
+      createElement: vi.fn(() => boardElement),
+    } });
+
+    adapterWithBoard.generateBoard(map, container);
+    adapterWithBoard.clearBoard();
+
+    expect(parent.removeChild).toHaveBeenCalledWith(boardElement);
+    expect(adapterWithBoard.getBoard()).toBeNull();
+  });
+
+  it('clearBoard does nothing when board is already null', () => {
+    const adapterWithNoBoard = createBoardAdapter({ document: {
+      createElement: vi.fn(() => ({ parentNode: null })),
+    } });
+
+    adapterWithNoBoard.clearBoard();
+    expect(adapterWithNoBoard.getBoard()).toBeNull();
+  });
 });
