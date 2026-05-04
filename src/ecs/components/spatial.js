@@ -7,9 +7,8 @@
  * they need while keeping numeric simulation data in typed arrays.
  *
  * Runtime status:
- * - `position` and `velocity` are part of the active runtime bootstrap path.
- * - `collider` is planned scaffolding for later collision tickets and is not
- *   registered by the current bootstrap path yet.
+ * - `position`, `velocity`, and `collider` are part of the active runtime
+ *   bootstrap path.
  *
  * Public API:
  * - SPATIAL_STORE_RUNTIME_STATUS: runtime/bootstrap status for each spatial store.
@@ -50,7 +49,7 @@ export const COLLIDER_TYPE = Object.freeze({
  * This metadata is descriptive only and must not be treated as a registration API.
  */
 export const SPATIAL_STORE_RUNTIME_STATUS = Object.freeze({
-  collider: 'planned',
+  collider: 'active',
   position: 'active',
   velocity: 'active',
 });
@@ -122,8 +121,7 @@ export function resetVelocity(store, entityId) {
 
 /**
  * Allocate the typed-array store for collider type data.
- * This store is planned scaffolding for later collision tickets and is not
- * registered by the current bootstrap path yet.
+ * This store is part of the active runtime contract today.
  *
  * @param {number} maxEntities - Total entity capacity for the world.
  * @returns {ColliderStore} Fresh collider store with zero-initialized arrays.
