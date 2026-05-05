@@ -4,6 +4,12 @@ This report contains the uniquely assigned issues from the Phase 1 audit report 
 
 > **Verification note (2026-05-05):** This report has been updated based on direct source inspection. False positives have been removed. Fix suggestions have been corrected where the original was inaccurate or suboptimal. See `audit-verification-notes-2026-05-05.md` for the full verification log.
 
+**Total Actual Issues to Resolve: 29**
+
+--- 
+
+## 1) Bugs & Logic Errors
+
 ### BUG-01: Double Bootstrap Execution ⬆ CRITICAL
 **Origin:** 1. Bugs & Logic Errors
 **Files:** Ownership: Track A (Tickets: A-03)

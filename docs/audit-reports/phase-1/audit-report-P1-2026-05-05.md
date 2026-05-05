@@ -25,9 +25,9 @@ Each pass was evidence-driven and read-only. Findings include concrete file/line
 |----------|-------|
 | 🔴 Blocking | 3 |
 | 🔴 Critical | 4 |
-| 🟠 High | 11 |
-| 🟡 Medium | 23 |
-| 🟢 Low / Info | 33 |
+| 🟠 High | 9 |
+| 🟡 Medium | 17 |
+| 🟢 Low / Info | 35 |
 
 **Top risks:**
 1. **CI-01**: CI pipeline missing test execution gates (Blocking)
@@ -126,7 +126,7 @@ world.setEntityMask(playerHandle, PLAYER_WITH_RENDERABLE_MASK); // Do not reassi
 
 **Tests to add:** Test that `droppedBombByCell` is cleared for previous cell.
 
-> ⚠️ **Verification note (2026-05-05):** This finding may be a **false positive**. `resetCollisionScratch()` is called at the top of every tick via `ensureCollisionScratch()`, resetting `droppedBombByCell.fill(-1)` for all cells. Within a single tick, only the current tile is written. Verify against actual `collision-system` tick entry to confirm before implementing the fix.
+> ❌ **Verification note (2026-05-05):** **FALSE POSITIVE CONFIRMED.** `resetCollisionScratch()` (`collision-system.js:L169–177`) calls `scratch.droppedBombByCell.fill(-1)` on **every tick** via `ensureCollisionScratch()`. Within a single tick, `buildHazardOccupancy` only writes the *current* tile (L358–360), guarded by `hasTileChanged()`. There is no persistent per-cell state that survives between ticks. **Remove from Track B fix list.**
 
 ---
 
@@ -156,7 +156,7 @@ world.setEntityMask(playerHandle, PLAYER_WITH_RENDERABLE_MASK); // Do not reassi
 
 ---
 
-### BUG-09: Pause state not explicitly cleared after level complete ⬆ MEDIUM
+### BUG-09: Pause state not explicitly cleared after level complete ⬆ LOW
 **Origin:** 1. Bugs & Logic Errors
 **Files:** Ownership: Track C (Tickets: C-04)
 - `src/game/game-flow.js` (~L120)
@@ -166,9 +166,11 @@ world.setEntityMask(playerHandle, PLAYER_WITH_RENDERABLE_MASK); // Do not reassi
 
 **Fix:** Explicitly call `setPauseState(false)` at start of `startGame()`.
 
+> ⬇ **Verification note (2026-05-05):** **SEVERITY DOWNGRADED TO LOW.** Code review shows `startGame()` calls `applyPauseFromState(clock, gameStatus)` on all transition paths, which correctly synchronizes `clock.isPaused` from `gameStatus.currentState`. The described scenario has no currently reachable code path. Fix remains valid as a **precautionary defensive guard** only.
+
 ---
 
-### BUG-10: `render-intent` buffer overflow silently drops intents ⬆ MEDIUM
+### BUG-10: `render-intent` buffer overflow silently drops intents ⬆ LOW
 **Origin:** 1. Bugs & Logic Errors
 **Files:** Ownership: Track D (Tickets: D-07)
 - `src/ecs/render-intent.js` (~L126)
@@ -176,7 +178,9 @@ world.setEntityMask(playerHandle, PLAYER_WITH_RENDERABLE_MASK); // Do not reassi
 **Problem:** Buffer overflow silently drops intents in production.
 **Impact:** Visuals disappear silently.
 
-**Fix:** Increase buffer size or implement ring buffer.
+**Fix:** Add a rate-throttled production warning; the true capacity fix is ARCH-06.
+
+> ⬇ **Verification note (2026-05-05):** **SEVERITY DOWNGRADED TO LOW.** `render-intent.js:L128–133` already logs a `console.warn` in dev mode. `MAX_RENDER_INTENTS` is computed to fit all entity types for the shipped game (≈550 slots). Silent production drops are a concern only if entity counts exceed design limits — which ARCH-06 should guard against. The immediate fix is a throttled production warning, not a ring buffer.
 
 ---
 
@@ -225,6 +229,8 @@ world.setEntityMask(playerHandle, PLAYER_WITH_RENDERABLE_MASK); // Do not reassi
 **Impact:** Inconsistent state if event emission fails.
 
 **Fix:** Emit event first, then mutate map.
+
+> ❌ **Verification note (2026-05-05):** **FALSE POSITIVE CONFIRMED.** `emitPickupEvent()` is fully guarded by `eventContext?.eventQueue` — it is optional and infallible (no throw path exists). The map mutation before emission is **intentional**: it prevents the same tile being collected twice within the same tick (idempotency guard). Reordering would create a TOCTOU window allowing double-collection. **Remove from Track B fix list.**
 
 ---
 
