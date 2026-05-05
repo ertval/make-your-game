@@ -14,7 +14,10 @@ import {
   createSpawnSystem,
   DEFAULT_DEAD_GHOST_IDS_RESOURCE_KEY,
   DEFAULT_SPAWN_RESOURCE_KEY,
+  getGhostReleaseDelayMs,
   getRespawnDelayMs,
+  resolveDeterministicGhostOrder,
+  sanitizeSpawnState,
   scheduleRespawn,
 } from '../../../src/ecs/systems/spawn-system.js';
 import { World } from '../../../src/ecs/world/world.js';
@@ -165,6 +168,38 @@ describe('spawn-system', () => {
     expect(spawnState.respawnQueue).toEqual([{ ghostId: 1, readyAtMs: 9000 }]);
   });
 
+  it('does not schedule respawn for invalid ghostId', () => {
+    const spawnState = createInitialSpawnState();
+
+    const result = scheduleRespawn(spawnState, 'invalid');
+
+    expect(result).toBe(false);
+    expect(spawnState.respawnQueue).toEqual([]);
+  });
+
+  it('does not schedule duplicate respawn entries', () => {
+    const spawnState = createInitialSpawnState();
+    spawnState.elapsedMs = 1000;
+
+    scheduleRespawn(spawnState, 1);
+    const result = scheduleRespawn(spawnState, 1);
+
+    expect(result).toBe(false);
+    expect(spawnState.respawnQueue.length).toBe(1);
+  });
+
+  it('sorts respawn entries by ghostId when readyAtMs ties', () => {
+    const spawnState = createInitialSpawnState();
+
+    scheduleRespawn(spawnState, 3);
+    scheduleRespawn(spawnState, 1);
+
+    expect(spawnState.respawnQueue).toEqual([
+      { ghostId: 1, readyAtMs: getRespawnDelayMs() },
+      { ghostId: 3, readyAtMs: getRespawnDelayMs() },
+    ]);
+  });
+
   it('does not release respawning ghosts before readyAtMs', () => {
     const { spawnSystem, world } = createSpawnHarness({
       maxGhosts: 2,
@@ -285,6 +320,74 @@ describe('spawn-system', () => {
     ]);
   });
 
+  it('sets activeGhostCap to 0 when mapResource is invalid', () => {
+    const { spawnSystem, world } = createSpawnHarness({
+      maxGhosts: null,
+    });
+
+    updateSpawn(spawnSystem, world, 0);
+
+    expect(getSpawnState(world).activeGhostCap).toBe(0);
+  });
+
+  it('falls back to default ghost ids when ghostIds is invalid', () => {
+    const { spawnSystem, world } = createSpawnHarness({
+      ghostIds: null,
+      maxGhosts: 2,
+    });
+
+    updateSpawn(spawnSystem, world, 0);
+
+    const state = getSpawnState(world);
+
+    expect(state.releasedGhostIds.length).toBeGreaterThan(0);
+  });
+
+  it('falls back to the final canonical delay when ghost release index exceeds the table', () => {
+    expect(getGhostReleaseDelayMs(999)).toBe(15000);
+  });
+
+  it('falls back to generated ghost ids when the provided order has no finite entries', () => {
+    expect(resolveDeterministicGhostOrder(['bad'], 2)).toEqual([0, 1, 2, 3]);
+  });
+
+  it('does not advance elapsedMs for invalid dtMs', () => {
+    const { spawnSystem, world } = createSpawnHarness();
+
+    updateSpawn(spawnSystem, world, -100);
+
+    expect(getSpawnState(world).elapsedMs).toBe(0);
+  });
+
+  it('ignores invalid deadGhostIds resources without mutating released ghosts', () => {
+    const { spawnSystem, world } = createSpawnHarness({
+      spawnState: {
+        elapsedMs: 0,
+        releasedGhostIds: [0],
+        queuedGhostIds: [],
+        respawnQueue: [],
+        activeGhostCap: 4,
+      },
+    });
+
+    world.setResource(DEFAULT_DEAD_GHOST_IDS_RESOURCE_KEY, 'invalid');
+
+    updateSpawn(spawnSystem, world, 0);
+
+    expect(getSpawnState(world).releasedGhostIds).toEqual([0]);
+    expect(getSpawnState(world).respawnQueue).toEqual([]);
+  });
+
+  it('does not advance time when game is not PLAYING', () => {
+    const { spawnSystem, world } = createSpawnHarness({
+      gameState: GAME_STATE.PAUSED,
+    });
+
+    updateSpawn(spawnSystem, world, 1000);
+
+    expect(getSpawnState(world).elapsedMs).toBe(0);
+  });
+
   it('initializes missing state with the canonical spawn-state defaults', () => {
     const { spawnSystem, world } = createSpawnHarness({
       ghostIds: [0, 1],
@@ -297,6 +400,48 @@ describe('spawn-system', () => {
       ...createInitialSpawnState(),
       activeGhostCap: 2,
       releasedGhostIds: [0],
+    });
+  });
+
+  it('replaces invalid spawn state with initial state', () => {
+    const world = new World();
+    const spawnSystem = createSpawnSystem();
+
+    world.setResource('gameStatus', createGameStatus(GAME_STATE.PLAYING));
+    world.setResource('mapResource', createMapResourceStub(2));
+    world.setResource('ghostSpawnState', 'invalid');
+
+    updateSpawn(spawnSystem, world, 0);
+
+    expect(getSpawnState(world)).toMatchObject({
+      elapsedMs: 0,
+      activeGhostCap: 2,
+    });
+  });
+
+  it('sanitizes and deterministically sorts respawn queue entries', () => {
+    expect(
+      sanitizeSpawnState({
+        elapsedMs: 4.9,
+        releasedGhostIds: [3.9, 'bad'],
+        queuedGhostIds: [2.2, null],
+        respawnQueue: [
+          { ghostId: 4, readyAtMs: 2000 },
+          { ghostId: 1, readyAtMs: 2000 },
+          { ghostId: 'bad', readyAtMs: 10 },
+          null,
+        ],
+        activeGhostCap: 2.8,
+      }),
+    ).toEqual({
+      elapsedMs: 4,
+      releasedGhostIds: [3],
+      queuedGhostIds: [2],
+      respawnQueue: [
+        { ghostId: 1, readyAtMs: 2000 },
+        { ghostId: 4, readyAtMs: 2000 },
+      ],
+      activeGhostCap: 2,
     });
   });
 });
