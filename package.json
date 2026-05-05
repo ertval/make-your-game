@@ -14,7 +14,6 @@
     "preview": "vite preview",
     "check": "biome check .",
     "fix": "biome check --write .",
-    "check:fix": "biome check --write .",
     "test": "vitest run",
     "test:watch": "vitest",
     "test:unit": "vitest run tests/unit",
@@ -47,8 +46,6 @@
     "@vitest/coverage-v8": "^4.1.2",
     "ajv": "^8.18.0",
     "ajv-formats": "^3.0.1",
-    "maxrects-packer": "^2.7.3",
-    "sharp": "^0.34.5",
     "vite": "^8.0.3",
     "vitest": "^4.1.2"
   }

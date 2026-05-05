@@ -20,25 +20,6 @@ export class EntityStore {
     return Number.isInteger(id) && id >= 0 && id < this.generations.length;
   }
 
-  getGeneration(id) {
-    if (!this.isValidId(id)) {
-      return null;
-    }
-
-    return this.generations[id];
-  }
-
-  getHandleForId(id) {
-    if (!this.isValidId(id) || this.activeFlags[id] !== true) {
-      return null;
-    }
-
-    return {
-      id,
-      generation: this.generations[id],
-    };
-  }
-
   create() {
     let id;
 

@@ -197,7 +197,7 @@ make-your-game/
 ├── index.html                      # 🏠 Single-page entry point
 ├── package-lock.json               # 🔒 Locked npm dependency graph
 ├── package.json                    # 📦 ES module config, scripts, exports
-├── sbom.json                       # 🧾 Generated dependency inventory for policy checks
+├── sbom.json                       # 🧾 Generated dependency inventory (regen via npm run sbom)
 ├── src/                            # 🧠 Runtime source code
 │   ├── adapters/                   # 🔌 Imperative boundaries for DOM and IO
 │   ├── adapters/dom/               # DOM adapter implementations (present)

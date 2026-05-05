@@ -20,44 +20,48 @@ console.log('===================================================================
 const pkg = JSON.parse(fs.readFileSync('package.json', 'utf8'));
 const scripts = pkg.scripts ?? {};
 
-const commands = ['check'];
+const commands = [{ script: 'check' }];
 // test:coverage implies a vitest run, which covers unit, integration, and audit unit tests.
 if (scripts['test:coverage']) {
-  commands.push('test:coverage');
+  commands.push({ script: 'test:coverage' });
 } else if (scripts.coverage) {
-  commands.push('coverage');
+  commands.push({ script: 'coverage' });
 } else if (scripts.test) {
-  commands.push('test');
+  commands.push({ script: 'test' });
 }
 
 // We only run the e2e part of audit tests here to avoid running vitest audit tests twice.
+const hasAuditE2E = Boolean(scripts['test:audit:e2e'] || scripts['test:audit']);
 if (scripts['test:audit:e2e']) {
-  commands.push('test:audit:e2e');
+  commands.push({ script: 'test:audit:e2e' });
 } else if (scripts['test:audit']) {
-  commands.push('test:audit');
+  commands.push({ script: 'test:audit' });
 }
 
 if (scripts['test:e2e']) {
-  commands.push('test:e2e');
+  commands.push({
+    script: 'test:e2e',
+    env: hasAuditE2E ? { ...process.env, PLAYWRIGHT_IGNORE_AUDIT: 'true' } : undefined,
+  });
 }
 
 if (scripts['validate:schema']) {
-  commands.push('validate:schema');
+  commands.push({ script: 'validate:schema' });
 }
 
 if (scripts.sbom) {
-  commands.push('sbom');
+  commands.push({ script: 'sbom' });
 }
 
 const errors = [];
 
-for (const script of commands) {
-  console.log(`Running npm run ${script}`);
+for (const command of commands) {
+  console.log(`Running npm run ${command.script}`);
   try {
-    runCommand('npm', ['run', script], { stdio: 'inherit' });
+    runCommand('npm', ['run', command.script], { stdio: 'inherit', env: command.env });
   } catch {
-    console.error(`\n${GATE_FAIL} — npm run ${script} failed.`);
-    errors.push(`npm run ${script}`);
+    console.error(`\n${GATE_FAIL} — npm run ${command.script} failed.`);
+    errors.push(`npm run ${command.script}`);
   }
 }
 
