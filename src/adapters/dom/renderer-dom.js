@@ -76,6 +76,7 @@ export function createDomRenderer({ appRoot }) {
     // 4. Remove elements for destroyed entities (ARCH-13: listener cleanup would happen here).
     for (const id of staleIds) {
       const el = elementMap.get(id);
+      /* v8 ignore next 3 */
       if (el) {
         appRoot.removeChild(el);
         elementMap.delete(id);

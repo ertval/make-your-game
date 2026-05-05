@@ -261,11 +261,7 @@ export function createGameRuntime({
     getLevelIndex: () => bootstrap.levelLoader.getCurrentLevelIndex(),
     pause: () => bootstrap.gameFlow.pauseGame(),
     restart: () => {
-      const restarted = bootstrap.gameFlow.restartLevel();
-      if (restarted) {
-        bootstrap.resyncTime(normalizeNow(getNow()));
-      }
-      return restarted;
+      return bootstrap.gameFlow.restartLevel();
     },
     resume: () => {
       const resumed = bootstrap.gameFlow.resumeGame();
