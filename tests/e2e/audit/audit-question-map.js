@@ -7,6 +7,7 @@
  * - AUDIT_QUESTIONS
  * - AUDIT_EXECUTION_SPLIT
  * - SEMI_AUTOMATABLE_THRESHOLDS
+ * - CI_SEMI_AUTOMATABLE_THRESHOLDS  (relaxed values for slow CI runners)
  * - MANUAL_EVIDENCE_AUDIT_IDS
  * - MANUAL_EVIDENCE_MANIFEST_PATH
  */
@@ -31,6 +32,29 @@ export const SEMI_AUTOMATABLE_THRESHOLDS = Object.freeze({
     minP95Fps: 50,
   }),
   'AUDIT-B-05': Object.freeze({
+    maxLongTaskCount: 0,
+    maxLongTaskMs: 50,
+    sampleWindowMs: 1500,
+  }),
+});
+
+// Relaxed thresholds for slow CI runners (GitHub Actions headless Chromium
+// typically achieves ~25-35 FPS for rAF-driven workloads vs 60 FPS locally).
+// These values still catch broken game loops while tolerating VM throttling.
+export const CI_SEMI_AUTOMATABLE_THRESHOLDS = Object.freeze({
+  'AUDIT-F-17': Object.freeze({
+    minFrameSamples: 90,
+    // 50 ms = 20 FPS floor — catches a broken loop, not just a slow VM.
+    maxP95FrameTimeMs: 50,
+    maxP99FrameTimeMs: 100,
+  }),
+  'AUDIT-F-18': Object.freeze({
+    minFrameSamples: 90,
+    // 20 FPS floor — still meaningful on a heavily throttled CI runner.
+    minP95Fps: 20,
+  }),
+  'AUDIT-B-05': Object.freeze({
+    // Long-task budget unchanged; this metric is not runner-speed-sensitive.
     maxLongTaskCount: 0,
     maxLongTaskMs: 50,
     sampleWindowMs: 1500,
