@@ -1,76 +1,90 @@
 # Track B Fix Report
 
-### BUG-01-INPUT: `assertValidInputAdapter` checks wrong method name ⬆ CRITICAL
-**Origin:** Bugs & Logic Errors (BP)
-**Source Reports:** BP
-**Files:** Track B (B-02)
-- `src/adapters/io/input-adapter.js` (~L117, L130)
-**Problem:** `assertValidInputAdapter` checks for `getHeldKeys` (capital H) but actual method is `getHeldKeys` (lowercase h). Similarly `clearHeldKeys` at L125. Validation always fails for correct adapters.
-**Impact:** Breaks input system wiring; throws errors even with valid adapters.
-**Fix:**
-```javascript
-// src/adapters/io/input-adapter.js L117
-typeof adapter.getHeldKeys === 'function' // not getHeldKeys
-// L125
-typeof adapter.clearHeldKeys === 'function' // not clearHeldKeys
-```
-**Tests to add:** Test `assertValidInputAdapter` accepts valid adapters with correct method names.
+This report contains the uniquely assigned issues from the Phase 1 audit report with full details.
+
+### BUG-06: `droppedBombByCell` not cleared on bomb tile change ⬆ HIGH
+**Origin:** 1. Bugs & Logic Errors
+**Files:** Ownership: Track B (Tickets: B-04)
+- `src/ecs/systems/collision-system.js` (~L355)
+
+**Problem:** When a bomb changes tiles, the previous cell's entry in `droppedBombByCell` is never cleared.
+**Impact:** False collision responses.
+
+**Fix:** Clear previous cell entry when a bomb moves.
+
+**Tests to add:** Test that `droppedBombByCell` is cleared for previous cell.
 
 ---
 
+### BUG-14: `collectStaticPickup` mutates map BEFORE emitting event ⬆ LOW
+**Origin:** 1. Bugs & Logic Errors
+**Files:** Ownership: Track B (Tickets: B-04)
+- `src/ecs/systems/collision-system.js` (~L651)
 
-### DEAD-01-ALLMASKS: `ALL_COMPONENT_MASKS` exported but never imported ⬆ LOW
-**Origin:** Dead Code & Unused References (BP)
-**Source Reports:** BP
-**Files:** Track B (B-01)
+**Problem:** Mutates map before emitting event.
+**Impact:** Inconsistent state if event emission fails.
+
+**Fix:** Emit event first, then mutate map.
+
+---
+
+### DEAD-09: Duplicate `readEntityTile()` in `bomb-tick-system.js` ⬆ MEDIUM
+**Origin:** 2. Dead Code & Unused References
+**Files:** Ownership: Track B (Tickets: B-06)
+- `src/ecs/systems/bomb-tick-system.js` (~L48)
+
+**Problem:** Identical to `collision-system.js`.
+**Fix:** Consolidate.
+
+---
+
+### DEAD-15: `ALL_COMPONENT_MASKS` exported but never imported ⬆ LOW
+**Origin:** 2. Dead Code & Unused References
+**Files:** Ownership: Track B (Tickets: B-01)
 - `src/ecs/components/registry.js` (~L56)
-**Problem:** Exported but never imported anywhere.
-**Action:** Remove export or document future use.
+
+**Fix:** Remove.
 
 ---
 
+### DEAD-22: Unused `*_RUNTIME_STATUS` exports ⬆ LOW
+**Origin:** 2. Dead Code & Unused References
+**Files:** Ownership: Track B (Tickets: B-01)
+- `src/ecs/components/spatial.js` (~L51)
 
-### DEAD-08-BP: `destroy` contract may be over-specified ⬆ LOW
-**Origin:** Dead Code & Unused References (BP)
-**Source Reports:** BP
-**Files:** Track B (B-02)
-- `src/adapters/io/input-adapter.js` (~L117-127)
-**Problem:** `assertValidInputAdapter` requires `destroy` method not part of core input contract.
-**Action:** Fix assertion to match actual contract.
+**Fix:** Remove.
 
 ---
 
+### ARCH-04: `input-system.js` directly imports adapter module ⬆ HIGH
+**Origin:** 3. Architecture, ECS Violations & Guideline Drift
+**Violated rule:** "Systems MUST NOT import adapters directly."
+**Files:** Ownership: Track B (Tickets: B-02)
+- `src/ecs/systems/input-system.js` (~L21)
 
-### ARCH-05-BP: DOM Isolation — Simulation systems ⬆ PASS
-**Origin:** Architecture, ECS Violations & Guideline Drift (BP)
-**Source Reports:** BP
-**Files:** Track B/D (B-02, B-03, D-08)
-**Verdict:** ✅ PASS — `input-system.js`, `player-move-system.js` do not import DOM APIs.
+**Problem:** Direct import from `input-adapter.js`.
+**Impact:** Couples simulation to adapter.
 
----
-
-
-### ARCH-06-BP: Input contract ⬆ PASS
-**Origin:** Architecture, ECS Violations & Guideline Drift (BP)
-**Source Reports:** BP
-**Files:** Track B (B-02)
-**Verdict:** ✅ PASS — `input-system.js` uses `getHeldKeys()` + `drainPressedKeys()`; snapshot consumed once per fixed step.
+**Fix:** Move adapter assertions to shared utils.
 
 ---
 
+### CI-10: Phase testing report out-of-sync with ticket tracker ⬆ MEDIUM
+**Origin:** 5. Tests & CI Gaps
+**Files:** Ownership: All tracks
+- `docs/audit-reports/phase-testing-verification-report.md` (~L68)
 
-### UT-01-MM to UT-07-MM: Missing unit tests for critical systems ⬆ HIGH (each)
-**Origin:** Tests & CI Gaps (MM)
-**Source Reports:** MM
-**Files:** Track B/C (B-06, B-07, B-08, C-04)
-**Missing Tests:**
-- `pause-system.js` (UT-01)
-- `level-progress-system.js` (UT-02)
-- `ghost-ai-system.js` (UT-03)
-- `bomb-tick-system.js` (UT-04)
-- `explosion-system.js` (UT-05)
-- `power-up-system.js` (UT-06)
-- `collision-gameplay-events.js` (UT-07)
-**Fix:** Create corresponding unit test files for each system.
+**Problem:** Report describes P2 criteria as testable despite 68% incomplete tickets.
+**Fix:** Update phase report.
 
 ---
+
+### CI-13: `audit.e2e.test.js` uses string-matching instead of execution ⬆ LOW
+**Origin:** 5. Tests & CI Gaps
+**Files:** Ownership: Track B (Tickets: B-02)
+- `tests/e2e/audit/audit.e2e.test.js` (~L136)
+
+**Fix:** Replace with actual test execution.
+
+---
+
