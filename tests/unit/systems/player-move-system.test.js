@@ -625,9 +625,7 @@ describe('player-move-system stepping behavior', () => {
   it('returns early without throwing when required resources are absent', () => {
     const world = new World();
     const system = createPlayerMoveSystem();
-    expect(() =>
-      system.update({ dtMs: FIXED_DT_MS, frame: 0, simTimeMs: 0, world }),
-    ).not.toThrow();
+    expect(() => system.update({ dtMs: FIXED_DT_MS, frame: 0, simTimeMs: 0, world })).not.toThrow();
   });
 
   it('sets a move intent but does not advance position when dtMs is zero', () => {
@@ -697,9 +695,7 @@ describe('player-move-system stepping behavior', () => {
     world.setResource('inputState', inputState);
     // No eventQueue registered — exercises the `eventQueueResourceKey ? ... : null` branch.
 
-    expect(() =>
-      system.update({ dtMs: FIXED_DT_MS, frame: 0, simTimeMs: 0, world }),
-    ).not.toThrow();
+    expect(() => system.update({ dtMs: FIXED_DT_MS, frame: 0, simTimeMs: 0, world })).not.toThrow();
     expect(positionStore.col[player.id]).toBeGreaterThan(3);
   });
 

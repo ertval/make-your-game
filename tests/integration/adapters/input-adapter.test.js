@@ -555,7 +555,11 @@ describe('keyboard input adapter', () => {
   });
 
   it('creates with null targets and destroy is safe when no listeners registered', () => {
-    const adapter = createInputAdapter({ eventTarget: null, windowTarget: null, documentTarget: null });
+    const adapter = createInputAdapter({
+      eventTarget: null,
+      windowTarget: null,
+      documentTarget: null,
+    });
 
     expect(adapter.getHeldKeys().size).toBe(0);
     expect(adapter.drainPressedKeys().size).toBe(0);

@@ -550,14 +550,18 @@ describe('collision-system helpers', () => {
 
   it('rejects validateGameplayEventPayload with an empty type string', () => {
     expect(() =>
-      validateGameplayEventPayload('', { entityId: 0, tile: { row: 0, col: 0 }, sourceSystem: 'x' }),
+      validateGameplayEventPayload('', {
+        entityId: 0,
+        tile: { row: 0, col: 0 },
+        sourceSystem: 'x',
+      }),
     ).toThrow(/non-empty string/);
   });
 
   it('rejects validateGameplayEventPayload with a null payload', () => {
-    expect(() =>
-      validateGameplayEventPayload(GAMEPLAY_EVENT_TYPE.PELLET_COLLECTED, null),
-    ).toThrow(/payload must be an object/);
+    expect(() => validateGameplayEventPayload(GAMEPLAY_EVENT_TYPE.PELLET_COLLECTED, null)).toThrow(
+      /payload must be an object/,
+    );
   });
 
   it('rejects validateGameplayEventPayload with an invalid tile shape', () => {
