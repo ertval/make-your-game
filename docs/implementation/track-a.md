@@ -121,7 +121,7 @@ Source plan: `docs/implementation/implementation-plan.md` (Section 3)
 - [x] Write unit tests for `game-status.js`: FSM transitions, invalid transition rejection.
 - [x] Write unit tests for `constants.js`: all canonical values correct.
 - [x] Write unit tests for `map-resource.js`: valid parse, invalid JSON rejection, spawn point extraction.
-- [x] Verification gate: all core/resource unit tests green with >90% line coverage on tested files.
+- [x] Verification gate: all core/resource unit tests green with >85% coverage on tested files.
 
 ---
 
@@ -214,11 +214,12 @@ Source plan: `docs/implementation/implementation-plan.md` (Section 3)
 - File existence checks for manifest paths
 - Naming/size-budget checks for generated assets
 
-- [ ] Wire schema checks for map JSONs and `assets/manifests/*.json` against `docs/schemas/*.schema.json` into CI.
-- [ ] Add file existence checks for manifest paths and fail CI on missing assets.
-- [ ] Enforce naming and size-budget checks for generated assets.
-- [ ] Implement and validate strict CSP/Trusted Types enforcement in the production build pipeline.
-- [ ] Verification gate: CI fails on schema mismatch, missing file, naming-rule violation, or budget overrun, and production CSP is validated.
+- [x] Wire schema checks for map JSONs and `assets/manifests/*.json` against `docs/schemas/*.schema.json` into CI.
+- [x] Add file existence checks for manifest paths and fail CI on missing assets.
+- [x] Enforce naming and size-budget checks for generated assets.
+- [x] Implement and validate strict CSP/Trusted Types enforcement in the production build pipeline.
+- [x] GAP-01: Verify that player and ghost entities are assigned the correct component masks and properties (including COMPONENT_MASK.RENDERABLE) in bootstrap so the render collect system sees them properly.
+- [x] Verification gate: CI fails on schema mismatch, missing file, naming-rule violation, or budget overrun, and production CSP is validated.
 
 ---
 

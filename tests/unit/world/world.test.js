@@ -45,9 +45,9 @@ describe('World', () => {
     world.registerSystem({
       phase: 'logic',
       name: 'defer-create',
-      update: () => {
-        world.deferCreateEntity(0b0001);
-        expect(world.getEntityCount()).toBe(0);
+      update: (context) => {
+        context.world.deferCreateEntity(0b0001);
+        expect(context.world.getEntityCount()).toBe(0);
       },
     });
 
@@ -64,9 +64,10 @@ describe('World', () => {
     world.registerSystem({
       phase: 'logic',
       name: 'defer-destroy',
-      update: () => {
-        world.deferDestroyEntity(entity);
-        expect(world.getEntityCount()).toBe(1);
+      update: (context) => {
+        context.world.deferDestroyEntity(entity);
+        expect(context.world.getEntityCount()).toBe(1);
+        expect(context.world.isEntityAlive(entity)).toBe(true);
       },
     });
 
@@ -83,9 +84,10 @@ describe('World', () => {
     world.registerSystem({
       phase: 'logic',
       name: 'defer-mask',
-      update: () => {
-        world.deferSetEntityMask(entity, 0b0010);
-        expect(world.query(0b0010)).toEqual([]);
+      update: (context) => {
+        context.world.deferSetEntityMask(entity, 0b0010);
+        expect(context.world.query(0b0010)).toEqual([]);
+        expect(context.world.getEntityMask(entity)).toBe(0b0001);
       },
     });
 
@@ -234,5 +236,106 @@ describe('World', () => {
 
     expect(unauthorizedReads).toHaveLength(1);
     expect(unauthorizedReads[0]).toContain('cannot read resource');
+  });
+  it('enforces explicit write resource capability declarations for systems', () => {
+    const world = new World();
+    const unauthorizedWrites = [];
+
+    world.registerSystem({
+      phase: 'logic',
+      name: 'no-write-capability',
+      update: (context) => {
+        try {
+          context.world.setResource('clock', { nowMs: 1 });
+        } catch (error) {
+          unauthorizedWrites.push(error.message);
+        }
+      },
+    });
+
+    world.runFixedStep();
+
+    expect(unauthorizedWrites).toHaveLength(1);
+    expect(unauthorizedWrites[0]).toContain('cannot write resource');
+  });
+
+  it('rejects registering system without update function', () => {
+    const world = new World();
+    expect(() => world.registerSystem({ phase: 'logic', name: 'bad' })).toThrow(
+      'must provide an update function',
+    );
+  });
+
+  it('rejects registering system to unknown phase', () => {
+    const world = new World();
+    expect(() => world.registerSystem({ phase: 'unknown', name: 'bad', update: () => {} })).toThrow(
+      'Unknown system phase',
+    );
+  });
+
+  it('quarantines failing systems when fault budget is exceeded', () => {
+    const world = new World();
+    const consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+    let runCount = 0;
+
+    world.registerSystem({
+      phase: 'logic',
+      name: 'failing',
+      update: () => {
+        runCount++;
+        throw new Error('boom');
+      },
+    });
+
+    // Run until quarantine is hit. Default budget is typically 3-5 faults.
+    for (let i = 0; i < 15; i++) {
+      world.runFixedStep();
+    }
+
+    // It should stop running after hitting the budget.
+    expect(runCount).toBeLessThan(15);
+    expect(consoleErrorSpy).toHaveBeenCalled();
+    consoleErrorSpy.mockRestore();
+  });
+
+  it('supports deferDestroyAllEntities at the sync point', () => {
+    const world = new World();
+    world.createEntity();
+    world.createEntity();
+
+    world.registerSystem({
+      phase: 'logic',
+      name: 'destroy-all',
+      update: () => {
+        world.deferDestroyAllEntities();
+      },
+    });
+
+    world.runFixedStep();
+    expect(world.getEntityCount()).toBe(0);
+  });
+
+  it('protects against mid-tick deletions and handle destruction edge cases', () => {
+    const world = new World();
+    const handle = world.createEntity();
+
+    world.registerSystem({
+      phase: 'logic',
+      name: 'double-destroy',
+      update: () => {
+        world.deferDestroyEntity(handle);
+        world.deferDestroyEntity(handle);
+      },
+    });
+
+    world.runFixedStep();
+    expect(world.getEntityCount()).toBe(0);
+  });
+
+  it('returns false when destroying already destroyed entity directly', () => {
+    const world = new World();
+    const handle = world.createEntity();
+    world.destroyEntity(handle);
+    expect(world.destroyEntity(handle)).toBe(false);
   });
 });

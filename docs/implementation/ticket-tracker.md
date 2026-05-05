@@ -34,9 +34,9 @@ Coverage mapping remains canonical in `audit-traceability-matrix.md`.
 ## 📈 Summary Snapshot
 
 - Total tickets: `44`
-- Done: `14`
+- Done: `21`
 - In Progress: `0`
-- Not Started: `30`
+- Not Started: `23`
 
 ## 🧮 Phase Audit Remediation Ledger
 
@@ -77,10 +77,10 @@ Definition of done for Q1 Visual Prototype:
 
 Canonical ticket ID ranges used by policy checks:
 
-- Track A: `A-01` through `A-14`
-- Track B: `B-01` through `B-09`
-- Track C: `C-01` through `C-10`
-- Track D: `D-01` through `D-11`
+- Track A: `A-01` through `A-14` -> **Ownership**: `ekaramet`
+- Track B: `B-01` through `B-09` -> **Ownership**: `asmyrogl`
+- Track C: `C-01` through `C-10` -> **Ownership**: `chbaikas`
+- Track D: `D-01` through `D-11` -> **Ownership**: `medvall`
 
 ## 📋 Ordered Tickets (Authoritative Claim Order)
 
@@ -116,7 +116,7 @@ Canonical ticket ID ranges used by policy checks:
 - [-] **C-04** P2 - Pause & Level Progression Systems — SYSTEM-LAYER COMPLETE / READY_FOR_MAIN: NO. Implemented in this PR: `pause-input-system`, `pause-system`, and `level-progress-system`. System-layer complete, pending runtime integration. Deferred: default runtime registration/bootstrap wiring, visible pause menu/overlays, restart reset/reload behavior, level-flow/level-loader runtime advancement, and browser rAF/performance/manual evidence (Depends on: D-01, D-03, C-02, A-03, A-11 audit gate, non-blocking) | Blocks: A-05; A-06; A-08; B-09; C-05; A-12
 - [ ] **C-05** P2 - HUD Adapter & Screen Overlays (Depends on: D-05, C-02, C-04, A-11 audit gate, non-blocking) | Blocks: A-05; A-06; A-08; D-11; A-12
 - [x] **B-05** P2 - Core Gameplay Event Surface (Depends on: B-04, D-01, A-11) | Blocks: A-08; B-09; A-12
-- [ ] **A-07** P2 - CI, Schema Validation & Asset Gates (Depends on: A-01, D-03, A-11) | Blocks: A-09; C-10; D-11; A-12
+- [x] **A-07** P2 - CI, Schema Validation & Asset Gates (Depends on: A-01, D-03, A-11) | Blocks: A-09, C-10, D-11, A-12
 - [ ] **C-06** P2 - Audio Adapter Implementation (Depends on: A-01, D-01, A-11 audit gate, non-blocking) | Blocks: C-07; C-08; C-09; A-12
 - [ ] **A-12** P2 - Consolidate P2 audits + publish 4 deduplicated track fix reports (Depends on: B-04, C-02, C-01, C-03, C-04, C-05, B-05, A-07, C-06) | Blocks: B-06; B-07; B-08; B-09; C-07; A-04; A-05; A-06; A-08
 

@@ -39,4 +39,39 @@ describe('EntityStore', () => {
     store.create();
     expect(() => store.create()).toThrow('Entity limit reached');
   });
+  it('returns valid handle data for getGeneration and getHandleForId', () => {
+    const store = new EntityStore();
+    const handle = store.create();
+
+    expect(store.getGeneration(-1)).toBeNull();
+    expect(store.getHandleForId(-1)).toBeNull();
+    expect(store.getHandleForId(9999)).toBeNull();
+
+    expect(store.getGeneration(handle.id)).toBe(handle.generation);
+    expect(store.getHandleForId(handle.id)).toEqual(handle);
+
+    store.destroy(handle);
+    expect(store.getHandleForId(handle.id)).toBeNull();
+  });
+
+  it('handles invalid arguments for isAlive gracefully', () => {
+    const store = new EntityStore();
+    expect(store.isAlive(null)).toBe(false);
+    expect(store.isAlive({})).toBe(false);
+    expect(store.isAlive({ id: 0 })).toBe(false);
+    expect(store.isAlive({ generation: 0 })).toBe(false);
+    expect(store.isAlive({ id: '0', generation: '0' })).toBe(false);
+  });
+
+  it('getActiveIds and getActiveHandles return correct data for alive entities only', () => {
+    const store = new EntityStore();
+    const h1 = store.create();
+    const h2 = store.create();
+    const h3 = store.create();
+
+    store.destroy(h2);
+
+    expect(store.getActiveIds()).toEqual([h1.id, h3.id]);
+    expect(store.getActiveHandles()).toEqual([h1, h3]);
+  });
 });

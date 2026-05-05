@@ -1057,7 +1057,7 @@ if (checkSet === 'pr' || checkSet === 'all') {
     }),
   );
   if (ticketContext.processMode) {
-    assertOwnerScopedOwnership(ticketContext.ticketIds);
+    assertOwnerScopedOwnership(effectiveTrack, ticketContext.ticketIds);
   } else {
     assertTrackOwnership(ticketContext.trackCode, ticketContext.ticketIds);
   }
