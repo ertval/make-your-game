@@ -11,7 +11,7 @@
 import { describe, expect, it, vi } from 'vitest';
 
 import { World } from '../../../src/ecs/world/world.js';
-import { createLevelLoader } from '../../../src/game/level-loader.js';
+import { createLevelLoader, createSyncMapLoader } from '../../../src/game/level-loader.js';
 
 function createMapResourceFixture(level) {
   const rows = 3;
@@ -131,5 +131,85 @@ describe('level-loader', () => {
     expect(levelLoader.getCurrentLevelIndex()).toBe(2);
 
     expect(requestedIndexes).toEqual([1, 0, 0, 2]);
+  });
+});
+
+describe('createSyncMapLoader', () => {
+  it('loads from preloaded map resources and returns clones', () => {
+    const maps = [createMapResourceFixture(1), createMapResourceFixture(2)];
+    const loader = createSyncMapLoader(maps);
+
+    const loaded = loader(0);
+    expect(loaded).not.toBe(maps[0]);
+    expect(loaded.level).toBe(1);
+  });
+
+  it('returns null when requesting an out-of-bounds index', () => {
+    const maps = [createMapResourceFixture(1)];
+    const loader = createSyncMapLoader(maps);
+
+    expect(loader(-1)).toBeNull();
+    expect(loader(1)).toBeNull();
+  });
+
+  it('returns null when a map slot in the preload array is null', () => {
+    const maps = [createMapResourceFixture(1), null, createMapResourceFixture(3)];
+    const loader = createSyncMapLoader(maps);
+
+    expect(loader(0)).not.toBeNull();
+    expect(loader(1)).toBeNull();
+    expect(loader(2)).not.toBeNull();
+  });
+
+  it('normalizes raw map payloads through createMapResource when given raw objects', () => {
+    const rawMap = {
+      level: 1,
+      metadata: {
+        name: 'raw-level',
+        timerSeconds: 120,
+        maxGhosts: 2,
+        ghostSpeed: 4.0,
+        activeGhostTypes: [0],
+      },
+      dimensions: { columns: 10, rows: 10 },
+      grid: [
+        [1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
+        [1, 3, 3, 3, 3, 3, 3, 3, 3, 1],
+        [1, 3, 3, 3, 3, 3, 3, 3, 3, 1],
+        [1, 3, 3, 3, 3, 3, 3, 3, 3, 1],
+        [1, 3, 3, 3, 3, 6, 3, 3, 3, 1],
+        [1, 3, 3, 3, 3, 5, 3, 3, 3, 1],
+        [1, 3, 3, 3, 3, 3, 3, 3, 3, 1],
+        [1, 3, 3, 3, 3, 3, 3, 3, 3, 1],
+        [1, 3, 3, 3, 3, 3, 3, 3, 3, 1],
+        [1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
+      ],
+      spawn: {
+        player: { row: 4, col: 5 },
+        ghostHouse: { topRow: 5, bottomRow: 5, leftCol: 5, rightCol: 5 },
+        ghostSpawnPoint: { row: 5, col: 5 },
+      },
+    };
+
+    const loader = createSyncMapLoader([rawMap]);
+    const loaded = loader(0);
+
+    expect(loaded).not.toBeNull();
+    expect(loaded.name).toBe('raw-level');
+    expect(loaded.rows).toBe(10);
+    expect(loaded.cols).toBe(10);
+  });
+
+  it('handles non-finite maxLevel by returning the bounded level index', () => {
+    const world = new World();
+    const maps = [createMapResourceFixture(1), createMapResourceFixture(2)];
+    const levelLoader = createLevelLoader({
+      loadMapForLevel: (levelIndex) => maps[levelIndex] ?? null,
+      totalLevels: NaN,
+      world,
+    });
+
+    expect(levelLoader.loadLevel(1.5)).toEqual(maps[1]);
+    expect(levelLoader.getCurrentLevelIndex()).toBe(1);
   });
 });
