@@ -7,21 +7,28 @@
  * intent buffer.
  */
 
-import { describe, expect, it } from 'vitest';
-import {
-  createRenderableStore,
-  createVisualStateStore,
-  RENDERABLE_KIND,
-  VISUAL_FLAGS,
-} from '../../../src/ecs/components/visual.js';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import {
   appendRenderIntent,
+  appendRenderIntentDirect,
   createRenderIntentBuffer,
   getRenderIntentView,
   RENDER_INTENT_VERSION,
   resetRenderIntentBuffer,
 } from '../../../src/ecs/render-intent.js';
 import { MAX_RENDER_INTENTS } from '../../../src/ecs/resources/constants.js';
+
+vi.mock('../../../src/shared/env.js', () => ({
+  isDevelopment: vi.fn(() => true),
+}));
+
+import {
+  createRenderableStore,
+  createVisualStateStore,
+  RENDERABLE_KIND,
+  VISUAL_FLAGS,
+} from '../../../src/ecs/components/visual.js';
+import { isDevelopment } from '../../../src/shared/env.js';
 
 describe('render-intent buffer', () => {
   it('exports a stable schema version', () => {
@@ -192,6 +199,10 @@ describe('getRenderIntentView', () => {
 });
 
 describe('D-04 ECS/DOM isolation contract', () => {
+  beforeEach(() => {
+    vi.mocked(isDevelopment).mockReturnValue(true);
+  });
+
   it('stores no DOM nodes or browser objects in the intent buffer', () => {
     const buf = createRenderIntentBuffer(4);
 
@@ -244,5 +255,73 @@ describe('D-04 ECS/DOM isolation contract', () => {
     const [entry] = getRenderIntentView(buf);
     expect(typeof entry.classBits).toBe('number');
     expect(entry.classBits).toBe(flags);
+  });
+});
+
+describe('appendRenderIntent buffer-full warning', () => {
+  beforeEach(() => {
+    vi.mocked(isDevelopment).mockReturnValue(true);
+  });
+
+  it('warns via console when appendRenderIntent exceeds capacity in dev mode', () => {
+    const buf = createRenderIntentBuffer(1);
+    appendRenderIntent(buf, { entityId: 1, kind: RENDERABLE_KIND.PLAYER });
+
+    const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+
+    appendRenderIntent(buf, { entityId: 99, kind: RENDERABLE_KIND.GHOST });
+
+    expect(warnSpy).toHaveBeenCalledTimes(1);
+    expect(warnSpy.mock.calls[0][0]).toContain('Render intent buffer full');
+    expect(warnSpy.mock.calls[0][0]).toContain('entity 99');
+    expect(buf._count).toBe(1);
+
+    warnSpy.mockRestore();
+  });
+
+  it('warns via console when appendRenderIntentDirect exceeds capacity in dev mode', () => {
+    const buf = createRenderIntentBuffer(1);
+    appendRenderIntentDirect(buf, 1, 1, -1, 0, 0, 0, 255);
+
+    const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+
+    appendRenderIntentDirect(buf, 99, 2, -1, 0, 0, 0, 255);
+
+    expect(warnSpy).toHaveBeenCalledTimes(1);
+    expect(warnSpy.mock.calls[0][0]).toContain('Render intent buffer full');
+    expect(warnSpy.mock.calls[0][0]).toContain('entity 99');
+    expect(buf._count).toBe(1);
+
+    warnSpy.mockRestore();
+  });
+
+  it('does not warn when appendRenderIntent exceeds capacity in production mode', () => {
+    vi.mocked(isDevelopment).mockReturnValue(false);
+    const buf = createRenderIntentBuffer(1);
+    appendRenderIntent(buf, { entityId: 1, kind: RENDERABLE_KIND.PLAYER });
+
+    const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+
+    appendRenderIntent(buf, { entityId: 99, kind: RENDERABLE_KIND.GHOST });
+
+    expect(warnSpy).not.toHaveBeenCalled();
+    expect(buf._count).toBe(1);
+
+    warnSpy.mockRestore();
+  });
+
+  it('does not warn when appendRenderIntentDirect exceeds capacity in production mode', () => {
+    vi.mocked(isDevelopment).mockReturnValue(false);
+    const buf = createRenderIntentBuffer(1);
+    appendRenderIntentDirect(buf, 1, 1, -1, 0, 0, 0, 255);
+
+    const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+
+    appendRenderIntentDirect(buf, 99, 2, -1, 0, 0, 0, 255);
+
+    expect(warnSpy).not.toHaveBeenCalled();
+    expect(buf._count).toBe(1);
+
+    warnSpy.mockRestore();
   });
 });

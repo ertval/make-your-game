@@ -3,6 +3,7 @@
  *
  * Verifies deterministic sequences, range bounds, and reseed behavior
  * for the Mulberry32 seeded PRNG.
+ * <!-- Last verified: 2026-05-03 -->
  */
 
 import { describe, expect, it } from 'vitest';

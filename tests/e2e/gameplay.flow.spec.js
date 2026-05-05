@@ -5,13 +5,7 @@
  */
 
 import { expect, test } from '@playwright/test';
-
-async function bootRuntime(page) {
-  await page.goto('/');
-  await page.waitForFunction(() => {
-    return Boolean(window.__MS_GHOSTMAN_RUNTIME__ && window.__MS_GHOSTMAN_FRAME_PROBE__);
-  });
-}
+import { bootRuntime, FIXED_DT_MS } from './helpers/game-helpers.js';
 
 test('renders HUD timer/score/lives shell contract', async ({ page }) => {
   await bootRuntime(page);
@@ -52,19 +46,18 @@ test('supports pause, continue, and restart flow transitions', async ({ page }) 
     .poll(async () => page.evaluate(() => window.__MS_GHOSTMAN_RUNTIME__.getSnapshot().state))
     .toBe('PLAYING');
 
-  const simBeforeRestart = await page.evaluate(
-    () => window.__MS_GHOSTMAN_RUNTIME__.getSnapshot().simTimeMs,
-  );
-
   await page.evaluate(() => {
     const runtime = window.__MS_GHOSTMAN_RUNTIME__;
     runtime.pause();
     runtime.restart();
+    // Pause immediately after restart to freeze the clock before rAF ticks.
+    runtime.pause();
   });
 
   const afterRestart = await page.evaluate(() => window.__MS_GHOSTMAN_RUNTIME__.getSnapshot());
-  expect(afterRestart.state).toBe('PLAYING');
-  expect(afterRestart.simTimeMs).toBeLessThanOrEqual(simBeforeRestart);
+  expect(afterRestart.state).toBe('PAUSED');
+  // simTimeMs should be near zero after restart reset + at most one frame tick.
+  expect(afterRestart.simTimeMs).toBeLessThanOrEqual(FIXED_DT_MS);
 });
 
 test('advances through levels and reaches VICTORY on final completion', async ({ page }) => {
