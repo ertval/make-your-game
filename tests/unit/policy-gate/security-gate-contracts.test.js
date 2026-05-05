@@ -82,6 +82,97 @@ describe('security gate contracts', () => {
     }
   });
 
+  it('blocks WebGL and WebGPU APIs in forbidden scans', () => {
+    const fixtureName = `__tmp_forbidden_webgpu_${Date.now()}_${Math.random()
+      .toString(36)
+      .slice(2)}.mjs`;
+    const relativeFixturePath = path.posix.join('scripts', 'policy-gate', fixtureName);
+    const absoluteFixturePath = path.join(repoRoot, relativeFixturePath);
+    const changedFilesListPath = path.join(repoRoot, `${fixtureName}.txt`);
+    const canvasTag = ['can', 'vas'].join('');
+    const webglLabel = ['web', 'gl2'].join('');
+    const webgpuToken = ['g', 'pu'].join('');
+    const gpuDeviceType = ['GPU', 'Device'].join('');
+
+    try {
+      fs.writeFileSync(
+        absoluteFixturePath,
+        [
+          '/* temporary fixture for policy scanner coverage */',
+          'export function fixtureForbiddenWebgl() {',
+          `  const canvas = document.createElement('${canvasTag}');`,
+          `  return canvas.getContext('${webglLabel}');`,
+          '}',
+          'export async function fixtureForbiddenWebgpu() {',
+          `  const device = /** @type {${gpuDeviceType} | null} */ (null);`,
+          `  return { adapter: await navigator.${webgpuToken}?.requestAdapter?.(), device };`,
+          '}',
+          '',
+        ].join('\n'),
+        'utf8',
+      );
+      fs.writeFileSync(changedFilesListPath, `${relativeFixturePath}\n`, 'utf8');
+
+      const result = runNodeScript([
+        path.join(repoRoot, 'scripts/policy-gate/check-forbidden.mjs'),
+        '--scope=changed',
+        `--changed-file=${path.basename(changedFilesListPath)}`,
+      ]);
+
+      expect(result.status).not.toBe(0);
+      const output = getCombinedOutput(result);
+      expect(output).toContain(relativeFixturePath);
+      expect(output).toContain('webgl context');
+      expect(output).toContain('webgpu api');
+      expect(output).toContain('webgpu interface');
+    } finally {
+      fs.rmSync(absoluteFixturePath, { force: true });
+      fs.rmSync(changedFilesListPath, { force: true });
+    }
+  });
+
+  it('blocks inline event handler attributes in forbidden scans', () => {
+    const fixtureName = `__tmp_forbidden_inline_${Date.now()}_${Math.random()
+      .toString(36)
+      .slice(2)}.html`;
+    const relativeFixturePath = path.posix.join('scripts', 'policy-gate', fixtureName);
+    const absoluteFixturePath = path.join(repoRoot, relativeFixturePath);
+    const changedFilesListPath = path.join(repoRoot, `${fixtureName}.txt`);
+    const handlerAttribute = ['on', 'click'].join('');
+    const inlineButtonLine = `<button ${handlerAttribute}="alert('nope')">Do not click</button>`;
+
+    try {
+      fs.writeFileSync(
+        absoluteFixturePath,
+        [
+          '<!doctype html>',
+          '<html lang="en">',
+          '<body>',
+          inlineButtonLine,
+          '</body>',
+          '</html>',
+          '',
+        ].join('\n'),
+        'utf8',
+      );
+      fs.writeFileSync(changedFilesListPath, `${relativeFixturePath}\n`, 'utf8');
+
+      const result = runNodeScript([
+        path.join(repoRoot, 'scripts/policy-gate/check-forbidden.mjs'),
+        '--scope=changed',
+        `--changed-file=${path.basename(changedFilesListPath)}`,
+      ]);
+
+      expect(result.status).not.toBe(0);
+      const output = getCombinedOutput(result);
+      expect(output).toContain(relativeFixturePath);
+      expect(output).toContain('inline event handler attribute');
+    } finally {
+      fs.rmSync(absoluteFixturePath, { force: true });
+      fs.rmSync(changedFilesListPath, { force: true });
+    }
+  });
+
   it('fails approval verification closed in CI when review endpoint is missing', () => {
     const tempMetaPath = path.join(repoRoot, `.tmp-approval-meta-${Date.now()}-no-reviews.json`);
 

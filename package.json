@@ -12,6 +12,7 @@
     "dev": "vite",
     "build": "vite build",
     "preview": "vite preview",
+    "prepare": "husky install",
     "check": "biome check .",
     "fix": "biome check --write .",
     "test": "vitest run",
@@ -46,6 +47,7 @@
     "@vitest/coverage-v8": "^4.1.2",
     "ajv": "^8.18.0",
     "ajv-formats": "^3.0.1",
+    "husky": "^9.1.7",
     "vite": "^8.0.3",
     "vitest": "^4.1.2"
   }

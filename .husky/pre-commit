@@ -1,0 +1,8 @@
+#!/bin/sh
+# Purpose: Enforce local policy checks before commits.
+# Public API: N/A (git hook).
+# Implementation Notes: Runs policy gate checks to prevent bypassing CI.
+
+. "$(dirname "$0")/_/husky.sh"
+
+npm run policy:checks:local
