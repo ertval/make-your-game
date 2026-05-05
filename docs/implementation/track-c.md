@@ -122,6 +122,9 @@ level-flow/level-loader runtime advancement, or browser rAF/performance/manual e
 **Depends On**: `D-05` (CSS layout), `C-02` (timer/lives data), `C-04` (pause/progression states), `A-11` (audit gate, non-blocking)
 **Impacts**: Visible gameplay metrics (`AUDIT-F-14..F-16`), pause/start/restart UX (`AUDIT-F-07..F-09`)
 **Blocks**: A-05, A-06, A-08, D-11
+**READY_FOR_MAIN**: NO
+
+C-05 is SYSTEM / ADAPTER SCOPE COMPLETE ONLY. Runtime mounting, bootstrap wiring, gameplay-flow orchestration, and live product integration remain deferred to later tickets (`C-06+` / Track A integration).
 
 **Deliverables**:
 - `src/adapters/dom/hud-adapter.js` — textContent updates for lives, score, timer, bomb count, fire radius, level number
