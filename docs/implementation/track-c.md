@@ -116,6 +116,9 @@ C-04 is system-layer complete only. Runtime integration, HUD, overlays, visible 
 **Depends On**: `D-05` (CSS layout), `C-02` (timer/lives data), `C-04` (pause/progression states), `A-11` (audit gate, non-blocking)
 **Impacts**: Visible gameplay metrics (`AUDIT-F-14..F-16`), pause/start/restart UX (`AUDIT-F-07..F-09`)
 **Blocks**: A-05, A-06, A-08, D-11
+**READY_FOR_MAIN**: NO
+
+C-05 is SYSTEM / ADAPTER SCOPE COMPLETE ONLY. Runtime mounting, bootstrap wiring, gameplay-flow orchestration, and live product integration remain deferred to later tickets (`C-06+` / Track A integration).
 
 **Deliverables**:
 - `src/adapters/dom/hud-adapter.js` — textContent updates for lives, score, timer, bomb count, fire radius, level number
@@ -133,7 +136,9 @@ C-04 is system-layer complete only. Runtime integration, HUD, overlays, visible 
   - **Victory Screen** (`game-description.md` §11): Final score, ghosts killed, total time, Play Again button.
 - [x] Implement keyboard focus transfer: Arrow keys for menu navigation, Enter for confirm. Focus enters overlay on open, restores to gameplay on close.
 - [x] Implement `adapters/io/storage-adapter.js`: High score saving/reading from `localStorage` with untrusted data validation on read.
-- [x] Verification gate: adapter tests confirm HUD metrics update correctly via safe sinks; e2e tests confirm keyboard-only navigation across screen-overlay flows owned by C-05.
+- [x] Verification gate: adapter tests confirm HUD metrics update correctly via safe sinks; e2e harness tests confirm keyboard-only navigation across screen-overlay flows owned by C-05.
+
+C-05 is complete at the system / adapter boundary only. It does not yet mount HUD/screen DOM into the live runtime shell, register adapter resources through bootstrap, or deliver full gameplay/runtime completion in product flow.
 
 ### Storage Trust Boundary & Validation Contract
 

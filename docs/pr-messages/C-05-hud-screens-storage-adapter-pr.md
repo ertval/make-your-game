@@ -59,6 +59,8 @@ Local test command reference (run what applies to your change and list what you 
   - Storage adapter for validated high-score persistence
 - The implementation is intentionally limited to adapter ownership and does not add bootstrap/runtime wiring or DOM behavior inside ECS systems.
 - This PR satisfies the adapter-layer audit requirements but does not complete full runtime gameplay integration.
+- C-05 does NOT include runtime mounting or bootstrap integration.
+- All adapter functionality is currently validated via integration and e2e harness tests only.
 
 ## Scope clarification
 
