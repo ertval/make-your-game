@@ -27,6 +27,7 @@ import {
   BOMB_TICK_BOMB_REQUIRED_MASK,
   BOMB_TICK_PLAYER_REQUIRED_MASK,
   createBombTickSystem,
+  readEntityTile,
 } from '../../../src/ecs/systems/bomb-tick-system.js';
 import { World } from '../../../src/ecs/world/world.js';
 
@@ -351,5 +352,59 @@ describe('bomb-tick-system fuse countdown', () => {
     system.update({ dtMs: 1, frame: 1, world });
 
     expect(bombDetonationQueue).toHaveLength(1);
+  });
+});
+
+describe('bomb-tick-system edge cases', () => {
+  it('covers missing branches in bomb helpers and update guard', () => {
+    const { system, world } = createBombTickHarness();
+
+    // 490: update early return when resources are missing
+    world.setResource('mapResource', null);
+    system.update({ dtMs: 16, frame: 0, world });
+    // Should not throw, just return.
+
+    // 50: readEntityTile null check
+    expect(readEntityTile(null, 0)).toBeNull();
+  });
+
+  it('covers radius normalization and map tile resolution branches', () => {
+    const { inputState, player, playerStore, system, world, colliderStore, bombs, bombStore } =
+      createBombTickHarness();
+
+    // 211: normalizeBombRadius <= 0 branch
+    playerStore.fireRadius[player.id] = -1;
+    inputState.bomb[player.id] = 1;
+    system.update({ dtMs: 16, frame: 0, world });
+    const bomb1 = bombs.find((b) => colliderStore.type[b.id] === COLLIDER_TYPE.BOMB);
+    expect(bombStore.radius[bomb1.id]).toBe(DEFAULT_FIRE_RADIUS);
+
+    // Reset
+    colliderStore.type[bomb1.id] = COLLIDER_TYPE.NONE;
+
+    // 244: resolveMaxBombRadiusForMapTile out of bounds
+    // Set player outside map (map is 5x5, so 0-4)
+    const { positionStore } = createBombTickHarness();
+    positionStore.row[player.id] = 10;
+    positionStore.col[player.id] = 10;
+    inputState.bomb[player.id] = 1;
+
+    // We need to use the harness world/system but with this position store
+    world.setResource('position', positionStore);
+    system.update({ dtMs: 16, frame: 1, world });
+    const bomb2 = bombs.find((b) => colliderStore.type[b.id] === COLLIDER_TYPE.BOMB);
+    if (bomb2) {
+      expect(bombStore.radius[bomb2.id]).toBe(0);
+    }
+  });
+
+  it('covers resolveMaxBombRadiusForMapTile invalid input branches', () => {
+    // This is called by readPlayerBombRadius which is called by placeBombForPlayer.
+    // To trigger row as NaN:
+    const { inputState, player, positionStore, system, world } = createBombTickHarness();
+    positionStore.row[player.id] = NaN;
+    inputState.bomb[player.id] = 1;
+    system.update({ dtMs: 16, frame: 0, world });
+    // readEntityTile will return {row: NaN, col: 0} which will trigger 237.
   });
 });

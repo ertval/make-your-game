@@ -42,6 +42,7 @@ temp/
 changed-files.txt
 *.diff
 scratch/
+test_output.txt
 
 # CI runtime artifacts
 .policy-pr-meta.json
