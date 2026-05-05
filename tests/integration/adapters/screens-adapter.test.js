@@ -29,8 +29,8 @@ function createOptionElement() {
       setAttribute(name, value) {
         attributes.set(name, value);
       },
-      style: {
-        display: '',
+      getAttribute(name) {
+        return attributes.get(name) ?? null;
       },
     },
     getAttribute(name) {
@@ -61,8 +61,29 @@ function createFocusableElement(documentState) {
   };
 }
 
-function createScreenElement(optionCount = 0, documentState) {
+function getOptionActions(screenKey, optionCount) {
+  const screenActions = {
+    gameOver: ['gameover-play-again'],
+    levelComplete: ['level-next'],
+    pause: ['pause-continue', 'pause-restart'],
+    start: ['start-primary', 'start-secondary'],
+    victory: ['victory-play-again'],
+  };
+
+  return Array.from(
+    { length: optionCount },
+    (_value, index) => screenActions[screenKey]?.[index] || '',
+  );
+}
+
+function createScreenElement(screenKey, optionCount = 0, documentState) {
   const options = Array.from({ length: optionCount }, () => createOptionElement());
+  const attributes = new Map();
+  const classes = new Set();
+
+  for (const [index, action] of getOptionActions(screenKey, optionCount).entries()) {
+    options[index].element.setAttribute('data-action', action);
+  }
 
   for (const option of options) {
     const originalFocus = option.element.focus;
@@ -74,6 +95,27 @@ function createScreenElement(optionCount = 0, documentState) {
 
   return {
     element: {
+      classList: {
+        add(...tokens) {
+          for (const token of tokens) {
+            classes.add(token);
+          }
+        },
+        contains(token) {
+          return classes.has(token);
+        },
+        remove(...tokens) {
+          for (const token of tokens) {
+            classes.delete(token);
+          }
+        },
+      },
+      focus() {
+        documentState.activeElement = this;
+      },
+      getAttribute(name) {
+        return attributes.get(name) ?? null;
+      },
       querySelectorAll(selector) {
         if (selector === '[data-option]') {
           return options.map((option) => option.element);
@@ -81,25 +123,35 @@ function createScreenElement(optionCount = 0, documentState) {
 
         return [];
       },
-      style: {
-        display: '',
+      setAttribute(name, value) {
+        attributes.set(name, value);
       },
+    },
+    hasClass(token) {
+      return classes.has(token);
+    },
+    getAttribute(name) {
+      return attributes.get(name);
     },
     options,
   };
 }
 
-function createRootElement(optionCounts = {}) {
+function createRootElement(optionCounts = {}, missingScreens = []) {
   const listeners = new Map();
   const documentState = {
     activeElement: null,
   };
   const screens = {
-    gameOver: createScreenElement(optionCounts.gameOver || 0, documentState),
-    levelComplete: createScreenElement(optionCounts.levelComplete || 0, documentState),
-    pause: createScreenElement(optionCounts.pause || 0, documentState),
-    start: createScreenElement(optionCounts.start || 0, documentState),
-    victory: createScreenElement(optionCounts.victory || 0, documentState),
+    gameOver: createScreenElement('gameOver', optionCounts.gameOver || 0, documentState),
+    levelComplete: createScreenElement(
+      'levelComplete',
+      optionCounts.levelComplete || 0,
+      documentState,
+    ),
+    pause: createScreenElement('pause', optionCounts.pause || 0, documentState),
+    start: createScreenElement('start', optionCounts.start || 0, documentState),
+    victory: createScreenElement('victory', optionCounts.victory || 0, documentState),
   };
   const selectorMap = new Map([
     ['[data-screen="game-over"]', screens.gameOver.element],
@@ -108,6 +160,9 @@ function createRootElement(optionCounts = {}) {
     ['[data-screen="start"]', screens.start.element],
     ['[data-screen="victory"]', screens.victory.element],
   ]);
+  for (const selector of missingScreens) {
+    selectorMap.delete(selector);
+  }
   const gameplayElement = createFocusableElement(documentState);
 
   return {
@@ -144,11 +199,12 @@ describe('screens-adapter', () => {
 
     adapter.showStart();
 
-    expect(screens.start.element.style.display).toBe('block');
-    expect(screens.pause.element.style.display).toBe('none');
-    expect(screens.levelComplete.element.style.display).toBe('none');
-    expect(screens.gameOver.element.style.display).toBe('none');
-    expect(screens.victory.element.style.display).toBe('none');
+    expect(screens.start.hasClass('is-screen-visible')).toBe(true);
+    expect(screens.pause.hasClass('is-screen-hidden')).toBe(true);
+    expect(screens.levelComplete.hasClass('is-screen-hidden')).toBe(true);
+    expect(screens.gameOver.hasClass('is-screen-hidden')).toBe(true);
+    expect(screens.victory.hasClass('is-screen-hidden')).toBe(true);
+    expect(screens.start.getAttribute('aria-hidden')).toBe('false');
   });
 
   it('showPause displays only the pause screen', () => {
@@ -157,11 +213,24 @@ describe('screens-adapter', () => {
 
     adapter.showPause();
 
-    expect(screens.start.element.style.display).toBe('none');
-    expect(screens.pause.element.style.display).toBe('block');
-    expect(screens.levelComplete.element.style.display).toBe('none');
-    expect(screens.gameOver.element.style.display).toBe('none');
-    expect(screens.victory.element.style.display).toBe('none');
+    expect(screens.start.hasClass('is-screen-hidden')).toBe(true);
+    expect(screens.pause.hasClass('is-screen-visible')).toBe(true);
+    expect(screens.levelComplete.hasClass('is-screen-hidden')).toBe(true);
+    expect(screens.gameOver.hasClass('is-screen-hidden')).toBe(true);
+    expect(screens.victory.hasClass('is-screen-hidden')).toBe(true);
+  });
+
+  it('showLevelComplete and showGameOver display their dedicated overlays', () => {
+    const { rootElement, screens } = createRootElement({ gameOver: 1, levelComplete: 1 });
+    const adapter = createScreensAdapter(rootElement);
+
+    adapter.showLevelComplete();
+    expect(screens.levelComplete.hasClass('is-screen-visible')).toBe(true);
+    expect(screens.gameOver.hasClass('is-screen-hidden')).toBe(true);
+
+    adapter.showGameOver();
+    expect(screens.gameOver.hasClass('is-screen-visible')).toBe(true);
+    expect(screens.levelComplete.hasClass('is-screen-hidden')).toBe(true);
   });
 
   it('hideAll hides all screens', () => {
@@ -171,11 +240,11 @@ describe('screens-adapter', () => {
     adapter.showVictory();
     adapter.hideAll();
 
-    expect(screens.start.element.style.display).toBe('none');
-    expect(screens.pause.element.style.display).toBe('none');
-    expect(screens.levelComplete.element.style.display).toBe('none');
-    expect(screens.gameOver.element.style.display).toBe('none');
-    expect(screens.victory.element.style.display).toBe('none');
+    expect(screens.start.hasClass('is-screen-hidden')).toBe(true);
+    expect(screens.pause.hasClass('is-screen-hidden')).toBe(true);
+    expect(screens.levelComplete.hasClass('is-screen-hidden')).toBe(true);
+    expect(screens.gameOver.hasClass('is-screen-hidden')).toBe(true);
+    expect(screens.victory.hasClass('is-screen-hidden')).toBe(true);
   });
 
   it('marks the first option as active when a screen is shown', () => {
@@ -238,6 +307,17 @@ describe('screens-adapter', () => {
     expect(screens.gameOver.options[1].getClickCount()).toBe(1);
   });
 
+  it('ignores key presses when no screen is active', () => {
+    const { rootElement, screens, triggerKeydown } = createRootElement({ start: 2 });
+    createScreensAdapter(rootElement);
+
+    triggerKeydown('ArrowDown');
+    triggerKeydown('Enter');
+
+    expect(screens.start.options[0].getClickCount()).toBe(0);
+    expect(screens.start.options[1].getClickCount()).toBe(0);
+  });
+
   it('does not crash when the active screen has no options', () => {
     const { rootElement, screens, triggerKeydown } = createRootElement({ victory: 0 });
     const adapter = createScreensAdapter(rootElement);
@@ -247,7 +327,58 @@ describe('screens-adapter', () => {
     triggerKeydown('ArrowUp');
     triggerKeydown('Enter');
 
-    expect(screens.victory.element.style.display).toBe('block');
+    expect(screens.victory.hasClass('is-screen-visible')).toBe(true);
+  });
+
+  it('focuses the overlay container when a visible screen has no options', () => {
+    const { rootElement, screens } = createRootElement({ levelComplete: 0 });
+    const adapter = createScreensAdapter(rootElement);
+
+    adapter.showLevelComplete();
+
+    expect(rootElement.ownerDocument.activeElement).toBe(screens.levelComplete.element);
+  });
+
+  it('tolerates missing screen nodes without throwing', () => {
+    const { rootElement } = createRootElement({}, ['[data-screen="level-complete"]']);
+    const adapter = createScreensAdapter(rootElement);
+
+    expect(() => adapter.showLevelComplete()).not.toThrow();
+  });
+
+  it('does not dispatch pause callbacks for non-pause overlay actions', () => {
+    const actions = [];
+    const { rootElement, triggerKeydown } = createRootElement({ start: 2 });
+    const adapter = createScreensAdapter(rootElement, {
+      onAction(action) {
+        actions.push(action);
+      },
+      onRestart() {
+        actions.push('restart-callback');
+      },
+      onResume() {
+        actions.push('resume-callback');
+      },
+    });
+
+    adapter.showStart();
+    triggerKeydown('ArrowDown');
+    triggerKeydown('Enter');
+
+    expect(actions).toEqual(['start-secondary']);
+  });
+
+  it('restores the previous selected option when the same screen reopens', () => {
+    const { rootElement, screens, triggerKeydown } = createRootElement({ pause: 3 });
+    const adapter = createScreensAdapter(rootElement);
+
+    adapter.showPause();
+    triggerKeydown('ArrowDown');
+    triggerKeydown('ArrowDown');
+    adapter.hideAll();
+    adapter.showPause();
+
+    expect(screens.pause.options[2].getAttribute('data-active')).toBe('true');
   });
 
   it('restores focus to the previously focused element when screens are hidden', () => {
@@ -270,5 +401,84 @@ describe('screens-adapter', () => {
     adapter.destroy();
 
     expect(gameplayElement.getFocusCount()).toBe(2);
+  });
+
+  it('dispatches pause continue and restart actions through adapter callbacks', () => {
+    const actions = [];
+    const { rootElement, triggerKeydown } = createRootElement({ pause: 2 });
+    const adapter = createScreensAdapter(rootElement, {
+      onAction(action) {
+        actions.push(action);
+      },
+      onRestart() {
+        actions.push('restart-callback');
+      },
+      onResume() {
+        actions.push('resume-callback');
+      },
+    });
+
+    adapter.showPause();
+    triggerKeydown('Enter');
+    triggerKeydown('ArrowDown');
+    triggerKeydown('Enter');
+
+    expect(actions).toEqual([
+      'pause-continue',
+      'resume-callback',
+      'pause-restart',
+      'restart-callback',
+    ]);
+  });
+
+  it('tolerates active option nodes without getAttribute', () => {
+    const listeners = new Map();
+    const documentState = { activeElement: null };
+    const bareOption = {
+      click() {},
+      focus() {
+        documentState.activeElement = this;
+      },
+      removeAttribute() {},
+      setAttribute() {},
+    };
+    const startScreen = {
+      classList: {
+        add() {},
+        remove() {},
+      },
+      focus() {
+        documentState.activeElement = this;
+      },
+      querySelectorAll(selector) {
+        return selector === '[data-option]' ? [bareOption] : [];
+      },
+      setAttribute() {},
+    };
+    const rootElement = {
+      addEventListener(eventName, handler) {
+        listeners.set(eventName, handler);
+      },
+      ownerDocument: documentState,
+      querySelector(selector) {
+        if (selector === '[data-screen="start"]') {
+          return startScreen;
+        }
+
+        return null;
+      },
+      removeEventListener(eventName) {
+        listeners.delete(eventName);
+      },
+    };
+    const adapter = createScreensAdapter(rootElement);
+
+    adapter.showStart();
+    listeners.get('keydown')?.({
+      key: 'Enter',
+      preventDefault() {},
+    });
+
+    expect(documentState.activeElement).toBe(bareOption);
   });
 });

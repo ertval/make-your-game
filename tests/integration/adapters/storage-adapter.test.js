@@ -1,42 +1,133 @@
 /**
  * Unit tests for the Track C storage adapter.
  *
- * Verifies that persisted high-score reads treat storage as untrusted input,
- * fail closed on malformed payloads, and tolerate storage access failures.
+ * Verifies guarded localStorage reads, invalid JSON fallback behavior,
+ * untrusted-shape rejection, and write-path error handling.
  */
 
-import { describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import {
-  createStorageAdapter,
-  parsePersistedHighScore,
+  getHighScore,
+  HIGH_SCORE_STORAGE_KEY,
+  safeRead,
+  safeWrite,
+  saveHighScore,
 } from '../../../src/adapters/io/storage-adapter.js';
 
+function createMockStorage() {
+  let store = {};
+
+  return {
+    clear() {
+      store = {};
+    },
+    getItem(key) {
+      return key in store ? store[key] : null;
+    },
+    setItem(key, value) {
+      store[key] = value;
+    },
+  };
+}
+
 describe('storage-adapter', () => {
-  it('parses a valid persisted high score', () => {
-    expect(parsePersistedHighScore('{"highScore":42}')).toBe(42);
+  let mockStorage;
+
+  beforeEach(() => {
+    mockStorage = createMockStorage();
+    globalThis.localStorage = mockStorage;
+    vi.restoreAllMocks();
+    vi.spyOn(console, 'warn').mockImplementation(() => {});
   });
 
-  it('fails closed on malformed persisted payloads', () => {
-    expect(parsePersistedHighScore('not-json', 7)).toBe(7);
-    expect(parsePersistedHighScore('{"highScore":"bad"}', 7)).toBe(7);
-    expect(parsePersistedHighScore('{"highScore":-4}', 7)).toBe(7);
+  it('returns the default value when the key is missing', () => {
+    const result = safeRead('missing', null, { score: 0 });
+
+    expect(result).toEqual({ score: 0 });
   });
 
-  it('guards storage reads and writes with fallback behavior', () => {
-    const logger = { warn: vi.fn() };
-    const storage = {
+  it('returns the parsed value when the stored JSON is a valid object', () => {
+    localStorage.setItem('good', JSON.stringify({ score: 10 }));
+
+    const result = safeRead('good', null, { score: 0 });
+
+    expect(result).toEqual({ score: 10 });
+  });
+
+  it('returns the default value and warns when stored JSON is invalid', () => {
+    localStorage.setItem('bad', '{invalid json}');
+
+    const result = safeRead('bad', null, { score: 0 });
+
+    expect(result).toEqual({ score: 0 });
+    expect(console.warn).toHaveBeenCalled();
+  });
+
+  it('returns the default value when the parsed value is not an object', () => {
+    localStorage.setItem('wrong', JSON.stringify(123));
+
+    const result = safeRead('wrong', null, { score: 0 });
+
+    expect(result).toEqual({ score: 0 });
+    expect(console.warn).toHaveBeenCalled();
+  });
+
+  it('returns the default value when the parsed value is null', () => {
+    localStorage.setItem('null', JSON.stringify(null));
+
+    const result = safeRead('null', null, { score: 0 });
+
+    expect(result).toEqual({ score: 0 });
+    expect(console.warn).toHaveBeenCalled();
+  });
+
+  it('returns the default value when the parsed value is an array', () => {
+    localStorage.setItem('array', JSON.stringify([1, 2, 3]));
+
+    const result = safeRead('array', null, { score: 0 });
+
+    expect(result).toEqual({ score: 0 });
+    expect(console.warn).toHaveBeenCalled();
+  });
+
+  it('stores a JSON string during safeWrite', () => {
+    safeWrite('test', { score: 5 });
+
+    expect(localStorage.getItem('test')).toBe(JSON.stringify({ score: 5 }));
+  });
+
+  it('handles safeWrite storage errors gracefully', () => {
+    globalThis.localStorage = {
       getItem() {
-        throw new Error('read blocked');
+        return null;
       },
       setItem() {
-        throw new Error('write blocked');
+        throw new Error('fail');
       },
     };
-    const adapter = createStorageAdapter({ logger, storage });
 
-    expect(adapter.loadHighScore(9)).toBe(9);
-    expect(adapter.saveHighScore(12)).toBe(false);
-    expect(logger.warn).toHaveBeenCalledTimes(2);
+    safeWrite('test', { score: 5 });
+
+    expect(console.warn).toHaveBeenCalled();
+  });
+
+  it('stores normalized high scores with the canonical key', () => {
+    saveHighScore(42.9);
+
+    expect(localStorage.getItem(HIGH_SCORE_STORAGE_KEY)).toBe(JSON.stringify({ score: 42 }));
+  });
+
+  it('returns 0 for malformed high score payloads', () => {
+    localStorage.setItem(HIGH_SCORE_STORAGE_KEY, JSON.stringify({ score: 'bad' }));
+
+    expect(getHighScore()).toBe(0);
+    expect(console.warn).toHaveBeenCalled();
+  });
+
+  it('returns the stored finite high score value', () => {
+    localStorage.setItem(HIGH_SCORE_STORAGE_KEY, JSON.stringify({ score: 105 }));
+
+    expect(getHighScore()).toBe(105);
   });
 });

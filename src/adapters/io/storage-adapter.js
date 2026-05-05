@@ -1,112 +1,75 @@
-/*
- * Storage adapter for persisted high-score state.
- *
- * This module centralizes the localStorage trust boundary so runtime code can
- * read and write high-score data without assuming persisted values are valid.
- * All reads fail closed: malformed JSON, hostile shapes, storage access errors,
- * and non-finite values return the supplied fallback instead of propagating
- * untrusted data into gameplay state.
- *
- * Public API:
- * - HIGH_SCORE_STORAGE_KEY
- * - createStorageAdapter(options)
- * - parsePersistedHighScore(rawValue, fallbackScore?)
- *
- * Implementation notes:
- * - Only non-negative finite integers are accepted as persisted scores.
- * - Browser storage exceptions are caught and downgraded to warnings so
- *   gameplay can continue when storage is unavailable or blocked.
+/**
+ * Storage adapter for local persistence behind a guarded JSON boundary.
+ * Public API: safeRead(key, schema, defaultValue), safeWrite(key, value),
+ * saveHighScore(score), getHighScore().
+ * Notes: This module avoids DOM usage, treats storage as untrusted input, and
+ * leaves JSON Schema 2020-12 validation as a follow-up integration step.
  */
+export const HIGH_SCORE_STORAGE_KEY = 'ms-ghostman.highScore';
 
-export const HIGH_SCORE_STORAGE_KEY = 'ms-ghostman.high-score';
+function getStorage() {
+  if (typeof localStorage === 'undefined') {
+    return null;
+  }
 
-function normalizeFallbackScore(fallbackScore = 0) {
-  if (!Number.isFinite(fallbackScore) || fallbackScore < 0) {
+  return localStorage;
+}
+
+export function safeRead(key, _schema, defaultValue) {
+  try {
+    const storage = getStorage();
+    const rawValue = storage?.getItem(key) ?? null;
+
+    if (rawValue === null) {
+      return defaultValue;
+    }
+
+    const parsedValue = JSON.parse(rawValue);
+
+    if (parsedValue === null || typeof parsedValue !== 'object' || Array.isArray(parsedValue)) {
+      console.warn(`[storage] Invalid JSON shape for key "${key}".`);
+      return defaultValue;
+    }
+
+    // TODO: Validate parsedValue against schema using JSON Schema 2020-12.
+
+    return parsedValue;
+  } catch (error) {
+    console.warn(`[storage] Failed to read key "${key}".`, error);
+    return defaultValue;
+  }
+}
+
+export function safeWrite(key, value) {
+  try {
+    const storage = getStorage();
+    storage?.setItem(key, JSON.stringify(value));
+  } catch (error) {
+    console.warn(`[storage] Failed to write key "${key}".`, error);
+  }
+}
+
+function normalizeHighScoreValue(score) {
+  if (typeof score !== 'number' || !Number.isFinite(score)) {
     return 0;
   }
 
-  return Math.floor(fallbackScore);
+  return Math.max(0, Math.floor(score));
 }
 
-export function parsePersistedHighScore(rawValue, fallbackScore = 0) {
-  const safeFallback = normalizeFallbackScore(fallbackScore);
-
-  if (typeof rawValue !== 'string' || rawValue.trim().length === 0) {
-    return safeFallback;
-  }
-
-  let parsedValue;
-  try {
-    parsedValue = JSON.parse(rawValue);
-  } catch {
-    return safeFallback;
-  }
-
-  const candidateScore =
-    typeof parsedValue === 'object' && parsedValue !== null ? parsedValue.highScore : parsedValue;
-
-  if (!Number.isFinite(candidateScore) || candidateScore < 0) {
-    return safeFallback;
-  }
-
-  return Math.floor(candidateScore);
+export function saveHighScore(score) {
+  safeWrite(HIGH_SCORE_STORAGE_KEY, {
+    score: normalizeHighScoreValue(score),
+  });
 }
 
-export function createStorageAdapter(options = {}) {
-  const logger = options.logger || console;
-  const storageKey = options.storageKey || HIGH_SCORE_STORAGE_KEY;
-  const storage =
-    options.storage ||
-    (typeof window !== 'undefined' && window.localStorage ? window.localStorage : null);
+export function getHighScore() {
+  const parsedValue = safeRead(HIGH_SCORE_STORAGE_KEY, null, { score: 0 });
 
-  function warn(message, error) {
-    if (typeof logger?.warn === 'function') {
-      logger.warn(message, error);
-    }
+  if (typeof parsedValue.score !== 'number' || !Number.isFinite(parsedValue.score)) {
+    console.warn(`[storage] Invalid high score payload for key "${HIGH_SCORE_STORAGE_KEY}".`);
+    return 0;
   }
 
-  return {
-    clearHighScore() {
-      if (!storage || typeof storage.removeItem !== 'function') {
-        return false;
-      }
-
-      try {
-        storage.removeItem(storageKey);
-        return true;
-      } catch (error) {
-        warn('Failed to clear persisted high score.', error);
-        return false;
-      }
-    },
-    loadHighScore(fallbackScore = 0) {
-      const safeFallback = normalizeFallbackScore(fallbackScore);
-
-      if (!storage || typeof storage.getItem !== 'function') {
-        return safeFallback;
-      }
-
-      try {
-        return parsePersistedHighScore(storage.getItem(storageKey), safeFallback);
-      } catch (error) {
-        warn('Failed to read persisted high score.', error);
-        return safeFallback;
-      }
-    },
-    saveHighScore(score) {
-      const normalizedScore = normalizeFallbackScore(score);
-
-      if (!storage || typeof storage.setItem !== 'function') {
-        return false;
-      }
-
-      try {
-        storage.setItem(storageKey, JSON.stringify({ highScore: normalizedScore }));
-        return true;
-      } catch (error) {
-        warn('Failed to persist high score.', error);
-        return false;
-      }
-    },
-  };
+  return Math.max(0, Math.floor(parsedValue.score));
 }

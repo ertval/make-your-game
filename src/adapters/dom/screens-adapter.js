@@ -3,7 +3,7 @@
  *
  * This module owns the DOM visibility boundary for pre-existing game screens
  * and overlays. It performs no DOM creation, contains no game logic, and only
- * shows or hides already-rendered nodes via style.display updates.
+ * shows or hides already-rendered nodes via class and attribute updates.
  *
  * Public API:
  * - createScreensAdapter(rootElement): create a screen adapter bound to one root.
@@ -16,19 +16,42 @@
  *   pre-existing [data-option] elements inside each overlay.
  */
 
+const HIDDEN_SCREEN_CLASS = 'is-screen-hidden';
+const VISIBLE_SCREEN_CLASS = 'is-screen-visible';
+const ACTIVE_OPTION_ATTRIBUTE = 'data-active';
+const DEFAULT_SCREEN_ORDER = ['start', 'pause', 'levelComplete', 'gameOver', 'victory'];
+
 function hideElement(element) {
-  if (element) {
-    element.style.display = 'none';
+  if (!element) {
+    return;
   }
+
+  element.classList?.remove(VISIBLE_SCREEN_CLASS);
+  element.classList?.add(HIDDEN_SCREEN_CLASS);
+  element.setAttribute?.('aria-hidden', 'true');
+  element.setAttribute?.('tabindex', '-1');
 }
 
 function showElement(element) {
-  if (element) {
-    element.style.display = 'block';
+  if (!element) {
+    return;
   }
+
+  element.classList?.remove(HIDDEN_SCREEN_CLASS);
+  element.classList?.add(VISIBLE_SCREEN_CLASS);
+  element.setAttribute?.('aria-hidden', 'false');
+  element.setAttribute?.('tabindex', '-1');
 }
 
-export function createScreensAdapter(rootElement) {
+function getActionFromOption(option) {
+  if (!option || typeof option.getAttribute !== 'function') {
+    return '';
+  }
+
+  return option.getAttribute('data-action') || option.getAttribute('data-option') || '';
+}
+
+export function createScreensAdapter(rootElement, options = {}) {
   const ownerDocument =
     rootElement.ownerDocument || (typeof document !== 'undefined' ? document : null);
   const screens = {
@@ -38,45 +61,53 @@ export function createScreensAdapter(rootElement) {
     start: rootElement.querySelector('[data-screen="start"]'),
     victory: rootElement.querySelector('[data-screen="victory"]'),
   };
-  const allScreens = Object.values(screens);
+  const allScreens = DEFAULT_SCREEN_ORDER.map((screenKey) => screens[screenKey]);
+  const gameplayElement = options.gameplayElement || null;
+  const selectedIndices = new Map(DEFAULT_SCREEN_ORDER.map((screenKey) => [screenKey, 0]));
   let activeIndex = 0;
   let activeOptions = [];
   let activeScreen = null;
+  let activeScreenKey = null;
   let previousFocusElement = null;
 
   function restorePreviousFocus() {
-    if (previousFocusElement && typeof previousFocusElement.focus === 'function') {
-      previousFocusElement.focus();
-    }
+    const nextFocusTarget =
+      gameplayElement && typeof gameplayElement.focus === 'function'
+        ? gameplayElement
+        : previousFocusElement && typeof previousFocusElement.focus === 'function'
+          ? previousFocusElement
+          : null;
+
+    nextFocusTarget?.focus();
 
     previousFocusElement = null;
   }
 
   function clearActiveOptions() {
     for (const option of activeOptions) {
-      option.removeAttribute('data-active');
+      option.removeAttribute(ACTIVE_OPTION_ATTRIBUTE);
     }
 
     activeOptions = [];
     activeIndex = 0;
     activeScreen = null;
+    activeScreenKey = null;
   }
 
   function applyActiveOption() {
-    if (activeOptions.length === 0) {
-      return;
-    }
-
     for (const option of activeOptions) {
-      option.removeAttribute('data-active');
+      option.removeAttribute(ACTIVE_OPTION_ATTRIBUTE);
     }
 
     const activeOption = activeOptions[activeIndex];
-    activeOption.setAttribute('data-active', 'true');
+    activeOption.setAttribute(ACTIVE_OPTION_ATTRIBUTE, 'true');
+    if (activeScreenKey) {
+      selectedIndices.set(activeScreenKey, activeIndex);
+    }
     activeOption.focus?.();
   }
 
-  function activateScreenOptions(screen) {
+  function activateScreenOptions(screenKey, screen) {
     clearActiveOptions();
 
     if (!screen) {
@@ -88,13 +119,29 @@ export function createScreensAdapter(rootElement) {
     }
 
     activeScreen = screen;
+    activeScreenKey = screenKey;
     activeOptions = Array.from(screen.querySelectorAll('[data-option]'));
 
     if (activeOptions.length === 0) {
+      screen.focus?.();
       return;
     }
 
+    activeIndex = Math.min(selectedIndices.get(screenKey) || 0, activeOptions.length - 1);
     applyActiveOption();
+  }
+
+  function dispatchAction(action) {
+    options.onAction?.(action);
+
+    if (action === 'pause-continue') {
+      options.onResume?.();
+      return;
+    }
+
+    if (action === 'pause-restart') {
+      options.onRestart?.();
+    }
   }
 
   function onKeyDown(event) {
@@ -118,7 +165,9 @@ export function createScreensAdapter(rootElement) {
 
     if (event.key === 'Enter') {
       event.preventDefault();
-      activeOptions[activeIndex].click?.();
+      const activeOption = activeOptions[activeIndex];
+      dispatchAction(getActionFromOption(activeOption));
+      activeOption.click?.();
     }
   }
 
@@ -134,31 +183,31 @@ export function createScreensAdapter(rootElement) {
   function showStart() {
     hideAll();
     showElement(screens.start);
-    activateScreenOptions(screens.start);
+    activateScreenOptions('start', screens.start);
   }
 
   function showPause() {
     hideAll();
     showElement(screens.pause);
-    activateScreenOptions(screens.pause);
+    activateScreenOptions('pause', screens.pause);
   }
 
   function showLevelComplete() {
     hideAll();
     showElement(screens.levelComplete);
-    activateScreenOptions(screens.levelComplete);
+    activateScreenOptions('levelComplete', screens.levelComplete);
   }
 
   function showGameOver() {
     hideAll();
     showElement(screens.gameOver);
-    activateScreenOptions(screens.gameOver);
+    activateScreenOptions('gameOver', screens.gameOver);
   }
 
   function showVictory() {
     hideAll();
     showElement(screens.victory);
-    activateScreenOptions(screens.victory);
+    activateScreenOptions('victory', screens.victory);
   }
 
   rootElement.addEventListener('keydown', onKeyDown);
