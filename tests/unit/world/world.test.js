@@ -129,6 +129,17 @@ describe('World', () => {
     expect(world.query(0b0010)).toEqual([recycled.id]);
   });
 
+  it('allows setting a zero mask to remove an entity from queries', () => {
+    const world = new World();
+    const entity = world.createEntity(0b0010);
+
+    expect(world.query(0b0010)).toEqual([entity.id]);
+
+    expect(world.setEntityMask(entity, 0)).toBe(true);
+    expect(world.getEntityMask(entity)).toBe(0);
+    expect(world.query(0b0010)).toEqual([]);
+  });
+
   it('rejects stale handles across multiple recycling generations', () => {
     const world = new World();
     const staleHandles = [];
