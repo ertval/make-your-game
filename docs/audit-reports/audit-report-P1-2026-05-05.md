@@ -126,6 +126,8 @@ world.setEntityMask(playerHandle, PLAYER_WITH_RENDERABLE_MASK); // Do not reassi
 
 **Tests to add:** Test that `droppedBombByCell` is cleared for previous cell.
 
+> ⚠️ **Verification note (2026-05-05):** This finding may be a **false positive**. `resetCollisionScratch()` is called at the top of every tick via `ensureCollisionScratch()`, resetting `droppedBombByCell.fill(-1)` for all cells. Within a single tick, only the current tile is written. Verify against actual `collision-system` tick entry to confirm before implementing the fix.
+
 ---
 
 ### BUG-07: `render-dom-system` entityElementMap memory leak ⬆ MEDIUM
@@ -137,6 +139,8 @@ world.setEntityMask(playerHandle, PLAYER_WITH_RENDERABLE_MASK); // Do not reassi
 **Impact:** Memory growth across restarts.
 
 **Fix:** Add cleanup on level restart.
+
+> ❌ **Verification note (2026-05-05):** **FALSE POSITIVE.** `render-dom-system.js:156-161` already runs a cleanup loop every render frame that releases and removes any entity not present in the current render buffer. No memory leak exists. This finding should be removed from the Track D fix list.
 
 ---
 
@@ -242,6 +246,8 @@ world.setEntityMask(playerHandle, PLAYER_WITH_RENDERABLE_MASK); // Do not reassi
 **Problem:** Sort uses subtraction which overflows.
 **Fix:** Use ternary comparison.
 
+> ❌ **Verification note (2026-05-05):** **FALSE POSITIVE.** The sort already uses a branch-then-subtract pattern (`if (a.frame !== b.frame) return a.frame - b.frame`). `frame` is a ~60/sec counter (safe for years), and `order` resets to 0 on every `drain()`. Integer overflow is not possible. This finding should be removed from the Track D fix list.
+
 ---
 
 ### BUG-17: No validation in `setEntityMask` for mask=0 ⬆ LOW
@@ -261,6 +267,8 @@ world.setEntityMask(playerHandle, PLAYER_WITH_RENDERABLE_MASK); // Do not reassi
 
 **Problem:** Implicit handling of double-invalid timestamps.
 **Fix:** Explicitly handle.
+
+> ❌ **Verification note (2026-05-05):** **FALSE POSITIVE.** `tickClock()` in `clock.js:65-84` explicitly handles both non-finite `now` (falls back to `lastFrameTime`) and non-finite `lastFrameTime` (treats baseline as invalid and updates it). Both double-invalid cases are deterministically handled. This finding should be removed.
 
 ---
 
@@ -541,6 +549,8 @@ world.setEntityMask(playerHandle, PLAYER_WITH_RENDERABLE_MASK); // Do not reassi
 
 **Fix:** Move adapter assertions to shared utils.
 
+> ❌ **Verification note (2026-05-05):** **FALSE POSITIVE.** `input-system.js` imports ONLY from `../components/registry.js`. It has a local `assertInputAdapterContract()` function (duck-type validation via function checks) — this is the correct ECS pattern. No direct adapter import exists. This finding should be removed from the Track B fix list.
+
 ---
 
 ### ARCH-05: Per-Frame Set Allocation in Render DOM System ⬆ MEDIUM
@@ -804,6 +814,8 @@ world.setEntityMask(playerHandle, PLAYER_WITH_RENDERABLE_MASK); // Do not reassi
 
 **Problem:** Coverage thresholds set to 60/70/70/70. Project requires 85%.
 **Fix:** Raise thresholds to 85%.
+
+> ⚠️ **Verification note (2026-05-05):** **Stale finding.** Actual `vitest.config.js` thresholds are `branches: 80, functions: 85, lines: 90, statements: 90`. The "60/70/70/70" values do not exist in the current file. The only real gap is `branches: 80` (below the 85% target). Fix should only raise `branches` from 80 to 85. Severity revised to **LOW**.
 
 ---
 

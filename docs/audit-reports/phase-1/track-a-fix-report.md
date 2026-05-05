@@ -2,67 +2,79 @@
 
 This report contains the uniquely assigned issues from the Phase 1 audit report with full details.
 
+> **Verification note (2026-05-05):** This report has been updated based on direct source inspection. False positives have been removed. Fix suggestions have been corrected where the original was inaccurate or suboptimal. See `audit-verification-notes-2026-05-05.md` for the full verification log.
+
 ### BUG-01: Double Bootstrap Execution ⬆ CRITICAL
 **Origin:** 1. Bugs & Logic Errors
 **Files:** Ownership: Track A (Tickets: A-03)
 - `src/main.js` (~L14)
-- `src/main.ecs.js` (~L513)
+- `src/main.ecs.js` (~L509-511)
 
-**Problem:** `src/main.js` imports `startBrowserApplication` and calls it, while `main.ecs.js` also auto-runs `bootstrapApplication()`. This triggers two concurrent async bootstrap calls in production.
+**Problem:** `src/main.js` imports `startBrowserApplication` and calls it. `main.ecs.js` also unconditionally auto-runs `bootstrapApplication()` at the module level via a bare browser-environment check (lines 509–511). This triggers two concurrent async bootstrap calls in any browser context.
 **Impact:** Duplicate rAF loops, duplicate input listeners, double DOM rendering, breaking performance audits.
 
-**Fix:** Remove the auto-execution guard in `main.ecs.js:513-514`. Keep startup side effects only in `src/main.js`.
+**Fix:** Remove lines 509–511 from `main.ecs.js`. The file's own header comment already states: *"It intentionally does NOT execute any side effects upon import."* Keep startup side effects only in `src/main.js`.
 
-**Tests to add:** Add a browser integration test that imports `src/main.js` and asserts only one runtime starts.
+**Tests to add:** Add a browser integration test that imports `src/main.js` and asserts only one runtime starts (e.g., verify `window.__MS_GHOSTMAN_RUNTIME__` is set exactly once).
 
 ---
 
 ### BUG-02: `playerHandle` corrupted by `setEntityMask` return value ⬆ CRITICAL
 **Origin:** 1. Bugs & Logic Errors
 **Files:** Ownership: Track A (Tickets: A-03)
-- `src/game/bootstrap.js` (~L370)
+- `src/game/bootstrap.js` (L370)
 
-**Problem:** `playerHandle = world.setEntityMask(...)` assigns the boolean return value of `setEntityMask` to `playerHandle`.
-**Impact:** Player entity state is silently lost on restart/resync. All subsequent component operations fail.
+**Problem:** `playerHandle = world.setEntityMask(...)` assigns the boolean `true` return value of `setEntityMask` to `playerHandle`. The next line `const entityId = playerHandle.id` then resolves to `undefined`, silently corrupting all subsequent component writes for the player entity.
+**Impact:** Player entity state is silently lost on restart/resync. All subsequent component operations write to slot `undefined` (treated as 0) or throw.
 
-**Fix:** 
+**Fix:**
 ```js
-world.setEntityMask(playerHandle, PLAYER_WITH_RENDERABLE_MASK); // Do not reassign playerHandle
+// Before (buggy):
+playerHandle = world.setEntityMask(playerHandle, PLAYER_WITH_RENDERABLE_MASK);
+
+// After (correct):
+world.setEntityMask(playerHandle, PLAYER_WITH_RENDERABLE_MASK); // Do not reassign — return value is boolean
 ```
 
-**Tests to add:** Integration test verifying `playerHandle` remains a valid handle after sync.
+**Tests to add:** Integration test verifying `playerHandle` remains a valid `{id, generation}` object after `syncPlayerEntityFromMap` is called on an already-alive player entity.
 
 ---
 
 ### BUG-08: World frame counter not reset on level restart ⬆ MEDIUM
 **Origin:** 1. Bugs & Logic Errors
 **Files:** Ownership: Track A (Tickets: A-03)
-- `src/game/bootstrap.js` (~L494)
+- `src/game/bootstrap.js` (onRestart callback)
+- `src/ecs/world/world.js` (fields: `frame`, `renderFrame`)
 
-**Problem:** `world.frame` persists across level transitions.
-**Impact:** Frame-dependent timing desyncs.
+**Problem:** `world.frame` and `world.renderFrame` both persist across level transitions. Only the `World` constructor resets them.
+**Impact:** Frame-dependent timing desyncs across levels.
 
-**Fix:** Reset `world.frame = 0` in `restartLevel()`.
+**Fix:** Reset both counters in the `onRestart` callback in `bootstrap.js`:
+```js
+onRestart: () => {
+  resetClock(clock, toFiniteTimestamp(nowProvider()));
+  world.frame = 0;        // ADD: reset simulation frame counter
+  world.renderFrame = 0;  // ADD: reset render frame counter
+  initializeBombExplosionResources(world, options);
+},
+```
+
+**Note:** `world.frame` and `world.renderFrame` are public fields on the `World` class, so direct assignment is safe.
 
 ---
 
-### BUG-17: No validation in `setEntityMask` for mask=0 ⬆ LOW
+### BUG-17: No validation in `setEntityMask` for mask=0 ⬆ LOW (documentation only)
 **Origin:** 1. Bugs & Logic Errors
 **Files:** Ownership: Track A (Tickets: A-02)
 - `src/ecs/world/world.js` (~L248)
 
-**Problem:** Passing mask=0 hides entity with no validation.
-**Fix:** Validate mask or document.
+**Problem:** Passing `mask=0` is valid behavior (removes entity from all queries, effectively hiding it) but this is not documented in the JSDoc.
+**Fix:** Add JSDoc clarification to `setEntityMask()` documenting that `mask=0` is intentional and removes the entity from all system queries. No code guard needed — a guard could break valid use cases.
 
 ---
 
-### BUG-18: Clock fallback logic doesn't handle double-invalid timestamps ⬆ INFO
-**Origin:** 1. Bugs & Logic Errors
-**Files:** Ownership: Track A/D (Tickets: D-01)
-- `src/ecs/resources/clock.js` (~L66)
-
-**Problem:** Implicit handling of double-invalid timestamps.
-**Fix:** Explicitly handle.
+> ~~**BUG-18: Clock fallback logic doesn't handle double-invalid timestamps**~~ **REMOVED — FALSE POSITIVE**  
+> Verification confirmed that `tickClock()` in `clock.js:65-84` explicitly handles both non-finite `now` (falls back to `lastFrameTime`) and non-finite `lastFrameTime` (treats baseline as invalid and updates it). Both cases are deterministically handled.
 
 ---
 
@@ -255,8 +267,13 @@ world.setEntityMask(playerHandle, PLAYER_WITH_RENDERABLE_MASK); // Do not reassi
 **Files:** Ownership: Track A (Tickets: A-06)
 - `tests/e2e/audit/audit-question-map.js` (~L23)
 
-**Problem:** Thresholds (`maxP95FrameTimeMs: 20`, `minP95Fps: 50`) violate AGENTS.md (`<= 16.7ms`, `>= 60 FPS`).
-**Fix:** Align thresholds.
+**Problem:** Thresholds (`maxP95FrameTimeMs: 20`, `minP95Fps: 50`) are weaker than AGENTS.md requirements (`≤ 16.7ms`, `≥ 60 FPS`).
+
+**Fix:** Align thresholds to AGENTS.md values for local/evidence runs. **Do NOT simply hardcode strict values in CI** — previous CI runs showed flaky failures on slower GitHub Actions runners at strict thresholds (see conversation `2b58ad08`). Instead:
+1. Set canonical thresholds to AGENTS.md values (`maxP95FrameTimeMs: 16.7`, `minP95Fps: 60`).
+2. Add a documented `CI_TOLERANCE_FACTOR` environment variable (e.g., `1.3`) that multiplies thresholds when running on CI runners. This keeps the audit gates meaningful while preventing false failures on throttled VMs.
+3. Document the tolerance rationale in the test file with a comment.
+
 
 ---
 
@@ -300,13 +317,24 @@ world.setEntityMask(playerHandle, PLAYER_WITH_RENDERABLE_MASK); // Do not reassi
 
 ---
 
-### CI-11: Coverage thresholds below project target ⬆ MEDIUM
+### CI-11: Branch coverage threshold below project target ⬆ LOW
 **Origin:** 5. Tests & CI Gaps
 **Files:** Ownership: Track A (Tickets: A-07)
-- `vitest.config.js` (~L14)
+- `vitest.config.js` (L14-19)
 
-**Problem:** Coverage thresholds set to 60/70/70/70. Project requires 85%.
-**Fix:** Raise thresholds to 85%.
+**Problem:** Actual thresholds verified in code are `branches: 80, functions: 85, lines: 90, statements: 90`. The `branches: 80` threshold is the only one below the 85% project target. (Note: the original audit claimed "60/70/70/70" which was stale — those values do not exist in the current config.)
+
+**Fix:** Raise `branches` threshold from `80` to `85` in `vitest.config.js`:
+```js
+thresholds: {
+  branches: 85,    // raise from 80
+  functions: 85,   // already at target
+  lines: 90,       // already above target
+  statements: 90,  // already above target
+},
+```
+
+**Severity revised to LOW** (from MEDIUM) since 3 of 4 dimensions already meet or exceed the target.
 
 ---
 
