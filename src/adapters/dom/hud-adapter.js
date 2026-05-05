@@ -18,7 +18,7 @@
  *   not spam on every render tick.
  */
 
-const ARIA_LIVE_THROTTLE_MS = 1000;
+export const ARIA_LIVE_THROTTLE_MS = 1000;
 
 function getNow() {
   if (typeof performance !== 'undefined' && typeof performance.now === 'function') {
@@ -28,21 +28,21 @@ function getNow() {
   return Date.now();
 }
 
-function setTextContent(element, value) {
-  if (element) {
+function setTextContentIfChanged(element, value) {
+  if (element && element.textContent !== value) {
     element.textContent = value;
   }
 }
 
-function formatLives(lives) {
+export function formatLives(lives) {
   return '❤️'.repeat(Math.max(0, lives));
 }
 
-function formatScore(score) {
+export function formatScore(score) {
   return String(Math.max(0, score)).padStart(5, '0');
 }
 
-function formatTimer(totalSeconds) {
+export function formatTimer(totalSeconds) {
   const safeSeconds = Math.max(0, totalSeconds);
   const minutes = Math.floor(safeSeconds / 60);
   const seconds = safeSeconds % 60;
@@ -95,13 +95,21 @@ export function createHudAdapter(rootElement) {
 
   function update(state) {
     const { lives = 0, score = 0, timer = 0, bombs = 0, fire = 0, level = 1 } = state || {};
+    const nextFormattedState = {
+      bombs: String(bombs),
+      fire: String(fire),
+      level: String(level),
+      lives: formatLives(lives),
+      score: formatScore(score),
+      timer: formatTimer(timer),
+    };
 
-    setTextContent(elements.lives, formatLives(lives));
-    setTextContent(elements.score, formatScore(score));
-    setTextContent(elements.timer, formatTimer(timer));
-    setTextContent(elements.bombs, String(bombs));
-    setTextContent(elements.fire, String(fire));
-    setTextContent(elements.level, String(level));
+    setTextContentIfChanged(elements.lives, nextFormattedState.lives);
+    setTextContentIfChanged(elements.score, nextFormattedState.score);
+    setTextContentIfChanged(elements.timer, nextFormattedState.timer);
+    setTextContentIfChanged(elements.bombs, nextFormattedState.bombs);
+    setTextContentIfChanged(elements.fire, nextFormattedState.fire);
+    setTextContentIfChanged(elements.level, nextFormattedState.level);
 
     const statusMessage = buildStatusMessage(previousState, lives, score, timer, level);
     const now = getNow();
@@ -112,7 +120,7 @@ export function createHudAdapter(rootElement) {
       statusMessage !== lastAnnouncement &&
       now - lastAnnouncedAt >= ARIA_LIVE_THROTTLE_MS
     ) {
-      setTextContent(elements.status, statusMessage);
+      setTextContentIfChanged(elements.status, statusMessage);
       lastAnnouncement = statusMessage;
       lastAnnouncedAt = now;
     }

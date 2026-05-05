@@ -122,18 +122,18 @@ C-04 is system-layer complete only. Runtime integration, HUD, overlays, visible 
 - `src/adapters/dom/screens-adapter.js` — start screen, pause menu, level complete, game over, victory overlays
 - `src/adapters/io/storage-adapter.js` — high score localStorage with untrusted data validation
 
-- [ ] Implement `hud-adapter.js`:
+- [x] Implement `hud-adapter.js`:
   - Binds text nodes natively with `.textContent` to update: lives (heart icons), score (5-digit), timer (M:SS), bomb count, fire radius, level number.
   - Uses throttled `aria-live` updates for accessibility (not per-frame spam).
-- [ ] Implement `screens-adapter.js` with fully distinct game state screens:
+- [x] Implement `screens-adapter.js` with fully distinct game state screens:
   - **Start Screen** (`game-description.md` §9.5): Title, Start Game button, High Scores display, control instructions. `Enter` to start.
   - **Pause Menu** (`game-description.md` §10): Continue and Restart options. Arrow keys to select, `Enter` to confirm.
   - **Level Complete Screen** (`game-description.md` §8): Level stats. `Enter` for next level.
   - **Game Over Screen** (`game-description.md` §11): Final score, Play Again button.
   - **Victory Screen** (`game-description.md` §11): Final score, ghosts killed, total time, Play Again button.
-- [ ] Implement keyboard focus transfer: Arrow keys for menu navigation, Enter for confirm. Focus enters overlay on open, restores to gameplay on close.
-- [ ] Implement `adapters/io/storage-adapter.js`: High score saving/reading from `localStorage` with untrusted data validation on read.
-- [ ] Verification gate: adapter tests confirm HUD metrics update correctly via safe sinks; e2e tests confirm keyboard-only navigation across all screens.
+- [x] Implement keyboard focus transfer: Arrow keys for menu navigation, Enter for confirm. Focus enters overlay on open, restores to gameplay on close.
+- [x] Implement `adapters/io/storage-adapter.js`: High score saving/reading from `localStorage` with untrusted data validation on read.
+- [x] Verification gate: adapter tests confirm HUD metrics update correctly via safe sinks; e2e tests confirm keyboard-only navigation across screen-overlay flows owned by C-05.
 
 ### Storage Trust Boundary & Validation Contract
 

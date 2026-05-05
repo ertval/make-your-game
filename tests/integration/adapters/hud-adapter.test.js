@@ -7,14 +7,22 @@
 
 import { describe, expect, it, vi } from 'vitest';
 
-import { createHudAdapter } from '../../../src/adapters/dom/hud-adapter.js';
+import { ARIA_LIVE_THROTTLE_MS, createHudAdapter } from '../../../src/adapters/dom/hud-adapter.js';
 
 function createHudElement() {
   let innerHtmlWrites = 0;
+  let textContent = '';
+  let textWrites = 0;
 
   const element = {
     attributes: new Map(),
-    textContent: '',
+    get textContent() {
+      return textContent;
+    },
+    set textContent(value) {
+      textWrites += 1;
+      textContent = value;
+    },
     get innerHTML() {
       return '';
     },
@@ -30,6 +38,9 @@ function createHudElement() {
     element,
     getInnerHtmlWrites() {
       return innerHtmlWrites;
+    },
+    getTextWrites() {
+      return textWrites;
     },
   };
 }
@@ -181,6 +192,81 @@ describe('hud-adapter', () => {
     nowSpy.mockRestore();
   });
 
+  it('announces score, level, and critical timer changes after the throttle window', () => {
+    const nowSpy = vi.spyOn(performance, 'now');
+    nowSpy.mockReturnValueOnce(1000);
+    nowSpy.mockReturnValueOnce(2200);
+    nowSpy.mockReturnValueOnce(3400);
+    nowSpy.mockReturnValueOnce(4600);
+
+    const { entries, rootElement } = createRootElement();
+    const adapter = createHudAdapter(rootElement);
+
+    adapter.update({ lives: 3, score: 0, timer: 20, bombs: 0, fire: 0, level: 1 });
+    adapter.update({ lives: 3, score: 50, timer: 20, bombs: 0, fire: 0, level: 1 });
+    expect(entries.status.element.textContent).toContain('Score 00050');
+
+    adapter.update({ lives: 3, score: 50, timer: 20, bombs: 0, fire: 0, level: 2 });
+    expect(entries.status.element.textContent).toContain('Level 2');
+
+    adapter.update({ lives: 3, score: 50, timer: 10, bombs: 0, fire: 0, level: 2 });
+    expect(entries.status.element.textContent).toContain('Time 0:10 remaining');
+
+    nowSpy.mockRestore();
+  });
+
+  it('does not rewrite unchanged HUD fields on repeated updates', () => {
+    const { entries, rootElement } = createRootElement();
+    const adapter = createHudAdapter(rootElement);
+    const state = {
+      lives: 2,
+      score: 42,
+      timer: 65,
+      bombs: 1,
+      fire: 3,
+      level: 2,
+    };
+
+    adapter.update(state);
+    const firstWriteCounts = {
+      bombs: entries.bombs.getTextWrites(),
+      fire: entries.fire.getTextWrites(),
+      level: entries.level.getTextWrites(),
+      lives: entries.lives.getTextWrites(),
+      score: entries.score.getTextWrites(),
+      timer: entries.timer.getTextWrites(),
+    };
+
+    adapter.update(state);
+
+    expect(entries.bombs.getTextWrites()).toBe(firstWriteCounts.bombs);
+    expect(entries.fire.getTextWrites()).toBe(firstWriteCounts.fire);
+    expect(entries.level.getTextWrites()).toBe(firstWriteCounts.level);
+    expect(entries.lives.getTextWrites()).toBe(firstWriteCounts.lives);
+    expect(entries.score.getTextWrites()).toBe(firstWriteCounts.score);
+    expect(entries.timer.getTextWrites()).toBe(firstWriteCounts.timer);
+  });
+
+  it('throttles aria-live announcements until the throttle window elapses', () => {
+    const nowSpy = vi.spyOn(performance, 'now');
+    nowSpy.mockReturnValueOnce(1000);
+    nowSpy.mockReturnValueOnce(1000 + ARIA_LIVE_THROTTLE_MS - 1);
+    nowSpy.mockReturnValueOnce(1000 + ARIA_LIVE_THROTTLE_MS + 1);
+
+    const { entries, rootElement } = createRootElement();
+    const adapter = createHudAdapter(rootElement);
+
+    adapter.update({ lives: 3, score: 0, timer: 12, bombs: 0, fire: 0, level: 1 });
+    const firstAnnouncement = entries.status.element.textContent;
+    adapter.update({ lives: 2, score: 0, timer: 12, bombs: 0, fire: 0, level: 1 });
+    expect(entries.status.element.textContent).toBe(firstAnnouncement);
+
+    adapter.update({ lives: 1, score: 0, timer: 12, bombs: 0, fire: 0, level: 1 });
+    expect(entries.status.element.textContent).toContain('Lives 1');
+
+    nowSpy.mockRestore();
+  });
+
   it('does not write through innerHTML', () => {
     const { entries, rootElement } = createRootElement();
     const adapter = createHudAdapter(rootElement);
@@ -201,5 +287,30 @@ describe('hud-adapter', () => {
     expect(entries.fire.getInnerHtmlWrites()).toBe(0);
     expect(entries.level.getInnerHtmlWrites()).toBe(0);
     expect(entries.status.getInnerHtmlWrites()).toBe(0);
+  });
+
+  it('falls back to Date.now when performance.now is unavailable', () => {
+    const originalPerformance = globalThis.performance;
+    const dateNowSpy = vi.spyOn(Date, 'now');
+    dateNowSpy.mockReturnValueOnce(2500);
+    dateNowSpy.mockReturnValueOnce(4000);
+    Object.defineProperty(globalThis, 'performance', {
+      configurable: true,
+      value: undefined,
+    });
+
+    const { entries, rootElement } = createRootElement();
+    const adapter = createHudAdapter(rootElement);
+
+    adapter.update({ lives: 1, score: 0, timer: 9, bombs: 0, fire: 0, level: 1 });
+    adapter.update({ lives: 0, score: 0, timer: 9, bombs: 0, fire: 0, level: 1 });
+
+    expect(entries.status.element.textContent).toContain('Lives 0');
+
+    Object.defineProperty(globalThis, 'performance', {
+      configurable: true,
+      value: originalPerformance,
+    });
+    dateNowSpy.mockRestore();
   });
 });

@@ -7,7 +7,13 @@
 
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { safeRead, safeWrite } from '../../../src/adapters/io/storage-adapter.js';
+import {
+  getHighScore,
+  HIGH_SCORE_STORAGE_KEY,
+  safeRead,
+  safeWrite,
+  saveHighScore,
+} from '../../../src/adapters/io/storage-adapter.js';
 
 function createMockStorage() {
   let store = {};
@@ -104,5 +110,24 @@ describe('storage-adapter', () => {
     safeWrite('test', { score: 5 });
 
     expect(console.warn).toHaveBeenCalled();
+  });
+
+  it('stores normalized high scores with the canonical key', () => {
+    saveHighScore(42.9);
+
+    expect(localStorage.getItem(HIGH_SCORE_STORAGE_KEY)).toBe(JSON.stringify({ score: 42 }));
+  });
+
+  it('returns 0 for malformed high score payloads', () => {
+    localStorage.setItem(HIGH_SCORE_STORAGE_KEY, JSON.stringify({ score: 'bad' }));
+
+    expect(getHighScore()).toBe(0);
+    expect(console.warn).toHaveBeenCalled();
+  });
+
+  it('returns the stored finite high score value', () => {
+    localStorage.setItem(HIGH_SCORE_STORAGE_KEY, JSON.stringify({ score: 105 }));
+
+    expect(getHighScore()).toBe(105);
   });
 });
