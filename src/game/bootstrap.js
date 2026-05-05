@@ -367,7 +367,7 @@ function syncPlayerEntityFromMap(world, mapResource, options = {}) {
     playerHandle = world.createEntity(PLAYER_WITH_RENDERABLE_MASK);
     world.setResource(playerEntityResourceKey, playerHandle);
   } else {
-    playerHandle = world.setEntityMask(playerHandle, PLAYER_WITH_RENDERABLE_MASK);
+    world.setEntityMask(playerHandle, PLAYER_WITH_RENDERABLE_MASK);
   }
 
   const entityId = playerHandle.id;
@@ -512,6 +512,9 @@ export function createBootstrap(options = {}) {
       // deterministic across restarts, falling back to the real wall clock
       // only when no provider is supplied.
       resetClock(clock, toFiniteTimestamp(nowProvider()));
+      // Restart should reset frame counters so fixed-step progression restarts cleanly.
+      world.frame = 0;
+      world.renderFrame = 0;
       // Restart destroys all entities, so runtime object pools must be rebuilt
       // before bomb and explosion systems can query pooled prop entities again.
       initializeBombExplosionResources(world, options);

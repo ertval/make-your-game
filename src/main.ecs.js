@@ -505,7 +505,3 @@ export async function bootstrapApplication({
 }
 
 export const startBrowserApplication = bootstrapApplication;
-
-if (typeof window !== 'undefined' && typeof document !== 'undefined') {
-  void bootstrapApplication();
-}

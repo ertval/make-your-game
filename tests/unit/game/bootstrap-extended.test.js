@@ -1,4 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
+import { FIXED_DT_MS } from '../../../src/ecs/resources/constants.js';
+import { GAME_STATE } from '../../../src/ecs/resources/game-status.js';
 import { createBootstrap } from '../../../src/game/bootstrap.js';
 
 describe('Bootstrap extended coverage', () => {
@@ -52,18 +54,44 @@ describe('Bootstrap extended coverage', () => {
     ll.triggerLoad(validMap);
 
     const playerHandle = world.getResource('playerEntity');
+    const positionStore = world.getResource('position');
     expect(playerHandle).not.toBeNull();
     expect(world.entityStore.isAlive(playerHandle)).toBe(true);
+    expect(positionStore.row[playerHandle.id]).toBe(validMap.playerSpawnRow);
+    expect(positionStore.col[playerHandle.id]).toBe(validMap.playerSpawnCol);
 
     // Call again to hit setEntityMask
-    ll.triggerLoad(validMap);
+    const movedMap = {
+      ...validMap,
+      playerSpawnRow: 2,
+      playerSpawnCol: 4,
+    };
+    ll.triggerLoad(movedMap);
     expect(world.getResource('playerEntity')).toStrictEqual(playerHandle);
+    expect(positionStore.row[playerHandle.id]).toBe(movedMap.playerSpawnRow);
+    expect(positionStore.col[playerHandle.id]).toBe(movedMap.playerSpawnCol);
 
     // Call with invalid spawn to hit clearPlayerEntity
     ll.triggerLoad({ playerSpawnRow: null });
     expect(world.getResource('playerEntity')).toBeNull();
 
     spy.mockRestore();
+  });
+
+  it('resets frame counters on restart', () => {
+    const bootstrap = createBootstrap({ now: 0 });
+    expect(bootstrap.gameFlow.setState(GAME_STATE.PLAYING)).toBe(true);
+
+    bootstrap.stepFrame(FIXED_DT_MS + 1);
+    bootstrap.stepFrame(FIXED_DT_MS * 2 + 1);
+
+    expect(bootstrap.world.frame).toBeGreaterThan(0);
+    expect(bootstrap.world.renderFrame).toBeGreaterThan(0);
+
+    const restarted = bootstrap.gameFlow.restartLevel();
+    expect(restarted).toBe(true);
+    expect(bootstrap.world.frame).toBe(0);
+    expect(bootstrap.world.renderFrame).toBe(0);
   });
 
   it('covers system registration edge cases', () => {

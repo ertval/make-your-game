@@ -245,6 +245,14 @@ export class World {
     return this.#entityStore.destroy(handle);
   }
 
+  /**
+   * Update an entity's component mask. Passing mask = 0 is valid and removes
+   * the entity from all system queries.
+   *
+   * @param {{ id: number, generation: number }} handle - Entity handle to update.
+   * @param {number} mask - Bitmask of component membership (0 disables queries).
+   * @returns {boolean} True when the entity was alive and the mask was applied.
+   */
   setEntityMask(handle, mask) {
     this.#assertNotDispatching('setEntityMask');
 
