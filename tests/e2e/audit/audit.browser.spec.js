@@ -13,7 +13,7 @@
 
 import { expect, test } from '@playwright/test';
 
-import { bootRuntime, FIXED_DT_MS } from '../helpers/game-helpers.js';
+import { bootRuntime, FIXED_DT_MS, startGameAndWait } from '../helpers/game-helpers.js';
 import {
   CI_SEMI_AUTOMATABLE_THRESHOLDS,
   SEMI_AUTOMATABLE_THRESHOLDS,
@@ -287,30 +287,79 @@ test('AUDIT-F-06 project identity constraints are met', async ({ page }) => {
 test('AUDIT-F-11 input handling meets requirements', async ({ page }) => {
   await bootRuntime(page);
   await page.evaluate(() => {
-    window.__MS_GHOSTMAN_RUNTIME__.startGame({ levelIndex: 0 });
+    const runtime = window.__MS_GHOSTMAN_RUNTIME__;
+    runtime.startGame({ levelIndex: 0 });
+    if (runtime.getSnapshot().state !== 'PLAYING') {
+      runtime.setState('PLAYING');
+    }
   });
 
-  await page.keyboard.press('ArrowRight');
+  const getPlayerPosition = async () => {
+    return page.evaluate(() => {
+      const player = document.querySelector('.sprite--player');
+      if (!player) return null;
+      const rect = player.getBoundingClientRect();
+      return { x: rect.x, y: rect.y };
+    });
+  };
 
-  // Verify that an input intent is registered or simulation reacts.
-  // Because it's hard to read exact position without knowing component internal IDs,
-  // we can at least ensure no crashes and the input doesn't break the loop.
-  const state = await page.evaluate(() => window.__MS_GHOSTMAN_RUNTIME__.getSnapshot().state);
-  expect(state).toBe('PLAYING');
+  const startPos = await getPlayerPosition();
+  expect(startPos).not.toBeNull();
+
+  // Simulate a single quick press (but hold slightly to ensure engine registers)
+  await page.keyboard.down('ArrowLeft');
+  await page.waitForTimeout(50);
+  await page.keyboard.up('ArrowLeft');
+
+  // Wait for the simulation to process the input and move the player
+  await expect
+    .poll(
+      async () => {
+        const pos = await getPlayerPosition();
+        return pos.x;
+      },
+      { timeout: 2000 },
+    )
+    .toBeLessThan(startPos.x);
 });
 
 test('AUDIT-F-12 hold-input mechanism is robust', async ({ page }) => {
   await bootRuntime(page);
   await page.evaluate(() => {
-    window.__MS_GHOSTMAN_RUNTIME__.startGame({ levelIndex: 0 });
+    const runtime = window.__MS_GHOSTMAN_RUNTIME__;
+    runtime.startGame({ levelIndex: 0 });
+    if (runtime.getSnapshot().state !== 'PLAYING') {
+      runtime.setState('PLAYING');
+    }
   });
 
-  await page.keyboard.down('ArrowDown');
-  await page.waitForTimeout(100);
-  await page.keyboard.up('ArrowDown');
+  const getPlayerPosition = async () => {
+    return page.evaluate(() => {
+      const player = document.querySelector('.sprite--player');
+      if (!player) return null;
+      const rect = player.getBoundingClientRect();
+      return { x: rect.x, y: rect.y };
+    });
+  };
 
-  const state = await page.evaluate(() => window.__MS_GHOSTMAN_RUNTIME__.getSnapshot().state);
-  expect(state).toBe('PLAYING');
+  const startPos = await getPlayerPosition();
+  expect(startPos).not.toBeNull();
+
+  // Press and hold the key down
+  await page.keyboard.down('ArrowLeft');
+
+  // Wait for continuous movement over a longer distance
+  await expect
+    .poll(
+      async () => {
+        const pos = await getPlayerPosition();
+        return startPos.x - pos.x;
+      },
+      { timeout: 3000 },
+    )
+    .toBeGreaterThan(32); // Ensure the player moves a substantial amount without key repeat
+
+  await page.keyboard.up('ArrowLeft');
 });
 
 test('AUDIT-F-14 HUD metrics are present', async ({ page }) => {
@@ -326,24 +375,24 @@ test('AUDIT-F-14 HUD metrics are present', async ({ page }) => {
 
 test('AUDIT-F-15 HUD timer/countdown functions correctly', async ({ page }) => {
   await bootRuntime(page);
-  await page.evaluate(() => {
-    window.__MS_GHOSTMAN_RUNTIME__.startGame({ levelIndex: 0 });
-  });
+  await startGameAndWait(page, { levelIndex: 0 });
 
   const timerEl = await page.locator('[data-hud="timer"]');
   await expect(timerEl).toBeVisible();
+
   const initialText = await timerEl.textContent();
   expect(typeof initialText).toBe('string');
 });
 
 test('AUDIT-F-16 HUD score and lives update properly', async ({ page }) => {
   await bootRuntime(page);
-  await page.evaluate(() => {
-    window.__MS_GHOSTMAN_RUNTIME__.startGame({ levelIndex: 0 });
-  });
+  await startGameAndWait(page, { levelIndex: 0 });
 
   const scoreEl = await page.locator('[data-hud="score"]');
   const livesEl = await page.locator('[data-hud="lives"]');
+
+  await expect(scoreEl).toBeVisible();
+  await expect(livesEl).toBeVisible();
 
   await expect(scoreEl).toBeVisible();
   await expect(livesEl).toBeVisible();
