@@ -338,4 +338,74 @@ describe('World', () => {
     world.destroyEntity(handle);
     expect(world.destroyEntity(handle)).toBe(false);
   });
+
+  it('covers missing branches in World API', () => {
+    const world = new World();
+
+    // 232: getPhaseOrder
+    expect(world.getPhaseOrder()).toEqual(['input', 'physics', 'logic', 'render']);
+
+    // 406-407: runRenderCommit with no systems
+    world.runRenderCommit();
+    expect(world.renderFrame).toBe(1);
+
+    // 137, 131, 121: world view hasResource, deferDestroyAllEntities, and setResource
+    world.registerSystem({
+      phase: 'logic',
+      name: 'view-coverage',
+      resourceCapabilities: { read: ['test'], write: ['test'] },
+      update: (ctx) => {
+        // 110-114: has with and without capability
+        expect(ctx.world.hasResource('test')).toBe(false);
+        expect(() => ctx.world.hasResource('forbidden')).toThrow('cannot read resource');
+
+        // 131: deferDestroyAllEntities via view
+        ctx.world.deferDestroyAllEntities();
+
+        // 121: set resource via view (if write capability)
+        ctx.world.setResource('test', 'value');
+        expect(ctx.world.getResource('test')).toBe('value');
+      },
+    });
+    world.runFixedStep();
+
+    // 422, 432: Render system quarantine and failure
+    const consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+    world.registerSystem({
+      phase: 'render',
+      name: 'render-fail',
+      update: () => {
+        throw new Error('render boom');
+      },
+    });
+
+    world.runRenderCommit();
+    expect(consoleErrorSpy).toHaveBeenCalled();
+    consoleErrorSpy.mockRestore();
+  });
+
+  it('quarantines failing render systems when fault budget is exceeded', () => {
+    const world = new World({ systemFailureBudget: 1 });
+    const consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+    let runCount = 0;
+
+    world.registerSystem({
+      phase: 'render',
+      name: 'failing-render',
+      update: () => {
+        runCount++;
+        throw new Error('render boom');
+      },
+    });
+
+    // First run: fails and gets quarantined
+    world.runRenderCommit();
+    expect(runCount).toBe(1);
+
+    // Second run: should be skipped (422)
+    world.runRenderCommit();
+    expect(runCount).toBe(1);
+
+    consoleErrorSpy.mockRestore();
+  });
 });
