@@ -295,33 +295,58 @@ describe('appendRenderIntent buffer-full warning', () => {
     warnSpy.mockRestore();
   });
 
-  it('does not warn when appendRenderIntent exceeds capacity in production mode', () => {
+  it('throttles production overflow warnings to at most one per second (BUG-10)', () => {
     vi.mocked(isDevelopment).mockReturnValue(false);
+    const dateNowSpy = vi.spyOn(Date, 'now');
     const buf = createRenderIntentBuffer(1);
     appendRenderIntent(buf, { entityId: 1, kind: RENDERABLE_KIND.PLAYER });
 
     const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
 
+    // First overflow opens the throttle window.
+    dateNowSpy.mockReturnValue(5_000);
     appendRenderIntent(buf, { entityId: 99, kind: RENDERABLE_KIND.GHOST });
+    const warnsAfterFirst = warnSpy.mock.calls.length;
+    expect(warnsAfterFirst).toBeGreaterThanOrEqual(1);
 
-    expect(warnSpy).not.toHaveBeenCalled();
+    // Within the throttle window: no additional warnings.
+    dateNowSpy.mockReturnValue(5_500);
+    appendRenderIntent(buf, { entityId: 100, kind: RENDERABLE_KIND.GHOST });
+    expect(warnSpy.mock.calls.length).toBe(warnsAfterFirst);
+
+    // After the throttle window: warning resumes.
+    dateNowSpy.mockReturnValue(7_000);
+    appendRenderIntent(buf, { entityId: 101, kind: RENDERABLE_KIND.GHOST });
+    expect(warnSpy.mock.calls.length).toBeGreaterThan(warnsAfterFirst);
+
     expect(buf._count).toBe(1);
 
     warnSpy.mockRestore();
+    dateNowSpy.mockRestore();
   });
 
-  it('does not warn when appendRenderIntentDirect exceeds capacity in production mode', () => {
+  it('throttles production overflow warnings for appendRenderIntentDirect too (BUG-10)', () => {
     vi.mocked(isDevelopment).mockReturnValue(false);
+    const dateNowSpy = vi.spyOn(Date, 'now');
     const buf = createRenderIntentBuffer(1);
     appendRenderIntentDirect(buf, 1, 1, -1, 0, 0, 0, 255);
 
     const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
 
+    // Advance well past the previous test's throttle window.
+    dateNowSpy.mockReturnValue(10_000);
     appendRenderIntentDirect(buf, 99, 2, -1, 0, 0, 0, 255);
+    const warnsAfterFirst = warnSpy.mock.calls.length;
+    expect(warnsAfterFirst).toBeGreaterThanOrEqual(1);
 
-    expect(warnSpy).not.toHaveBeenCalled();
+    // Same throttle window — should NOT re-warn.
+    dateNowSpy.mockReturnValue(10_500);
+    appendRenderIntentDirect(buf, 100, 2, -1, 0, 0, 0, 255);
+    expect(warnSpy.mock.calls.length).toBe(warnsAfterFirst);
+
     expect(buf._count).toBe(1);
 
     warnSpy.mockRestore();
+    dateNowSpy.mockRestore();
   });
 });

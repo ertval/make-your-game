@@ -18,6 +18,10 @@ const PRODUCTION_CSP = [
   'upgrade-insecure-requests',
 ].join('; ');
 
+// SEC-06: 'unsafe-eval' and 'unsafe-inline' are required by Vite's HMR runtime
+// during development and are explicitly permitted by AGENTS.md ("During
+// development with Vite, CSP enforcement MAY be relaxed to allow HMR inline
+// scripts"). The production CSP above retains the strict policy.
 const DEVELOPMENT_CSP = [
   "default-src 'self'",
   "base-uri 'none'",
@@ -39,6 +43,12 @@ function createSecurityHeaders(csp) {
     'Referrer-Policy': 'no-referrer',
     'X-Content-Type-Options': 'nosniff',
     'X-Frame-Options': 'DENY',
+    // SEC-09: deny powerful platform features the game has no use for and
+    // enable cross-origin isolation so any future SharedArrayBuffer/worker
+    // workloads have a compatible header environment.
+    'Permissions-Policy': 'geolocation=(), camera=(), microphone=()',
+    'Cross-Origin-Opener-Policy': 'same-origin',
+    'Cross-Origin-Embedder-Policy': 'require-corp',
   };
 }
 

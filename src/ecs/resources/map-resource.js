@@ -25,7 +25,6 @@
  *   - isWall(map, row, col) — convenience check for impassable cells
  *   - isPassable(map, row, col, isGhost) — check if a cell can be entered
  *   - isGhostHouseCell(map, row, col) — check if cell is inside ghost house
- *   - isPlayerStart(map, row, col) — check if cell is the player start
  *   - isInGhostHouse(map, row, col) — check if coords are within ghost house
  *   - countPellets(map) — count remaining pellets on the map
  *   - countPowerPellets(map) — count remaining power pellets on the map
@@ -571,18 +570,6 @@ export function isPassableForGhost(map, row, col) {
   const cell = getCell(map, row, col);
   // Ghosts should not pass through destructible walls (BUG-X01).
   return cell !== CELL_TYPE.INDESTRUCTIBLE && cell !== CELL_TYPE.DESTRUCTIBLE;
-}
-
-/**
- * Check if (row, col) is the player start cell.
- *
- * @param {MapResource} map — Map resource.
- * @param {number} row
- * @param {number} col
- * @returns {boolean}
- */
-export function isPlayerStart(map, row, col) {
-  return row === map.playerSpawnRow && col === map.playerSpawnCol;
 }
 
 /**

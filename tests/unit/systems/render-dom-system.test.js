@@ -354,15 +354,15 @@ describe('render-dom-system', () => {
       expect(mockEl.classList.add).toHaveBeenCalledWith('sprite--player--speed-boost');
     });
 
-    it('hides element when HIDDEN flag is set', async () => {
+    it('hides HIDDEN entities via offscreen transform, not display:none (ARCH-01)', async () => {
       const { buffer, fillBuffer, spritePool } = createHarness();
 
       fillBuffer([
         {
           entityId: 1,
           kind: RENDERABLE_KIND.PLAYER,
-          x: 0,
-          y: 0,
+          x: 5,
+          y: 7,
           opacity: 255,
           classBits: VISUAL_FLAGS.HIDDEN,
         },
@@ -380,7 +380,10 @@ describe('render-dom-system', () => {
         },
       });
 
-      expect(mockEl.style.display).toBe('none');
+      // Per AGENTS.md: pool elements MUST be hidden via offscreen transform,
+      // not display:none (which forces layout/reflow).
+      expect(mockEl.style.transform).toBe('translate(-9999px, -9999px)');
+      expect(mockEl.style.display).not.toBe('none');
     });
   });
 

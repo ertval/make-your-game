@@ -15,7 +15,7 @@
  *   - drain(queue) — return all events in insertion order and clear the queue.
  *   - peek(queue) — return all events without clearing (for read-only inspection).
  *   - clear(queue) — discard all pending events (used on level reset).
- *   - resetOrderCounter(queue) — reset the monotonic counter (frame boundary).
+ *   - resetOrderCounter(queue) — @deprecated test-only; drain() auto-resets.
  *
  * Implementation notes:
  *   - The queue is a plain object with an internal array and order counter.
@@ -47,6 +47,11 @@ export function createEventQueue() {
  * @param {number} frame — Fixed-step frame index for temporal ordering.
  */
 export function enqueue(queue, type, payload, frame) {
+  // BUG-15: silently skip when no queue is registered (e.g., test harnesses
+  // running systems without the resource). Throwing here would break callers
+  // that legitimately operate without an event queue.
+  if (!queue) return;
+
   // Validate frame is a finite number (BUG-10).
   const validFrame = Number.isFinite(frame) ? frame : 0;
 
@@ -64,19 +69,22 @@ export function enqueue(queue, type, payload, frame) {
  * This is the primary consumption method — systems call this at their
  * designated event-processing point to get a deterministic snapshot.
  *
+ * BUG-12: The returned array IS the previous internal buffer (ownership swap)
+ * rather than a copy. This avoids per-frame spread allocation. Callers MUST
+ * NOT retain references across frames — process the events and discard.
+ *
  * @param {EventQueue} queue — Mutable event queue record.
  * @returns {GameEvent[]} Sorted array of events, queue is cleared.
  */
 export function drain(queue) {
   if (queue.events.length === 0) {
     queue.orderCounter = 0;
-    return [];
+    return _EMPTY_DRAIN;
   }
 
   // Sort by frame first, then by insertion order within the same frame.
   // This ensures deterministic processing even if systems enqueued
   // events in different orders during the same simulation step.
-  // Optimization: Sort in place to avoid slice() allocation (BUG-X05).
   queue.events.sort((a, b) => {
     if (a.frame !== b.frame) {
       return a.frame - b.frame;
@@ -84,14 +92,16 @@ export function drain(queue) {
     return a.order - b.order;
   });
 
-  // ARCH-15: Return a shallow copy to prevent external mutation of internal buffer.
-  const result = [...queue.events];
+  const result = queue.events;
   queue.events = [];
   // Auto-reset counter on drain (BUG-10).
   queue.orderCounter = 0;
 
   return result;
 }
+
+/** Frozen singleton returned for empty drains to avoid the [] allocation. */
+const _EMPTY_DRAIN = Object.freeze([]);
 
 /**
  * Return all events sorted by (frame, order) without clearing the queue.
@@ -123,13 +133,28 @@ export function clear(queue) {
 }
 
 /**
- * Reset the monotonic order counter at a frame boundary.
- * Called once per fixed simulation step to prevent the counter
- * from growing unbounded over long play sessions.
+ * Reset the monotonic order counter without draining events.
  *
- * @internal Used by the runtime bootstrap at fixed-step boundaries.
+ * @deprecated Test-only escape hatch. Production code should use drain(),
+ * which auto-resets the counter. Calling this with undrained events can
+ * produce order-index collisions across frames (ARCH-07, DEAD-04).
+ *
+ * @internal
  * @param {EventQueue} queue — Mutable event queue record.
  */
 export function resetOrderCounter(queue) {
+  if (queue.events.length > 0) {
+    // Surface misuse: resetting the counter while events are still queued
+    // means subsequent enqueues will collide with existing order indices.
+    try {
+      if (process.env.NODE_ENV === 'development') {
+        console.warn(
+          '[event-queue] resetOrderCounter called with undrained events. Use drain() instead.',
+        );
+      }
+    } catch {
+      /* process not defined in browser bundle — ignore */
+    }
+  }
   queue.orderCounter = 0;
 }

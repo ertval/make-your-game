@@ -171,4 +171,20 @@ describe('sprite-pool-adapter', () => {
       expect(el.style.transform).toBe(OFFSCREEN);
     });
   });
+
+  describe('BUG-05: acquire() on un-warmed pool', () => {
+    it('does not throw when acquire() is called before warmUp()', () => {
+      const doc = createMockDocument();
+      const pool = createSpritePool({ document: doc });
+      // Pool was never warmed: idle and active are both empty.
+      expect(() => pool.acquire(SPRITE_TYPE.PLAYER)).not.toThrow();
+    });
+
+    it('does not throw when idle and active are both exhausted', () => {
+      const doc = createMockDocument();
+      const pool = createSpritePool({ document: doc });
+      // No warmUp; force the un-warmed-and-empty path.
+      expect(() => pool.acquire(SPRITE_TYPE.GHOST)).not.toThrow();
+    });
+  });
 });

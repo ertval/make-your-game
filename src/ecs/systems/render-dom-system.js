@@ -17,6 +17,11 @@
  * - Tile-to-pixel conversion uses TILE_SIZE_PX constant.
  * - classBits (VISUAL_FLAGS) mapped to CSS classes for state (stunned, dead, etc).
  * - Opacity conversion: byte (0-255) to CSS string (0-1).
+ * - WALL entities (KIND_TO_SPRITE_TYPE.WALL === null) are intentionally skipped
+ *   here — walls render as static grid cells via the renderer adapter, not as
+ *   pooled sprites. The null sentinel is a deliberate no-op, not dead code.
+ * - HIDDEN flag is implemented via an offscreen transform, not display:none,
+ *   to keep the visibility toggle on the compositor and avoid layout reflow.
  * - This is the ONLY system that touches the DOM.
  */
 
@@ -26,6 +31,8 @@ const DEFAULT_RENDER_INTENT_RESOURCE_KEY = 'renderIntent';
 const DEFAULT_SPRITE_POOL_RESOURCE_KEY = 'spritePool';
 
 const TILE_SIZE_PX = 32;
+
+const OFFSCREEN_TRANSFORM = 'translate(-9999px, -9999px)';
 
 /**
  * Map RENDERABLE_KIND to sprite pool type keys.
@@ -70,9 +77,6 @@ function opacityToCss(byte) {
  * @param {number} classBits - VISUAL_FLAGS bitmask
  */
 function applyVisualFlagClasses(el, classBits) {
-  if ((classBits & VISUAL_FLAGS.HIDDEN) !== 0) {
-    el.style.display = 'none';
-  }
   if ((classBits & VISUAL_FLAGS.STUNNED) !== 0) {
     el.classList.add('sprite--ghost--stunned');
   }
@@ -91,6 +95,8 @@ export function createRenderDomSystem(options = {}) {
 
   /** @type {Map<number, {type: string, element: Element}>} Entity ID to {type, element} */
   const entityElementMap = new Map();
+  /** @type {Set<number>} Hoisted to avoid per-frame allocation (ARCH-05). */
+  const currentFrameEntityIds = new Set();
 
   return {
     name: 'render-dom-system',
@@ -107,8 +113,7 @@ export function createRenderDomSystem(options = {}) {
       }
 
       const intentCount = buffer._count;
-      /** @type {Set<number>} Entity IDs rendered this frame */
-      const currentFrameEntityIds = new Set();
+      currentFrameEntityIds.clear();
 
       for (let i = 0; i < intentCount; i += 1) {
         const entityId = buffer.entityId[i];
@@ -136,11 +141,16 @@ export function createRenderDomSystem(options = {}) {
 
         // Clear previous classes but keep the base sprite class for width/height
         el.className = 'sprite';
-        el.style.display = '';
 
-        const pixelX = x * TILE_SIZE_PX;
-        const pixelY = y * TILE_SIZE_PX;
-        el.style.transform = `translate3d(${pixelX}px, ${pixelY}px, 0)`;
+        if ((classBits & VISUAL_FLAGS.HIDDEN) !== 0) {
+          // ARCH-01: hide via offscreen transform (compositor-only) rather
+          // than display:none, which would force layout/reflow.
+          el.style.transform = OFFSCREEN_TRANSFORM;
+        } else {
+          const pixelX = x * TILE_SIZE_PX;
+          const pixelY = y * TILE_SIZE_PX;
+          el.style.transform = `translate3d(${pixelX}px, ${pixelY}px, 0)`;
+        }
         el.style.opacity = opacityToCss(opacity);
 
         const baseClasses = KIND_TO_CLASSES[kind] || [];
