@@ -3,16 +3,6 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <!--
-      SEC-04: Static CSP fallback for production static deployments without
-      server-side headers. Mirrors the production policy in vite.config.js.
-      `frame-ancestors` is intentionally omitted — it is enforceable only via
-      HTTP headers, not via <meta>.
-    -->
-    <meta
-      http-equiv="Content-Security-Policy"
-      content="default-src 'self'; base-uri 'none'; object-src 'none'; form-action 'none'; script-src 'self'; style-src 'self'; img-src 'self' data: blob:; font-src 'self' data:; connect-src 'self'; media-src 'self' data: blob:; worker-src 'self' blob:; require-trusted-types-for 'script'; trusted-types default; upgrade-insecure-requests"
-    />
     <title>Ms. Ghostman - ECS Edition</title>
     <link rel="stylesheet" href="/styles/base.css" />
   </head>

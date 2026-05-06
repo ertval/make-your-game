@@ -37,19 +37,19 @@ const DEVELOPMENT_CSP = [
   "worker-src 'self' blob:",
 ].join('; ');
 
-function createSecurityHeaders(csp) {
-  return {
+function createSecurityHeaders(csp, { crossOriginIsolation = false } = {}) {
+  const headers = {
     'Content-Security-Policy': csp,
     'Referrer-Policy': 'no-referrer',
     'X-Content-Type-Options': 'nosniff',
     'X-Frame-Options': 'DENY',
-    // SEC-09: deny powerful platform features the game has no use for and
-    // enable cross-origin isolation so any future SharedArrayBuffer/worker
-    // workloads have a compatible header environment.
     'Permissions-Policy': 'geolocation=(), camera=(), microphone=()',
-    'Cross-Origin-Opener-Policy': 'same-origin',
-    'Cross-Origin-Embedder-Policy': 'require-corp',
   };
+  if (crossOriginIsolation) {
+    headers['Cross-Origin-Opener-Policy'] = 'same-origin';
+    headers['Cross-Origin-Embedder-Policy'] = 'require-corp';
+  }
+  return headers;
 }
 
 function createCspMetaPlugin(csp) {
@@ -84,7 +84,7 @@ export default defineConfig(({ command }) => {
     preview: {
       host: true,
       port: 4173,
-      headers: createSecurityHeaders(PRODUCTION_CSP),
+      headers: createSecurityHeaders(PRODUCTION_CSP, { crossOriginIsolation: true }),
     },
   };
 });
