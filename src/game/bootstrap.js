@@ -41,7 +41,12 @@ import {
 } from '../ecs/components/visual.js';
 import { createRenderIntentBuffer, resetRenderIntentBuffer } from '../ecs/render-intent.js';
 import { advanceSimTime, createClock, resetClock, tickClock } from '../ecs/resources/clock.js';
-import { FIXED_DT_MS, MAX_STEPS_PER_FRAME, TOTAL_LEVELS } from '../ecs/resources/constants.js';
+import {
+  FIXED_DT_MS,
+  MAX_RENDER_INTENTS,
+  MAX_STEPS_PER_FRAME,
+  TOTAL_LEVELS,
+} from '../ecs/resources/constants.js';
 import { createEventQueue } from '../ecs/resources/event-queue.js';
 import { createGameStatus } from '../ecs/resources/game-status.js';
 import { createInputSystem } from '../ecs/systems/input-system.js';
@@ -168,6 +173,14 @@ function toFiniteTimestamp(nowMs) {
   }
 
   return nowMs;
+}
+
+function normalizeEntityCapacity(value) {
+  if (!Number.isFinite(value) || value <= 0) {
+    return MAX_RENDER_INTENTS;
+  }
+
+  return Math.floor(value);
 }
 
 function normalizeSystemRegistration(phase, registration, index) {
@@ -305,7 +318,10 @@ function initializeMovementResources(world, options = {}) {
   const inputStateResourceKey = options.inputStateResourceKey || DEFAULT_INPUT_STATE_RESOURCE_KEY;
   const playerEntityResourceKey =
     options.playerEntityResourceKey || DEFAULT_PLAYER_ENTITY_RESOURCE_KEY;
-  const maxEntities = world.entityStore.maxEntities;
+  const maxEntities =
+    Number.isFinite(options.maxEntities) && options.maxEntities > 0
+      ? Math.floor(options.maxEntities)
+      : world.getMaxEntities();
 
   ensureWorldResource(world, playerResourceKey, () => createPlayerStore(maxEntities));
   ensureWorldResource(world, positionResourceKey, () => createPositionStore(maxEntities));
@@ -328,7 +344,7 @@ function initializeMovementResources(world, options = {}) {
 function clearPlayerEntity(world, playerEntityResourceKey) {
   const playerHandle = world.getResource(playerEntityResourceKey);
 
-  if (world.entityStore.isAlive(playerHandle)) {
+  if (world.isEntityAlive(playerHandle)) {
     world.destroyEntity(playerHandle);
   }
 
@@ -363,11 +379,11 @@ function syncPlayerEntityFromMap(world, mapResource, options = {}) {
   const PLAYER_WITH_RENDERABLE_MASK = PLAYER_MOVE_REQUIRED_MASK | COMPONENT_MASK.RENDERABLE;
 
   let playerHandle = world.getResource(playerEntityResourceKey);
-  if (!world.entityStore.isAlive(playerHandle)) {
+  if (!world.isEntityAlive(playerHandle)) {
     playerHandle = world.createEntity(PLAYER_WITH_RENDERABLE_MASK);
     world.setResource(playerEntityResourceKey, playerHandle);
   } else {
-    playerHandle = world.setEntityMask(playerHandle, PLAYER_WITH_RENDERABLE_MASK);
+    world.setEntityMask(playerHandle, PLAYER_WITH_RENDERABLE_MASK);
   }
 
   const entityId = playerHandle.id;
@@ -457,7 +473,10 @@ export function createBootstrap(options = {}) {
   }
 
   const nowMs = toFiniteTimestamp(options.now ?? 0);
-  const world = options.world || new World();
+  const requestedMaxEntities = normalizeEntityCapacity(options.maxEntities);
+  const world = options.world || new World({ maxEntities: requestedMaxEntities });
+  const maxEntities =
+    typeof world.getMaxEntities === 'function' ? world.getMaxEntities() : requestedMaxEntities;
   const inputAdapterResourceKey = resolveInputAdapterResourceKey(options);
   const playerEntityResourceKey =
     options.playerEntityResourceKey || DEFAULT_PLAYER_ENTITY_RESOURCE_KEY;
@@ -474,9 +493,9 @@ export function createBootstrap(options = {}) {
       : () => (typeof performance !== 'undefined' ? performance.now() : Date.now());
 
   // Movement systems need their component stores present before fixed-step work begins.
-  initializeMovementResources(world, options);
+  initializeMovementResources(world, { ...options, maxEntities });
   // Bomb and explosion systems need prop stores and pooled entities before logic-phase ticks.
-  initializeBombExplosionResources(world, options);
+  initializeBombExplosionResources(world, { ...options, maxEntities });
   // Pre-register the adapter slot so runtime wiring has one explicit resource key
   // and systems never have to distinguish "never registered" from "registered null".
   ensureWorldResource(world, inputAdapterResourceKey, () => null);
@@ -486,16 +505,16 @@ export function createBootstrap(options = {}) {
   const spritePool =
     typeof document !== 'undefined' ? createSpritePool({ dev: isDevelopment() }) : null;
   const boardAdapter = createBoardAdapter({ spritePool });
+  const boardContainerElement = options.boardContainerElement || null;
 
   const levelLoader = createLevelLoader({
     loadMapForLevel: options.loadMapForLevel,
     mapResourceKey: options.mapResourceKey || 'mapResource',
     onLevelLoaded: (mapResource) => {
-      if (typeof document !== 'undefined') {
-        const gameBoard = document.getElementById('game-board');
-        if (gameBoard) {
-          boardAdapter.generateBoard(mapResource, gameBoard);
-        }
+      if (boardContainerElement) {
+        // The browser entrypoint resolves the board container once so level
+        // reloads stay independent from a hard-coded DOM lookup.
+        boardAdapter.generateBoard(mapResource, boardContainerElement);
       }
       updateBoardCss(mapResource);
       syncPlayerEntityFromMap(world, mapResource, options);
@@ -512,6 +531,9 @@ export function createBootstrap(options = {}) {
       // deterministic across restarts, falling back to the real wall clock
       // only when no provider is supplied.
       resetClock(clock, toFiniteTimestamp(nowProvider()));
+      // Restart should reset frame counters so fixed-step progression restarts cleanly.
+      world.frame = 0;
+      world.renderFrame = 0;
       // Restart destroys all entities, so runtime object pools must be rebuilt
       // before bomb and explosion systems can query pooled prop entities again.
       initializeBombExplosionResources(world, options);

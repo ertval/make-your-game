@@ -194,7 +194,7 @@ export const VISUAL_FLAGS = {
 // --- Sprite Pool Sizes ---
 
 /** Maximum concurrent bombs on the field (player max bombs + chain reaction headroom). */
-export const POOL_MAX_BOMBS = 10;
+export const POOL_MAX_BOMBS = 5;
 
 /** Maximum fire tiles per bomb explosion (radius * 4 arms + center). */
 export const POOL_FIRE_PER_BOMB = MAX_FIRE_RADIUS * 4 + 1;

@@ -385,7 +385,7 @@ describe('game loop and runtime', () => {
     const playerHandle = bootstrap.world.getResource('playerEntity');
     const positionStore = bootstrap.world.getResource('position');
 
-    expect(bootstrap.world.entityStore.isAlive(playerHandle)).toBe(true);
+    expect(bootstrap.world.isEntityAlive(playerHandle)).toBe(true);
     expect(bootstrap.world.query(PLAYER_MOVE_REQUIRED_MASK)).toEqual([playerHandle.id]);
     expect(positionStore.row[playerHandle.id]).toBe(3);
     expect(positionStore.col[playerHandle.id]).toBe(3);
@@ -537,7 +537,7 @@ describe('game loop and runtime', () => {
 
     const restartedPlayerHandle = bootstrap.world.getResource('playerEntity');
 
-    expect(bootstrap.world.entityStore.isAlive(restartedPlayerHandle)).toBe(true);
+    expect(bootstrap.world.isEntityAlive(restartedPlayerHandle)).toBe(true);
     expect(positionStore.row[restartedPlayerHandle.id]).toBe(3);
     expect(positionStore.col[restartedPlayerHandle.id]).toBe(3);
     expect(positionStore.targetRow[restartedPlayerHandle.id]).toBe(3);

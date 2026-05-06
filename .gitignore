@@ -29,6 +29,7 @@ sbom.json
 venv/
 *.py
 tools/
+_
 
 # Logs and temporary files
 *.log
@@ -42,6 +43,7 @@ temp/
 changed-files.txt
 *.diff
 scratch/
+test_output.txt
 
 # CI runtime artifacts
 .policy-pr-meta.json

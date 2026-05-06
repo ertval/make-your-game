@@ -133,6 +133,7 @@ export class World {
       deferSetEntityMask: (handle, mask) => this.deferSetEntityMask(handle, mask),
       getEntityCount: () => this.getEntityCount(),
       getEntityMask: (handle) => this.getEntityMask(handle),
+      getMaxEntities: () => this.getMaxEntities(),
       getResource: (key) => resources.get(key),
       hasResource: (key) => resources.has(key),
       isEntityAlive: (handle) => this.isEntityAlive(handle),
@@ -212,12 +213,12 @@ export class World {
     this.#resources.set(key, value);
   }
 
-  get entityStore() {
-    return this.#entityStore;
-  }
-
   get systemsByPhase() {
     return this.#systemsByPhase;
+  }
+
+  getMaxEntities() {
+    return this.#entityStore.maxEntities;
   }
 
   getResource(key) {
@@ -245,6 +246,14 @@ export class World {
     return this.#entityStore.destroy(handle);
   }
 
+  /**
+   * Update an entity's component mask. Passing mask = 0 is valid and removes
+   * the entity from all system queries.
+   *
+   * @param {{ id: number, generation: number }} handle - Entity handle to update.
+   * @param {number} mask - Bitmask of component membership (0 disables queries).
+   * @returns {boolean} True when the entity was alive and the mask was applied.
+   */
   setEntityMask(handle, mask) {
     this.#assertNotDispatching('setEntityMask');
 

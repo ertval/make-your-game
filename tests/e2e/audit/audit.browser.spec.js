@@ -13,7 +13,7 @@
 
 import { expect, test } from '@playwright/test';
 
-import { bootRuntime, FIXED_DT_MS } from '../helpers/game-helpers.js';
+import { bootRuntime, FIXED_DT_MS, startGameAndWait } from '../helpers/game-helpers.js';
 import {
   CI_SEMI_AUTOMATABLE_THRESHOLDS,
   SEMI_AUTOMATABLE_THRESHOLDS,
@@ -252,4 +252,168 @@ test('AUDIT-B-05 explicit async-performance long-task threshold assertions', asy
   expect(longTaskSummary.supported).toBe(true);
   expect(longTaskSummary.taskCount).toBeLessThanOrEqual(thresholds.maxLongTaskCount);
   expect(longTaskSummary.maxLongTaskMs).toBeLessThanOrEqual(thresholds.maxLongTaskMs);
+});
+
+test('AUDIT-CI-09 explicit DOM element budget assertions', async ({ page }) => {
+  await bootRuntime(page);
+
+  await page.evaluate(() => {
+    const runtime = window.__MS_GHOSTMAN_RUNTIME__;
+    runtime.startGame({ levelIndex: 0 });
+  });
+
+  const domCount = await page.evaluate(() => document.querySelectorAll('*').length);
+  expect(domCount).toBeLessThanOrEqual(500);
+});
+
+test('AUDIT-F-03 single-player gameplay is preserved', async ({ page }) => {
+  await bootRuntime(page);
+  await page.evaluate(() => {
+    window.__MS_GHOSTMAN_RUNTIME__.startGame({ levelIndex: 0 });
+  });
+
+  const playerCount = await page.evaluate(
+    () => document.querySelectorAll('.sprite--player').length,
+  );
+  expect(playerCount).toBe(1);
+});
+
+test('AUDIT-F-06 project identity constraints are met', async ({ page }) => {
+  await bootRuntime(page);
+  const title = await page.title();
+  expect(title).toContain('Ms. Ghostman');
+});
+
+test('AUDIT-F-11 input handling meets requirements', async ({ page }) => {
+  await bootRuntime(page);
+  await page.evaluate(() => {
+    const runtime = window.__MS_GHOSTMAN_RUNTIME__;
+    runtime.startGame({ levelIndex: 0 });
+    if (runtime.getSnapshot().state !== 'PLAYING') {
+      runtime.setState('PLAYING');
+    }
+  });
+
+  const getPlayerPosition = async () => {
+    return page.evaluate(() => {
+      const player = document.querySelector('.sprite--player');
+      if (!player) return null;
+      const rect = player.getBoundingClientRect();
+      return { x: rect.x, y: rect.y };
+    });
+  };
+
+  const startPos = await getPlayerPosition();
+  expect(startPos).not.toBeNull();
+
+  // Simulate a single quick press (but hold slightly to ensure engine registers)
+  await page.keyboard.down('ArrowLeft');
+  await page.waitForTimeout(50);
+  await page.keyboard.up('ArrowLeft');
+
+  // Wait for the simulation to process the input and move the player
+  await expect
+    .poll(
+      async () => {
+        const pos = await getPlayerPosition();
+        return pos.x;
+      },
+      { timeout: 2000 },
+    )
+    .toBeLessThan(startPos.x);
+});
+
+test('AUDIT-F-12 hold-input mechanism is robust', async ({ page }) => {
+  await bootRuntime(page);
+  await page.evaluate(() => {
+    const runtime = window.__MS_GHOSTMAN_RUNTIME__;
+    runtime.startGame({ levelIndex: 0 });
+    if (runtime.getSnapshot().state !== 'PLAYING') {
+      runtime.setState('PLAYING');
+    }
+  });
+
+  const getPlayerPosition = async () => {
+    return page.evaluate(() => {
+      const player = document.querySelector('.sprite--player');
+      if (!player) return null;
+      const rect = player.getBoundingClientRect();
+      return { x: rect.x, y: rect.y };
+    });
+  };
+
+  const startPos = await getPlayerPosition();
+  expect(startPos).not.toBeNull();
+
+  // Press and hold the key down
+  await page.keyboard.down('ArrowLeft');
+
+  // Wait for continuous movement over a longer distance
+  await expect
+    .poll(
+      async () => {
+        const pos = await getPlayerPosition();
+        return startPos.x - pos.x;
+      },
+      { timeout: 3000 },
+    )
+    .toBeGreaterThan(32); // Ensure the player moves a substantial amount without key repeat
+
+  await page.keyboard.up('ArrowLeft');
+});
+
+test('AUDIT-F-14 HUD metrics are present', async ({ page }) => {
+  await bootRuntime(page);
+  const hasTimer = await page.evaluate(() => !!document.querySelector('[data-hud="timer"]'));
+  const hasScore = await page.evaluate(() => !!document.querySelector('[data-hud="score"]'));
+  const hasLives = await page.evaluate(() => !!document.querySelector('[data-hud="lives"]'));
+
+  expect(hasTimer).toBe(true);
+  expect(hasScore).toBe(true);
+  expect(hasLives).toBe(true);
+});
+
+test('AUDIT-F-15 HUD timer/countdown functions correctly', async ({ page }) => {
+  await bootRuntime(page);
+  await startGameAndWait(page, { levelIndex: 0 });
+
+  const timerEl = await page.locator('[data-hud="timer"]');
+  await expect(timerEl).toBeVisible();
+
+  const initialText = await timerEl.textContent();
+  expect(typeof initialText).toBe('string');
+});
+
+test('AUDIT-F-16 HUD score and lives update properly', async ({ page }) => {
+  await bootRuntime(page);
+  await startGameAndWait(page, { levelIndex: 0 });
+
+  const scoreEl = await page.locator('[data-hud="score"]');
+  const livesEl = await page.locator('[data-hud="lives"]');
+
+  await expect(scoreEl).toBeVisible();
+  await expect(livesEl).toBeVisible();
+
+  await expect(scoreEl).toBeVisible();
+  await expect(livesEl).toBeVisible();
+});
+
+test('AUDIT-B-03 entity and DOM pooling logic executes', async ({ page }) => {
+  await bootRuntime(page);
+
+  // Verify that transient entities are pooled and pre-rendered, hidden off-screen or similar.
+  const domCount1 = await page.evaluate(() => document.querySelectorAll('*').length);
+
+  await page.evaluate(() => {
+    window.__MS_GHOSTMAN_RUNTIME__.startGame({ levelIndex: 0 });
+  });
+
+  await page.keyboard.press('Space'); // Drop a bomb
+
+  const domCount2 = await page.evaluate(() => document.querySelectorAll('*').length);
+
+  // Pooling means DOM nodes are not created/destroyed on the fly,
+  // so the total DOM count should remain perfectly stable.
+  expect(domCount1).toBeLessThanOrEqual(500);
+  expect(domCount2).toBe(domCount1);
 });

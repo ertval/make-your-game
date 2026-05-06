@@ -10,7 +10,11 @@ import { describe, expect, it, vi } from 'vitest';
 
 import { COMPONENT_MASK } from '../../../src/ecs/components/registry.js';
 import { COLLIDER_TYPE } from '../../../src/ecs/components/spatial.js';
-import { POOL_FIRE, POOL_MAX_BOMBS } from '../../../src/ecs/resources/constants.js';
+import {
+  MAX_RENDER_INTENTS,
+  POOL_FIRE,
+  POOL_MAX_BOMBS,
+} from '../../../src/ecs/resources/constants.js';
 import { GAME_STATE } from '../../../src/ecs/resources/game-status.js';
 import { createMapResource } from '../../../src/ecs/resources/map-resource.js';
 import { createBootstrap } from '../../../src/game/bootstrap.js';
@@ -75,6 +79,8 @@ function createRuntimeMapResource() {
 describe('bootstrap input-adapter registration', () => {
   it('pre-registers the default input adapter slot as null', () => {
     const bootstrap = createBootstrap({ now: 0 });
+
+    expect(bootstrap.world.getMaxEntities()).toBe(MAX_RENDER_INTENTS);
 
     // Pre-registration means "resource exists but is null", distinct from
     // "resource has never been set" so adapter consumers never race bootstrap.
@@ -340,7 +346,7 @@ describe('bootstrap bomb and explosion runtime wiring', () => {
     ).toHaveLength(POOL_FIRE);
 
     for (const handle of [...bombPool, ...firePool]) {
-      expect(bootstrap.world.entityStore.isAlive(handle)).toBe(true);
+      expect(bootstrap.world.isEntityAlive(handle)).toBe(true);
       expect(colliderStore.type[handle.id]).toBe(COLLIDER_TYPE.NONE);
     }
   });

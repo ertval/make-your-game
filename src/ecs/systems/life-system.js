@@ -115,7 +115,7 @@ function respawnPlayerEntity(world, resources, playerLife) {
     !mapResource ||
     !Number.isFinite(mapResource.playerSpawnRow) ||
     !Number.isFinite(mapResource.playerSpawnCol) ||
-    !world.entityStore.isAlive(playerEntity)
+    !world.isEntityAlive(playerEntity)
   ) {
     return;
   }

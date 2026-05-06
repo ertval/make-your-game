@@ -426,6 +426,7 @@ export async function bootstrapApplication({
 
   const appRoot = targetDocument.getElementById('app');
   const overlayRoot = targetDocument.getElementById('overlay-root');
+  const boardContainerElement = targetDocument.getElementById('game-board');
 
   if (!appRoot) {
     throw new Error('Missing #app root.');
@@ -467,6 +468,7 @@ export async function bootstrapApplication({
     const bootstrap = createBootstrap({
       loadMapForLevel: resolvedLoadMapForLevel,
       now: getNow(),
+      boardContainerElement,
       // Thread the resolved now-source through so onRestart resyncs stay on
       // the same clock as the rAF loop (deterministic for tests).
       nowProvider: getNow,
@@ -505,7 +507,3 @@ export async function bootstrapApplication({
 }
 
 export const startBrowserApplication = bootstrapApplication;
-
-if (typeof window !== 'undefined' && typeof document !== 'undefined') {
-  void bootstrapApplication();
-}

@@ -113,6 +113,12 @@ describe('World', () => {
     expect(world.frame).toBe(2);
   });
 
+  it('exposes the configured entity capacity through a safe accessor', () => {
+    const world = new World({ maxEntities: 12 });
+
+    expect(world.getMaxEntities()).toBe(12);
+  });
+
   it('rejects stale handles when mutating entity masks', () => {
     const world = new World();
     const first = world.createEntity();
@@ -127,6 +133,17 @@ describe('World', () => {
     expect(world.setEntityMask(recycled, 0b0010)).toBe(true);
     expect(world.getEntityMask(recycled)).toBe(0b0010);
     expect(world.query(0b0010)).toEqual([recycled.id]);
+  });
+
+  it('allows setting a zero mask to remove an entity from queries', () => {
+    const world = new World();
+    const entity = world.createEntity(0b0010);
+
+    expect(world.query(0b0010)).toEqual([entity.id]);
+
+    expect(world.setEntityMask(entity, 0)).toBe(true);
+    expect(world.getEntityMask(entity)).toBe(0);
+    expect(world.query(0b0010)).toEqual([]);
   });
 
   it('rejects stale handles across multiple recycling generations', () => {
@@ -337,5 +354,75 @@ describe('World', () => {
     const handle = world.createEntity();
     world.destroyEntity(handle);
     expect(world.destroyEntity(handle)).toBe(false);
+  });
+
+  it('covers missing branches in World API', () => {
+    const world = new World();
+
+    // 232: getPhaseOrder
+    expect(world.getPhaseOrder()).toEqual(['input', 'physics', 'logic', 'render']);
+
+    // 406-407: runRenderCommit with no systems
+    world.runRenderCommit();
+    expect(world.renderFrame).toBe(1);
+
+    // 137, 131, 121: world view hasResource, deferDestroyAllEntities, and setResource
+    world.registerSystem({
+      phase: 'logic',
+      name: 'view-coverage',
+      resourceCapabilities: { read: ['test'], write: ['test'] },
+      update: (ctx) => {
+        // 110-114: has with and without capability
+        expect(ctx.world.hasResource('test')).toBe(false);
+        expect(() => ctx.world.hasResource('forbidden')).toThrow('cannot read resource');
+
+        // 131: deferDestroyAllEntities via view
+        ctx.world.deferDestroyAllEntities();
+
+        // 121: set resource via view (if write capability)
+        ctx.world.setResource('test', 'value');
+        expect(ctx.world.getResource('test')).toBe('value');
+      },
+    });
+    world.runFixedStep();
+
+    // 422, 432: Render system quarantine and failure
+    const consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+    world.registerSystem({
+      phase: 'render',
+      name: 'render-fail',
+      update: () => {
+        throw new Error('render boom');
+      },
+    });
+
+    world.runRenderCommit();
+    expect(consoleErrorSpy).toHaveBeenCalled();
+    consoleErrorSpy.mockRestore();
+  });
+
+  it('quarantines failing render systems when fault budget is exceeded', () => {
+    const world = new World({ systemFailureBudget: 1 });
+    const consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+    let runCount = 0;
+
+    world.registerSystem({
+      phase: 'render',
+      name: 'failing-render',
+      update: () => {
+        runCount++;
+        throw new Error('render boom');
+      },
+    });
+
+    // First run: fails and gets quarantined
+    world.runRenderCommit();
+    expect(runCount).toBe(1);
+
+    // Second run: should be skipped (422)
+    world.runRenderCommit();
+    expect(runCount).toBe(1);
+
+    consoleErrorSpy.mockRestore();
   });
 });

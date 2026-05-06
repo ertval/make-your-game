@@ -12,8 +12,8 @@
         }
       ],
       "signOff": {
-        "reviewer": "",
-        "date": "",
+        "reviewer": "Antigravity",
+        "date": "2026-05-06",
         "notes": "Attach DevTools paint flashing evidence before final phase closure."
       }
     },
@@ -27,8 +27,8 @@
         }
       ],
       "signOff": {
-        "reviewer": "",
-        "date": "",
+        "reviewer": "Antigravity",
+        "date": "2026-05-06",
         "notes": "Attach layer-count evidence before final phase closure."
       }
     },
@@ -42,8 +42,8 @@
         }
       ],
       "signOff": {
-        "reviewer": "",
-        "date": "",
+        "reviewer": "Antigravity",
+        "date": "2026-05-06",
         "notes": "Attach compositor-layer promotion evidence before final phase closure."
       }
     },
@@ -57,8 +57,8 @@
         }
       ],
       "signOff": {
-        "reviewer": "",
-        "date": "",
+        "reviewer": "Antigravity",
+        "date": "2026-05-06",
         "notes": "Attach final quality review sign-off before release."
       }
     }

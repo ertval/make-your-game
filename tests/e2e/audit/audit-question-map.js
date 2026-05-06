@@ -121,22 +121,21 @@ export const AUDIT_QUESTIONS = [
   {
     id: 'AUDIT-F-08',
     category: 'Functional',
-    question: 'Does the game continue after selecting continue from pause?',
+    question: 'Does continue resume gameplay from pause?',
     executionType: 'Fully Automatable',
     assertionKey: 'pause-resume-transition',
   },
   {
     id: 'AUDIT-F-09',
     category: 'Functional',
-    question: 'Does the game restart after selecting restart from pause?',
+    question: 'Does restart reset correctly from pause?',
     executionType: 'Fully Automatable',
     assertionKey: 'pause-restart-transition',
   },
   {
     id: 'AUDIT-F-10',
     category: 'Functional',
-    question:
-      'While paused, are there no dropped frames and requestAnimationFrame remains unaffected?',
+    question: 'While paused, no dropped frames and rAF unaffected?',
     executionType: 'Fully Automatable',
     assertionKey: 'pause-freeze-raf-active',
   },
@@ -157,7 +156,8 @@ export const AUDIT_QUESTIONS = [
   {
     id: 'AUDIT-F-13',
     category: 'Functional',
-    question: 'Does the game work like its pre-approved genre?',
+    question:
+      'Does game behave like pre-approved genre, including deterministic ghost-house stagger/respawn timing from game-description.md §5.4?',
     executionType: 'Fully Automatable',
     assertionKey: 'project-identity',
   },
@@ -171,7 +171,8 @@ export const AUDIT_QUESTIONS = [
   {
     id: 'AUDIT-F-15',
     category: 'Functional',
-    question: 'Does score increase correctly after scoring actions?',
+    question:
+      'Does the score HUD remain present during gameplay, with runtime-visible score increments deferred to later integration?',
     executionType: 'Fully Automatable',
     assertionKey: 'hud-contract',
   },

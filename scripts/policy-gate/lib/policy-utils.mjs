@@ -76,6 +76,26 @@ export const FORBIDDEN_TECH_RULES = Object.freeze([
   { name: 'canvas element', pattern: /<\s*canvas\b/i },
   { name: 'canvas createElement', pattern: /createElement\s*\(\s*['"]canvas['"]\s*\)/i },
   {
+    name: 'webgl context',
+    pattern: /getContext\s*\(\s*['"](?:webgl2?|experimental-webgl)['"]\s*\)/i,
+  },
+  {
+    name: 'webgl rendering context',
+    pattern: /\bWebGL(?:2)?RenderingContext\b/,
+  },
+  {
+    name: 'webgpu api',
+    pattern: /\bnavigator\.gpu\b/,
+  },
+  {
+    name: 'webgpu interface',
+    pattern: /\bGPU(?:Adapter|Device|Queue|Buffer|CommandEncoder|RenderPipeline|ComputePipeline)\b/,
+  },
+  {
+    name: 'inline event handler attribute',
+    pattern: /<[^>]+\son[a-z]+\s*=\s*['"]/i,
+  },
+  {
     name: 'framework import',
     pattern: /from\s+['"](?:react|vue|angular|svelte|phaser|pixi\.js|three|jquery)['"]/,
   },
