@@ -47,6 +47,9 @@ export const COLLIDER_TYPE = Object.freeze({
 /**
  * Declarative runtime/bootstrap status for spatial stores.
  * This metadata is descriptive only and must not be treated as a registration API.
+ *
+ * @internal Test/tooling-only export — no production callers in `src/`.
+ *   Used by `tests/unit/components/spatial.test.js` to assert store coverage.
  */
 export const SPATIAL_STORE_RUNTIME_STATUS = Object.freeze({
   collider: 'active',

@@ -52,5 +52,8 @@ export const COMPONENT_MASK = Object.freeze({
 /**
  * Stable list of every registered component mask.
  * Consumers can iterate this when they need to validate registry integrity.
+ *
+ * @internal Test/tooling-only export — no production callers in `src/`.
+ *   Used by `tests/unit/components/registry.test.js` to assert registry shape.
  */
 export const ALL_COMPONENT_MASKS = Object.freeze(Object.values(COMPONENT_MASK));

@@ -253,3 +253,81 @@ test('AUDIT-B-05 explicit async-performance long-task threshold assertions', asy
   expect(longTaskSummary.taskCount).toBeLessThanOrEqual(thresholds.maxLongTaskCount);
   expect(longTaskSummary.maxLongTaskMs).toBeLessThanOrEqual(thresholds.maxLongTaskMs);
 });
+
+test('Platform DOM contract: no canvas element and HUD shell visible at runtime', async ({
+  page,
+}) => {
+  await bootRuntime(page);
+
+  await expect(page.locator('canvas')).toHaveCount(0);
+  await expect(page.locator('[data-hud="timer"]')).toBeVisible();
+  await expect(page.locator('[data-hud="score"]')).toBeVisible();
+  await expect(page.locator('[data-hud="lives"]')).toBeVisible();
+});
+
+test('AUDIT-F-11 player obeys movement: arrow keydown advances player sprite', async ({ page }) => {
+  await bootRuntime(page);
+
+  await page.evaluate(() => {
+    const runtime = window.__MS_GHOSTMAN_RUNTIME__;
+    runtime.startGame({ levelIndex: 0 });
+    if (runtime.getSnapshot().state !== 'PLAYING') {
+      runtime.setState('PLAYING');
+    }
+  });
+
+  await expect
+    .poll(async () => page.evaluate(() => window.__MS_GHOSTMAN_RUNTIME__.getSnapshot().state))
+    .toBe('PLAYING');
+
+  const playerSprite = page.locator('.sprite--player').first();
+  await expect(playerSprite).toBeVisible();
+
+  const transformBefore = await playerSprite.evaluate((el) => el.style.transform);
+
+  await page.keyboard.down('ArrowRight');
+
+  await expect
+    .poll(async () => playerSprite.evaluate((el) => el.style.transform))
+    .not.toBe(transformBefore);
+
+  await page.keyboard.up('ArrowRight');
+});
+
+test('AUDIT-F-12 hold-to-move: sustained keydown produces continuous movement without re-presses', async ({
+  page,
+}) => {
+  await bootRuntime(page);
+
+  await page.evaluate(() => {
+    const runtime = window.__MS_GHOSTMAN_RUNTIME__;
+    runtime.startGame({ levelIndex: 0 });
+    if (runtime.getSnapshot().state !== 'PLAYING') {
+      runtime.setState('PLAYING');
+    }
+  });
+
+  await expect
+    .poll(async () => page.evaluate(() => window.__MS_GHOSTMAN_RUNTIME__.getSnapshot().state))
+    .toBe('PLAYING');
+
+  const playerSprite = page.locator('.sprite--player').first();
+  await expect(playerSprite).toBeVisible();
+
+  // Hold a single arrow key for several frames — no repeated keydown events.
+  // Sample the transform across the hold window; at least two distinct
+  // intermediate values prove the engine kept advancing the player while held
+  // rather than only reacting to discrete keypress edges.
+  await page.keyboard.down('ArrowRight');
+
+  const samples = [];
+  for (let i = 0; i < 6; i += 1) {
+    await page.waitForTimeout(50);
+    samples.push(await playerSprite.evaluate((el) => el.style.transform));
+  }
+
+  await page.keyboard.up('ArrowRight');
+
+  const distinctSamples = new Set(samples);
+  expect(distinctSamples.size).toBeGreaterThanOrEqual(2);
+});
