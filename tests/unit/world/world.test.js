@@ -113,6 +113,12 @@ describe('World', () => {
     expect(world.frame).toBe(2);
   });
 
+  it('exposes the configured entity capacity through a safe accessor', () => {
+    const world = new World({ maxEntities: 12 });
+
+    expect(world.getMaxEntities()).toBe(12);
+  });
+
   it('rejects stale handles when mutating entity masks', () => {
     const world = new World();
     const first = world.createEntity();

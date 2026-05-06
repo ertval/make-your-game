@@ -131,16 +131,19 @@ function installRuntimeDocumentStub() {
     value: documentStub,
   });
 
-  return () => {
-    if (hadDocument) {
-      Object.defineProperty(globalThis, 'document', {
-        configurable: true,
-        value: previousDocument,
-      });
-      return;
-    }
+  return {
+    gameBoard,
+    restore: () => {
+      if (hadDocument) {
+        Object.defineProperty(globalThis, 'document', {
+          configurable: true,
+          value: previousDocument,
+        });
+        return;
+      }
 
-    delete globalThis.document;
+      delete globalThis.document;
+    },
   };
 }
 
@@ -167,10 +170,11 @@ function fixedFramesAfterDuration(durationMs) {
 
 describe('runtime bomb and explosion wiring', () => {
   it('places a bomb from runtime input and resolves it into expiring fire', () => {
-    const restoreDocument = installRuntimeDocumentStub();
+    const { gameBoard, restore: restoreDocument } = installRuntimeDocumentStub();
 
     try {
       const bootstrap = createBootstrap({
+        boardContainerElement: gameBoard,
         loadMapForLevel: () => createRuntimeMapResource(),
         now: 0,
       });
@@ -234,11 +238,12 @@ describe('runtime bomb and explosion wiring', () => {
   });
 
   it('rebuilds bomb and fire pools so runtime placement still works after restart', () => {
-    const restoreDocument = installRuntimeDocumentStub();
+    const { gameBoard, restore: restoreDocument } = installRuntimeDocumentStub();
 
     try {
       let nowMs = 0;
       const bootstrap = createBootstrap({
+        boardContainerElement: gameBoard,
         loadMapForLevel: () => createRuntimeMapResource(),
         now: nowMs,
         nowProvider: () => nowMs,
@@ -274,7 +279,7 @@ describe('runtime bomb and explosion wiring', () => {
       expect(rebuiltBombPool).toHaveLength(POOL_MAX_BOMBS);
       expect(rebuiltFirePool).toHaveLength(POOL_FIRE);
       for (const handle of [...rebuiltBombPool, ...rebuiltFirePool]) {
-        expect(bootstrap.world.entityStore.isAlive(handle)).toBe(true);
+        expect(bootstrap.world.isEntityAlive(handle)).toBe(true);
       }
 
       inputAdapter.press('bomb');

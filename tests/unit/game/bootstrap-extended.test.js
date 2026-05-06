@@ -56,7 +56,7 @@ describe('Bootstrap extended coverage', () => {
     const playerHandle = world.getResource('playerEntity');
     const positionStore = world.getResource('position');
     expect(playerHandle).not.toBeNull();
-    expect(world.entityStore.isAlive(playerHandle)).toBe(true);
+    expect(world.isEntityAlive(playerHandle)).toBe(true);
     expect(positionStore.row[playerHandle.id]).toBe(validMap.playerSpawnRow);
     expect(positionStore.col[playerHandle.id]).toBe(validMap.playerSpawnCol);
 

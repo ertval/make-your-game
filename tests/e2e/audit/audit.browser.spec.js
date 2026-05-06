@@ -253,3 +253,15 @@ test('AUDIT-B-05 explicit async-performance long-task threshold assertions', asy
   expect(longTaskSummary.taskCount).toBeLessThanOrEqual(thresholds.maxLongTaskCount);
   expect(longTaskSummary.maxLongTaskMs).toBeLessThanOrEqual(thresholds.maxLongTaskMs);
 });
+
+test('AUDIT-CI-09 explicit DOM element budget assertions', async ({ page }) => {
+  await bootRuntime(page);
+
+  await page.evaluate(() => {
+    const runtime = window.__MS_GHOSTMAN_RUNTIME__;
+    runtime.startGame({ levelIndex: 0 });
+  });
+
+  const domCount = await page.evaluate(() => document.querySelectorAll('*').length);
+  expect(domCount).toBeLessThanOrEqual(500);
+});

@@ -8,7 +8,7 @@
  */
 
 export class EntityStore {
-  constructor({ maxEntities = 10_000 } = {}) {
+  constructor({ maxEntities = 550 } = {}) {
     this.maxEntities = maxEntities;
     this.generations = [];
     this.activeFlags = [];

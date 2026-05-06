@@ -88,7 +88,7 @@ function ensurePooledPropEntities(world, poolResourceKey, colliderStore, count, 
   if (
     Array.isArray(existingPool) &&
     existingPool.length === count &&
-    existingPool.every((handle) => world.entityStore.isAlive(handle))
+    existingPool.every((handle) => world.isEntityAlive(handle))
   ) {
     return existingPool;
   }
@@ -160,7 +160,10 @@ export function initializeBombExplosionResources(world, options = {}) {
     options.bombDetonationQueueResourceKey || DEFAULT_BOMB_DETONATION_QUEUE_RESOURCE_KEY;
   const bombPoolResourceKey = options.bombPoolResourceKey || DEFAULT_BOMB_POOL_RESOURCE_KEY;
   const firePoolResourceKey = options.firePoolResourceKey || DEFAULT_FIRE_POOL_RESOURCE_KEY;
-  const maxEntities = world.entityStore.maxEntities;
+  const maxEntities =
+    Number.isFinite(options.maxEntities) && options.maxEntities > 0
+      ? Math.floor(options.maxEntities)
+      : world.getMaxEntities();
 
   const colliderStore = ensureWorldResource(world, colliderResourceKey, () =>
     createColliderStore(maxEntities),
