@@ -47,3 +47,6 @@ scratch/
 .policy-pr-meta.json
 .policy-runtime/
 reviews.json
+
+# Claude Code session worktrees
+.claude/worktrees/
