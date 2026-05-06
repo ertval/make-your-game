@@ -46,9 +46,9 @@ Local test command reference (run what applies to your change and list what you 
 - **DEAD-04/06/07/11/16/17/18/19**: dead-code constants and exports annotated as `@internal` or removed where safe (`isPlayerStart` moved to test helper).
 - **DEAD-23**: `map-resource.js` — removed `isPlayerStart()` export; moved implementation to `tests/unit/helpers/map-helpers.js`.
 - **SEC-02/07/08**: `trusted-types.js` — rewritten to install a reject-all default policy (throws on createHTML/createScript/createScriptURL); added module header per AGENTS.md.
-- **SEC-04**: `index.html` — added static CSP `<meta>` fallback for static deployments without server-side headers.
+- **SEC-04**: No change to `index.html` needed — `vite.config.js` already has `createCspMetaPlugin` which injects the production CSP meta tag into the build output, satisfying the static-deployment requirement.
 - **SEC-06**: `vite.config.js` — documented `unsafe-eval`/`unsafe-inline` HMR exception with reference to AGENTS.md allowance.
-- **SEC-09**: `vite.config.js` — added `Permissions-Policy`, `Cross-Origin-Opener-Policy`, and `Cross-Origin-Embedder-Policy` headers.
+- **SEC-09**: `vite.config.js` — added `Permissions-Policy` to both environments; `Cross-Origin-Opener-Policy` and `Cross-Origin-Embedder-Policy: require-corp` scoped to production preview server only (`crossOriginIsolation` flag). COEP cannot apply in dev — Vite's pre-bundled deps and HMR resources don't carry `Cross-Origin-Resource-Policy` headers.
 - **SEC-10**: `renderer-dom.js` — `el.className = ...` replaced with `el.classList.add(...)`.
 - **SEC-11**: `main.ecs.js` — added `Content-Length` header guard before `response.json()` in map loader (500 KB limit).
 
@@ -69,6 +69,11 @@ Local test command reference (run what applies to your change and list what you 
 - F-11 | Execution type: Fully Automatable | Verification: render-intent overflow throttle tests | Evidence path: `tests/unit/render-intent/render-intent.test.js`
 - F-14 | Execution type: Fully Automatable | Verification: event-queue drain ownership tests | Evidence path: `tests/unit/resources/event-queue.test.js`
 - B-03 | Execution type: Fully Automatable | Verification: sprite-pool un-warmed acquire tests | Evidence path: `tests/integration/adapters/sprite-pool-adapter.test.js`
+
+## Post-merge fixes
+Two SEC fixes required correction after the main commit:
+- **SEC-04**: Initial fix added a static CSP `<meta>` to `index.html` which included `upgrade-insecure-requests`, breaking the Vite dev server (all HTTP subresource requests were upgraded to HTTPS and failed). Reverted — `createCspMetaPlugin` already handles this correctly at build time.
+- **SEC-09**: `Cross-Origin-Embedder-Policy: require-corp` was applied to the dev server, blocking Vite's HMR and pre-bundled resources. COOP/COEP scoped to production preview server only.
 
 ## Security notes
 - Trusted Types default policy now throws on any attempted raw string injection into HTML/script sinks. This is a hardening change — any code path that previously relied on the permissive pass-through policy will now surface a `TypeError` immediately.
