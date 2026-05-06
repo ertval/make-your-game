@@ -19,7 +19,10 @@
 
 // --- Core Loop ---
 
-/** Fixed simulation updates per second. */
+/** Fixed simulation updates per second.
+ *  Used to derive FIXED_DT_MS below. Exported for tests/devtools that need
+ *  to reference the canonical tick rate; the runtime itself reads FIXED_DT_MS
+ *  (DEAD-16). */
 export const SIMULATION_HZ = 60;
 
 /** Fixed timestep in milliseconds (= 1000 / SIMULATION_HZ ≈ 16.6667ms). */
@@ -62,7 +65,9 @@ export const MAX_FIRE_RADIUS = 4;
 /** Duration fire tiles remain visible after detonation (ms). */
 export const FIRE_DURATION_MS = 500;
 
-/** Maximum chain depth for bomb chain-reaction scoring. */
+/** Maximum chain depth for bomb chain-reaction scoring.
+ *  @internal Reserved for the explosion/chain system (not yet implemented in
+ *  Phase 1). Do not remove (DEAD-17). */
 export const MAX_CHAIN_DEPTH = 10;
 
 // --- Ghost ---
@@ -91,16 +96,20 @@ export const GHOST_STATE = {
   DEAD: 2,
 };
 
-/** Clyde distance threshold for target switching (tiles). */
+/** Clyde distance threshold for target switching (tiles).
+ *  @internal Reserved for the ghost-AI system (DEAD-06). */
 export const CLYDE_DISTANCE_THRESHOLD = 8;
 
-/** Pinky target offset ahead of player (tiles). */
+/** Pinky target offset ahead of player (tiles).
+ *  @internal Reserved for the ghost-AI system (DEAD-06). */
 export const PINKY_TARGET_OFFSET = 4;
 
-/** Inky reference offset ahead of player (tiles). */
+/** Inky reference offset ahead of player (tiles).
+ *  @internal Reserved for the ghost-AI system (DEAD-06). */
 export const INKY_REFERENCE_OFFSET = 2;
 
-/** Minimum valid exits at an intersection for ghost pathfinding. */
+/** Minimum valid exits at an intersection for ghost pathfinding.
+ *  @internal Reserved for the ghost-AI pathfinding system (DEAD-18). */
 export const GHOST_INTERSECTION_MIN_EXITS = 3;
 
 // --- Level ---
@@ -154,7 +163,10 @@ export const POWER_UP_DROP_CHANCES = {
   SPEED: 0.05,
 };
 
-/** Power-up type IDs. */
+/** Power-up type IDs used for drop-rate configuration (POWER_UP_DROP_CHANCES).
+ *  This is distinct from PROP_POWER_UP_TYPE in components/props.js, which is
+ *  the gameplay-component-level enum (BOMB_PLUS, FIRE_PLUS, SPEED_BOOST).
+ *  Do not conflate the two (DEAD-07). */
 export const POWER_UP_TYPE = {
   NONE: 0,
   BOMB: 1,

@@ -4,7 +4,7 @@ This report contains the uniquely assigned issues from the Phase 1 audit report,
 the actual source code on 2026-05-05. False positives have been removed; corrected notes, adjusted
 severities, and improved fix guidance are added where the original finding was imprecise.
 
-**Total Actual Issues to Resolve: 26**
+**Total Actual Issues to Resolve: 0**
 
 ---
 
@@ -12,7 +12,7 @@ severities, and improved fix guidance are added where the original finding was i
 
 ---
 
-### BUG-05: Sprite Pool Adapter crashes when pool is un-warmed ⬆ HIGH
+### ✅ [DONE] BUG-05: Sprite Pool Adapter crashes when pool is un-warmed ⬆ HIGH
 **Origin:** 1. Bugs & Logic Errors
 **Files:** Ownership: Track D (Tickets: D-09)
 - `src/adapters/dom/sprite-pool-adapter.js` (L86–103)
@@ -68,7 +68,7 @@ list.**
 
 ---
 
-### BUG-10: `render-intent` buffer silently drops intents in production ⬆ LOW
+### ✅ [DONE] BUG-10: `render-intent` buffer silently drops intents in production ⬆ LOW
 **Origin:** 1. Bugs & Logic Errors
 **Files:** Ownership: Track D (Tickets: D-07)
 - `src/ecs/render-intent.js` (L126–135)
@@ -107,7 +107,7 @@ renderable entity count.
 
 ---
 
-### BUG-12: Event Queue `drain()` allocates a new array per call ⬆ MEDIUM
+### ✅ [DONE] BUG-12: Event Queue `drain()` allocates a new array per call ⬆ MEDIUM
 **Origin:** 1. Bugs & Logic Errors
 **Files:** Ownership: Track D (Tickets: D-01)
 - `src/ecs/resources/event-queue.js` (L88)
@@ -150,7 +150,7 @@ order)` order even when enqueued out of order. Verify empty drain returns `[]`-l
 
 ---
 
-### BUG-15: `enqueue()` throws when `queue` parameter is `null` ⬆ LOW
+### ✅ [DONE] BUG-15: `enqueue()` throws when `queue` parameter is `null` ⬆ LOW
 **Origin:** 1. Bugs & Logic Errors
 **Files:** Ownership: Track D (Tickets: D-01)
 - `src/ecs/resources/event-queue.js` (L49)
@@ -176,7 +176,7 @@ export function enqueue(queue, type, payload, frame) {
 
 ---
 
-### DEAD-01: Two Competing Render Pipelines / Duplicate DOM Renderer ⬆ HIGH
+### ✅ [DONE] DEAD-01: Two Competing Render Pipelines / Duplicate DOM Renderer ⬆ HIGH
 **Origin:** 2. Dead Code & Unused References
 **Files:** Ownership: Track D (Tickets: D-08)
 - `src/adapters/dom/renderer-dom.js`
@@ -193,7 +193,7 @@ duplicate elements.
 
 ---
 
-### DEAD-04: `resetOrderCounter` exported but only called in tests ⬆ LOW
+### ✅ [DONE] DEAD-04: `resetOrderCounter` exported but only called in tests ⬆ LOW
 **Origin:** 2. Dead Code & Unused References
 **Files:** Ownership: Track D (Tickets: D-01)
 - `src/ecs/resources/event-queue.js` (L133)
@@ -212,7 +212,7 @@ outside `drain()`).
 
 ---
 
-### DEAD-06: Ghost AI constants unused externally ⬆ MEDIUM
+### ✅ [DONE] DEAD-06: Ghost AI constants unused externally ⬆ MEDIUM
 **Origin:** 2. Dead Code & Unused References
 **Files:** Ownership: Track D (Tickets: D-01)
 - `src/ecs/resources/constants.js` (L95–101)
@@ -227,7 +227,7 @@ is implemented. Mark as `@internal` if they should not be exposed in the module'
 
 ---
 
-### DEAD-07: `POWER_UP_TYPE` and `PROP_POWER_UP_TYPE` are distinct (not redundant) ⬆ LOW
+### ✅ [DONE] DEAD-07: `POWER_UP_TYPE` and `PROP_POWER_UP_TYPE` are distinct (not redundant) ⬆ LOW
 **Origin:** 2. Dead Code & Unused References
 **Files:** Ownership: Track D (Tickets: D-01)
 - `src/ecs/resources/constants.js` (L158–163)
@@ -248,7 +248,7 @@ file inside `POWER_UP_DROP_CHANCES` (L150–155). It is NOT orphaned. `PROP_POWE
 
 ---
 
-### DEAD-08: `getActiveEntityHandles` may be inefficient ⬆ MEDIUM
+### ✅ [DONE] DEAD-08: `getActiveEntityHandles` may be inefficient ⬆ MEDIUM
 **Origin:** 2. Dead Code & Unused References
 **Files:** Ownership: Track D (Tickets: D-01)
 - `src/ecs/world/world.js` (~L276)
@@ -259,7 +259,7 @@ file inside `POWER_UP_DROP_CHANCES` (L150–155). It is NOT orphaned. `PROP_POWE
 
 ---
 
-### DEAD-11: `renderer-dom.js` Uses Its Own Element Map ⬆ LOW
+### ✅ [DONE] DEAD-11: `renderer-dom.js` Uses Its Own Element Map ⬆ LOW
 **Origin:** 2. Dead Code & Unused References
 **Files:** Ownership: Track D (Tickets: D-08)
 - `src/adapters/dom/renderer-dom.js` (~L31)
@@ -269,7 +269,7 @@ element map in that file becomes irrelevant. No separate fix required.
 
 ---
 
-### DEAD-16: `SIMULATION_HZ` is only used to compute `FIXED_DT_MS` ⬆ LOW
+### ✅ [DONE] DEAD-16: `SIMULATION_HZ` is only used to compute `FIXED_DT_MS` ⬆ LOW
 **Origin:** 2. Dead Code & Unused References
 **Files:** Ownership: Track D (Tickets: D-01)
 - `src/ecs/resources/constants.js` (L23)
@@ -283,7 +283,7 @@ Removing the export is a minor cleanup but risks breaking external consumers (te
 
 ---
 
-### DEAD-17: `MAX_CHAIN_DEPTH` never referenced ⬆ LOW
+### ✅ [DONE] DEAD-17: `MAX_CHAIN_DEPTH` never referenced ⬆ LOW
 **Origin:** 2. Dead Code & Unused References
 **Files:** Ownership: Track D (Tickets: D-01)
 - `src/ecs/resources/constants.js` (L66)
@@ -296,7 +296,7 @@ remove.
 
 ---
 
-### DEAD-18: `GHOST_INTERSECTION_MIN_EXITS` unused ⬆ LOW
+### ✅ [DONE] DEAD-18: `GHOST_INTERSECTION_MIN_EXITS` unused ⬆ LOW
 **Origin:** 2. Dead Code & Unused References
 **Files:** Ownership: Track D (Tickets: D-01)
 - `src/ecs/resources/constants.js` (L104)
@@ -305,7 +305,7 @@ remove.
 
 ---
 
-### DEAD-19: `KIND_TO_SPRITE_TYPE.WALL` maps to `null` — unreachable in sprite path ⬆ LOW
+### ✅ [DONE] DEAD-19: `KIND_TO_SPRITE_TYPE.WALL` maps to `null` — unreachable in sprite path ⬆ LOW
 **Origin:** 2. Dead Code & Unused References
 **Files:** Ownership: Track D (Tickets: D-08)
 - `src/ecs/systems/render-dom-system.js` (L44)
@@ -324,7 +324,7 @@ a note in the render-dom-system header comment that WALL intentionally skips spr
 
 ---
 
-### DEAD-23: `isPlayerStart()` only used in tests ⬆ LOW
+### ✅ [DONE] DEAD-23: `isPlayerStart()` only used in tests ⬆ LOW
 **Origin:** 2. Dead Code & Unused References
 **Files:** Ownership: Track D (Tickets: D-03)
 - `src/ecs/resources/map-resource.js` (~L584)
@@ -338,7 +338,7 @@ and remove the export from `map-resource.js`. Update `map-resource.test.js` impo
 
 ---
 
-### ARCH-01: `display:none` used for HIDDEN flag instead of offscreen transform ⬆ CRITICAL
+### ✅ [DONE] ARCH-01: `display:none` used for HIDDEN flag instead of offscreen transform ⬆ CRITICAL
 **Origin:** 3. Architecture, ECS Violations & Guideline Drift
 **Violated rule:** "Pool elements MUST be hidden with `transform: translate(-9999px, -9999px)`
 — not `display:none`"
@@ -371,7 +371,7 @@ uses `transform` not `display` for hiding.
 
 ---
 
-### ARCH-05: Per-Frame `new Set()` allocation in Render DOM System ⬆ MEDIUM
+### ✅ [DONE] ARCH-05: Per-Frame `new Set()` allocation in Render DOM System ⬆ MEDIUM
 **Origin:** 3. Architecture, ECS Violations & Guideline Drift
 **Files:** Ownership: Track D (Tickets: D-08)
 - `src/ecs/systems/render-dom-system.js` (L111)
@@ -403,7 +403,7 @@ export function createRenderDomSystem(options = {}) {
 
 ---
 
-### ARCH-07: `resetOrderCounter` should be deprecated in favor of `drain()` ⬆ MEDIUM
+### ✅ [DONE] ARCH-07: `resetOrderCounter` should be deprecated in favor of `drain()` ⬆ MEDIUM
 **Origin:** 3. Architecture, ECS Violations & Guideline Drift
 **Files:** Ownership: Track D (Tickets: D-01)
 - `src/ecs/resources/event-queue.js` (L133)
@@ -430,7 +430,7 @@ export function resetOrderCounter(queue) {
 
 ---
 
-### SEC-02: Trusted Types default policy passes strings without sanitization ⬆ MEDIUM
+### ✅ [DONE] SEC-02: Trusted Types default policy passes strings without sanitization ⬆ MEDIUM
 **Origin:** 4. Code Quality & Security
 **Files:** Ownership: Track D (Tickets: D-01)
 - `src/security/trusted-types.js` (~L10)
@@ -445,7 +445,7 @@ sanitizer unless DOMPurify or equivalent is already a dependency.
 
 ---
 
-### SEC-04: No CSP `<meta>` tag in `index.html` ⬆ MEDIUM
+### ✅ [DONE] SEC-04: No CSP `<meta>` tag in `index.html` ⬆ MEDIUM
 **Origin:** 4. Code Quality & Security
 **Files:** Ownership: Track D (Tickets: D-05)
 - `index.html` (~L1)
@@ -459,7 +459,7 @@ directive. The meta tag should mirror the production Vite header policy.
 
 ---
 
-### SEC-06: Development CSP uses `unsafe-eval` and `unsafe-inline` ⬆ LOW
+### ✅ [DONE] SEC-06: Development CSP uses `unsafe-eval` and `unsafe-inline` ⬆ LOW
 **Origin:** 4. Code Quality & Security
 **Files:** Ownership: Track D (Tickets: D-01)
 - `vite.config.js` (~L27)
@@ -470,7 +470,7 @@ comment in `vite.config.js` referencing this rule. No code change needed beyond 
 
 ---
 
-### SEC-07: Missing source header on `trusted-types.js` ⬆ LOW
+### ✅ [DONE] SEC-07: Missing source header on `trusted-types.js` ⬆ LOW
 **Origin:** 4. Code Quality & Security
 **Files:** Ownership: Track D (Tickets: D-01)
 - `src/security/trusted-types.js` (L1)
@@ -480,7 +480,7 @@ implementation notes or constraints.
 
 ---
 
-### SEC-08: Trusted Types CSP declared but no default policy created ⬆ LOW
+### ✅ [DONE] SEC-08: Trusted Types CSP declared but no default policy created ⬆ LOW
 **Origin:** 4. Code Quality & Security
 **Files:** Ownership: Track D (Tickets: D-05)
 - `vite.config.js` (~L16)
@@ -491,7 +491,7 @@ implementation notes or constraints.
 
 ---
 
-### SEC-09: Missing `Permissions-Policy` and `Cross-Origin-*` headers ⬆ LOW
+### ✅ [DONE] SEC-09: Missing `Permissions-Policy` and `Cross-Origin-*` headers ⬆ LOW
 **Origin:** 4. Code Quality & Security
 **Files:** Ownership: Track D (Tickets: D-05)
 - `vite.config.js` (~L36)
@@ -505,7 +505,7 @@ implementation notes or constraints.
 
 ---
 
-### SEC-10: `className` string assignment instead of `classList` ⬆ LOW
+### ✅ [DONE] SEC-10: `className` string assignment instead of `classList` ⬆ LOW
 **Origin:** 4. Code Quality & Security
 **Files:** Ownership: Track D (Tickets: D-08)
 - `src/adapters/dom/renderer-dom.js` (~L57)
@@ -519,7 +519,7 @@ this pattern is acceptable for the base-class reset, but subsequent additions sh
 
 ---
 
-### SEC-11: `response.json()` without content-length validation in map loading ⬆ LOW
+### ✅ [DONE] SEC-11: `response.json()` without content-length validation in map loading ⬆ LOW
 **Origin:** 4. Code Quality & Security
 **Files:** Ownership: Track D (Tickets: D-03)
 - `src/main.ecs.js` (~L149)

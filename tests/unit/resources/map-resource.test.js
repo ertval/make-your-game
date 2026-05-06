@@ -18,6 +18,7 @@ import { CELL_TYPE } from '../../../src/ecs/resources/constants.js';
 import * as mapResource from '../../../src/ecs/resources/map-resource.js';
 import { World } from '../../../src/ecs/world/world.js';
 import { createLevelLoader, createSyncMapLoader } from '../../../src/game/level-loader.js';
+import { isPlayerStart } from '../helpers/map-helpers.js';
 
 const {
   assertValidMapResource,
@@ -30,7 +31,6 @@ const {
   isInGhostHouse,
   isPassable,
   isPassableForGhost,
-  isPlayerStart,
   isWall,
   setCell,
   validateMapSemantic,

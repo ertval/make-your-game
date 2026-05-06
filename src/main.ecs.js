@@ -36,7 +36,6 @@
  * - startBrowserApplication(options)
  */
 
-import { createDomRenderer } from './adapters/dom/renderer-dom.js';
 import { createInputAdapter } from './adapters/io/input-adapter.js';
 import { percentileFromSorted, toSortedNumericArray } from './debug/frame-stats.js';
 import { FIXED_DT_MS, MAX_STEPS_PER_FRAME, TOTAL_LEVELS } from './ecs/resources/constants.js';
@@ -130,6 +129,14 @@ function clearHeldInputState(bootstrap) {
  * @param {{ fetchImpl?: Function }} [options] - Optional fetch override for tests.
  * @returns {Promise<Array<MapResource>>} Parsed map resources in level order.
  */
+/**
+ * Upper bound on a single level map JSON in bytes. A reasonable bomberman map
+ * (15×11 grid + metadata) fits well under 50KB even with verbose formatting;
+ * 500KB is a generous cap that still rejects pathological or hostile payloads
+ * before parsing (SEC-11).
+ */
+const MAX_MAP_SIZE_BYTES = 500 * 1024;
+
 async function loadDefaultMaps({ fetchImpl } = {}) {
   if (typeof fetchImpl !== 'function') {
     throw new Error('bootstrapApplication requires fetch support to preload maps.');
@@ -144,6 +151,19 @@ async function loadDefaultMaps({ fetchImpl } = {}) {
         if (!response || response.ok !== true) {
           const status = Number.isFinite(response?.status) ? response.status : 'unknown';
           throw new Error(`Failed to load map asset for level ${levelNumber} (status: ${status}).`);
+        }
+
+        // SEC-11: reject oversized map payloads before invoking JSON.parse,
+        // since parsing untrusted JSON is O(size) in both time and memory.
+        const contentLengthHeader = response.headers?.get?.('Content-Length');
+        if (contentLengthHeader) {
+          const contentLength = Number.parseInt(contentLengthHeader, 10);
+          if (Number.isFinite(contentLength) && contentLength > MAX_MAP_SIZE_BYTES) {
+            throw new Error(
+              `Map asset for level ${levelNumber} exceeds the ${MAX_MAP_SIZE_BYTES}-byte limit ` +
+                `(reported ${contentLength} bytes).`,
+            );
+          }
         }
 
         const rawMap = await response.json();
@@ -431,7 +451,11 @@ export async function bootstrapApplication({
     throw new Error('Missing #app root.');
   }
 
-  const renderer = createDomRenderer({ appRoot });
+  // DEAD-01: render-dom-system (run during runRenderCommit) is the canonical
+  // DOM commit path. The legacy createDomRenderer remains available for non-ECS
+  // tooling (map preview, debug views) but is intentionally NOT registered with
+  // the bootstrap step loop — registering it would cause double DOM writes per
+  // frame and bypass the sprite pool.
 
   const hudElements = {
     timer: targetDocument.querySelector('[data-hud="timer"]'),
@@ -471,7 +495,6 @@ export async function bootstrapApplication({
       // the same clock as the rAF loop (deterministic for tests).
       nowProvider: getNow,
     });
-    bootstrap.registerRenderer(renderer);
     // Register through the explicit bootstrap API so the adapter contract is
     // validated at injection time and teardown on stop is symmetric.
     bootstrap.setInputAdapter(inputAdapter);

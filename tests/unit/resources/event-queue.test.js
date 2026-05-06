@@ -101,17 +101,15 @@ describe('event-queue', () => {
     expect(queue.orderCounter).toBe(0);
   });
 
-  it('returns a shallow copy on drain to prevent external mutation leaks (ARCH-15)', () => {
+  it('drain transfers internal buffer ownership without copying (BUG-12)', () => {
     const queue = createEventQueue();
     enqueue(queue, 'Test', { id: 1 }, 1);
 
+    const internalBufferBeforeDrain = queue.events;
     const events = drain(queue);
-    expect(events).toHaveLength(1);
-
-    // Mutating the returned array should not affect the queue's internal state
-    // (which is already cleared, but we're testing the contract).
-    events.push({ type: 'Evil' });
-    expect(peek(queue)).toHaveLength(0);
+    expect(events).toBe(internalBufferBeforeDrain);
+    expect(queue.events).not.toBe(events);
+    expect(queue.events).toHaveLength(0);
   });
 
   it('guards against non-finite frame indices (BUG-10)', () => {
@@ -119,5 +117,13 @@ describe('event-queue', () => {
     enqueue(queue, 'Test', {}, NaN);
     const events = drain(queue);
     expect(events[0].frame).toBe(0);
+  });
+
+  it('does not throw when queue is null (BUG-15)', () => {
+    expect(() => enqueue(null, 'Test', {}, 0)).not.toThrow();
+  });
+
+  it('does not throw when queue is undefined (BUG-15)', () => {
+    expect(() => enqueue(undefined, 'Test', {}, 0)).not.toThrow();
   });
 });

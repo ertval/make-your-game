@@ -18,6 +18,10 @@ const PRODUCTION_CSP = [
   'upgrade-insecure-requests',
 ].join('; ');
 
+// SEC-06: 'unsafe-eval' and 'unsafe-inline' are required by Vite's HMR runtime
+// during development and are explicitly permitted by AGENTS.md ("During
+// development with Vite, CSP enforcement MAY be relaxed to allow HMR inline
+// scripts"). The production CSP above retains the strict policy.
 const DEVELOPMENT_CSP = [
   "default-src 'self'",
   "base-uri 'none'",
@@ -33,13 +37,19 @@ const DEVELOPMENT_CSP = [
   "worker-src 'self' blob:",
 ].join('; ');
 
-function createSecurityHeaders(csp) {
-  return {
+function createSecurityHeaders(csp, { crossOriginIsolation = false } = {}) {
+  const headers = {
     'Content-Security-Policy': csp,
     'Referrer-Policy': 'no-referrer',
     'X-Content-Type-Options': 'nosniff',
     'X-Frame-Options': 'DENY',
+    'Permissions-Policy': 'geolocation=(), camera=(), microphone=()',
   };
+  if (crossOriginIsolation) {
+    headers['Cross-Origin-Opener-Policy'] = 'same-origin';
+    headers['Cross-Origin-Embedder-Policy'] = 'require-corp';
+  }
+  return headers;
 }
 
 function createCspMetaPlugin(csp) {
@@ -74,7 +84,7 @@ export default defineConfig(({ command }) => {
     preview: {
       host: true,
       port: 4173,
-      headers: createSecurityHeaders(PRODUCTION_CSP),
+      headers: createSecurityHeaders(PRODUCTION_CSP, { crossOriginIsolation: true }),
     },
   };
 });
