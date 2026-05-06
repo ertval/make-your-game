@@ -197,6 +197,7 @@ make-your-game/
 ├── index.html                      # 🏠 Single-page entry point
 ├── package-lock.json               # 🔒 Locked npm dependency graph
 ├── package.json                    # 📦 Core config, dependencies, and project quality scripts
+├── sbom.json                       # 🔒 SPDX SBOM for dependency auditing (managed and enforced by CI)
 ├── src/                            # 🧠 Runtime source code
 │   ├── adapters/                   # 🔌 Imperative boundaries for DOM and IO
 │   ├── adapters/dom/               # DOM adapter implementations (present)
@@ -401,7 +402,7 @@ Use the broadest command first, then drop to the narrower command below if you n
 | `npm run check` | Run all Biome checks (lint, format, and import sorting) |
 | `npm run fix` | Run all Biome checks and apply safe fixes automatically |
 | `npm run validate:schema` | Run JSON Schema 2020-12 validation for maps |
-| `npm run sbom` | Generate SPDX SBOM for dependency auditing |
+| `npm run sbom` | Generate SPDX SBOM for dependency auditing. Note: `sbom.json` is a committed artifact managed by the CI workflow policy gates to ensure lockfile integrity. |
 
 ---
 
