@@ -107,18 +107,15 @@ describe('Audit executable verification contract (non-browser checks)', () => {
     }
   });
 
-  it('keeps static platform constraints executable (no canvas/frameworks, SVG asset pipeline, HUD contract)', () => {
-    const rootHtml = fs.readFileSync(path.resolve(PROJECT_ROOT, 'index.html'), 'utf8');
+  it('enforces build-config gates for forbidden frameworks and SVG asset pipeline', () => {
+    // These are static-config gates: dependency manifest and asset-tree shape.
+    // Runtime DOM and HUD coverage live in audit.browser.spec.js so the
+    // assertion observes the rendered application instead of source bytes.
     const packageJson = readJson(path.resolve(PROJECT_ROOT, 'package.json'));
     const allDependencies = {
       ...(packageJson.dependencies || {}),
       ...(packageJson.devDependencies || {}),
     };
-
-    expect(/<\s*canvas\b/i.test(rootHtml)).toBe(false);
-    expect(rootHtml.includes('data-hud="timer"')).toBe(true);
-    expect(rootHtml.includes('data-hud="score"')).toBe(true);
-    expect(rootHtml.includes('data-hud="lives"')).toBe(true);
 
     for (const forbiddenDependency of ['react', 'vue', 'angular', 'svelte', 'phaser', 'pixi.js']) {
       expect(Object.hasOwn(allDependencies, forbiddenDependency)).toBe(false);
@@ -131,22 +128,5 @@ describe('Audit executable verification contract (non-browser checks)', () => {
     const hasSvgAssets = generatedAssetFiles.some((filePath) => filePath.endsWith('.svg'));
 
     expect(hasSvgAssets).toBe(true);
-  });
-
-  it('anchors movement and hold-input audits to executable adapter integration coverage', () => {
-    const adapterIntegrationPath = path.resolve(
-      PROJECT_ROOT,
-      'tests/integration/adapters/input-adapter.test.js',
-    );
-    const adapterIntegrationText = fs.readFileSync(adapterIntegrationPath, 'utf8');
-
-    expect(adapterIntegrationText.includes('tracks simultaneous held keys independently')).toBe(
-      true,
-    );
-    expect(
-      adapterIntegrationText.includes(
-        'buffers one press edge regardless of repeated keydown events',
-      ),
-    ).toBe(true);
   });
 });
