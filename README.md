@@ -433,14 +433,13 @@ Recommended reading order for new contributors:
 3. `docs/game-description.md` (gameplay behavior source of truth)
 4. `docs/audit.md` (acceptance/pass criteria source of truth)
 5. `docs/implementation/implementation-plan.md` (ECS execution plan and milestones)
-6. [`docs/implementation/ticket-tracker.md`](docs/implementation/ticket-tracker.md) (live line-by-line ticket status board with dependencies and reverse block mapping)
-7. [`docs/implementation/ticket-tracker.md#-ticket-id-index-merged`](docs/implementation/ticket-tracker.md#-ticket-id-index-merged) (canonical ticket ID index and live status board used by automated policy checks)
-8. `docs/implementation/agentic-workflow-guide.md` (team process, PR checklist, and PR Message and Gate Workflow)
-9. `docs/implementation/pr-template.md` (docs entrypoint for PR contract and canonical template source)
-10. `docs/implementation/track-a.md` + `docs/implementation/track-b.md` + `docs/implementation/track-c.md` + `docs/implementation/track-d.md` (detailed track ticket definitions and verification gates)
-11. `docs/implementation/audit-traceability-matrix.md` (single-source requirement/audit/ticket/test coverage mapping and status)
-12. `docs/implementation/assets-pipeline.md` (visual/audio asset creation, optimization, and validation workflow)
-13. `docs/deployment/github-pages.md` (GitHub Pages publishing options and static-hosting constraints)
+6. [`docs/implementation/ticket-tracker.md`](docs/implementation/ticket-tracker.md) (live line-by-line ticket status board and canonical ticket ID index for automated policy checks)
+7. `docs/implementation/agentic-workflow-guide.md` (team process, PR checklist, and PR Message and Gate Workflow)
+8. `docs/implementation/pr-template.md` (docs entrypoint for PR contract and canonical template source)
+9. `docs/implementation/track-a.md` + `docs/implementation/track-b.md` + `docs/implementation/track-c.md` + `docs/implementation/track-d.md` (detailed track ticket definitions and verification gates)
+10. `docs/implementation/audit-traceability-matrix.md` (single-source requirement/audit/ticket/test coverage mapping and status)
+11. `docs/implementation/assets-pipeline.md` (visual/audio asset creation, optimization, and validation workflow)
+12. `docs/deployment/github-pages.md` (GitHub Pages publishing options and static-hosting constraints)
 
 ### 📌 Source Of Truth Policy
 
