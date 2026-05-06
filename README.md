@@ -196,7 +196,6 @@ make-your-game/
 │       └── visual-manifest.schema.json
 ├── index.html                      # 🏠 Single-page entry point
 ├── package-lock.json               # 🔒 Locked npm dependency graph
-├── package.json                    # 📦 ES module config, scripts, exports
 ├── package.json                    # 📦 Core config, dependencies, and project quality scripts
 ├── src/                            # 🧠 Runtime source code
 │   ├── adapters/                   # 🔌 Imperative boundaries for DOM and IO
@@ -434,8 +433,8 @@ Recommended reading order for new contributors:
 3. `docs/game-description.md` (gameplay behavior source of truth)
 4. `docs/audit.md` (acceptance/pass criteria source of truth)
 5. `docs/implementation/implementation-plan.md` (ECS execution plan and milestones)
-6. `docs/implementation/ticket-tracker.md` (live line-by-line ticket status board with dependencies and reverse block mapping)
-7. `docs/implementation/ticket-tracker.md` (canonical ticket ID index and live status board used by automated policy checks)
+6. [`docs/implementation/ticket-tracker.md`](docs/implementation/ticket-tracker.md) (live line-by-line ticket status board with dependencies and reverse block mapping)
+7. [`docs/implementation/ticket-tracker.md#-ticket-id-index-merged`](docs/implementation/ticket-tracker.md#-ticket-id-index-merged) (canonical ticket ID index and live status board used by automated policy checks)
 8. `docs/implementation/agentic-workflow-guide.md` (team process, PR checklist, and PR Message and Gate Workflow)
 9. `docs/implementation/pr-template.md` (docs entrypoint for PR contract and canonical template source)
 10. `docs/implementation/track-a.md` + `docs/implementation/track-b.md` + `docs/implementation/track-c.md` + `docs/implementation/track-d.md` (detailed track ticket definitions and verification gates)
