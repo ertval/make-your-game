@@ -29,6 +29,7 @@ sbom.json
 venv/
 *.py
 tools/
+_
 
 # Logs and temporary files
 *.log
