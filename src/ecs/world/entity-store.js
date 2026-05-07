@@ -100,6 +100,20 @@ export class EntityStore {
     return activeIds;
   }
 
+  destroyAll() {
+    let count = 0;
+    for (let id = 0; id < this.activeFlags.length; id += 1) {
+      if (this.activeFlags[id] === true) {
+        this.activeFlags[id] = false;
+        this.generations[id] += 1;
+        this.freeIds.push(id);
+        count += 1;
+      }
+    }
+    this.activeCount = 0;
+    return count;
+  }
+
   getActiveHandles() {
     const activeHandles = [];
 

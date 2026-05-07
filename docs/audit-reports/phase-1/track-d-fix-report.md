@@ -251,11 +251,10 @@ file inside `POWER_UP_DROP_CHANCES` (L150–155). It is NOT orphaned. `PROP_POWE
 ### ✅ [DONE] DEAD-08: `getActiveEntityHandles` may be inefficient ⬆ MEDIUM
 **Origin:** 2. Dead Code & Unused References
 **Files:** Ownership: Track D (Tickets: D-01)
-- `src/ecs/world/world.js` (~L276)
+- `src/ecs/world/entity-store.js`
+- `src/ecs/world/world.js` (~L347)
 
-**Verification:** Needs check. The audit indicates that creating full handle objects just to iterate and destroy is inefficient.
-
-**Fix:** Use `world.getActiveIds()` instead of `world.getActiveEntityHandles()` if only the IDs are required for bulk operations.
+**Fix:** Added `EntityStore.destroyAll()` which iterates `activeFlags` in a single pass and invalidates all entities without allocating intermediate handle objects. The `destroy-all` deferred op handler in `world.js` now calls `this.#entityStore.destroyAll()` directly instead of `getActiveEntityHandles()` + per-handle `destroyEntity()` loop.
 
 ---
 
@@ -453,9 +452,11 @@ sanitizer unless DOMPurify or equivalent is already a dependency.
 **Problem:** CSP is only injected via Vite's HTTP headers (dev server). In production static
 deployments without server-side headers, CSP enforcement is absent.
 
-**Fix:** Add a static `<meta http-equiv="Content-Security-Policy">` tag to `index.html` as a
-fallback. Note: `<meta>` CSP cannot enforce `frame-ancestors` — that remains a server-only
-directive. The meta tag should mirror the production Vite header policy.
+**Fix:** No change to `index.html`. A static `<meta>` tag was initially added but reverted —
+it included `upgrade-insecure-requests` which broke the Vite dev server by upgrading all HTTP
+subresource requests to HTTPS. The prescribed fix is already in place: `vite.config.js` uses
+`createCspMetaPlugin` which injects the production CSP meta tag into the build output at compile
+time, satisfying the static-deployment requirement without affecting the dev server.
 
 ---
 
@@ -496,12 +497,7 @@ implementation notes or constraints.
 **Files:** Ownership: Track D (Tickets: D-05)
 - `vite.config.js` (~L36)
 
-**Fix:** Add to `vite.config.js` server headers:
-```
-'Permissions-Policy': 'geolocation=(), camera=(), microphone=()',
-'Cross-Origin-Opener-Policy': 'same-origin',
-'Cross-Origin-Embedder-Policy': 'require-corp',
-```
+**Fix:** `Permissions-Policy` added to both dev and production servers. `Cross-Origin-Opener-Policy: same-origin` and `Cross-Origin-Embedder-Policy: require-corp` are added to the production preview server only — applying `require-corp` in dev breaks Vite's HMR because Vite's pre-bundled deps and internal resources do not carry `Cross-Origin-Resource-Policy` headers.
 
 ---
 

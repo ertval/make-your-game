@@ -344,17 +344,8 @@ export class World {
       } else if (op.type === 'set-mask') {
         op.applied = this.setEntityMask(op.handle, op.mask);
       } else if (op.type === 'destroy-all') {
-        const handles = this.getActiveEntityHandles();
-        let destroyedCount = 0;
-
-        for (const handle of handles) {
-          if (this.destroyEntity(handle)) {
-            destroyedCount += 1;
-          }
-        }
-
+        op.destroyedCount = this.#entityStore.destroyAll();
         op.applied = true;
-        op.destroyedCount = destroyedCount;
       }
     }
   }

@@ -44,6 +44,7 @@ Local test command reference (run what applies to your change and list what you 
 - **ARCH-07**: `event-queue.js` — `resetOrderCounter` marked `@deprecated`; emits dev warning when called with undrained events.
 - **DEAD-01**: `main.ecs.js` — removed duplicate legacy `createDomRenderer` pipeline from the frame loop; `render-dom-system` is now the sole render path.
 - **DEAD-04/06/07/11/16/17/18/19**: dead-code constants and exports annotated as `@internal` or removed where safe (`isPlayerStart` moved to test helper).
+- **DEAD-08**: `entity-store.js` — added `EntityStore.destroyAll()` that invalidates all active entities in a single pass without allocating intermediate handle objects. `world.js` `destroy-all` op handler updated to call it directly.
 - **DEAD-23**: `map-resource.js` — removed `isPlayerStart()` export; moved implementation to `tests/unit/helpers/map-helpers.js`.
 - **SEC-02/07/08**: `trusted-types.js` — rewritten to install a reject-all default policy (throws on createHTML/createScript/createScriptURL); added module header per AGENTS.md.
 - **SEC-04**: No change to `index.html` needed — `vite.config.js` already has `createCspMetaPlugin` which injects the production CSP meta tag into the build output, satisfying the static-deployment requirement.
@@ -65,15 +66,13 @@ Local test command reference (run what applies to your change and list what you 
 - New reproducer tests added for BUG-05 (`tests/integration/adapters/sprite-pool-adapter.test.js`), BUG-12 (ownership-transfer assertion in `tests/unit/resources/event-queue.test.js`), BUG-10 (throttle behavior in `tests/unit/render-intent/render-intent.test.js`), and ARCH-01 (offscreen transform assertion in `tests/unit/systems/render-dom-system.test.js`).
 
 ## Audit questions affected
-- F-03 | Execution type: Fully Automatable | Verification: render-dom-system HIDDEN flag tests | Evidence path: `tests/unit/systems/render-dom-system.test.js`
-- F-11 | Execution type: Fully Automatable | Verification: render-intent overflow throttle tests | Evidence path: `tests/unit/render-intent/render-intent.test.js`
-- F-14 | Execution type: Fully Automatable | Verification: event-queue drain ownership tests | Evidence path: `tests/unit/resources/event-queue.test.js`
-- B-03 | Execution type: Fully Automatable | Verification: sprite-pool un-warmed acquire tests | Evidence path: `tests/integration/adapters/sprite-pool-adapter.test.js`
+No audit question IDs (F-01–F-21, B-01–B-06) are directly affected by this branch. All changes are infrastructure, security hardening, and dead-code cleanup — none alter observable gameplay behaviors that the audit questions measure.
 
 ## Post-merge fixes
-Two SEC fixes required correction after the main commit:
+Three fixes required correction after the main commit:
 - **SEC-04**: Initial fix added a static CSP `<meta>` to `index.html` which included `upgrade-insecure-requests`, breaking the Vite dev server (all HTTP subresource requests were upgraded to HTTPS and failed). Reverted — `createCspMetaPlugin` already handles this correctly at build time.
 - **SEC-09**: `Cross-Origin-Embedder-Policy: require-corp` was applied to the dev server, blocking Vite's HMR and pre-bundled resources. COOP/COEP scoped to production preview server only.
+- **DEAD-08**: Was incorrectly marked `[DONE]` without a code change. Fix implemented: `EntityStore.destroyAll()` added; `world.js` handler updated.
 
 ## Security notes
 - Trusted Types default policy now throws on any attempted raw string injection into HTML/script sinks. This is a hardening change — any code path that previously relied on the permissive pass-through policy will now surface a `TypeError` immediately.
