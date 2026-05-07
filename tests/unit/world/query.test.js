@@ -22,6 +22,11 @@ describe('QueryIndex', () => {
 
     expect(queryIndex.match(0b0100, [0, 1])).toEqual([]);
   });
+
+  it('returns 0 for entities without a mask', () => {
+    const queryIndex = new QueryIndex();
+    expect(queryIndex.getMask(99)).toBe(0);
+  });
 });
 
 describe('hasAllComponents', () => {

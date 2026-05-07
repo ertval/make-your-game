@@ -12,7 +12,7 @@ export default defineConfig({
       include: ['src/**/*.js'],
       exclude: ['tests/e2e/**', 'src/security/trusted-types.js'],
       thresholds: {
-        branches: 80,
+        branches: 85,
         functions: 85,
         lines: 90,
         statements: 90,
