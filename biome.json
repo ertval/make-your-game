@@ -29,8 +29,7 @@
       "!**/test-results",
       "!**/sbom.json",
       "!**/.policy-pr-meta.json",
-      "!**/changed-files.txt",
-      "!**/.claude/**"
+      "!**/changed-files.txt"
     ]
   }
 }
