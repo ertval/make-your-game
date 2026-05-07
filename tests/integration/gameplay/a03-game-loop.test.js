@@ -224,6 +224,9 @@ describe('game loop and runtime', () => {
     const runtime = createGameRuntime({
       bootstrap,
       documentRef: documentStub,
+      // Synthetic-clock test: skip the boot warmup window so a handful of
+      // hand-pumped frames lands directly in the percentile buffer.
+      frameProbeWarmupFrames: 0,
       nowProvider: () => 0,
       requestFrame,
       windowRef: windowStub,

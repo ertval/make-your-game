@@ -18,14 +18,24 @@ test('keeps rAF active while paused and freezes simulation progression', async (
     window.__MS_GHOSTMAN_RUNTIME__.startGame();
   });
 
+  // Wait until the runtime has advanced AND the frame probe has at least one
+  // post-warmup sample. The probe discards the first ~30 frames as boot-jank
+  // warmup, so polling on the runtime frame counter alone can race ahead of
+  // the probe and leave sampleCount at 0 when the pause snapshot is taken.
   await expect
     .poll(
       async () => {
         return page.evaluate(() => window.__MS_GHOSTMAN_RUNTIME__.getSnapshot().frame);
       },
-      {
-        timeout: 5_000,
+      { timeout: 5_000 },
+    )
+    .toBeGreaterThanOrEqual(1);
+  await expect
+    .poll(
+      async () => {
+        return page.evaluate(() => window.__MS_GHOSTMAN_FRAME_PROBE__.getStats().sampleCount);
       },
+      { timeout: 5_000 },
     )
     .toBeGreaterThanOrEqual(1);
 

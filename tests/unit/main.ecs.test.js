@@ -222,6 +222,57 @@ describe('main.ecs.js', () => {
       expect(runtime.controls.resume()).toBe(false);
       expect(mockBootstrap.resyncTime).not.toHaveBeenCalled();
     });
+
+    it('discards warmup frames so boot-time jank does not poison percentile stats', () => {
+      // Synthetic deltas: 5 slow "boot" frames (50ms each) followed by 5 steady
+      // 16ms frames. Without warmup the slow frames dominate p95. With a
+      // warmup window of 5 the slow frames are discarded and percentiles
+      // reflect only the steady-state samples.
+      const scheduledFrames = [];
+      const requestFrame = vi.fn((cb) => {
+        scheduledFrames.push(cb);
+        return scheduledFrames.length;
+      });
+      const mockBootstrap = {
+        clock: { lastFrameTime: 0 },
+        gameStatus: { currentState: 'PLAYING' },
+        gameFlow: { startGame: vi.fn(() => true), resumeGame: vi.fn(() => false) },
+        resyncTime: vi.fn(),
+        stepFrame: vi.fn(),
+        getInputAdapter: vi.fn(),
+      };
+      const probeWindow = { ...mockWindow };
+      const runtime = createGameRuntime({
+        bootstrap: mockBootstrap,
+        documentRef: mockDocument,
+        frameProbeWarmupFrames: 5,
+        nowProvider: () => 0,
+        requestFrame,
+        windowRef: probeWindow,
+      });
+
+      runtime.start();
+
+      // The first non-zero timestamp seeds lastTimestamp without producing a
+      // delta. After that, 5 slow "boot" frames (50ms apart) consume the
+      // warmup window, and 5 fast "steady" frames (16ms apart) populate the
+      // sample buffer.
+      const timestamps = [
+        1, 51, 101, 151, 201, 251, 267, 283, 299, 315, 331,
+      ];
+      for (const ts of timestamps) {
+        const next = scheduledFrames.shift();
+        if (next) next(ts);
+      }
+
+      const stats = probeWindow.__MS_GHOSTMAN_FRAME_PROBE__.getStats();
+      expect(stats.sampleCount).toBe(5);
+      expect(stats.p95FrameTime).toBeCloseTo(16, 5);
+      expect(stats.p99FrameTime).toBeCloseTo(16, 5);
+      expect(stats.p95Fps).toBeCloseTo(62.5, 1);
+
+      runtime.stop();
+    });
   });
 
   describe('bootstrapApplication - More Errors', () => {
