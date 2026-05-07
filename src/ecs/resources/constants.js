@@ -203,7 +203,7 @@ export const POOL_FIRE_PER_BOMB = MAX_FIRE_RADIUS * 4 + 1;
 export const POOL_FIRE = POOL_MAX_BOMBS * POOL_FIRE_PER_BOMB;
 
 /** Maximum pellets on a level (upper bound for a fully open 15x11 map). */
-export const POOL_PELLETS = 15 * 11;
+export const POOL_PELLETS = 130;
 
 /** Maximum ghosts active simultaneously (level 3 max). */
 export const POOL_GHOSTS = 4;

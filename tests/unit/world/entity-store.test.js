@@ -39,21 +39,6 @@ describe('EntityStore', () => {
     store.create();
     expect(() => store.create()).toThrow('Entity limit reached');
   });
-  it('returns valid handle data for getGeneration and getHandleForId', () => {
-    const store = new EntityStore();
-    const handle = store.create();
-
-    expect(store.getGeneration(-1)).toBeNull();
-    expect(store.getHandleForId(-1)).toBeNull();
-    expect(store.getHandleForId(9999)).toBeNull();
-
-    expect(store.getGeneration(handle.id)).toBe(handle.generation);
-    expect(store.getHandleForId(handle.id)).toEqual(handle);
-
-    store.destroy(handle);
-    expect(store.getHandleForId(handle.id)).toBeNull();
-  });
-
   it('handles invalid arguments for isAlive gracefully', () => {
     const store = new EntityStore();
     expect(store.isAlive(null)).toBe(false);

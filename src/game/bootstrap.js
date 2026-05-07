@@ -27,6 +27,7 @@ import {
 } from '../ecs/components/actors.js';
 import { COMPONENT_MASK } from '../ecs/components/registry.js';
 import {
+  COLLIDER_TYPE,
   createPositionStore,
   createVelocityStore,
   resetPosition,
@@ -41,16 +42,28 @@ import {
 } from '../ecs/components/visual.js';
 import { createRenderIntentBuffer, resetRenderIntentBuffer } from '../ecs/render-intent.js';
 import { advanceSimTime, createClock, resetClock, tickClock } from '../ecs/resources/clock.js';
-import { FIXED_DT_MS, MAX_STEPS_PER_FRAME, TOTAL_LEVELS } from '../ecs/resources/constants.js';
+import {
+  FIXED_DT_MS,
+  MAX_RENDER_INTENTS,
+  MAX_STEPS_PER_FRAME,
+  TOTAL_LEVELS,
+} from '../ecs/resources/constants.js';
 import { createEventQueue } from '../ecs/resources/event-queue.js';
 import { createGameStatus } from '../ecs/resources/game-status.js';
+import { createCollisionSystem } from '../ecs/systems/collision-system.js';
+import { createHudSystem } from '../ecs/systems/hud-system.js';
 import { createInputSystem } from '../ecs/systems/input-system.js';
+import { createLevelProgressSystem } from '../ecs/systems/level-progress-system.js';
+import { createLifeSystem } from '../ecs/systems/life-system.js';
 import {
   createPlayerMoveSystem,
   PLAYER_MOVE_REQUIRED_MASK,
 } from '../ecs/systems/player-move-system.js';
 import { createRenderCollectSystem } from '../ecs/systems/render-collect-system.js';
 import { createRenderDomSystem } from '../ecs/systems/render-dom-system.js';
+import { createDefaultScoreState, createScoringSystem } from '../ecs/systems/scoring-system.js';
+import { createSpawnSystem } from '../ecs/systems/spawn-system.js';
+import { createTimerSystem } from '../ecs/systems/timer-system.js';
 import { DEFAULT_PHASE_ORDER, World } from '../ecs/world/world.js';
 import { isDevelopment } from '../shared/env.js';
 import { createGameFlow } from './game-flow.js';
@@ -170,6 +183,14 @@ function toFiniteTimestamp(nowMs) {
   return nowMs;
 }
 
+function normalizeEntityCapacity(value) {
+  if (!Number.isFinite(value) || value <= 0) {
+    return MAX_RENDER_INTENTS;
+  }
+
+  return Math.floor(value);
+}
+
 function normalizeSystemRegistration(phase, registration, index) {
   if (typeof registration === 'function') {
     return {
@@ -244,15 +265,31 @@ function createDefaultSystemsByPhase(options = {}) {
   return {
     input: [inputSystem],
     physics: [playerMoveSystem],
-    logic: createBombExplosionLogicSystems({
-      ...options,
-      eventQueueResourceKey,
-      inputStateResourceKey,
-      mapResourceKey,
-      playerResourceKey,
-      positionResourceKey,
-    }),
-    render: [renderCollectSystem, renderDomSystem],
+    render: [
+      createHudSystem({ hudElementsResourceKey: options.hudElementsResourceKey }),
+      renderCollectSystem,
+      renderDomSystem,
+    ],
+    logic: [
+      createCollisionSystem({
+        eventQueueResourceKey,
+        mapResourceKey,
+        positionResourceKey,
+      }),
+      createTimerSystem(),
+      createScoringSystem(),
+      createLifeSystem(),
+      createLevelProgressSystem(),
+      createSpawnSystem(),
+      ...createBombExplosionLogicSystems({
+        ...options,
+        eventQueueResourceKey,
+        inputStateResourceKey,
+        mapResourceKey,
+        playerResourceKey,
+        positionResourceKey,
+      }),
+    ],
   };
 }
 
@@ -305,7 +342,10 @@ function initializeMovementResources(world, options = {}) {
   const inputStateResourceKey = options.inputStateResourceKey || DEFAULT_INPUT_STATE_RESOURCE_KEY;
   const playerEntityResourceKey =
     options.playerEntityResourceKey || DEFAULT_PLAYER_ENTITY_RESOURCE_KEY;
-  const maxEntities = world.entityStore.maxEntities;
+  const maxEntities =
+    Number.isFinite(options.maxEntities) && options.maxEntities > 0
+      ? Math.floor(options.maxEntities)
+      : world.getMaxEntities();
 
   ensureWorldResource(world, playerResourceKey, () => createPlayerStore(maxEntities));
   ensureWorldResource(world, positionResourceKey, () => createPositionStore(maxEntities));
@@ -328,7 +368,7 @@ function initializeMovementResources(world, options = {}) {
 function clearPlayerEntity(world, playerEntityResourceKey) {
   const playerHandle = world.getResource(playerEntityResourceKey);
 
-  if (world.entityStore.isAlive(playerHandle)) {
+  if (world.isEntityAlive(playerHandle)) {
     world.destroyEntity(playerHandle);
   }
 
@@ -360,14 +400,15 @@ function syncPlayerEntityFromMap(world, mapResource, options = {}) {
     return null;
   }
 
-  const PLAYER_WITH_RENDERABLE_MASK = PLAYER_MOVE_REQUIRED_MASK | COMPONENT_MASK.RENDERABLE;
+  const PLAYER_WITH_RENDERABLE_MASK =
+    PLAYER_MOVE_REQUIRED_MASK | COMPONENT_MASK.RENDERABLE | COMPONENT_MASK.COLLIDER;
 
   let playerHandle = world.getResource(playerEntityResourceKey);
-  if (!world.entityStore.isAlive(playerHandle)) {
+  if (!world.isEntityAlive(playerHandle)) {
     playerHandle = world.createEntity(PLAYER_WITH_RENDERABLE_MASK);
     world.setResource(playerEntityResourceKey, playerHandle);
   } else {
-    playerHandle = world.setEntityMask(playerHandle, PLAYER_WITH_RENDERABLE_MASK);
+    world.setEntityMask(playerHandle, PLAYER_WITH_RENDERABLE_MASK);
   }
 
   const entityId = playerHandle.id;
@@ -388,6 +429,10 @@ function syncPlayerEntityFromMap(world, mapResource, options = {}) {
   resetInputState(inputState, entityId);
   resetRenderable(renderableStore, entityId);
   resetVisualState(visualStateStore, entityId);
+  const colliderStore = world.getResource('collider');
+  if (colliderStore) {
+    colliderStore.type[entityId] = COLLIDER_TYPE.PLAYER;
+  }
 
   // Set renderable kind so player appears in render-collect-system queries
   renderableStore.kind[entityId] = RENDERABLE_KIND.PLAYER;
@@ -457,7 +502,10 @@ export function createBootstrap(options = {}) {
   }
 
   const nowMs = toFiniteTimestamp(options.now ?? 0);
-  const world = options.world || new World();
+  const requestedMaxEntities = normalizeEntityCapacity(options.maxEntities);
+  const world = options.world || new World({ maxEntities: requestedMaxEntities });
+  const maxEntities =
+    typeof world.getMaxEntities === 'function' ? world.getMaxEntities() : requestedMaxEntities;
   const inputAdapterResourceKey = resolveInputAdapterResourceKey(options);
   const playerEntityResourceKey =
     options.playerEntityResourceKey || DEFAULT_PLAYER_ENTITY_RESOURCE_KEY;
@@ -474,9 +522,9 @@ export function createBootstrap(options = {}) {
       : () => (typeof performance !== 'undefined' ? performance.now() : Date.now());
 
   // Movement systems need their component stores present before fixed-step work begins.
-  initializeMovementResources(world, options);
+  initializeMovementResources(world, { ...options, maxEntities });
   // Bomb and explosion systems need prop stores and pooled entities before logic-phase ticks.
-  initializeBombExplosionResources(world, options);
+  initializeBombExplosionResources(world, { ...options, maxEntities });
   // Pre-register the adapter slot so runtime wiring has one explicit resource key
   // and systems never have to distinguish "never registered" from "registered null".
   ensureWorldResource(world, inputAdapterResourceKey, () => null);
@@ -486,19 +534,23 @@ export function createBootstrap(options = {}) {
   const spritePool =
     typeof document !== 'undefined' ? createSpritePool({ dev: isDevelopment() }) : null;
   const boardAdapter = createBoardAdapter({ spritePool });
+  const boardContainerElement = options.boardContainerElement || null;
 
   const levelLoader = createLevelLoader({
     loadMapForLevel: options.loadMapForLevel,
     mapResourceKey: options.mapResourceKey || 'mapResource',
     onLevelLoaded: (mapResource) => {
-      if (typeof document !== 'undefined') {
-        const gameBoard = document.getElementById('game-board');
-        if (gameBoard) {
-          boardAdapter.generateBoard(mapResource, gameBoard);
-        }
+      if (boardContainerElement) {
+        // The browser entrypoint resolves the board container once so level
+        // reloads stay independent from a hard-coded DOM lookup.
+        boardAdapter.generateBoard(mapResource, boardContainerElement);
       }
       updateBoardCss(mapResource);
       syncPlayerEntityFromMap(world, mapResource, options);
+      // BUG-01: level transition must reset frame counters so fixed-step
+      // progression restarts cleanly for the new level.
+      world.frame = 0;
+      world.renderFrame = 0;
     },
     totalLevels: TOTAL_LEVELS,
     world,
@@ -512,6 +564,14 @@ export function createBootstrap(options = {}) {
       // deterministic across restarts, falling back to the real wall clock
       // only when no provider is supplied.
       resetClock(clock, toFiniteTimestamp(nowProvider()));
+      // Restart should reset frame counters so fixed-step progression restarts cleanly.
+      world.frame = 0;
+      world.renderFrame = 0;
+      // Reset quarantine state so failure-frame arrays and quarantinedUntilFrame
+      // from the previous run don't reference stale absolute frame numbers.
+      if (typeof world.resetFaultState === 'function') {
+        world.resetFaultState();
+      }
       // Restart destroys all entities, so runtime object pools must be rebuilt
       // before bomb and explosion systems can query pooled prop entities again.
       initializeBombExplosionResources(world, options);
@@ -536,6 +596,13 @@ export function createBootstrap(options = {}) {
   world.setResource('levelLoader', levelLoader);
   world.setResource('renderIntent', createRenderIntentBuffer());
   world.setResource('spritePool', spritePool);
+
+  // Initialize HUD-related resources
+  world.setResource('scoreState', createDefaultScoreState());
+  world.setResource('levelTimer', { remainingSeconds: 0, activeLevel: -1 });
+  world.setResource('playerLife', { lives: 3, isInvincible: false, invincibilityRemainingMs: 0 });
+  world.setResource('collisionIntents', []); // B-04 requirement
+  world.setResource(options.hudElementsResourceKey || 'hudElements', options.hudElements || null);
 
   registerSystemsByPhase(
     world,

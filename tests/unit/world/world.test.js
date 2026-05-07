@@ -113,6 +113,12 @@ describe('World', () => {
     expect(world.frame).toBe(2);
   });
 
+  it('exposes the configured entity capacity through a safe accessor', () => {
+    const world = new World({ maxEntities: 12 });
+
+    expect(world.getMaxEntities()).toBe(12);
+  });
+
   it('rejects stale handles when mutating entity masks', () => {
     const world = new World();
     const first = world.createEntity();
@@ -127,6 +133,17 @@ describe('World', () => {
     expect(world.setEntityMask(recycled, 0b0010)).toBe(true);
     expect(world.getEntityMask(recycled)).toBe(0b0010);
     expect(world.query(0b0010)).toEqual([recycled.id]);
+  });
+
+  it('allows setting a zero mask to remove an entity from queries', () => {
+    const world = new World();
+    const entity = world.createEntity(0b0010);
+
+    expect(world.query(0b0010)).toEqual([entity.id]);
+
+    expect(world.setEntityMask(entity, 0)).toBe(true);
+    expect(world.getEntityMask(entity)).toBe(0);
+    expect(world.query(0b0010)).toEqual([]);
   });
 
   it('rejects stale handles across multiple recycling generations', () => {

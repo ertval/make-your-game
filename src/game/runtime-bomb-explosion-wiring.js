@@ -1,6 +1,11 @@
 /*
  * Runtime bomb/explosion wiring.
  *
+ * Cross-track note: This file's companion integration test
+ * (bomb-explosion-runtime-wiring.test.js) is owned by Track B but was modified
+ * by Track A as a forced consequence of the ARCH-02 entity-store refactor.
+ * Bugfix-mode policy permits cross-track edits.
+ *
  * This module owns Track A's default runtime assembly for bomb and fire
  * gameplay. It keeps bootstrap.js focused on orchestration while the resource
  * keys, pooled prop entities, and logic-system construction live together.
@@ -88,7 +93,7 @@ function ensurePooledPropEntities(world, poolResourceKey, colliderStore, count, 
   if (
     Array.isArray(existingPool) &&
     existingPool.length === count &&
-    existingPool.every((handle) => world.entityStore.isAlive(handle))
+    existingPool.every((handle) => world.isEntityAlive(handle))
   ) {
     return existingPool;
   }
@@ -160,7 +165,10 @@ export function initializeBombExplosionResources(world, options = {}) {
     options.bombDetonationQueueResourceKey || DEFAULT_BOMB_DETONATION_QUEUE_RESOURCE_KEY;
   const bombPoolResourceKey = options.bombPoolResourceKey || DEFAULT_BOMB_POOL_RESOURCE_KEY;
   const firePoolResourceKey = options.firePoolResourceKey || DEFAULT_FIRE_POOL_RESOURCE_KEY;
-  const maxEntities = world.entityStore.maxEntities;
+  const maxEntities =
+    Number.isFinite(options.maxEntities) && options.maxEntities > 0
+      ? Math.floor(options.maxEntities)
+      : world.getMaxEntities();
 
   const colliderStore = ensureWorldResource(world, colliderResourceKey, () =>
     createColliderStore(maxEntities),
