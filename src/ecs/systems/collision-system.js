@@ -9,7 +9,6 @@
  * - COLLISION_ENTITY_REQUIRED_MASK: query mask for dynamic entities with tile positions.
  * - DEFAULT_GHOST_SLOTS_PER_CELL: scratch-buffer fan-out for ghost occupancy lanes.
  * - tileToCellIndex(mapResource, row, col): convert a tile coordinate into a flat cell index.
- * - readEntityTile(positionStore, entityId, outTile): copy one entity's tile into a reusable object.
  * - createCollisionScratch(cellCount, maxGhostsPerCell): allocate reusable occupancy buffers.
  * - resetCollisionScratch(scratch): clear a scratch buffer back to deterministic sentinels.
  * - clearCollisionIntents(collisionIntents): empty the injected intent buffer in place.
@@ -45,6 +44,7 @@ import {
   isPassableForGhost,
   setCell,
 } from '../resources/map-resource.js';
+import { readEntityTile } from '../shared/tile-utils.js';
 import {
   emitGameplayEvent,
   GAMEPLAY_EVENT_SOURCE,
@@ -83,26 +83,6 @@ export function tileToCellIndex(mapResource, row, col) {
   }
 
   return row * mapResource.cols + col;
-}
-
-/**
- * Copy one entity's current tile into a reusable output object.
- *
- * @param {PositionStore | null | undefined} positionStore - Position component store.
- * @param {number} entityId - Entity slot to read.
- * @param {{ row: number, col: number }} [outTile] - Reusable target object.
- * @returns {{ row: number, col: number } | null} The populated tile object, or null when missing.
- */
-export function readEntityTile(positionStore, entityId, outTile = { row: 0, col: 0 }) {
-  if (!positionStore) {
-    return null;
-  }
-
-  // Rounding keeps the helper stable for exact centered positions while still
-  // allowing a later refinement of the final in-transit collision semantics.
-  outTile.row = Math.round(positionStore.row[entityId]);
-  outTile.col = Math.round(positionStore.col[entityId]);
-  return outTile;
 }
 
 /**

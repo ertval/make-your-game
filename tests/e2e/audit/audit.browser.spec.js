@@ -284,6 +284,17 @@ test('AUDIT-B-05 explicit async-performance long-task threshold assertions', asy
   expect(longTaskSummary.maxLongTaskMs).toBeLessThanOrEqual(thresholds.maxLongTaskMs);
 });
 
+test('Platform DOM contract: no canvas element and HUD shell visible at runtime', async ({
+  page,
+}) => {
+  await bootRuntime(page);
+
+  await expect(page.locator('canvas')).toHaveCount(0);
+  await expect(page.locator('[data-hud="timer"]')).toBeVisible();
+  await expect(page.locator('[data-hud="score"]')).toBeVisible();
+  await expect(page.locator('[data-hud="lives"]')).toBeVisible();
+});
+
 test('AUDIT-CI-09 explicit DOM element budget and memory allocation assertions', async ({
   page,
 }) => {
@@ -371,17 +382,15 @@ test('AUDIT-F-11 input handling meets requirements', async ({ page }) => {
   const startPos = await getPlayerPosition();
   expect(startPos).not.toBeNull();
 
-  // Simulate a single quick press, waiting for at least one simulation frame
-  // to process so the input system registers the keydown before release.
-  const frameBeforePress = await page.evaluate(
-    () => window.__MS_GHOSTMAN_RUNTIME__.getSnapshot().frame,
-  );
+  // Press an arrow key and assert the player sprite actually advances.
+  // A frame-counter advance alone is not sufficient — it would pass even
+  // if the input system never wired the keydown into the simulation.
   await page.keyboard.down('ArrowLeft');
-  await page.waitForFunction(
-    (minFrame) => window.__MS_GHOSTMAN_RUNTIME__.getSnapshot().frame > minFrame,
-    frameBeforePress,
-    { timeout: 2000 },
-  );
+
+  await expect
+    .poll(async () => (await getPlayerPosition()).x, { timeout: 2000 })
+    .toBeLessThan(startPos.x);
+
   await page.keyboard.up('ArrowLeft');
 });
 

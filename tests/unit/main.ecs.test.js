@@ -257,9 +257,7 @@ describe('main.ecs.js', () => {
       // delta. After that, 5 slow "boot" frames (50ms apart) consume the
       // warmup window, and 5 fast "steady" frames (16ms apart) populate the
       // sample buffer.
-      const timestamps = [
-        1, 51, 101, 151, 201, 251, 267, 283, 299, 315, 331,
-      ];
+      const timestamps = [1, 51, 101, 151, 201, 251, 267, 283, 299, 315, 331];
       for (const ts of timestamps) {
         const next = scheduledFrames.shift();
         if (next) next(ts);

@@ -9,7 +9,6 @@
  * Public API:
  * - BOMB_TICK_PLAYER_REQUIRED_MASK: query mask for bomb-capable player entities.
  * - BOMB_TICK_BOMB_REQUIRED_MASK: query mask for pooled bomb entities.
- * - readEntityTile(positionStore, entityId, outTile): read rounded tile coords.
  * - isActiveBomb(colliderStore, entityId): check whether a pooled bomb slot is live.
  * - createBombDetonationRequest(bombStore, entityId, frame): build queue payload.
  * - createBombTickSystem(options): create the logic-phase ECS system.
@@ -26,34 +25,13 @@
 import { COMPONENT_MASK } from '../components/registry.js';
 import { COLLIDER_TYPE } from '../components/spatial.js';
 import { BOMB_FUSE_MS, DEFAULT_FIRE_RADIUS } from '../resources/constants.js';
+import { readEntityTile } from '../shared/tile-utils.js';
 
 export const BOMB_TICK_PLAYER_REQUIRED_MASK =
   COMPONENT_MASK.PLAYER | COMPONENT_MASK.POSITION | COMPONENT_MASK.INPUT_STATE;
 
 export const BOMB_TICK_BOMB_REQUIRED_MASK =
   COMPONENT_MASK.BOMB | COMPONENT_MASK.POSITION | COMPONENT_MASK.COLLIDER;
-
-/**
- * Read one entity's tile position from the shared position store.
- *
- * Positions may be fractional while entities move between cells, but bombs are
- * placed on the occupied grid cell. Rounding matches the existing collision
- * helper convention and keeps placement deterministic near cell centers.
- *
- * @param {PositionStore | null | undefined} positionStore - Position component store.
- * @param {number} entityId - Entity slot to read.
- * @param {{ row: number, col: number }} [outTile] - Reusable output object.
- * @returns {{ row: number, col: number } | null} Tile coords, or null without position data.
- */
-export function readEntityTile(positionStore, entityId, outTile = { row: 0, col: 0 }) {
-  if (!positionStore) {
-    return null;
-  }
-
-  outTile.row = Math.round(positionStore.row[entityId]);
-  outTile.col = Math.round(positionStore.col[entityId]);
-  return outTile;
-}
 
 /**
  * Check whether a pooled bomb entity is currently active in the maze.
