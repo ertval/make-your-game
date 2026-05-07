@@ -57,7 +57,7 @@ function createRuntimeRawMap() {
     dimensions: { columns: 7, rows: 7 },
     grid: [
       [1, 1, 1, 1, 1, 1, 1],
-      [1, 0, 0, 0, 0, 0, 1],
+      [1, 3, 0, 0, 0, 0, 1], // Pellet at (1, 1)
       [1, 0, 0, 0, 0, 0, 1],
       [1, 0, 0, 6, 0, 0, 1],
       [1, 0, 5, 5, 5, 0, 1],

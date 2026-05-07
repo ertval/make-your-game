@@ -1,6 +1,11 @@
 /*
  * Runtime bomb/explosion wiring.
  *
+ * Cross-track note: This file's companion integration test
+ * (bomb-explosion-runtime-wiring.test.js) is owned by Track B but was modified
+ * by Track A as a forced consequence of the ARCH-02 entity-store refactor.
+ * Bugfix-mode policy permits cross-track edits.
+ *
  * This module owns Track A's default runtime assembly for bomb and fire
  * gameplay. It keeps bootstrap.js focused on orchestration while the resource
  * keys, pooled prop entities, and logic-system construction live together.

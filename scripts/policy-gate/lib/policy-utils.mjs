@@ -92,8 +92,12 @@ export const FORBIDDEN_TECH_RULES = Object.freeze([
     pattern: /\bGPU(?:Adapter|Device|Queue|Buffer|CommandEncoder|RenderPipeline|ComputePipeline)\b/,
   },
   {
-    name: 'inline event handler attribute',
+    name: 'inline event handler attribute (quoted)',
     pattern: /<[^>]+\son[a-z]+\s*=\s*['"]/i,
+  },
+  {
+    name: 'inline event handler attribute (unquoted)',
+    pattern: /<[^>]+\son[a-z]+\s*=\s*[^\s>"']+/i,
   },
   {
     name: 'framework import',

@@ -2,7 +2,7 @@
 # Purpose: Enforce local policy checks before commits.
 # Public API: N/A (git hook).
 # Implementation Notes: Runs policy gate checks to prevent bypassing CI.
-
-. "$(dirname "$0")/_/husky.sh"
+# Husky v9+ manages hook resolution internally; the old _/husky.sh source
+# was removed because husky v9 does not ship it and the framework auto-registers.
 
 npm run policy:checks:local

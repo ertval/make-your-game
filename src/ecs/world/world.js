@@ -285,6 +285,17 @@ export class World {
     return this.#entityStore.getActiveHandles();
   }
 
+  /**
+   * Reset the system fault state (failure-frame arrays and quarantine timestamps).
+   * Used on game restart to prevent stale frame references from a previous run.
+   */
+  resetFaultState() {
+    for (const state of this.#systemFaultState.values()) {
+      state.failureFrames = [];
+      state.quarantinedUntilFrame = -1;
+    }
+  }
+
   query(requiredMask) {
     const activeIds = this.#entityStore.getActiveIds();
     return this.#queryIndex.match(requiredMask >>> 0, activeIds);

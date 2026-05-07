@@ -81,8 +81,8 @@ describe('Audit executable verification contract (non-browser checks)', () => {
       expect(question.thresholds).toEqual(SEMI_AUTOMATABLE_THRESHOLDS[auditId]);
     }
 
-    expect(SEMI_AUTOMATABLE_THRESHOLDS['AUDIT-F-17'].maxP95FrameTimeMs).toBeLessThanOrEqual(20);
-    expect(SEMI_AUTOMATABLE_THRESHOLDS['AUDIT-F-18'].minP95Fps).toBeGreaterThanOrEqual(50);
+    expect(SEMI_AUTOMATABLE_THRESHOLDS['AUDIT-F-17'].maxP95FrameTimeMs).toBeLessThanOrEqual(17.0);
+    expect(SEMI_AUTOMATABLE_THRESHOLDS['AUDIT-F-18'].minP95Fps).toBeGreaterThanOrEqual(59);
     expect(SEMI_AUTOMATABLE_THRESHOLDS['AUDIT-B-05'].maxLongTaskMs).toBeLessThanOrEqual(50);
   });
 

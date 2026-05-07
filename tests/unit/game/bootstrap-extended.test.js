@@ -94,6 +94,51 @@ describe('Bootstrap extended coverage', () => {
     expect(bootstrap.world.renderFrame).toBe(0);
   });
 
+  it('resets frame counters across level transitions', () => {
+    const mockMap = {
+      level: 1,
+      metadata: {
+        name: 'Test Level',
+        timerSeconds: 60,
+        maxGhosts: 1,
+        ghostSpeed: 1,
+        activeGhostTypes: ['red'],
+      },
+      dimensions: { rows: 5, columns: 5 },
+      grid: [
+        [1, 1, 1, 1, 1],
+        [1, 0, 0, 0, 1],
+        [1, 0, 5, 0, 1],
+        [1, 0, 0, 0, 1],
+        [1, 1, 1, 1, 1],
+      ],
+      spawn: {
+        player: { row: 1, col: 1 },
+        ghostHouse: { topRow: 2, bottomRow: 2, leftCol: 2, rightCol: 2 },
+        ghostSpawnPoint: { row: 2, col: 2 },
+      },
+    };
+    const bootstrap = createBootstrap({
+      now: 0,
+      loadMapForLevel: () => mockMap,
+    });
+    const world = bootstrap.world;
+    const gameFlow = world.getResource('gameFlow');
+
+    gameFlow.startGame();
+    bootstrap.stepFrame(FIXED_DT_MS);
+    bootstrap.stepFrame(FIXED_DT_MS * 2);
+
+    expect(world.frame).toBeGreaterThan(0);
+
+    // Transition to next level
+    gameFlow.setState(GAME_STATE.LEVEL_COMPLETE);
+    gameFlow.startGame();
+
+    expect(world.frame).toBe(0);
+    expect(world.renderFrame).toBe(0);
+  });
+
   it('covers system registration edge cases', () => {
     expect(() => {
       createBootstrap({

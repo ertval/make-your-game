@@ -134,6 +134,16 @@ export function createGameFlow({ gameStatus, clock, levelLoader, world, onRestar
         return false;
       }
 
+      // Reset frame counters on level transition so system quarantine
+      // timestamps and frame-dependent timing don't accumulate across levels.
+      if (world) {
+        world.frame = 0;
+        world.renderFrame = 0;
+        if (typeof world.resetFaultState === 'function') {
+          world.resetFaultState();
+        }
+      }
+
       const movedToPlaying = safeTransition(gameStatus, GAME_STATE.PLAYING);
       applyPauseFromState(clock, gameStatus);
       return movedToPlaying;

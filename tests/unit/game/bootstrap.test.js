@@ -378,7 +378,16 @@ describe('bootstrap bomb and explosion runtime wiring', () => {
       (entry) => entry.system.name,
     );
 
-    expect(logicSystemNames).toEqual(['bomb-tick-system', 'explosion-system']);
+    expect(logicSystemNames).toEqual([
+      'collision-system',
+      'timer-system',
+      'scoring-system',
+      'life-system',
+      'level-progress-system',
+      'spawn-system',
+      'bomb-tick-system',
+      'explosion-system',
+    ]);
   });
 });
 
