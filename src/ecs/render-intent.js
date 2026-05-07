@@ -60,6 +60,32 @@ import { MAX_RENDER_INTENTS } from './resources/constants.js';
  */
 export const RENDER_INTENT_VERSION = 1;
 
+/** Tracks the last overflow warning emission to throttle production logs. */
+let _lastOverflowWarnMs = 0;
+const _OVERFLOW_WARN_THROTTLE_MS = 1000;
+
+/**
+ * Emit a render-intent overflow warning. In dev: every overflow. In production:
+ * throttled to at most one warning per second so a runaway condition surfaces
+ * without flooding the console (BUG-10).
+ */
+function warnIntentOverflow(buffer, entityId) {
+  if (isDevelopment()) {
+    console.warn(
+      `Render intent buffer full (${buffer._capacity}/${buffer._capacity}). ` +
+        `Intent for entity ${entityId} dropped.`,
+    );
+    return;
+  }
+  const now = Date.now();
+  if (now - _lastOverflowWarnMs > _OVERFLOW_WARN_THROTTLE_MS) {
+    console.warn(
+      `[render-intent] Buffer overflow (${buffer._capacity} cap). ` + `Entity ${entityId} dropped.`,
+    );
+    _lastOverflowWarnMs = now;
+  }
+}
+
 /**
  * Allocate a preallocated render-intent buffer sized for the maximum number of
  * intents a single frame may produce.
@@ -125,12 +151,7 @@ export function resetRenderIntentBuffer(buffer) {
  */
 export function appendRenderIntent(buffer, entry) {
   if (buffer._count >= buffer._capacity) {
-    if (isDevelopment()) {
-      console.warn(
-        `Render intent buffer full (${buffer._capacity}/${buffer._capacity}). ` +
-          `Intent for entity ${entry.entityId} dropped.`,
-      );
-    }
+    warnIntentOverflow(buffer, entry.entityId);
     return;
   }
 
@@ -170,12 +191,7 @@ export function appendRenderIntentDirect(
   opacity,
 ) {
   if (buffer._count >= buffer._capacity) {
-    if (isDevelopment()) {
-      console.warn(
-        `Render intent buffer full (${buffer._capacity}/${buffer._capacity}). ` +
-          `Intent for entity ${entityId} dropped.`,
-      );
-    }
+    warnIntentOverflow(buffer, entityId);
     return;
   }
 

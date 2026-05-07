@@ -4,13 +4,13 @@ This report contains the uniquely assigned issues from the Phase 1 audit report 
 
 > **Verification note (2026-05-05):** This report has been updated based on direct source inspection. False positives have been removed. Fix suggestions have been corrected where the original was inaccurate or suboptimal. See `audit-verification-notes-2026-05-05.md` for the full verification log.
 
-**Total Actual Issues to Resolve: 29**
+**Total Actual Issues to Resolve: 0**
 
 --- 
 
 ## 1) Bugs & Logic Errors
 
-### BUG-01: Double Bootstrap Execution ⬆ CRITICAL
+### ✅ [DONE] BUG-01: Double Bootstrap Execution ⬆ CRITICAL
 **Origin:** 1. Bugs & Logic Errors
 **Files:** Ownership: Track A (Tickets: A-03)
 - `src/main.js` (~L14)
@@ -25,7 +25,7 @@ This report contains the uniquely assigned issues from the Phase 1 audit report 
 
 ---
 
-### BUG-02: `playerHandle` corrupted by `setEntityMask` return value ⬆ CRITICAL
+### ✅ [DONE] BUG-02: `playerHandle` corrupted by `setEntityMask` return value ⬆ CRITICAL
 **Origin:** 1. Bugs & Logic Errors
 **Files:** Ownership: Track A (Tickets: A-03)
 - `src/game/bootstrap.js` (L370)
@@ -46,7 +46,7 @@ world.setEntityMask(playerHandle, PLAYER_WITH_RENDERABLE_MASK); // Do not reassi
 
 ---
 
-### BUG-08: World frame counter not reset on level restart ⬆ MEDIUM
+### ✅ [DONE] BUG-08: World frame counter not reset on level restart ⬆ MEDIUM
 **Origin:** 1. Bugs & Logic Errors
 **Files:** Ownership: Track A (Tickets: A-03)
 - `src/game/bootstrap.js` (onRestart callback)
@@ -69,7 +69,7 @@ onRestart: () => {
 
 ---
 
-### BUG-17: No validation in `setEntityMask` for mask=0 ⬆ LOW (documentation only)
+### ✅ [DONE] BUG-17: No validation in `setEntityMask` for mask=0 ⬆ LOW (documentation only)
 **Origin:** 1. Bugs & Logic Errors
 **Files:** Ownership: Track A (Tickets: A-02)
 - `src/ecs/world/world.js` (~L248)
@@ -88,7 +88,7 @@ onRestart: () => {
 
 ---
 
-### DEAD-02: Asset tooling dependencies have no executable generation path ⬆ MEDIUM
+### ✅ [DONE] DEAD-02: Asset tooling dependencies have no executable generation path ⬆ MEDIUM
 **Origin:** 2. Dead Code & Unused References
 **Files:** Ownership: Track A / Track D (Tickets: A-01, D-10)
 - `package.json` (~L50)
@@ -100,7 +100,7 @@ onRestart: () => {
 
 ---
 
-### DEAD-03: Project gate runs audit browser specs twice ⬆ MEDIUM
+### ✅ [DONE] DEAD-03: Project gate runs audit browser specs twice ⬆ MEDIUM
 **Origin:** 2. Dead Code & Unused References
 **Files:** Ownership: Track A (Tickets: A-01)
 - `scripts/policy-gate/run-project-gate.mjs` (~L33)
@@ -112,7 +112,7 @@ onRestart: () => {
 
 ---
 
-### DEAD-05: Unused methods in EntityStore ⬆ MEDIUM
+### ✅ [DONE] DEAD-05: Unused methods in EntityStore ⬆ MEDIUM
 **Origin:** 2. Dead Code & Unused References
 **Files:** Ownership: Track A (Tickets: A-02)
 - `src/ecs/world/entity-store.js` (~L19)
@@ -122,7 +122,7 @@ onRestart: () => {
 
 ---
 
-### DEAD-12: Level-loader compatibility guard is stale ⬆ LOW
+### ✅ [DONE] DEAD-12: Level-loader compatibility guard is stale ⬆ LOW
 **Origin:** 2. Dead Code & Unused References
 **Files:** Ownership: Track A/D (Tickets: D-03)
 - `src/game/level-loader.js` (~L24)
@@ -131,7 +131,7 @@ onRestart: () => {
 
 ---
 
-### DEAD-13: README documents `sbom.json` as tracked content ⬆ LOW
+### ✅ [DONE] DEAD-13: README documents `sbom.json` as tracked content ⬆ LOW
 **Origin:** 2. Dead Code & Unused References
 **Files:** Ownership: Track A (Tickets: A-01)
 - `README.md` (~L200)
@@ -140,7 +140,7 @@ onRestart: () => {
 
 ---
 
-### DEAD-14: Vitest coverage exclude is redundant ⬆ LOW
+### ✅ [DONE] DEAD-14: Vitest coverage exclude is redundant ⬆ LOW
 **Origin:** 2. Dead Code & Unused References
 **Files:** Ownership: Track A (Tickets: A-04)
 - `vitest.config.js` (~L8)
@@ -149,7 +149,7 @@ onRestart: () => {
 
 ---
 
-### DEAD-20: `trusted-types.js` excluded but untested ⬆ LOW
+### ✅ [DONE] DEAD-20: `trusted-types.js` excluded but untested ⬆ LOW
 **Origin:** 2. Dead Code & Unused References
 **Files:** Ownership: Track A (Tickets: A-01)
 - `vite.config.js` (~L13)
@@ -158,7 +158,7 @@ onRestart: () => {
 
 ---
 
-### DEAD-21: Duplicate script definition in `package.json` ⬆ LOW
+### ✅ [DONE] DEAD-21: Duplicate script definition in `package.json` ⬆ LOW
 **Origin:** 2. Dead Code & Unused References
 **Files:** Ownership: Track A (Tickets: A-01)
 - `package.json` (~L17)
@@ -167,7 +167,7 @@ onRestart: () => {
 
 ---
 
-### ARCH-02: `World.entityStore` getter exposes mutable internal store ⬆ HIGH
+### ✅ [DONE] ARCH-02: `World.entityStore` getter exposes mutable internal store ⬆ HIGH
 **Origin:** 3. Architecture, ECS Violations & Guideline Drift
 **Violated rule:** Entities must be opaque IDs; systems must use World API, not internal stores.
 **Files:** Ownership: Track A (Tickets: A-02)
@@ -180,7 +180,7 @@ onRestart: () => {
 
 ---
 
-### ARCH-06: Render intent capacity does not match entity capacity contract ⬆ MEDIUM
+### ✅ [DONE] ARCH-06: Render intent capacity does not match entity capacity contract ⬆ MEDIUM
 **Origin:** 3. Architecture, ECS Violations & Guideline Drift
 **Files:** Ownership: Track D/A (Tickets: D-04, D-07)
 - `src/ecs/resources/constants.js` (~L211)
@@ -192,7 +192,7 @@ onRestart: () => {
 
 ---
 
-### ARCH-08: Bootstrap Direct DOM Access in `onLevelLoaded` ⬆ LOW
+### ✅ [DONE] ARCH-08: Bootstrap Direct DOM Access in `onLevelLoaded` ⬆ LOW
 **Origin:** 3. Architecture, ECS Violations & Guideline Drift
 **Files:** Ownership: Track A (Tickets: A-03)
 - `src/game/bootstrap.js` (~L495)
@@ -206,7 +206,7 @@ onRestart: () => {
 
 ---
 
-### SEC-01: Forbidden-tech policy scan misses WebGL/WebGPU and inline handlers ⬆ MEDIUM
+### ✅ [DONE] SEC-01: Forbidden-tech policy scan misses WebGL/WebGPU and inline handlers ⬆ MEDIUM
 **Origin:** 4. Code Quality & Security
 **Files:** Ownership: Track A (Tickets: A-07)
 - `scripts/policy-gate/check-forbidden.mjs` (~L26)
@@ -216,7 +216,7 @@ onRestart: () => {
 
 ---
 
-### SEC-03: Policy gates can be bypassed locally ⬆ MEDIUM
+### ✅ [DONE] SEC-03: Policy gates can be bypassed locally ⬆ MEDIUM
 **Origin:** 4. Code Quality & Security
 **Files:** Ownership: Track A (Tickets: A-01)
 - `package.json` (~L30)
@@ -226,7 +226,7 @@ onRestart: () => {
 
 ---
 
-### CI-01: CI workflow runs `npm run policy` but NOT tests or coverage ⬆ BLOCKING
+### ✅ [DONE] CI-01: CI workflow runs `npm run policy` but NOT tests or coverage ⬆ BLOCKING
 **Origin:** 5. Tests & CI Gaps
 **Files:** Ownership: Track A (Tickets: A-07)
 - `.github/workflows/policy-gate.yml` (~L70)
@@ -238,7 +238,7 @@ onRestart: () => {
 
 ---
 
-### CI-02: E2E audit tests not fully implemented ⬆ BLOCKING
+### ✅ [DONE] CI-02: E2E audit tests not fully implemented ⬆ BLOCKING
 **Origin:** 5. Tests & CI Gaps
 **Files:** Ownership: Track A (Tickets: A-06)
 - `tests/e2e/audit/audit.browser.spec.js`
@@ -248,7 +248,7 @@ onRestart: () => {
 
 ---
 
-### CI-03: Missing integration tests for core gameplay and event invariants ⬆ BLOCKING
+### ✅ [DONE] CI-03: Missing integration tests for core gameplay and event invariants ⬆ BLOCKING
 **Origin:** 5. Tests & CI Gaps
 **Files:** Ownership: Track A (Tickets: A-05)
 - `tests/integration/gameplay/*.test.js`
@@ -258,7 +258,7 @@ onRestart: () => {
 
 ---
 
-### CI-04: No manual evidence artifacts collected ⬆ CRITICAL
+### ✅ [DONE] CI-04: No manual evidence artifacts collected ⬆ CRITICAL
 **Origin:** 5. Tests & CI Gaps
 **Files:** Ownership: Track A (Tickets: A-09)
 - `docs/audit-reports/manual-evidence.manifest.json` (~L15)
@@ -268,7 +268,7 @@ onRestart: () => {
 
 ---
 
-### CI-05: Performance audit thresholds are weaker than AGENTS.md criteria ⬆ HIGH
+### ✅ [DONE] CI-05: Performance audit thresholds are weaker than AGENTS.md criteria ⬆ HIGH
 **Origin:** 5. Tests & CI Gaps
 **Files:** Ownership: Track A (Tickets: A-06)
 - `tests/e2e/audit/audit-question-map.js` (~L23)
@@ -283,7 +283,7 @@ onRestart: () => {
 
 ---
 
-### CI-06: Coverage thresholds excluded from CI enforcement ⬆ HIGH
+### ✅ [DONE] CI-06: Coverage thresholds excluded from CI enforcement ⬆ HIGH
 **Origin:** 5. Tests & CI Gaps
 **Files:** Ownership: Track A (Tickets: A-07)
 - `.github/workflows/policy-gate.yml`
@@ -293,7 +293,7 @@ onRestart: () => {
 
 ---
 
-### CI-07: Missing unit tests for multiple systems and adapter entry points ⬆ HIGH
+### ✅ [DONE] CI-07: Missing unit tests for multiple systems and adapter entry points ⬆ HIGH
 **Origin:** 5. Tests & CI Gaps
 **Files:** Ownership: Track A / B / C / D (Tickets: A-08, B-06, C-04, D-05)
 - Multiple files in `src/ecs/systems/` and `src/adapters/`
@@ -303,7 +303,7 @@ onRestart: () => {
 
 ---
 
-### CI-08: P1 audit output path conflicts with A-11 phase deliverable ⬆ MEDIUM
+### ✅ [DONE] CI-08: P1 audit output path conflicts with A-11 phase deliverable ⬆ MEDIUM
 **Origin:** 5. Tests & CI Gaps
 **Files:** Ownership: Track A (Tickets: A-11)
 - `.github/prompts/code-analysis-audit.prompt.md` (~L269)
@@ -313,7 +313,7 @@ onRestart: () => {
 
 ---
 
-### CI-09: No DOM element budget / memory allocation test ⬆ MEDIUM
+### ✅ [DONE] CI-09: No DOM element budget / memory allocation test ⬆ MEDIUM
 **Origin:** 5. Tests & CI Gaps
 **Files:** Ownership: Track A/D (Tickets: A-06)
 - `tests/e2e/audit/audit.browser.spec.js`
@@ -323,7 +323,7 @@ onRestart: () => {
 
 ---
 
-### CI-11: Branch coverage threshold below project target ⬆ LOW
+### ✅ [DONE] CI-11: Branch coverage threshold below project target ⬆ LOW
 **Origin:** 5. Tests & CI Gaps
 **Files:** Ownership: Track A (Tickets: A-07)
 - `vitest.config.js` (L14-19)
@@ -344,7 +344,7 @@ thresholds: {
 
 ---
 
-### CI-12: `main.js` and `main.ecs.js` have coverage gaps ⬆ MEDIUM
+### ✅ [DONE] CI-12: `main.js` and `main.ecs.js` have coverage gaps ⬆ MEDIUM
 **Origin:** 5. Tests & CI Gaps
 **Files:** Ownership: Track A (Tickets: A-03)
 - `src/main.js`, `src/main.ecs.js`
@@ -354,7 +354,7 @@ thresholds: {
 
 ---
 
-### CI-14: Fixed `setTimeout` in Playwright test ⬆ LOW
+### ✅ [DONE] CI-14: Fixed `setTimeout` in Playwright test ⬆ LOW
 **Origin:** 5. Tests & CI Gaps
 **Files:** Ownership: Track A (Tickets: A-06)
 - `tests/e2e/audit/audit.browser.spec.js` (~L232)

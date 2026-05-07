@@ -53,8 +53,10 @@ export function createDomRenderer({ appRoot }) {
 
       if (!el) {
         // Create new element for new entity.
+        // SEC-10: prefer classList.add over className string assignment to
+        // avoid clobbering classes set by other code paths.
         el = document.createElement('div');
-        el.className = `entity kind-${kind}`;
+        el.classList.add('entity', `kind-${kind}`);
         appRoot.appendChild(el);
         elementMap.set(entityId, el);
       } else {

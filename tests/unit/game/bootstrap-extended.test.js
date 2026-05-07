@@ -1,4 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
+import { FIXED_DT_MS } from '../../../src/ecs/resources/constants.js';
+import { GAME_STATE } from '../../../src/ecs/resources/game-status.js';
 import { createBootstrap } from '../../../src/game/bootstrap.js';
 
 describe('Bootstrap extended coverage', () => {
@@ -52,18 +54,89 @@ describe('Bootstrap extended coverage', () => {
     ll.triggerLoad(validMap);
 
     const playerHandle = world.getResource('playerEntity');
+    const positionStore = world.getResource('position');
     expect(playerHandle).not.toBeNull();
-    expect(world.entityStore.isAlive(playerHandle)).toBe(true);
+    expect(world.isEntityAlive(playerHandle)).toBe(true);
+    expect(positionStore.row[playerHandle.id]).toBe(validMap.playerSpawnRow);
+    expect(positionStore.col[playerHandle.id]).toBe(validMap.playerSpawnCol);
 
     // Call again to hit setEntityMask
-    ll.triggerLoad(validMap);
+    const movedMap = {
+      ...validMap,
+      playerSpawnRow: 2,
+      playerSpawnCol: 4,
+    };
+    ll.triggerLoad(movedMap);
     expect(world.getResource('playerEntity')).toStrictEqual(playerHandle);
+    expect(positionStore.row[playerHandle.id]).toBe(movedMap.playerSpawnRow);
+    expect(positionStore.col[playerHandle.id]).toBe(movedMap.playerSpawnCol);
 
     // Call with invalid spawn to hit clearPlayerEntity
     ll.triggerLoad({ playerSpawnRow: null });
     expect(world.getResource('playerEntity')).toBeNull();
 
     spy.mockRestore();
+  });
+
+  it('resets frame counters on restart', () => {
+    const bootstrap = createBootstrap({ now: 0 });
+    expect(bootstrap.gameFlow.setState(GAME_STATE.PLAYING)).toBe(true);
+
+    bootstrap.stepFrame(FIXED_DT_MS + 1);
+    bootstrap.stepFrame(FIXED_DT_MS * 2 + 1);
+
+    expect(bootstrap.world.frame).toBeGreaterThan(0);
+    expect(bootstrap.world.renderFrame).toBeGreaterThan(0);
+
+    const restarted = bootstrap.gameFlow.restartLevel();
+    expect(restarted).toBe(true);
+    expect(bootstrap.world.frame).toBe(0);
+    expect(bootstrap.world.renderFrame).toBe(0);
+  });
+
+  it('resets frame counters across level transitions', () => {
+    const mockMap = {
+      level: 1,
+      metadata: {
+        name: 'Test Level',
+        timerSeconds: 60,
+        maxGhosts: 1,
+        ghostSpeed: 1,
+        activeGhostTypes: ['red'],
+      },
+      dimensions: { rows: 5, columns: 5 },
+      grid: [
+        [1, 1, 1, 1, 1],
+        [1, 0, 0, 0, 1],
+        [1, 0, 5, 0, 1],
+        [1, 0, 0, 0, 1],
+        [1, 1, 1, 1, 1],
+      ],
+      spawn: {
+        player: { row: 1, col: 1 },
+        ghostHouse: { topRow: 2, bottomRow: 2, leftCol: 2, rightCol: 2 },
+        ghostSpawnPoint: { row: 2, col: 2 },
+      },
+    };
+    const bootstrap = createBootstrap({
+      now: 0,
+      loadMapForLevel: () => mockMap,
+    });
+    const world = bootstrap.world;
+    const gameFlow = world.getResource('gameFlow');
+
+    gameFlow.startGame();
+    bootstrap.stepFrame(FIXED_DT_MS);
+    bootstrap.stepFrame(FIXED_DT_MS * 2);
+
+    expect(world.frame).toBeGreaterThan(0);
+
+    // Transition to next level
+    gameFlow.setState(GAME_STATE.LEVEL_COMPLETE);
+    gameFlow.startGame();
+
+    expect(world.frame).toBe(0);
+    expect(world.renderFrame).toBe(0);
   });
 
   it('covers system registration edge cases', () => {

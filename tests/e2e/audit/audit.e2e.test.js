@@ -81,8 +81,13 @@ describe('Audit executable verification contract (non-browser checks)', () => {
       expect(question.thresholds).toEqual(SEMI_AUTOMATABLE_THRESHOLDS[auditId]);
     }
 
-    expect(SEMI_AUTOMATABLE_THRESHOLDS['AUDIT-F-17'].maxP95FrameTimeMs).toBeLessThanOrEqual(20);
-    expect(SEMI_AUTOMATABLE_THRESHOLDS['AUDIT-F-18'].minP95Fps).toBeGreaterThanOrEqual(50);
+    // Envelope check: canonical thresholds must stay within "60 FPS, no
+    // frame drops" semantics. 17.5 ms / 57 FPS sits well below the 33 ms /
+    // 30 FPS line that signals a real missed vsync, so any further weakening
+    // of these values would mask actual regressions. See audit-question-map.js
+    // for why 17.5 ms is the lowest defensible value on headless rAF.
+    expect(SEMI_AUTOMATABLE_THRESHOLDS['AUDIT-F-17'].maxP95FrameTimeMs).toBeLessThanOrEqual(17.5);
+    expect(SEMI_AUTOMATABLE_THRESHOLDS['AUDIT-F-18'].minP95Fps).toBeGreaterThanOrEqual(57);
     expect(SEMI_AUTOMATABLE_THRESHOLDS['AUDIT-B-05'].maxLongTaskMs).toBeLessThanOrEqual(50);
   });
 
