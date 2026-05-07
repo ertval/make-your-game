@@ -11,8 +11,24 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { createDomRenderer } from '../../../src/adapters/dom/renderer-dom.js';
 
 function createMockElement(_kind = 'div') {
+  const classes = new Set();
   return {
-    className: '',
+    get className() {
+      return Array.from(classes).join(' ');
+    },
+    set className(value) {
+      classes.clear();
+      for (const c of String(value).split(/\s+/).filter(Boolean)) classes.add(c);
+    },
+    classList: {
+      add: vi.fn((...names) => {
+        for (const n of names) classes.add(n);
+      }),
+      remove: vi.fn((...names) => {
+        for (const n of names) classes.delete(n);
+      }),
+      contains: (n) => classes.has(n),
+    },
     children: [],
     style: {
       transform: '',
