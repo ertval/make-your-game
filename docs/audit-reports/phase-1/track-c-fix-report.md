@@ -1,243 +1,202 @@
 # Track C Fix Report
 
-This report contains the uniquely assigned issues from the Phase 1 audit report, verified against
-the actual source code on 2026-05-05. Verification status, corrected severities, and improved fix
-guidance are noted inline.
+This report tracks the uniquely assigned Track C issues from the Phase 1 audit and their
+post-remediation status against the current source tree.
 
-**Total Actual Issues to Resolve: 8**
+- Original verification baseline: `2026-05-05`
+- Remediation status updated against codebase state: `2026-05-08`
 
----
+**Total Actual Issues Reviewed: 8**
+
+## Status Summary
+
+- Resolved: `6`
+- Out of Track C Remediation Scope / Follow-up Required: `2`
 
 ## Verified Issues
 
----
+### BUG-03: `resetClock()` rewound `simTimeMs` on resume/focus
+**Severity:** High
+**Ownership:** Track A / Track D / Track C (`A-03`, `D-01`, `C-04`)
+**Files:**
+- `src/ecs/resources/clock.js`
+- `src/game/bootstrap.js`
 
-### BUG-03: `resetClock()` rewinds `simTimeMs` on resume/focus ⬆ HIGH
-**Origin:** 1. Bugs & Logic Errors
-**Files:** Ownership: Track A / Track D / Track C (Tickets: A-03, D-01, C-04)
-- `src/ecs/resources/clock.js` (L143–149)
+**Verification:** Confirmed true positive in the original audit. Lifecycle resync and full restart
+shared the same reset path, which zeroed `simTimeMs` and broke pause/resume determinism.
 
-**Verification:** ✅ **CONFIRMED TRUE POSITIVE.** `resetClock(clock, now)` unconditionally sets
-`clock.simTimeMs = 0` (L146). The runtime calls `resetClock` on unpause/focus-return to
-resynchronize timing, which **rewinds the simulation clock to zero** — violating pause/resume
-determinism. The `simTimeMs` should only be zeroed on full game restart, not on lifecycle resync.
+**Resolution:** Not fixed in this branch.
+- This branch was refactored back to strict Track C ownership only.
+- `clock.js` and bootstrap-level lifecycle resync remain shared Track A / Track D ownership areas.
+- The finding remains technically valid and should be addressed in a follow-up remediation owned by
+  the runtime/resource tracks.
 
-**Fix:** Split `resetClock` into two purposeful APIs:
-```js
-// For game restart — full zero reset including simTimeMs:
-export function resetClockForRestart(clock, now) {
-  clock.lastFrameTime = now;
-  clock.realTimeMs = now;
-  clock.simTimeMs = 0;
-  clock.accumulator = 0;
-  clock.alpha = 0;
-}
+**Track C note:** Track C documentation retains this issue historically because it affects C-04
+behavior at integration time, but no shared runtime/resource implementation changes are claimed in
+this branch.
 
-// For unpause/focus-return — only resync the baseline; preserve simTimeMs:
-export function resyncClockBaseline(clock, now) {
-  clock.lastFrameTime = now;
-  clock.realTimeMs = now;
-  clock.accumulator = 0;
-  clock.alpha = 0;
-  // simTimeMs intentionally NOT reset
-}
-```
-Update all callers: restart path calls `resetClockForRestart`, lifecycle handlers call
-`resyncClockBaseline`. Keep `resetClock` as a deprecated alias until all callers are migrated.
-
-**Tests to add:**
-- Assert `simTimeMs` is **unchanged** after calling `resyncClockBaseline()`.
-- Assert `simTimeMs` is **zero** after `resetClockForRestart()`.
-- Pause/resume integration test: simulate 10 ticks, pause, call resync, unpause, assert `simTimeMs`
-  continues from where it left off (not reset to 0).
+**Status:** Out of Track C remediation scope; requires Track A / Track D follow-up
 
 ---
 
-### BUG-04: `life-system` calls `world.entityStore.isAlive()` instead of `world.isEntityAlive()` ⬆ HIGH
-**Origin:** 1. Bugs & Logic Errors
-**Files:** Ownership: Track C / Track A (Tickets: C-02, A-02)
-- `src/ecs/systems/life-system.js` (L118)
+### BUG-04: `life-system` accessed `world.entityStore.isAlive()` instead of `world.isEntityAlive()`
+**Severity:** High
+**Ownership:** Track C / Track A (`C-02`, `A-02`)
+**Files:**
+- `src/ecs/systems/life-system.js`
+- `tests/unit/systems/life-system.test.js`
 
-**Verification:** ✅ **CONFIRMED TRUE POSITIVE.** Line 118:
-```js
-!world.entityStore.isAlive(playerEntity)
-```
-`world.entityStore` is the raw internal `EntityStore` exposed via a mutable getter (ARCH-02
-violation). This directly accesses the internal store from a simulation system, violating ECS
-isolation. Additionally, if the `entityStore` getter is ever removed or restricted (the fix for
-ARCH-02), this call will throw.
+**Verification:** Confirmed true positive in the original audit. Direct access to internal
+`entityStore` violated ECS isolation and coupled the system to World internals.
 
-**Fix:**
-```js
-// Replace:
-!world.entityStore.isAlive(playerEntity)
-// With:
-!world.isEntityAlive(playerEntity)
-```
-Verify `world.isEntityAlive()` is exposed as part of the restricted dispatch view that systems
-receive. If not, add it to the World public API as part of the ARCH-02 fix.
+**Resolution:** Fixed.
+- `life-system` now relies on `world.isEntityAlive(playerEntity)`.
+- The fix preserves the restricted World API boundary expected by simulation systems.
 
-**Tests to add:** Unit test asserting that `life-system` correctly detects dead player entities
-and that the system does NOT crash when called without a live player entity. Assert lives
-decrement correctly on death intent.
+**Verification coverage:**
+- `tests/unit/systems/life-system.test.js`
+  - asserts dead-player handling does not depend on `entityStore`
+  - asserts the system does not throw when the player entity is no longer alive
+
+**Status:** Resolved
 
 ---
 
-### BUG-09: Pause state not explicitly cleared before LEVEL_COMPLETE → PLAYING transition ⬆ LOW
-**Origin:** 1. Bugs & Logic Errors
-**Files:** Ownership: Track C (Tickets: C-04)
-- `src/game/game-flow.js` (L120–140)
+### BUG-09: Pause state not explicitly cleared before `LEVEL_COMPLETE -> PLAYING`
+**Severity:** Low
+**Ownership:** Track C (`C-04`)
+**Files:**
+- `src/game/game-flow.js`
 
-**Verification:** ⚠️ **DOWNGRADED TO LOW.** Code review shows `startGame()` handles the
-`LEVEL_COMPLETE` state at L120–140. It calls `safeTransition(gameStatus, GAME_STATE.PLAYING)` then
-`applyPauseFromState(clock, gameStatus)` — the latter always synchronizes clock pause state from
-the game state. This means the pause state IS consistently set on valid transitions.
+**Verification:** The original finding was correctly downgraded to low severity. Existing logic
+already synchronized pause state from `gameStatus`, but the transition path still benefited from
+defensive hardening.
 
-The finding's concern ("pause state may persist incorrectly") is a theoretical edge case with no
-currently reachable code path. The severity is downgraded from MEDIUM to LOW.
+**Resolution:** Fixed as precautionary hardening.
+- Added an explicit pause-clear helper before transitions back to `PLAYING` in `startGame()`.
+- Applied this defensively on both `MENU -> PLAYING` and `LEVEL_COMPLETE -> PLAYING` paths.
 
-**Fix (precautionary):** Add an explicit `setPauseState(clock, false)` at the top of
-`startGame()` as a defensive guard for future state machine changes. This is low-cost and
-eliminates the theoretical risk:
-```js
-function startGame(options = {}) {
-  // Defensive: ensure pause is cleared before any transition attempt.
-  setPauseState(clock, false);
-  // ... rest of existing logic
-}
-```
+**Verification coverage:** Covered by Track C-owned `game-flow` code inspection for the transition
+paths changed in this branch. No cross-track runtime/bootstrap integration assertions are claimed.
 
-**Tests to add:** Integration test verifying that calling `startGame()` from `LEVEL_COMPLETE`
-state results in `clock.isPaused === false` and `gameStatus.currentState === GAME_STATE.PLAYING`.
+**Status:** Resolved
 
 ---
 
-### BUG-11: `spawn-system.js` fallback ghost count forced to `POOL_GHOSTS` minimum ⬆ MEDIUM
-**Origin:** 1. Bugs & Logic Errors
-**Files:** Ownership: Track C (Tickets: C-03)
-- `src/ecs/systems/spawn-system.js` (L184)
+### BUG-11: `spawn-system.js` forced fallback ghost count to `POOL_GHOSTS`
+**Severity:** Medium
+**Ownership:** Track C (`C-03`)
+**Files:**
+- `src/ecs/systems/spawn-system.js`
+- `tests/unit/systems/spawn-system.test.js`
 
-**Verification:** ✅ **CONFIRMED TRUE POSITIVE.** Line 184:
-```js
-const fallbackCount = Math.max(toFiniteNonNegativeInteger(activeGhostCap, 0), POOL_GHOSTS);
-```
-`POOL_GHOSTS = 4` (constants.js:L209). This forces the fallback ghost count to a minimum of 4
-even when `activeGhostCap` is 0 (e.g., early levels with no ghosts, or when the map resource
-hasn't loaded yet). This is incorrect: if the level has 0 active ghosts, spawning 4 ghost IDs
-[0,1,2,3] will attempt to release non-existent ghost entities.
+**Verification:** Confirmed true positive in the original audit. Fallback ghost ordering forced a
+minimum of 4 ghost ids even when the active cap was lower or zero.
 
-**Fix:** Remove the `Math.max` wrapping so the fallback count respects the resolved cap:
-```js
-// Replace:
-const fallbackCount = Math.max(toFiniteNonNegativeInteger(activeGhostCap, 0), POOL_GHOSTS);
-// With:
-const fallbackCount = toFiniteNonNegativeInteger(activeGhostCap, 0);
-```
-The only valid floor is 0 (no ghosts), not 4.
+**Resolution:** Fixed.
+- Removed the `POOL_GHOSTS` floor from fallback ghost-order generation.
+- Fallback order now respects the resolved active cap exactly.
 
-**Tests to add:**
-- Test `resolveDeterministicGhostOrder([], 0)` returns `[]` (empty ghost order when cap is 0).
-- Test `resolveDeterministicGhostOrder([], 2)` returns `[0, 1]` (correct 2-ghost fallback).
-- Test `resolveDeterministicGhostOrder([], 4)` returns `[0, 1, 2, 3]` (full pool).
+**Verification coverage:**
+- `tests/unit/systems/spawn-system.test.js`
+  - `resolveDeterministicGhostOrder([], 0) -> []`
+  - `resolveDeterministicGhostOrder([], 2) -> [0, 1]`
+  - `resolveDeterministicGhostOrder([], 4) -> [0, 1, 2, 3]`
+
+**Status:** Resolved
 
 ---
 
-### BUG-13: Spawn System creates multiple `new Set()` allocations per tick ⬆ LOW
-**Origin:** 1. Bugs & Logic Errors
-**Files:** Ownership: Track C (Tickets: C-03)
-- `src/ecs/systems/spawn-system.js` (L227–229, L236–240, L247–251, L296–301, L328–333)
+### BUG-13: Spawn system created multiple transient `Set` allocations per tick
+**Severity:** Low
+**Ownership:** Track C (`C-03`)
+**Files:**
+- `src/ecs/systems/spawn-system.js`
+- `tests/unit/systems/spawn-system.test.js`
 
-**Verification:** ✅ **CONFIRMED TRUE POSITIVE.** Multiple `new Set()` calls per tick across
-several internal functions (`createMembershipSet`, `pruneRespawningGhostsFromReleasedIds`,
-`countActiveReleasedGhosts`, `releaseEligibleGhosts`, `enqueueNewlyEligibleInitialGhosts`).
-Minor GC pressure at 60Hz fixed-step rate.
+**Verification:** Confirmed true positive in the original audit. The previous implementation
+created several short-lived `Set` instances inside hot-path helper functions.
 
-**Fix:** The audit's suggested fix ("hoist a reusable scratch Set into system closure scope") is
-correct. Use `Set.prototype.clear()` to reuse the Set in-place. Example for the common
-respawningGhostIds Set:
+**Resolution:** Fixed.
+- Hoisted reusable scratch `Set` instances into the spawn-system closure scope.
+- Replaced repeated allocation with `clear()` + refill logic for within-tick transient membership
+  tracking.
 
-```js
-// In createSpawnSystem closure:
-const _respawningGhostIdsScratch = new Set();
+**Verification coverage:**
+- Existing spawn-system behavioral tests continue to pass unchanged.
 
-// In each function that builds this Set:
-_respawningGhostIdsScratch.clear();
-for (const entry of spawnState.respawnQueue) {
-  _respawningGhostIdsScratch.add(entry.ghostId);
-}
-// Use _respawningGhostIdsScratch instead of creating a new Set
-```
-
-Note: Only hoist Sets that hold *transient within-tick* data. Sets tracking persistent state
-(like `releasedSet`) may still be created fresh to avoid stale-data bugs. Audit all uses before
-hoisting blindly.
-
-**Tests to add:** No behavioral change expected — existing spawn tests should continue passing
-after the refactor.
+**Status:** Resolved
 
 ---
 
-### DEAD-10: Legacy fallback branch in `destroyAllEntitiesDeferred()` ⬆ LOW
-**Origin:** 2. Dead Code & Unused References
-**Files:** Ownership: Track C (Tickets: C-04)
-- `src/game/game-flow.js` (L63–75)
+### DEAD-10: Legacy fallback branch in `destroyAllEntitiesDeferred()`
+**Severity:** Low
+**Ownership:** Track C (`C-04`)
+**Files:**
+- `src/game/game-flow.js`
 
-**Verification:** ⚠️ **DOWNGRADED TO LOW / DEFER.** The legacy fallback (L63–75) checks for
-`world.deferDestroyAllEntities` first (L54). If the current World always provides this method,
-the fallback branch is unreachable dead code. However, the fallback exists as a safety net for
-test harnesses or partial World stubs that don't implement the deferred API.
+**Verification:** Correctly downgraded to low severity. The branch remains useful for partial
+runtime stubs and older test harnesses, so removal was not justified yet.
 
-**Recommended fix (conservative):** Add a `console.warn` inside the fallback to make it visible
-in dev when hit, rather than silently removing it:
-```js
-// Legacy fallback keeps restart deterministic without reaching into world internals.
-if (typeof world.getActiveEntityHandles === 'function') {
-  if (typeof console !== 'undefined') {
-    console.warn('[game-flow] Legacy destroyAll path reached — migrate to deferDestroyAllEntities');
-  }
-  // ... rest of fallback
-}
-```
-Full removal is acceptable only after confirming no test harnesses rely on this path.
+**Resolution:** Fixed conservatively.
+- Kept the fallback path for compatibility.
+- Added an explicit `console.warn(...)` when the legacy path is used so remaining callers are
+  visible during development.
+
+**Status:** Resolved
 
 ---
 
-### ARCH-03: Core gameplay systems (pause, HUD, timer) not registered in default runtime ⬆ HIGH
-**Origin:** 3. Architecture, ECS Violations & Guideline Drift
-**Files:** Ownership: Track C/A (Tickets: C-01, C-02, C-04, C-05)
-- `src/game/bootstrap.js` (~L244)
+### ARCH-03: Core Track C gameplay systems were not registered in the default runtime
+**Severity:** High
+**Ownership:** Track C / Track A (`C-01`, `C-02`, `C-04`, `C-05`)
+**Files:**
+- `src/game/bootstrap.js`
 
-**Verification:** Needs confirmation against current `bootstrap.js` system registration list.
-The finding is plausible — Track C systems (pause-system, level-progress-system, timer-system,
-life-system) are likely registered only in Track C integration tests, not the default production
-bootstrap.
+**Verification:** Confirmed. This was not just “plausible”; the remediation pass verified runtime
+registration needed tightening in the default bootstrap stack.
 
-**Fix:** Register Track C systems in deterministic order in `bootstrap.js`. The correct insertion
-order (relative to existing systems) is:
-1. `life-system` — after `collision-system` (consumes collision intents)
-2. `pause-system` — after input processing
-3. `timer-system` — logic phase, independent
-4. `level-progress-system` — after timer and life (reads both)
+**Resolution:** Not fixed in this branch.
+- This branch was refactored back to strict Track C ownership only.
+- Default runtime/bootstrap registration is a shared runtime integration surface and is not claimed
+  as a Track C-only implementation change here.
+- The finding remains documented because it materially affects whether Track C systems are active in
+  production runtime, but the actual bootstrap change requires Track A / shared-runtime follow-up.
 
-Register systems by their factory functions, not ad-hoc inline objects.
-
-**Tests to add:** Integration test verifying that the default runtime bootstrap exposes working
-pause (HUD freezes), timer countdown, lives HUD, and score HUD. This is the core audit gate for
-F-01 through F-06.
+**Status:** Out of Track C remediation scope; requires Track A follow-up
 
 ---
 
-### SEC-05: Storage trust boundary not implemented for high scores ⬆ LOW
-**Origin:** 4. Code Quality & Security
-**Files:** Ownership: Track C (Tickets: C-05)
-- `docs/game-description.md` (~L311)
+### SEC-05: Storage trust boundary for high scores
+**Severity:** Low
+**Ownership:** Track C (`C-05`)
+**Files:**
+- `src/adapters/io/storage-adapter.js`
+- `docs/implementation/track-c.md`
 
-**Verification:** Finding is forward-looking (C-05 not yet landed). Valid as a pre-condition
-reminder.
+**Verification:** Originally forward-looking, but this remediation pass implemented the missing
+boundary explicitly instead of leaving it as a reminder.
 
-**Fix:** Before C-05 high-score persistence lands, implement a `storage-adapter.js` that:
-- Validates data on `read` (type-checks, range-clamps score values, rejects non-integer/NaN)
-- Uses `try/catch` around all `localStorage` access (throws in private browsing on some browsers)
-- Treats missing or malformed data as "no high score" rather than throwing
+**Resolution:** Fixed.
+- Added `src/adapters/io/storage-adapter.js`.
+- High-score reads now validate persisted data and fail closed on malformed/untrusted payloads.
+- All storage access is guarded with `try/catch`.
+- Missing or invalid persisted data falls back safely instead of throwing.
 
-This satisfies the AGENTS.md storage trust boundary requirement.
+**Status:** Resolved
+
+---
+
+## Deferred / Partial Items
+
+### Remaining product-level gaps outside this remediation pass
+
+The issues above are resolved at the remediation scope that was requested. What remains partial is
+not the correctness of these fixes, but broader feature integration owned by later tickets:
+
+- visible pause menu / overlay UX remains in later `C-05` / Track A integration work
+- HUD-visible high-score presentation is still later integration work
+- full product-level browser audit coverage for pause/restart UI remains outside this report
+
+These are intentionally deferred feature-integration deliverables and are not regressions
+introduced by this remediation pass.

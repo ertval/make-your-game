@@ -33,13 +33,15 @@
 import {
   GHOST_RESPAWN_MS as CANONICAL_GHOST_RESPAWN_MS,
   GHOST_SPAWN_DELAYS as CANONICAL_GHOST_SPAWN_DELAYS,
-  POOL_GHOSTS,
 } from '../resources/constants.js';
 import { GAME_STATE } from '../resources/game-status.js';
 
 const FALLBACK_GHOST_SPAWN_DELAYS = Object.freeze([0, 5000, 10000, 15000]);
 const FALLBACK_GHOST_RESPAWN_MS = 5000;
 const MAX_DELTA_MS = 1000;
+const QUEUED_SCRATCH_SET = new Set();
+const RELEASED_SCRATCH_SET = new Set();
+const RESPAWNING_SCRATCH_SET = new Set();
 
 export const DEFAULT_GAME_STATUS_RESOURCE_KEY = 'gameStatus';
 export const DEFAULT_MAP_RESOURCE_KEY = 'mapResource';
@@ -181,7 +183,7 @@ export function resolveDeterministicGhostOrder(ghostIds, activeGhostCap) {
     return normalizedIds;
   }
 
-  const fallbackCount = Math.max(toFiniteNonNegativeInteger(activeGhostCap, 0), POOL_GHOSTS);
+  const fallbackCount = toFiniteNonNegativeInteger(activeGhostCap, 0);
   const fallbackIds = [];
 
   for (let ghostId = 0; ghostId < fallbackCount; ghostId += 1) {
@@ -224,8 +226,14 @@ function getDeltaMs(context) {
   return Math.min(deltaMs, MAX_DELTA_MS);
 }
 
-function createMembershipSet(ids) {
-  return new Set(cloneDeterministicIdList(ids));
+function refillMembershipSet(targetSet, ids) {
+  targetSet.clear();
+
+  for (const ghostId of cloneDeterministicIdList(ids)) {
+    targetSet.add(ghostId);
+  }
+
+  return targetSet;
 }
 
 function pruneRespawningGhostsFromReleasedIds(spawnState) {
@@ -233,7 +241,8 @@ function pruneRespawningGhostsFromReleasedIds(spawnState) {
     return;
   }
 
-  const respawningGhostIds = new Set();
+  const respawningGhostIds = RESPAWNING_SCRATCH_SET;
+  respawningGhostIds.clear();
 
   for (const entry of spawnState.respawnQueue) {
     respawningGhostIds.add(entry.ghostId);
@@ -245,7 +254,8 @@ function pruneRespawningGhostsFromReleasedIds(spawnState) {
 }
 
 function countActiveReleasedGhosts(spawnState) {
-  const respawningGhostIds = new Set();
+  const respawningGhostIds = RESPAWNING_SCRATCH_SET;
+  respawningGhostIds.clear();
 
   for (const entry of spawnState.respawnQueue) {
     respawningGhostIds.add(entry.ghostId);
@@ -263,7 +273,7 @@ function countActiveReleasedGhosts(spawnState) {
 }
 
 function enqueueUniqueGhostIds(targetQueue, ghostIds, releasedSet, respawningGhostIds) {
-  const queuedSet = createMembershipSet(targetQueue);
+  const queuedSet = refillMembershipSet(QUEUED_SCRATCH_SET, targetQueue);
 
   for (const ghostId of ghostIds) {
     if (queuedSet.has(ghostId) || releasedSet.has(ghostId) || respawningGhostIds.has(ghostId)) {
@@ -293,8 +303,9 @@ function processRespawns(spawnState) {
 }
 
 function releaseEligibleGhosts(spawnState) {
-  const releasedSet = createMembershipSet(spawnState.releasedGhostIds);
-  const respawningGhostIds = new Set();
+  const releasedSet = refillMembershipSet(RELEASED_SCRATCH_SET, spawnState.releasedGhostIds);
+  const respawningGhostIds = RESPAWNING_SCRATCH_SET;
+  respawningGhostIds.clear();
 
   for (const entry of spawnState.respawnQueue) {
     respawningGhostIds.add(entry.ghostId);
@@ -325,8 +336,9 @@ function releaseEligibleGhosts(spawnState) {
 }
 
 function enqueueNewlyEligibleInitialGhosts(spawnState, ghostOrder) {
-  const releasedSet = createMembershipSet(spawnState.releasedGhostIds);
-  const respawningGhostIds = new Set();
+  const releasedSet = refillMembershipSet(RELEASED_SCRATCH_SET, spawnState.releasedGhostIds);
+  const respawningGhostIds = RESPAWNING_SCRATCH_SET;
+  respawningGhostIds.clear();
 
   for (const entry of spawnState.respawnQueue) {
     respawningGhostIds.add(entry.ghostId);
@@ -418,8 +430,8 @@ export function createSpawnSystem(options = {}) {
         enqueueUniqueGhostIds(
           spawnState.queuedGhostIds,
           respawnReadyIds,
-          createMembershipSet(spawnState.releasedGhostIds),
-          new Set(),
+          refillMembershipSet(RELEASED_SCRATCH_SET, spawnState.releasedGhostIds),
+          RESPAWNING_SCRATCH_SET,
         );
       }
 

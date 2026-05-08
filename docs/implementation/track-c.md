@@ -82,7 +82,9 @@ Source plan: `docs/implementation/implementation-plan.md` (Section 3)
 **Blocks**: A-05, A-06, A-08, C-05
 **READY_FOR_MAIN**: NO
 
-C-04 is complete at ECS system layer only. Runtime wiring, visible pause UI, restart/reset behavior, and level-flow/loader integration are handled in later tickets (`C-05+` / Track A integration).
+C-04 is complete at ECS system layer only. Visible pause UI, restart UX, default runtime wiring,
+and full level-flow/loader UI integration remain later-ticket work (`C-05+` / Track A
+integration).
 
 **C-04 Status**
 - Scope: ECS system-layer only
@@ -100,13 +102,17 @@ Runtime integration (`bootstrap`, UI, level loader, visible pause menu) is out o
 - [x] Implements ECS system-layer logic for pause and level progression.
 - [x] Implemented in this PR: `pause-input-system`, `pause-system`, and `level-progress-system`.
 - [x] System-layer FSM intents: `PLAYING ↔ PAUSED` and `PLAYING → LEVEL_COMPLETE`.
-- [x] C-04 is limited to ECS resources and state transitions. It does not claim full runtime pause UX, visible pause menu behavior, or default bootstrap wiring.
+- [x] C-04 remains limited to ECS resources and state transitions. Default runtime registration/bootstrap wiring remains out of scope for this track-owned implementation slice.
 - [x] C-04 does NOT apply level-clear scoring. It only transitions `PLAYING → LEVEL_COMPLETE`. Score integration is handled separately.
 - [x] Pause Continue intent: `PAUSED → PLAYING` transition is implemented at the ECS resource layer only.
 - [x] Pause Restart intent: `pause-system` accepts resource-layer restart intent, but visible restart UX and full runtime reset/reload behavior remain deferred.
 - [x] Verification gate: focused unit tests cover `pause-input-system`, `pause-system`, and `level-progress-system` system-layer behavior.
 
-C-04 is system-layer complete only. Runtime integration, HUD, overlays, visible pause UI, and full restart/player-facing behavior are implemented in later tickets. `AUDIT-F-07` through `AUDIT-F-10` remain PARTIAL for C-04 because this ticket does not include default runtime registration/bootstrap wiring, visible pause menu/overlays, restart reset/reload behavior, level-flow/level-loader runtime advancement, or browser rAF/performance/manual evidence.
+C-04 is system-layer complete only. Runtime integration, HUD, overlays, visible pause UI, and full
+restart/player-facing behavior are implemented in later tickets. `AUDIT-F-07` through
+`AUDIT-F-10` remain PARTIAL for C-04 because this ticket does not include default runtime
+registration/bootstrap wiring, visible pause menu/overlays, restart reset/reload behavior,
+level-flow/level-loader runtime advancement, or browser rAF/performance/manual evidence.
 
 ---
 
@@ -134,7 +140,7 @@ C-04 is system-layer complete only. Runtime integration, HUD, overlays, visible 
 - [ ] Implement keyboard focus transfer: Arrow keys for menu navigation, Enter for confirm. Focus enters overlay on open, restores to gameplay on close.
 - [ ] GAP-02: Ensure `hud-adapter.js` handles both current level score and cumulative score accurately.
 - [ ] GAP-03: Focus enters overlays on open and restores to the canvas/viewport upon close for accessibility/keyboard invariants.
-- [ ] Implement `adapters/io/storage-adapter.js`: High score saving/reading from `localStorage` with untrusted data validation on read.
+- [x] Implement `adapters/io/storage-adapter.js`: High score saving/reading from `localStorage` with untrusted data validation on read.
 - [ ] Verification gate: adapter tests confirm HUD metrics update correctly via safe sinks; e2e tests confirm keyboard-only navigation across all screens.
 
 ---
