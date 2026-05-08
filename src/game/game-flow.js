@@ -26,6 +26,10 @@ function applyPauseFromState(clock, gameStatus) {
   setPauseState(clock, shouldFreezeSimulation(gameStatus.currentState));
 }
 
+function clearPauseState(clock) {
+  setPauseState(clock, false);
+}
+
 function safeTransition(gameStatus, nextState) {
   if (!canTransition(gameStatus, nextState)) {
     return false;
@@ -61,6 +65,9 @@ export function createGameFlow({ gameStatus, clock, levelLoader, world, onRestar
 
     // Legacy fallback keeps restart deterministic without reaching into world internals.
     if (typeof world.getActiveEntityHandles === 'function') {
+      console.warn(
+        'Using legacy destroyAllEntities fallback. Migrate runtime harnesses to world.deferDestroyAllEntities().',
+      );
       const handles = world.getActiveEntityHandles();
       for (const handle of handles) {
         if (typeof world.deferDestroyEntity === 'function') {
@@ -108,6 +115,9 @@ export function createGameFlow({ gameStatus, clock, levelLoader, world, onRestar
         return false;
       }
 
+      // Clear pause intent before the PLAYING transition so stale paused state
+      // cannot leak across future state-machine changes.
+      clearPauseState(clock);
       if (!safeTransition(gameStatus, GAME_STATE.PLAYING)) {
         applyPauseFromState(clock, gameStatus);
         return false;
@@ -144,6 +154,9 @@ export function createGameFlow({ gameStatus, clock, levelLoader, world, onRestar
         }
       }
 
+      // Level completion should resume into active simulation with a clean
+      // pause flag even if the caller reached this path from a paused overlay.
+      clearPauseState(clock);
       const movedToPlaying = safeTransition(gameStatus, GAME_STATE.PLAYING);
       applyPauseFromState(clock, gameStatus);
       return movedToPlaying;

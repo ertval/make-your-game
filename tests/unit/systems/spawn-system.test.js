@@ -132,6 +132,11 @@ describe('spawn-system', () => {
     expect(getSpawnState(world).activeGhostCap).toBe(4);
   });
 
+  it('fallback ghost order respects the active cap instead of forcing POOL_GHOSTS', () => {
+    expect(resolveDeterministicGhostOrder([], 2)).toEqual([0, 1]);
+    expect(resolveDeterministicGhostOrder([], 0)).toEqual([]);
+  });
+
   it('releases ghosts in deterministic FIFO order when slots free', () => {
     const { spawnSystem, world } = createSpawnHarness({
       maxGhosts: 2,
@@ -348,7 +353,7 @@ describe('spawn-system', () => {
   });
 
   it('falls back to generated ghost ids when the provided order has no finite entries', () => {
-    expect(resolveDeterministicGhostOrder(['bad'], 2)).toEqual([0, 1, 2, 3]);
+    expect(resolveDeterministicGhostOrder(['bad'], 2)).toEqual([0, 1]);
   });
 
   it('does not advance elapsedMs for invalid dtMs', () => {

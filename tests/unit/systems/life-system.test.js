@@ -193,6 +193,33 @@ describe('life-system', () => {
     expect(world.getResource('respawnIntent')).toBe(false);
   });
 
+  it('uses world.isEntityAlive instead of depending on internal entityStore access', () => {
+    const { world, playerEntity } = setupRespawnHarness();
+    const lifeSystem = createLifeSystem();
+    const isEntityAliveSpy = world.isEntityAlive.bind(world);
+
+    world.entityStore = {
+      isAlive() {
+        throw new Error('life-system should not touch entityStore internals');
+      },
+    };
+    world.isEntityAlive = (...args) => isEntityAliveSpy(...args);
+    world.destroyEntity(playerEntity);
+
+    world.setResource('clock', createClock(0));
+    world.setResource('gameStatus', createGameStatus(GAME_STATE.PLAYING));
+    world.setResource('collisionIntents', [createPlayerDeathIntent()]);
+    world.setResource('playerLife', {
+      lives: 3,
+      isInvincible: false,
+      invincibilityRemainingMs: 0,
+    });
+
+    expect(() => updateLife(lifeSystem, world)).not.toThrow();
+    expect(world.getResource('playerLife').lives).toBe(2);
+    expect(world.getResource('respawnIntent')).toBe(true);
+  });
+
   it('clears respawnIntent on the next tick after a respawn-triggering death', () => {
     const world = new World();
     const lifeSystem = createLifeSystem();
