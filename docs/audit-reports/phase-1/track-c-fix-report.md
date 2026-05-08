@@ -43,22 +43,26 @@ this branch.
 **Severity:** High
 **Ownership:** Track C / Track A (`C-02`, `A-02`)
 **Files:**
-- `src/ecs/systems/life-system.js`
-- `tests/unit/systems/life-system.test.js`
+- `tests/unit/systems/life-system.test.js` (regression coverage added on this branch)
 
 **Verification:** Confirmed true positive in the original audit. Direct access to internal
 `entityStore` violated ECS isolation and coupled the system to World internals.
 
-**Resolution:** Fixed.
-- `life-system` now relies on `world.isEntityAlive(playerEntity)`.
-- The fix preserves the restricted World API boundary expected by simulation systems.
+**Resolution:** Already resolved upstream on `main`; this branch adds regression coverage.
+- The source fix landed on `main` in commit `e850cf3` ("refactor: encapsulate entity lifecycle
+  checks within World..."); `src/ecs/systems/life-system.js` is not modified by this branch.
+- `life-system` already relies on `world.isEntityAlive(playerEntity)` in `main`, preserving the
+  restricted World API boundary expected by simulation systems.
+- This branch pins that behavior with explicit regression tests so a future regression that
+  reintroduces `entityStore` access fails fast.
 
 **Verification coverage:**
 - `tests/unit/systems/life-system.test.js`
-  - asserts dead-player handling does not depend on `entityStore`
+  - asserts dead-player handling does not depend on `entityStore` (uses a throwing stub on
+    `entityStore.isAlive` to prove the system never calls it)
   - asserts the system does not throw when the player entity is no longer alive
 
-**Status:** Resolved
+**Status:** Resolved (regression-tested on this branch; source fix pre-existed on `main`)
 
 ---
 

@@ -68,7 +68,7 @@ Source plan: `docs/implementation/implementation-plan.md` (Section 3)
 - [x] Enforce per-level active ghost caps from `mapResource.maxGhosts` with deterministic FIFO release order when a slot opens.
 - [x] Death-return respawn is `5000ms`, with respawned ghosts re-entering the FIFO queue and still respecting the active cap.
 - [x] The spawn system owns a dedicated `ghostSpawnState` world resource with `elapsedMs`, `releasedGhostIds`, `queuedGhostIds`, `respawnQueue`, and `activeGhostCap`.
-- [x] Deterministic ghost order comes from a `ghostIds` resource when present, otherwise falls back to `[0..POOL_GHOSTS-1]`.
+- [x] Deterministic ghost order comes from a `ghostIds` resource when present; otherwise falls back to `[0..activeGhostCap-1]` (the resolved per-level cap), so under-cap maps no longer over-spawn during fallback.
 - [x] Spawn-state updates are resource-only for now; direct ghost-entity mutation remains deferred, so C-03 stays isolated from collision, audio, UI, and bootstrap integration.
 - [x] Verification gate: unit tests validate stagger timing, FIFO/cap behavior, respawn delay, and duplicate protection.
 

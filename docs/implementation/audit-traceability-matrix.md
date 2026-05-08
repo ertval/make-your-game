@@ -1,5 +1,5 @@
 # Audit Traceability Matrix
-<!-- Last modified: 2026-05-06 -->
+<!-- Last modified: 2026-05-09 -->
 
 This document is the single source of truth for requirement-to-audit-to-ticket-to-test coverage.
 
@@ -52,7 +52,7 @@ This document is the single source of truth for requirement-to-audit-to-ticket-t
 | REQ-02 | Use `requestAnimationFrame` correctly | A-03, A-06 | AUDIT-F-02, AUDIT-F-10 | `tests/e2e/audit/audit.e2e.test.js` | Mapped, Planned, Executable |
 | REQ-03 | Pause menu contains Continue and Restart | C-04, C-05, A-06 | AUDIT-F-07, AUDIT-F-08, AUDIT-F-09 | `tests/e2e/audit/audit.e2e.test.js` | Mapped, Planned, Executable |
 | REQ-04 | HUD shows countdown/timer | C-02, C-05, A-06 | AUDIT-F-14 | `tests/unit/systems/timer-system.test.js` | Mapped, Covered, Executable (system logic only — HUD coverage pending C-05) |
-| REQ-05 | HUD shows score and score increments | C-01, C-05, A-06 | AUDIT-F-15 | `tests/e2e/audit/audit.e2e.test.js` + `tests/unit/systems/scoring-system.test.js` | Mapped, Planned, Pending (`C-01` covers deterministic scoring logic at the system-test level; HUD-visible runtime increments remain deferred to `C-05` / `A-06`) |
+| REQ-05 | HUD shows score and score increments | C-01, C-05, A-06 | AUDIT-F-15 | `tests/e2e/audit/audit.e2e.test.js` + `tests/unit/systems/scoring-system.test.js` + `src/adapters/io/storage-adapter.js` + `tests/unit/adapters/storage-adapter.test.js` (high-score persistence with untrusted-data validation; SEC-05 trust boundary) | Mapped, Planned, Pending (`C-01` covers deterministic scoring logic at the system-test level; high-score persistence/SEC-05 trust boundary covered by `C-05` storage adapter; HUD-visible runtime increments remain deferred to `C-05` / `A-06`) |
 | REQ-06 | HUD shows lives and lives decrement | C-02, C-05, A-06 | AUDIT-F-16 | `tests/unit/systems/life-system.test.js` | Mapped, Covered, Executable (system logic only — HUD coverage pending C-05) |
 | REQ-07 | Keyboard-only control path | B-02, C-05, A-06 | AUDIT-F-11, AUDIT-F-12 | `tests/e2e/audit/audit.browser.spec.js` (runtime keyboard checks) + adapter focus tests | Mapped, Covered, Executable (browser runtime check exercises arrow keydown advancing the player sprite) |
 | REQ-08 | Hold-to-move without key spamming | B-02, B-03, A-06 | AUDIT-F-12 | `tests/e2e/audit/audit.browser.spec.js` (sustained-hold runtime check) + input adapter tests | Mapped, Covered, Executable (browser runtime check holds a key across multiple frames and asserts continuous transform updates) |
