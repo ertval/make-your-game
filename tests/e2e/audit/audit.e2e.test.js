@@ -81,13 +81,12 @@ describe('Audit executable verification contract (non-browser checks)', () => {
       expect(question.thresholds).toEqual(SEMI_AUTOMATABLE_THRESHOLDS[auditId]);
     }
 
-    // Envelope check: canonical thresholds must stay within "60 FPS, no
-    // frame drops" semantics. 17.5 ms / 57 FPS sits well below the 33 ms /
-    // 30 FPS line that signals a real missed vsync, so any further weakening
-    // of these values would mask actual regressions. See audit-question-map.js
-    // for why 17.5 ms is the lowest defensible value on headless rAF.
-    expect(SEMI_AUTOMATABLE_THRESHOLDS['AUDIT-F-17'].maxP95FrameTimeMs).toBeLessThanOrEqual(17.5);
-    expect(SEMI_AUTOMATABLE_THRESHOLDS['AUDIT-F-18'].minP95Fps).toBeGreaterThanOrEqual(57);
+    // Envelope check: canonical thresholds must stay at AGENTS.md targets.
+    // These are the strict canonical baseline; CI_TOLERANCE_FACTOR in
+    // audit.browser.spec.js applies environment-specific relaxation.
+    // Any deviation from 16.7 ms / 60 FPS must be documented with rationale.
+    expect(SEMI_AUTOMATABLE_THRESHOLDS['AUDIT-F-17'].maxP95FrameTimeMs).toBeLessThanOrEqual(16.7);
+    expect(SEMI_AUTOMATABLE_THRESHOLDS['AUDIT-F-18'].minP95Fps).toBeGreaterThanOrEqual(60);
     expect(SEMI_AUTOMATABLE_THRESHOLDS['AUDIT-B-05'].maxLongTaskMs).toBeLessThanOrEqual(50);
   });
 
@@ -113,9 +112,11 @@ describe('Audit executable verification contract (non-browser checks)', () => {
   });
 
   it('enforces build-config gates for forbidden frameworks and SVG asset pipeline', () => {
-    // These are static-config gates: dependency manifest and asset-tree shape.
-    // Runtime DOM and HUD coverage live in audit.browser.spec.js so the
-    // assertion observes the rendered application instead of source bytes.
+    // STATIC CONFIG GATES — intentional, not fragile string-matching.
+    // These verify dependency manifest and asset-tree shape invariants that
+    // cannot be tested through runtime DOM observation. Runtime equivalents
+    // exist in audit.browser.spec.js (Playwright) for interactive coverage.
+    // See CI-13 in A-11-report.md for the rationale.
     const packageJson = readJson(path.resolve(PROJECT_ROOT, 'package.json'));
     const allDependencies = {
       ...(packageJson.dependencies || {}),

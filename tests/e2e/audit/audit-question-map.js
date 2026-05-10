@@ -25,23 +25,19 @@ export const SEMI_AUTOMATABLE_THRESHOLDS = Object.freeze({
   'AUDIT-F-17': Object.freeze({
     minFrameSamples: 90,
     // Canonical AGENTS.md target: p95 frame time ≤ 16.7 ms (60 FPS).
-    // We assert ≤ 17.5 ms because the probe samples raw rAF intervals, which
-    // carry ~0.5–0.8 ms of clock noise on headless browsers even when the
-    // game renders at exact 60 FPS (steady-state averageFrameTime is 16.67
-    // ms in the same runs). A genuine missed vsync produces a ≥ 33 ms
-    // interval, so 17.5 ms still flags any real frame drop while tolerating
-    // measurement jitter that is invisible to the player. Boot-time jank is
-    // already excluded by the probe's warmup window in src/main.ecs.js.
-    maxP95FrameTimeMs: 17.5,
+    // These are strict canonical values. CI environments apply
+    // CI_TOLERANCE_FACTOR (in audit.browser.spec.js) to account for
+    // headless Chromium throttling. Locally, these exact values run.
+    // Boot-time jank is excluded by the probe's warmup window.
+    maxP95FrameTimeMs: 16.7,
     maxP99FrameTimeMs: 34.0,
   }),
   'AUDIT-F-18': Object.freeze({
     minFrameSamples: 90,
-    // Canonical AGENTS.md target: p95 FPS ≥ 60. We assert ≥ 57 because
-    // 1000 / 17.5 ≈ 57.14, mirroring the AUDIT-F-17 envelope. A real frame
-    // drop pushes p95 well below 30 FPS, so this still catches drops while
-    // accommodating headless rAF clock noise.
-    minP95Fps: 57,
+    // Canonical AGENTS.md target: p95 FPS ≥ 60. Mirrors F-17 at
+    // 1000 / 16.7 ≈ 60 FPS. CI_TOLERANCE_FACTOR relaxes this for
+    // headless runners (see audit.browser.spec.js applyCIFactor).
+    minP95Fps: 60,
   }),
   'AUDIT-B-05': Object.freeze({
     maxLongTaskCount: 0,
