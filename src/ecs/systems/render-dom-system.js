@@ -112,6 +112,10 @@ export function createRenderDomSystem(options = {}) {
         return;
       }
 
+      if (context.world.frame === 0) {
+        entityElementMap.clear();
+      }
+
       const intentCount = buffer._count;
       currentFrameEntityIds.clear();
 

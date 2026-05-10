@@ -71,7 +71,7 @@ import { createRenderCollectSystem } from '../ecs/systems/render-collect-system.
 import { createRenderDomSystem } from '../ecs/systems/render-dom-system.js';
 import { createDefaultScoreState, createScoringSystem } from '../ecs/systems/scoring-system.js';
 import { createScreensSystem } from '../ecs/systems/screens-system.js';
-import { createSpawnSystem } from '../ecs/systems/spawn-system.js';
+import { createInitialSpawnState, createSpawnSystem } from '../ecs/systems/spawn-system.js';
 import { createTimerSystem } from '../ecs/systems/timer-system.js';
 import { DEFAULT_PHASE_ORDER, World } from '../ecs/world/world.js';
 import { isDevelopment } from '../shared/env.js';
@@ -598,8 +598,14 @@ export function createBootstrap(options = {}) {
       world.setResource('scoreState', createDefaultScoreState());
       world.setResource('levelTimer', { remainingSeconds: 0, activeLevel: -1 });
       world.setResource('playerLife', { lives: 3, isInvincible: false, invincibilityRemainingMs: 0 });
+      world.setResource('ghostSpawnState', createInitialSpawnState());
+      world.setResource('collisionIntents', []);
+      world.setResource('deadGhostIds', []);
+      world.setResource('pauseIntent', { restart: false, toggle: false });
 
       // D-09: Reset sprite pool so old sprites are returned to idle state.
+      // This combined with render-dom-system's frame-0 map clear ensures
+      // that sprites are correctly re-acquired for new entities.
       const spritePool = world.getResource('spritePool');
       if (spritePool && typeof spritePool.reset === 'function') {
         spritePool.reset();
@@ -630,8 +636,10 @@ export function createBootstrap(options = {}) {
   world.setResource('scoreState', createDefaultScoreState());
   world.setResource('levelTimer', { remainingSeconds: 0, activeLevel: -1 });
   world.setResource('playerLife', { lives: 3, isInvincible: false, invincibilityRemainingMs: 0 });
+  world.setResource('ghostSpawnState', createInitialSpawnState());
   world.setResource('collisionIntents', []); // B-04 requirement
   world.setResource('pauseIntent', { restart: false, toggle: false });
+  world.setResource('deadGhostIds', []);
   world.setResource('levelFlow', {});
   world.setResource(options.hudElementsResourceKey || 'hudElements', options.hudElements || null);
 
