@@ -276,7 +276,7 @@ function createDefaultSystemsByPhase(options = {}) {
   });
 
   return {
-    input: [inputSystem, createPauseInputSystem()],
+    meta: [inputSystem, createPauseInputSystem(), createPauseSystem()],
     physics: [playerMoveSystem],
     render: [
       createHudSystem({ hudElementsResourceKey: options.hudElementsResourceKey }),
@@ -290,7 +290,6 @@ function createDefaultSystemsByPhase(options = {}) {
         mapResourceKey,
         positionResourceKey,
       }),
-      createPauseSystem(),
       createTimerSystem(),
       createScoringSystem(),
       createLifeSystem(),
@@ -597,7 +596,11 @@ export function createBootstrap(options = {}) {
       // C-05: Reset gameplay stats so a new game/restart doesn't leak old data.
       world.setResource('scoreState', createDefaultScoreState());
       world.setResource('levelTimer', { remainingSeconds: 0, activeLevel: -1 });
-      world.setResource('playerLife', { lives: 3, isInvincible: false, invincibilityRemainingMs: 0 });
+      world.setResource('playerLife', {
+        lives: 3,
+        isInvincible: false,
+        invincibilityRemainingMs: 0,
+      });
       world.setResource('ghostSpawnState', createInitialSpawnState());
       world.setResource('collisionIntents', []);
       world.setResource('deadGhostIds', []);
@@ -659,6 +662,12 @@ export function createBootstrap(options = {}) {
     { fixedDtMs = FIXED_DT_MS, maxStepsPerFrame = MAX_STEPS_PER_FRAME } = {},
   ) {
     const timestamp = toFiniteTimestamp(frameNowMs);
+    world.runMeta({
+      alpha: clock.alpha,
+      dtMs: fixedDtMs,
+      isPaused: clock.isPaused,
+      simTimeMs: clock.simTimeMs,
+    });
     const steps = tickClock(clock, timestamp, maxStepsPerFrame, fixedDtMs);
 
     for (let stepIndex = 0; stepIndex < steps; stepIndex += 1) {

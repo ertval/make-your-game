@@ -112,7 +112,7 @@ export function createRenderDomSystem(options = {}) {
         return;
       }
 
-      if (context.world.frame === 0) {
+      if (context.world.renderFrame === 0) {
         entityElementMap.clear();
       }
 

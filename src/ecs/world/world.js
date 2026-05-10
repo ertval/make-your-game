@@ -13,7 +13,7 @@
 import { EntityStore } from './entity-store.js';
 import { QueryIndex } from './query.js';
 
-export const DEFAULT_PHASE_ORDER = ['input', 'physics', 'logic', 'render'];
+export const DEFAULT_PHASE_ORDER = ['meta', 'input', 'physics', 'logic', 'render'];
 
 const FULL_RESOURCE_ACCESS = '*';
 const RENDER_PHASE = 'render';
@@ -381,7 +381,7 @@ export class World {
 
     try {
       for (const phase of this.#phaseOrder) {
-        if (phase === RENDER_PHASE) {
+        if (phase === RENDER_PHASE || phase === 'meta') {
           continue;
         }
 
@@ -448,5 +448,42 @@ export class World {
     }
 
     this.renderFrame += 1;
+  }
+
+  runMeta(metaContext = {}) {
+    const metaEntries = this.#systemsByPhase.get('meta') || [];
+
+    if (metaEntries.length === 0) {
+      return;
+    }
+
+    const baseContext = {
+      ...metaContext,
+      frame: this.frame,
+      renderFrame: this.renderFrame,
+      world: this,
+    };
+
+    this.#isDispatching = true;
+
+    try {
+      for (const entry of metaEntries) {
+        if (this.#isSystemQuarantined(entry, this.frame)) {
+          continue;
+        }
+
+        try {
+          entry.system.update({
+            ...baseContext,
+            resources: entry.resourceApi,
+            world: entry.worldView,
+          });
+        } catch (error) {
+          this.#recordSystemFailure(entry, 'meta', this.frame, error);
+        }
+      }
+    } finally {
+      this.#isDispatching = false;
+    }
   }
 }

@@ -7,8 +7,8 @@
  */
 
 import { describe, expect, it, vi } from 'vitest';
-import { createBootstrap } from '../../../src/game/bootstrap.js';
 import { createMapResource } from '../../../src/ecs/resources/map-resource.js';
+import { createBootstrap } from '../../../src/game/bootstrap.js';
 
 function createTestMap() {
   return createMapResource({
@@ -47,7 +47,7 @@ describe('Game Restart Flow Integration', () => {
 
     // Start game and transition to PLAYING
     bootstrap.gameFlow.startGame({ levelIndex: 0 });
-    
+
     // 1. Mutate resources to simulate gameplay progress
     const scoreState = bootstrap.world.getResource('scoreState');
     scoreState.totalPoints = 5000;
@@ -100,7 +100,7 @@ describe('Game Restart Flow Integration', () => {
     }
 
     bootstrap.gameFlow.startGame({ levelIndex: 0 });
-    
+
     // Simulate one frame of rendering to fill the entityElementMap
     bootstrap.stepFrame(16);
 

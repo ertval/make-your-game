@@ -376,7 +376,7 @@ describe('game loop and runtime', () => {
       now: 0,
     });
 
-    expect(bootstrap.world.systemsByPhase.get('input').map((entry) => entry.system.name)).toContain(
+    expect(bootstrap.world.systemsByPhase.get('meta').map((entry) => entry.system.name)).toContain(
       'input-system',
     );
     expect(
