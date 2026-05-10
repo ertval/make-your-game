@@ -1,6 +1,10 @@
 /*
  * C-02 player life and respawn protection system.
  *
+ * Cross-track note: This file is owned by Track C but was modified by Track A
+ * (ekaramet/bugfix-P1-track-A) — the ARCH-02 entity-store refactor required
+ * changes to the respawn API call sites. Bugfix-mode policy permits this.
+ *
  * This module implements a pure ECS logic system that manages player lives,
  * death consumption, temporary invincibility, explicit respawn signaling,
  * and terminal game-over transitions entirely through world resources. It
@@ -115,7 +119,7 @@ function respawnPlayerEntity(world, resources, playerLife) {
     !mapResource ||
     !Number.isFinite(mapResource.playerSpawnRow) ||
     !Number.isFinite(mapResource.playerSpawnCol) ||
-    !world.entityStore.isAlive(playerEntity)
+    !world.isEntityAlive(playerEntity)
   ) {
     return;
   }

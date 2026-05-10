@@ -183,7 +183,7 @@ After all 5 subagents return their findings, you (the orchestrator) MUST:
 
 ## Output Report Format (Mandatory)
 
-Save the report to: `docs/audit-reports/audit-report-<PHASE>-<DATE>.md`
+Save the report to: `docs/audit-reports/phase-<PHASE>/audit-report-<DATE>.md`
 
 Use this exact markdown structure:
 
@@ -326,4 +326,4 @@ Before finalizing, verify the report meets these quality criteria:
 - [ ] Fix order is prioritized: Blocking → Critical → High → Medium → Low
 - [ ] Executive summary counts match the actual findings in the report
 - [ ] All 5 analysis domains have at least one section in the report (even if "No issues found")
-- [ ] Report is saved to the correct path: `docs/audit-reports/audit-report-<PHASE>-<DATE>.md`
+- [ ] Report is saved to the correct path: `docs/audit-reports/phase-<PHASE>/audit-report-<DATE>.md`

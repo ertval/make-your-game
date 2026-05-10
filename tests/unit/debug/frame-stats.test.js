@@ -30,5 +30,18 @@ describe('frame-stats helpers', () => {
 
   it('returns zero for empty samples', () => {
     expect(percentileFromSorted([], 95)).toBe(0);
+    expect(percentileFromSorted(null, 95)).toBe(0);
+  });
+
+  it('covers missing branches in toSortedNumericArray', () => {
+    // 13-16: toSortedNumericArray with missing values or count
+    expect(toSortedNumericArray(null)).toEqual([]);
+    expect(toSortedNumericArray([1, 2], NaN)).toEqual([]);
+  });
+
+  it('covers missing branches in percentileFromSorted', () => {
+    // 34: invalid percentileValue
+    const sorted = [10, 20];
+    expect(percentileFromSorted(sorted, 'not a number')).toBe(10);
   });
 });

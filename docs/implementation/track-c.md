@@ -68,7 +68,7 @@ Source plan: `docs/implementation/implementation-plan.md` (Section 3)
 - [x] Enforce per-level active ghost caps from `mapResource.maxGhosts` with deterministic FIFO release order when a slot opens.
 - [x] Death-return respawn is `5000ms`, with respawned ghosts re-entering the FIFO queue and still respecting the active cap.
 - [x] The spawn system owns a dedicated `ghostSpawnState` world resource with `elapsedMs`, `releasedGhostIds`, `queuedGhostIds`, `respawnQueue`, and `activeGhostCap`.
-- [x] Deterministic ghost order comes from a `ghostIds` resource when present, otherwise falls back to `[0..POOL_GHOSTS-1]`.
+- [x] Deterministic ghost order comes from a `ghostIds` resource when present; otherwise falls back to `[0..activeGhostCap-1]` (the resolved per-level cap), so under-cap maps no longer over-spawn during fallback.
 - [x] Spawn-state updates are resource-only for now; direct ghost-entity mutation remains deferred, so C-03 stays isolated from collision, audio, UI, and bootstrap integration.
 - [x] Verification gate: unit tests validate stagger timing, FIFO/cap behavior, respawn delay, and duplicate protection.
 
@@ -82,7 +82,9 @@ Source plan: `docs/implementation/implementation-plan.md` (Section 3)
 **Blocks**: A-05, A-06, A-08, C-05
 **READY_FOR_MAIN**: NO
 
-C-04 is complete at ECS system layer only. Runtime wiring, visible pause UI, restart/reset behavior, and level-flow/loader integration are handled in later tickets (`C-05+` / Track A integration).
+C-04 is complete at ECS system layer only. Visible pause UI, restart UX, default runtime wiring,
+and full level-flow/loader UI integration remain later-ticket work (`C-05+` / Track A
+integration).
 
 **C-04 Status**
 - Scope: ECS system-layer only
@@ -100,13 +102,17 @@ Runtime integration (`bootstrap`, UI, level loader, visible pause menu) is out o
 - [x] Implements ECS system-layer logic for pause and level progression.
 - [x] Implemented in this PR: `pause-input-system`, `pause-system`, and `level-progress-system`.
 - [x] System-layer FSM intents: `PLAYING ↔ PAUSED` and `PLAYING → LEVEL_COMPLETE`.
-- [x] C-04 is limited to ECS resources and state transitions. It does not claim full runtime pause UX, visible pause menu behavior, or default bootstrap wiring.
+- [x] C-04 remains limited to ECS resources and state transitions. Default runtime registration/bootstrap wiring remains out of scope for this track-owned implementation slice.
 - [x] C-04 does NOT apply level-clear scoring. It only transitions `PLAYING → LEVEL_COMPLETE`. Score integration is handled separately.
 - [x] Pause Continue intent: `PAUSED → PLAYING` transition is implemented at the ECS resource layer only.
 - [x] Pause Restart intent: `pause-system` accepts resource-layer restart intent, but visible restart UX and full runtime reset/reload behavior remain deferred.
 - [x] Verification gate: focused unit tests cover `pause-input-system`, `pause-system`, and `level-progress-system` system-layer behavior.
 
-C-04 is system-layer complete only. Runtime integration, HUD, overlays, visible pause UI, and full restart/player-facing behavior are implemented in later tickets. `AUDIT-F-07` through `AUDIT-F-10` remain PARTIAL for C-04 because this ticket does not include default runtime registration/bootstrap wiring, visible pause menu/overlays, restart reset/reload behavior, level-flow/level-loader runtime advancement, or browser rAF/performance/manual evidence.
+C-04 is system-layer complete only. Runtime integration, HUD, overlays, visible pause UI, and full
+restart/player-facing behavior are implemented in later tickets. `AUDIT-F-07` through
+`AUDIT-F-10` remain PARTIAL for C-04 because this ticket does not include default runtime
+registration/bootstrap wiring, visible pause menu/overlays, restart reset/reload behavior,
+level-flow/level-loader runtime advancement, or browser rAF/performance/manual evidence.
 
 ---
 
@@ -116,26 +122,47 @@ C-04 is system-layer complete only. Runtime integration, HUD, overlays, visible 
 **Depends On**: `D-05` (CSS layout), `C-02` (timer/lives data), `C-04` (pause/progression states), `A-11` (audit gate, non-blocking)
 **Impacts**: Visible gameplay metrics (`AUDIT-F-14..F-16`), pause/start/restart UX (`AUDIT-F-07..F-09`)
 **Blocks**: A-05, A-06, A-08, D-11
+**READY_FOR_MAIN**: NO
+
+C-05 is SYSTEM / ADAPTER SCOPE COMPLETE ONLY. Runtime mounting, bootstrap wiring, gameplay-flow orchestration, and live product integration remain deferred to later tickets (`C-06+` / Track A integration).
 
 **Deliverables**:
 - `src/adapters/dom/hud-adapter.js` — textContent updates for lives, score, timer, bomb count, fire radius, level number
 - `src/adapters/dom/screens-adapter.js` — start screen, pause menu, level complete, game over, victory overlays
 - `src/adapters/io/storage-adapter.js` — high score localStorage with untrusted data validation
 
-- [ ] Implement `hud-adapter.js`:
+- [x] Implement `hud-adapter.js`:
   - Binds text nodes natively with `.textContent` to update: lives (heart icons), score (5-digit), timer (M:SS), bomb count, fire radius, level number.
   - Uses throttled `aria-live` updates for accessibility (not per-frame spam).
-- [ ] Implement `screens-adapter.js` with fully distinct game state screens:
+- [x] Implement `screens-adapter.js` with fully distinct game state screens:
   - **Start Screen** (`game-description.md` §9.5): Title, Start Game button, High Scores display, control instructions. `Enter` to start.
   - **Pause Menu** (`game-description.md` §10): Continue and Restart options. Arrow keys to select, `Enter` to confirm.
   - **Level Complete Screen** (`game-description.md` §8): Level stats. `Enter` for next level.
   - **Game Over Screen** (`game-description.md` §11): Final score, Play Again button.
   - **Victory Screen** (`game-description.md` §11): Final score, ghosts killed, total time, Play Again button.
-- [ ] Implement keyboard focus transfer: Arrow keys for menu navigation, Enter for confirm. Focus enters overlay on open, restores to gameplay on close.
-- [ ] GAP-02: Ensure `hud-adapter.js` handles both current level score and cumulative score accurately.
-- [ ] GAP-03: Focus enters overlays on open and restores to the canvas/viewport upon close for accessibility/keyboard invariants.
-- [ ] Implement `adapters/io/storage-adapter.js`: High score saving/reading from `localStorage` with untrusted data validation on read.
-- [ ] Verification gate: adapter tests confirm HUD metrics update correctly via safe sinks; e2e tests confirm keyboard-only navigation across all screens.
+- [x] Implement keyboard focus transfer: Arrow keys for menu navigation, Enter for confirm. Focus enters overlay on open, restores to gameplay on close.
+- [x] Implement `adapters/io/storage-adapter.js`: High score saving/reading from `localStorage` with untrusted data validation on read.
+- [x] Verification gate: adapter tests confirm HUD metrics update correctly via safe sinks; e2e harness tests confirm keyboard-only navigation across screen-overlay flows owned by C-05.
+
+C-05 is complete at the system / adapter boundary only. It does not yet mount HUD/screen DOM into the live runtime shell, register adapter resources through bootstrap, or deliver full gameplay/runtime completion in product flow.
+
+### Storage Trust Boundary & Validation Contract
+
+All data read from `localStorage` or `sessionStorage` MUST be treated as untrusted input.
+
+Track C enforces the following contract for storage-backed adapters:
+
+- All reads MUST go through a guarded access layer (`safeRead`).
+- Stored values MUST be parsed using `JSON.parse` inside a try/catch block.
+- Parsed values MUST be validated for basic structural correctness (non-null object, no arrays).
+- Invalid, malformed, or unexpected data MUST NOT crash the application.
+- On validation failure, a safe default value MUST be returned.
+- All validation failures MUST log a warning via `console.warn`.
+- JSON Schema (2020-12) validation will be integrated in a future step for strict contract enforcement.
+
+This ensures that storage acts as a safe, fault-tolerant boundary and cannot corrupt runtime state.
+
+This contract is implemented in `src/adapters/io/storage-adapter.js` and defines a strict trust boundary between external storage and the ECS runtime state.
 
 ---
 

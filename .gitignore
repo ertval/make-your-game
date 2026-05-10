@@ -29,6 +29,8 @@ sbom.json
 venv/
 *.py
 tools/
+# Ignore the husky internal helper directory created by `npm run prepare`
+.husky/_/
 
 # Logs and temporary files
 *.log
@@ -42,8 +44,26 @@ temp/
 changed-files.txt
 *.diff
 scratch/
+test_output.txt
 
 # CI runtime artifacts
 .policy-pr-meta.json
 .policy-runtime/
 reviews.json
+.husky/
+
+# Coding Agents
+.agents/
+.claude/
+.forge/
+.hermes/
+.junie/
+.kiro/
+.pi/
+.qoder/
+.qwen/
+.trae/
+.windsurf/
+.gemini/
+.github/
+.qwen/

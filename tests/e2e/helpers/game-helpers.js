@@ -9,6 +9,8 @@
  * then immediately freeze the clock in the SAME page.evaluate() call.
  */
 
+import { expect } from '@playwright/test';
+
 /**
  * Boot the game runtime and wait for it to be ready.
  * Waits for both __MS_GHOSTMAN_RUNTIME__ and __MS_GHOSTMAN_FRAME_PROBE__.

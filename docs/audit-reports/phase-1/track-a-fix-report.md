@@ -2,67 +2,85 @@
 
 This report contains the uniquely assigned issues from the Phase 1 audit report with full details.
 
-### BUG-01: Double Bootstrap Execution ⬆ CRITICAL
+> **Verification note (2026-05-05):** This report has been updated based on direct source inspection. False positives have been removed. Fix suggestions have been corrected where the original was inaccurate or suboptimal. See `audit-verification-notes-2026-05-05.md` for the full verification log.
+
+**Total Actual Issues to Resolve: 0**
+
+--- 
+
+## 1) Bugs & Logic Errors
+
+### ✅ [DONE] BUG-01: Double Bootstrap Execution ⬆ CRITICAL
 **Origin:** 1. Bugs & Logic Errors
 **Files:** Ownership: Track A (Tickets: A-03)
 - `src/main.js` (~L14)
-- `src/main.ecs.js` (~L513)
+- `src/main.ecs.js` (~L509-511)
 
-**Problem:** `src/main.js` imports `startBrowserApplication` and calls it, while `main.ecs.js` also auto-runs `bootstrapApplication()`. This triggers two concurrent async bootstrap calls in production.
+**Problem:** `src/main.js` imports `startBrowserApplication` and calls it. `main.ecs.js` also unconditionally auto-runs `bootstrapApplication()` at the module level via a bare browser-environment check (lines 509–511). This triggers two concurrent async bootstrap calls in any browser context.
 **Impact:** Duplicate rAF loops, duplicate input listeners, double DOM rendering, breaking performance audits.
 
-**Fix:** Remove the auto-execution guard in `main.ecs.js:513-514`. Keep startup side effects only in `src/main.js`.
+**Fix:** Remove lines 509–511 from `main.ecs.js`. The file's own header comment already states: *"It intentionally does NOT execute any side effects upon import."* Keep startup side effects only in `src/main.js`.
 
-**Tests to add:** Add a browser integration test that imports `src/main.js` and asserts only one runtime starts.
+**Tests to add:** Add a browser integration test that imports `src/main.js` and asserts only one runtime starts (e.g., verify `window.__MS_GHOSTMAN_RUNTIME__` is set exactly once).
 
 ---
 
-### BUG-02: `playerHandle` corrupted by `setEntityMask` return value ⬆ CRITICAL
+### ✅ [DONE] BUG-02: `playerHandle` corrupted by `setEntityMask` return value ⬆ CRITICAL
 **Origin:** 1. Bugs & Logic Errors
 **Files:** Ownership: Track A (Tickets: A-03)
-- `src/game/bootstrap.js` (~L370)
+- `src/game/bootstrap.js` (L370)
 
-**Problem:** `playerHandle = world.setEntityMask(...)` assigns the boolean return value of `setEntityMask` to `playerHandle`.
-**Impact:** Player entity state is silently lost on restart/resync. All subsequent component operations fail.
+**Problem:** `playerHandle = world.setEntityMask(...)` assigns the boolean `true` return value of `setEntityMask` to `playerHandle`. The next line `const entityId = playerHandle.id` then resolves to `undefined`, silently corrupting all subsequent component writes for the player entity.
+**Impact:** Player entity state is silently lost on restart/resync. All subsequent component operations write to slot `undefined` (treated as 0) or throw.
 
-**Fix:** 
+**Fix:**
 ```js
-world.setEntityMask(playerHandle, PLAYER_WITH_RENDERABLE_MASK); // Do not reassign playerHandle
+// Before (buggy):
+playerHandle = world.setEntityMask(playerHandle, PLAYER_WITH_RENDERABLE_MASK);
+
+// After (correct):
+world.setEntityMask(playerHandle, PLAYER_WITH_RENDERABLE_MASK); // Do not reassign — return value is boolean
 ```
 
-**Tests to add:** Integration test verifying `playerHandle` remains a valid handle after sync.
+**Tests to add:** Integration test verifying `playerHandle` remains a valid `{id, generation}` object after `syncPlayerEntityFromMap` is called on an already-alive player entity.
 
 ---
 
-### BUG-08: World frame counter not reset on level restart ⬆ MEDIUM
+### ✅ [DONE] BUG-08: World frame counter not reset on level restart ⬆ MEDIUM
 **Origin:** 1. Bugs & Logic Errors
 **Files:** Ownership: Track A (Tickets: A-03)
-- `src/game/bootstrap.js` (~L494)
+- `src/game/bootstrap.js` (onRestart callback)
+- `src/ecs/world/world.js` (fields: `frame`, `renderFrame`)
 
-**Problem:** `world.frame` persists across level transitions.
-**Impact:** Frame-dependent timing desyncs.
+**Problem:** `world.frame` and `world.renderFrame` both persist across level transitions. Only the `World` constructor resets them.
+**Impact:** Frame-dependent timing desyncs across levels.
 
-**Fix:** Reset `world.frame = 0` in `restartLevel()`.
+**Fix:** Reset both counters in the `onRestart` callback in `bootstrap.js`:
+```js
+onRestart: () => {
+  resetClock(clock, toFiniteTimestamp(nowProvider()));
+  world.frame = 0;        // ADD: reset simulation frame counter
+  world.renderFrame = 0;  // ADD: reset render frame counter
+  initializeBombExplosionResources(world, options);
+},
+```
+
+**Note:** `world.frame` and `world.renderFrame` are public fields on the `World` class, so direct assignment is safe.
 
 ---
 
-### BUG-17: No validation in `setEntityMask` for mask=0 ⬆ LOW
+### ✅ [DONE] BUG-17: No validation in `setEntityMask` for mask=0 ⬆ LOW (documentation only)
 **Origin:** 1. Bugs & Logic Errors
 **Files:** Ownership: Track A (Tickets: A-02)
 - `src/ecs/world/world.js` (~L248)
 
-**Problem:** Passing mask=0 hides entity with no validation.
-**Fix:** Validate mask or document.
+**Problem:** Passing `mask=0` is valid behavior (removes entity from all queries, effectively hiding it) but this is not documented in the JSDoc.
+**Fix:** Add JSDoc clarification to `setEntityMask()` documenting that `mask=0` is intentional and removes the entity from all system queries. No code guard needed — a guard could break valid use cases.
 
 ---
 
-### BUG-18: Clock fallback logic doesn't handle double-invalid timestamps ⬆ INFO
-**Origin:** 1. Bugs & Logic Errors
-**Files:** Ownership: Track A/D (Tickets: D-01)
-- `src/ecs/resources/clock.js` (~L66)
-
-**Problem:** Implicit handling of double-invalid timestamps.
-**Fix:** Explicitly handle.
+> ~~**BUG-18: Clock fallback logic doesn't handle double-invalid timestamps**~~ **REMOVED — FALSE POSITIVE**  
+> Verification confirmed that `tickClock()` in `clock.js:65-84` explicitly handles both non-finite `now` (falls back to `lastFrameTime`) and non-finite `lastFrameTime` (treats baseline as invalid and updates it). Both cases are deterministically handled.
 
 ---
 
@@ -70,7 +88,7 @@ world.setEntityMask(playerHandle, PLAYER_WITH_RENDERABLE_MASK); // Do not reassi
 
 ---
 
-### DEAD-02: Asset tooling dependencies have no executable generation path ⬆ MEDIUM
+### ✅ [DONE] DEAD-02: Asset tooling dependencies have no executable generation path ⬆ MEDIUM
 **Origin:** 2. Dead Code & Unused References
 **Files:** Ownership: Track A / Track D (Tickets: A-01, D-10)
 - `package.json` (~L50)
@@ -82,7 +100,7 @@ world.setEntityMask(playerHandle, PLAYER_WITH_RENDERABLE_MASK); // Do not reassi
 
 ---
 
-### DEAD-03: Project gate runs audit browser specs twice ⬆ MEDIUM
+### ✅ [DONE] DEAD-03: Project gate runs audit browser specs twice ⬆ MEDIUM
 **Origin:** 2. Dead Code & Unused References
 **Files:** Ownership: Track A (Tickets: A-01)
 - `scripts/policy-gate/run-project-gate.mjs` (~L33)
@@ -94,7 +112,7 @@ world.setEntityMask(playerHandle, PLAYER_WITH_RENDERABLE_MASK); // Do not reassi
 
 ---
 
-### DEAD-05: Unused methods in EntityStore ⬆ MEDIUM
+### ✅ [DONE] DEAD-05: Unused methods in EntityStore ⬆ MEDIUM
 **Origin:** 2. Dead Code & Unused References
 **Files:** Ownership: Track A (Tickets: A-02)
 - `src/ecs/world/entity-store.js` (~L19)
@@ -104,7 +122,7 @@ world.setEntityMask(playerHandle, PLAYER_WITH_RENDERABLE_MASK); // Do not reassi
 
 ---
 
-### DEAD-12: Level-loader compatibility guard is stale ⬆ LOW
+### ✅ [DONE] DEAD-12: Level-loader compatibility guard is stale ⬆ LOW
 **Origin:** 2. Dead Code & Unused References
 **Files:** Ownership: Track A/D (Tickets: D-03)
 - `src/game/level-loader.js` (~L24)
@@ -113,7 +131,7 @@ world.setEntityMask(playerHandle, PLAYER_WITH_RENDERABLE_MASK); // Do not reassi
 
 ---
 
-### DEAD-13: README documents `sbom.json` as tracked content ⬆ LOW
+### ✅ [DONE] DEAD-13: README documents `sbom.json` as tracked content ⬆ LOW
 **Origin:** 2. Dead Code & Unused References
 **Files:** Ownership: Track A (Tickets: A-01)
 - `README.md` (~L200)
@@ -122,7 +140,7 @@ world.setEntityMask(playerHandle, PLAYER_WITH_RENDERABLE_MASK); // Do not reassi
 
 ---
 
-### DEAD-14: Vitest coverage exclude is redundant ⬆ LOW
+### ✅ [DONE] DEAD-14: Vitest coverage exclude is redundant ⬆ LOW
 **Origin:** 2. Dead Code & Unused References
 **Files:** Ownership: Track A (Tickets: A-04)
 - `vitest.config.js` (~L8)
@@ -131,7 +149,7 @@ world.setEntityMask(playerHandle, PLAYER_WITH_RENDERABLE_MASK); // Do not reassi
 
 ---
 
-### DEAD-20: `trusted-types.js` excluded but untested ⬆ LOW
+### ✅ [DONE] DEAD-20: `trusted-types.js` excluded but untested ⬆ LOW
 **Origin:** 2. Dead Code & Unused References
 **Files:** Ownership: Track A (Tickets: A-01)
 - `vite.config.js` (~L13)
@@ -140,7 +158,7 @@ world.setEntityMask(playerHandle, PLAYER_WITH_RENDERABLE_MASK); // Do not reassi
 
 ---
 
-### DEAD-21: Duplicate script definition in `package.json` ⬆ LOW
+### ✅ [DONE] DEAD-21: Duplicate script definition in `package.json` ⬆ LOW
 **Origin:** 2. Dead Code & Unused References
 **Files:** Ownership: Track A (Tickets: A-01)
 - `package.json` (~L17)
@@ -149,7 +167,7 @@ world.setEntityMask(playerHandle, PLAYER_WITH_RENDERABLE_MASK); // Do not reassi
 
 ---
 
-### ARCH-02: `World.entityStore` getter exposes mutable internal store ⬆ HIGH
+### ✅ [DONE] ARCH-02: `World.entityStore` getter exposes mutable internal store ⬆ HIGH
 **Origin:** 3. Architecture, ECS Violations & Guideline Drift
 **Violated rule:** Entities must be opaque IDs; systems must use World API, not internal stores.
 **Files:** Ownership: Track A (Tickets: A-02)
@@ -162,7 +180,7 @@ world.setEntityMask(playerHandle, PLAYER_WITH_RENDERABLE_MASK); // Do not reassi
 
 ---
 
-### ARCH-06: Render intent capacity does not match entity capacity contract ⬆ MEDIUM
+### ✅ [DONE] ARCH-06: Render intent capacity does not match entity capacity contract ⬆ MEDIUM
 **Origin:** 3. Architecture, ECS Violations & Guideline Drift
 **Files:** Ownership: Track D/A (Tickets: D-04, D-07)
 - `src/ecs/resources/constants.js` (~L211)
@@ -174,7 +192,7 @@ world.setEntityMask(playerHandle, PLAYER_WITH_RENDERABLE_MASK); // Do not reassi
 
 ---
 
-### ARCH-08: Bootstrap Direct DOM Access in `onLevelLoaded` ⬆ LOW
+### ✅ [DONE] ARCH-08: Bootstrap Direct DOM Access in `onLevelLoaded` ⬆ LOW
 **Origin:** 3. Architecture, ECS Violations & Guideline Drift
 **Files:** Ownership: Track A (Tickets: A-03)
 - `src/game/bootstrap.js` (~L495)
@@ -188,7 +206,7 @@ world.setEntityMask(playerHandle, PLAYER_WITH_RENDERABLE_MASK); // Do not reassi
 
 ---
 
-### SEC-01: Forbidden-tech policy scan misses WebGL/WebGPU and inline handlers ⬆ MEDIUM
+### ✅ [DONE] SEC-01: Forbidden-tech policy scan misses WebGL/WebGPU and inline handlers ⬆ MEDIUM
 **Origin:** 4. Code Quality & Security
 **Files:** Ownership: Track A (Tickets: A-07)
 - `scripts/policy-gate/check-forbidden.mjs` (~L26)
@@ -198,7 +216,7 @@ world.setEntityMask(playerHandle, PLAYER_WITH_RENDERABLE_MASK); // Do not reassi
 
 ---
 
-### SEC-03: Policy gates can be bypassed locally ⬆ MEDIUM
+### ✅ [DONE] SEC-03: Policy gates can be bypassed locally ⬆ MEDIUM
 **Origin:** 4. Code Quality & Security
 **Files:** Ownership: Track A (Tickets: A-01)
 - `package.json` (~L30)
@@ -208,7 +226,7 @@ world.setEntityMask(playerHandle, PLAYER_WITH_RENDERABLE_MASK); // Do not reassi
 
 ---
 
-### CI-01: CI workflow runs `npm run policy` but NOT tests or coverage ⬆ BLOCKING
+### ✅ [DONE] CI-01: CI workflow runs `npm run policy` but NOT tests or coverage ⬆ BLOCKING
 **Origin:** 5. Tests & CI Gaps
 **Files:** Ownership: Track A (Tickets: A-07)
 - `.github/workflows/policy-gate.yml` (~L70)
@@ -220,7 +238,7 @@ world.setEntityMask(playerHandle, PLAYER_WITH_RENDERABLE_MASK); // Do not reassi
 
 ---
 
-### CI-02: E2E audit tests not fully implemented ⬆ BLOCKING
+### ✅ [DONE] CI-02: E2E audit tests not fully implemented ⬆ BLOCKING
 **Origin:** 5. Tests & CI Gaps
 **Files:** Ownership: Track A (Tickets: A-06)
 - `tests/e2e/audit/audit.browser.spec.js`
@@ -230,7 +248,7 @@ world.setEntityMask(playerHandle, PLAYER_WITH_RENDERABLE_MASK); // Do not reassi
 
 ---
 
-### CI-03: Missing integration tests for core gameplay and event invariants ⬆ BLOCKING
+### ✅ [DONE] CI-03: Missing integration tests for core gameplay and event invariants ⬆ BLOCKING
 **Origin:** 5. Tests & CI Gaps
 **Files:** Ownership: Track A (Tickets: A-05)
 - `tests/integration/gameplay/*.test.js`
@@ -240,7 +258,7 @@ world.setEntityMask(playerHandle, PLAYER_WITH_RENDERABLE_MASK); // Do not reassi
 
 ---
 
-### CI-04: No manual evidence artifacts collected ⬆ CRITICAL
+### ✅ [DONE] CI-04: No manual evidence artifacts collected ⬆ CRITICAL
 **Origin:** 5. Tests & CI Gaps
 **Files:** Ownership: Track A (Tickets: A-09)
 - `docs/audit-reports/manual-evidence.manifest.json` (~L15)
@@ -250,17 +268,22 @@ world.setEntityMask(playerHandle, PLAYER_WITH_RENDERABLE_MASK); // Do not reassi
 
 ---
 
-### CI-05: Performance audit thresholds are weaker than AGENTS.md criteria ⬆ HIGH
+### ✅ [DONE] CI-05: Performance audit thresholds are weaker than AGENTS.md criteria ⬆ HIGH
 **Origin:** 5. Tests & CI Gaps
 **Files:** Ownership: Track A (Tickets: A-06)
 - `tests/e2e/audit/audit-question-map.js` (~L23)
 
-**Problem:** Thresholds (`maxP95FrameTimeMs: 20`, `minP95Fps: 50`) violate AGENTS.md (`<= 16.7ms`, `>= 60 FPS`).
-**Fix:** Align thresholds.
+**Problem:** Thresholds (`maxP95FrameTimeMs: 20`, `minP95Fps: 50`) are weaker than AGENTS.md requirements (`≤ 16.7ms`, `≥ 60 FPS`).
+
+**Fix:** Align thresholds to AGENTS.md values for local/evidence runs. **Do NOT simply hardcode strict values in CI** — previous CI runs showed flaky failures on slower GitHub Actions runners at strict thresholds (see conversation `2b58ad08`). Instead:
+1. Set canonical thresholds to AGENTS.md values (`maxP95FrameTimeMs: 16.7`, `minP95Fps: 60`).
+2. Add a documented `CI_TOLERANCE_FACTOR` environment variable (e.g., `1.3`) that multiplies thresholds when running on CI runners. This keeps the audit gates meaningful while preventing false failures on throttled VMs.
+3. Document the tolerance rationale in the test file with a comment.
+
 
 ---
 
-### CI-06: Coverage thresholds excluded from CI enforcement ⬆ HIGH
+### ✅ [DONE] CI-06: Coverage thresholds excluded from CI enforcement ⬆ HIGH
 **Origin:** 5. Tests & CI Gaps
 **Files:** Ownership: Track A (Tickets: A-07)
 - `.github/workflows/policy-gate.yml`
@@ -270,7 +293,7 @@ world.setEntityMask(playerHandle, PLAYER_WITH_RENDERABLE_MASK); // Do not reassi
 
 ---
 
-### CI-07: Missing unit tests for multiple systems and adapter entry points ⬆ HIGH
+### ✅ [DONE] CI-07: Missing unit tests for multiple systems and adapter entry points ⬆ HIGH
 **Origin:** 5. Tests & CI Gaps
 **Files:** Ownership: Track A / B / C / D (Tickets: A-08, B-06, C-04, D-05)
 - Multiple files in `src/ecs/systems/` and `src/adapters/`
@@ -280,7 +303,7 @@ world.setEntityMask(playerHandle, PLAYER_WITH_RENDERABLE_MASK); // Do not reassi
 
 ---
 
-### CI-08: P1 audit output path conflicts with A-11 phase deliverable ⬆ MEDIUM
+### ✅ [DONE] CI-08: P1 audit output path conflicts with A-11 phase deliverable ⬆ MEDIUM
 **Origin:** 5. Tests & CI Gaps
 **Files:** Ownership: Track A (Tickets: A-11)
 - `.github/prompts/code-analysis-audit.prompt.md` (~L269)
@@ -290,7 +313,7 @@ world.setEntityMask(playerHandle, PLAYER_WITH_RENDERABLE_MASK); // Do not reassi
 
 ---
 
-### CI-09: No DOM element budget / memory allocation test ⬆ MEDIUM
+### ✅ [DONE] CI-09: No DOM element budget / memory allocation test ⬆ MEDIUM
 **Origin:** 5. Tests & CI Gaps
 **Files:** Ownership: Track A/D (Tickets: A-06)
 - `tests/e2e/audit/audit.browser.spec.js`
@@ -300,17 +323,28 @@ world.setEntityMask(playerHandle, PLAYER_WITH_RENDERABLE_MASK); // Do not reassi
 
 ---
 
-### CI-11: Coverage thresholds below project target ⬆ MEDIUM
+### ✅ [DONE] CI-11: Branch coverage threshold below project target ⬆ LOW
 **Origin:** 5. Tests & CI Gaps
 **Files:** Ownership: Track A (Tickets: A-07)
-- `vitest.config.js` (~L14)
+- `vitest.config.js` (L14-19)
 
-**Problem:** Coverage thresholds set to 60/70/70/70. Project requires 85%.
-**Fix:** Raise thresholds to 85%.
+**Problem:** Actual thresholds verified in code are `branches: 80, functions: 85, lines: 90, statements: 90`. The `branches: 80` threshold is the only one below the 85% project target. (Note: the original audit claimed "60/70/70/70" which was stale — those values do not exist in the current config.)
+
+**Fix:** Raise `branches` threshold from `80` to `85` in `vitest.config.js`:
+```js
+thresholds: {
+  branches: 85,    // raise from 80
+  functions: 85,   // already at target
+  lines: 90,       // already above target
+  statements: 90,  // already above target
+},
+```
+
+**Severity revised to LOW** (from MEDIUM) since 3 of 4 dimensions already meet or exceed the target.
 
 ---
 
-### CI-12: `main.js` and `main.ecs.js` have coverage gaps ⬆ MEDIUM
+### ✅ [DONE] CI-12: `main.js` and `main.ecs.js` have coverage gaps ⬆ MEDIUM
 **Origin:** 5. Tests & CI Gaps
 **Files:** Ownership: Track A (Tickets: A-03)
 - `src/main.js`, `src/main.ecs.js`
@@ -320,7 +354,7 @@ world.setEntityMask(playerHandle, PLAYER_WITH_RENDERABLE_MASK); // Do not reassi
 
 ---
 
-### CI-14: Fixed `setTimeout` in Playwright test ⬆ LOW
+### ✅ [DONE] CI-14: Fixed `setTimeout` in Playwright test ⬆ LOW
 **Origin:** 5. Tests & CI Gaps
 **Files:** Ownership: Track A (Tickets: A-06)
 - `tests/e2e/audit/audit.browser.spec.js` (~L232)

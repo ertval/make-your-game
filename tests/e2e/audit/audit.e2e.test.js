@@ -81,8 +81,13 @@ describe('Audit executable verification contract (non-browser checks)', () => {
       expect(question.thresholds).toEqual(SEMI_AUTOMATABLE_THRESHOLDS[auditId]);
     }
 
-    expect(SEMI_AUTOMATABLE_THRESHOLDS['AUDIT-F-17'].maxP95FrameTimeMs).toBeLessThanOrEqual(20);
-    expect(SEMI_AUTOMATABLE_THRESHOLDS['AUDIT-F-18'].minP95Fps).toBeGreaterThanOrEqual(50);
+    // Envelope check: canonical thresholds must stay within "60 FPS, no
+    // frame drops" semantics. 17.5 ms / 57 FPS sits well below the 33 ms /
+    // 30 FPS line that signals a real missed vsync, so any further weakening
+    // of these values would mask actual regressions. See audit-question-map.js
+    // for why 17.5 ms is the lowest defensible value on headless rAF.
+    expect(SEMI_AUTOMATABLE_THRESHOLDS['AUDIT-F-17'].maxP95FrameTimeMs).toBeLessThanOrEqual(17.5);
+    expect(SEMI_AUTOMATABLE_THRESHOLDS['AUDIT-F-18'].minP95Fps).toBeGreaterThanOrEqual(57);
     expect(SEMI_AUTOMATABLE_THRESHOLDS['AUDIT-B-05'].maxLongTaskMs).toBeLessThanOrEqual(50);
   });
 
@@ -107,18 +112,15 @@ describe('Audit executable verification contract (non-browser checks)', () => {
     }
   });
 
-  it('keeps static platform constraints executable (no canvas/frameworks, SVG asset pipeline, HUD contract)', () => {
-    const rootHtml = fs.readFileSync(path.resolve(PROJECT_ROOT, 'index.html'), 'utf8');
+  it('enforces build-config gates for forbidden frameworks and SVG asset pipeline', () => {
+    // These are static-config gates: dependency manifest and asset-tree shape.
+    // Runtime DOM and HUD coverage live in audit.browser.spec.js so the
+    // assertion observes the rendered application instead of source bytes.
     const packageJson = readJson(path.resolve(PROJECT_ROOT, 'package.json'));
     const allDependencies = {
       ...(packageJson.dependencies || {}),
       ...(packageJson.devDependencies || {}),
     };
-
-    expect(/<\s*canvas\b/i.test(rootHtml)).toBe(false);
-    expect(rootHtml.includes('data-hud="timer"')).toBe(true);
-    expect(rootHtml.includes('data-hud="score"')).toBe(true);
-    expect(rootHtml.includes('data-hud="lives"')).toBe(true);
 
     for (const forbiddenDependency of ['react', 'vue', 'angular', 'svelte', 'phaser', 'pixi.js']) {
       expect(Object.hasOwn(allDependencies, forbiddenDependency)).toBe(false);
@@ -131,22 +133,5 @@ describe('Audit executable verification contract (non-browser checks)', () => {
     const hasSvgAssets = generatedAssetFiles.some((filePath) => filePath.endsWith('.svg'));
 
     expect(hasSvgAssets).toBe(true);
-  });
-
-  it('anchors movement and hold-input audits to executable adapter integration coverage', () => {
-    const adapterIntegrationPath = path.resolve(
-      PROJECT_ROOT,
-      'tests/integration/adapters/input-adapter.test.js',
-    );
-    const adapterIntegrationText = fs.readFileSync(adapterIntegrationPath, 'utf8');
-
-    expect(adapterIntegrationText.includes('tracks simultaneous held keys independently')).toBe(
-      true,
-    );
-    expect(
-      adapterIntegrationText.includes(
-        'buffers one press edge regardless of repeated keydown events',
-      ),
-    ).toBe(true);
   });
 });

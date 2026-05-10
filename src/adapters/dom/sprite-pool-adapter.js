@@ -98,6 +98,17 @@ export function createSpritePool({ document: doc = globalThis.document, dev = fa
       console.warn(`[sprite-pool] Pool exhausted for type "${type}" (size ${POOL_SIZES[type]})`);
     }
     const recycled = activePool.shift();
+    if (!recycled) {
+      // Pool was never warmed up: idle and active are both empty. Create an
+      // element on demand so callers don't crash. Caller is responsible for
+      // DOM insertion since warmUp() did not attach this element.
+      if (dev) {
+        console.warn(`[sprite-pool] Pool for "${type}" never warmed — creating element on demand.`);
+      }
+      const el = createElement(type);
+      activePool.push(el);
+      return el;
+    }
     recycled.style.transform = OFFSCREEN_TRANSFORM;
     activePool.push(recycled);
     return recycled;

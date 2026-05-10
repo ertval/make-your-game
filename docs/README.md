@@ -13,13 +13,12 @@
 | 3 | [`game-description.md`](game-description.md) | **How** it plays — full gameplay rules, map layout, ghosts, bombs, scoring, timers, screens | Before gameplay/system logic work |
 | 4 | [`audit.md`](audit.md) | **Pass/fail criteria** — every question that must pass for project acceptance | Before testing and PR review |
 | 5 | [`implementation/implementation-plan.md`](implementation/implementation-plan.md) | **How** we build it — ECS architecture, directory structure, 4-track workplan, testing strategy, performance budget | Before starting any implementation task |
-| 6 | [`implementation/ticket-tracker.md`](implementation/ticket-tracker.md) | **Execution board** — live line-by-line ticket status with Depends on and Blocks mapping for Section 3 implementation tickets | Update continuously during implementation |
-| 7 | [`implementation/ticket-tracker.md#-ticket-id-index-merged`](implementation/ticket-tracker.md#-ticket-id-index-merged) | **Ticket ID index** — merged canonical ticket list consumed by automated branch policy checks | Before branch naming and PR gate runs |
-| 8 | [`implementation/agentic-workflow-guide.md`](implementation/agentic-workflow-guide.md) | **Team workflow** — how to use agents, PR process, PR message and gate workflow, review checklist, branch rules, and the `process` marker fallback for docs/process branches | Before starting collaborative work |
-| 9 | [`implementation/pr-template.md`](implementation/pr-template.md) | **PR contract** — documentation entrypoint for required checklist labels, layer-boundary confirmations, command flow, and canonical template source | Before opening any pull request |
-| 10 | [`implementation/audit-traceability-matrix.md`](implementation/audit-traceability-matrix.md) | **Coverage source of truth** — maps requirements and audit questions to implementation tickets, e2e/manual anchors, and execution status | During planning, test implementation, and PR review |
-| 11 | [`implementation/assets-pipeline.md`](implementation/assets-pipeline.md) | **Asset authoring** — visual and audio creation standards, naming rules, CI validation | When creating or modifying assets |
-| 12 | [`deployment/github-pages.md`](deployment/github-pages.md) | **Deployment guide** — GitHub Pages publishing options and static-hosting constraints | When publishing a static site or documentation site |
+| 6 | [`implementation/ticket-tracker.md`](implementation/ticket-tracker.md) | **Execution board & Ticket ID index** — live line-by-line ticket status and canonical ticket list for branch/PR policy checks | Update continuously during implementation |
+| 7 | [`implementation/agentic-workflow-guide.md`](implementation/agentic-workflow-guide.md) | **Team workflow** — how to use agents, PR process, PR message and gate workflow, review checklist, branch rules, and the `process` marker fallback for docs/process branches | Before starting collaborative work |
+| 8 | [`implementation/pr-template.md`](implementation/pr-template.md) | **PR contract** — documentation entrypoint for required checklist labels, layer-boundary confirmations, command flow, and canonical template source | Before opening any pull request |
+| 9 | [`implementation/audit-traceability-matrix.md`](implementation/audit-traceability-matrix.md) | **Coverage source of truth** — maps requirements and audit questions to implementation tickets, e2e/manual anchors, and execution status | During planning, test implementation, and PR review |
+| 10 | [`implementation/assets-pipeline.md`](implementation/assets-pipeline.md) | **Asset authoring** — visual and audio creation standards, naming rules, CI validation | When creating or modifying assets |
+| 11 | [`deployment/github-pages.md`](deployment/github-pages.md) | **Deployment guide** — GitHub Pages publishing options and static-hosting constraints | When publishing a static site or documentation site |
 
 ---
 

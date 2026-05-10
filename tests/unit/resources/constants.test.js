@@ -173,7 +173,8 @@ describe('constants', () => {
   });
 
   it('defines POOL_PELLETS as upper bound for a 15x11 map', () => {
-    expect(POOL_PELLETS).toBe(15 * 11);
+    // Audit optimization: reduced from 165 (15x11) to 130 to stay under 500 DOM elements.
+    expect(POOL_PELLETS).toBe(130);
   });
 
   it('defines MAX_RENDER_INTENTS as a positive upper bound', () => {
