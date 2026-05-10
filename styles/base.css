@@ -34,9 +34,9 @@ body {
 
 /** Body styling with radial gradient background and typography. */
 body {
-  background: radial-gradient(circle at top, #1a2540, var(--color-bg) 70%);
+  background: radial-gradient(circle at top, #3e2723, var(--color-bg) 70%);
   color: var(--color-ink);
-  font-family: "Segoe UI", "Trebuchet MS", sans-serif;
+  font-family: "Courier New", Courier, monospace;
 }
 
 /** App shell layout with vertical stacking for HUD, board, and overlays. */

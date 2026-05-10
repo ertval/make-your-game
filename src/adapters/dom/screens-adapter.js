@@ -229,9 +229,17 @@ export function createScreensAdapter(rootElement, options = {}) {
     }
   }
 
-  const allOptions = Array.from(rootElement.querySelectorAll('[data-option]'));
+  const allOptions = [];
+  for (const screen of allScreens) {
+    if (screen && typeof screen.querySelectorAll === 'function') {
+      allOptions.push(...Array.from(screen.querySelectorAll('[data-option]')));
+    }
+  }
+
   for (const option of allOptions) {
-    option.addEventListener('click', onOptionClick);
+    if (typeof option.addEventListener === 'function') {
+      option.addEventListener('click', onOptionClick);
+    }
   }
 
   rootElement.addEventListener('keydown', onKeyDown);
@@ -240,7 +248,9 @@ export function createScreensAdapter(rootElement, options = {}) {
   function destroy() {
     rootElement.removeEventListener('keydown', onKeyDown);
     for (const option of allOptions) {
-      option.removeEventListener('click', onOptionClick);
+      if (typeof option.removeEventListener === 'function') {
+        option.removeEventListener('click', onOptionClick);
+      }
     }
     clearActiveOptions();
     restorePreviousFocus();

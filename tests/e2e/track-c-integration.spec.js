@@ -45,12 +45,12 @@ test('pause menu buttons are functional in the real app shell', async ({ page })
 
 test('high score is displayed on game over screen', async ({ page }) => {
   await bootRuntime(page);
-  
+
   // Set a high score in localStorage
   await page.evaluate(() => {
     localStorage.setItem('ms-ghostman.highScore', JSON.stringify({ score: 12345 }));
   });
-  
+
   // Reload to ensure storage is read
   await page.reload();
   await page.waitForFunction(() => window.__MS_GHOSTMAN_RUNTIME__ !== undefined);
@@ -62,7 +62,7 @@ test('high score is displayed on game over screen', async ({ page }) => {
 
   const gameOverScreen = page.locator('[data-screen="game-over"]');
   await expect(gameOverScreen).toBeVisible();
-  
+
   const highScoreEl = gameOverScreen.locator('[data-high-score]');
   await expect(highScoreEl).toHaveText(/High Score: 12345/);
 });

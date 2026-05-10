@@ -593,6 +593,17 @@ export function createBootstrap(options = {}) {
       // Restart destroys all entities, so runtime object pools must be rebuilt
       // before bomb and explosion systems can query pooled prop entities again.
       initializeBombExplosionResources(world, options);
+
+      // C-05: Reset gameplay stats so a new game/restart doesn't leak old data.
+      world.setResource('scoreState', createDefaultScoreState());
+      world.setResource('levelTimer', { remainingSeconds: 0, activeLevel: -1 });
+      world.setResource('playerLife', { lives: 3, isInvincible: false, invincibilityRemainingMs: 0 });
+
+      // D-09: Reset sprite pool so old sprites are returned to idle state.
+      const spritePool = world.getResource('spritePool');
+      if (spritePool && typeof spritePool.reset === 'function') {
+        spritePool.reset();
+      }
     },
     world,
   });

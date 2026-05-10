@@ -1,3 +1,9 @@
+---
+trigger: always_on
+glob:
+description: This Rule minimizes token consumption for shell commands. Use always!
+---
+
 # RTK - Rust Token Killer (Google Antigravity)
 
 **Usage**: Token-optimized CLI proxy for shell commands.
