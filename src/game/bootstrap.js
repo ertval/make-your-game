@@ -41,7 +41,13 @@ import {
   resetVisualState,
 } from '../ecs/components/visual.js';
 import { createRenderIntentBuffer, resetRenderIntentBuffer } from '../ecs/render-intent.js';
-import { advanceSimTime, createClock, resetClock, tickClock } from '../ecs/resources/clock.js';
+import {
+  advanceSimTime,
+  createClock,
+  resetClock,
+  resyncBaseline,
+  tickClock,
+} from '../ecs/resources/clock.js';
 import {
   FIXED_DT_MS,
   MAX_RENDER_INTENTS,
@@ -666,7 +672,7 @@ export function createBootstrap(options = {}) {
 
   function resyncTime(frameNowMs) {
     const timestamp = toFiniteTimestamp(frameNowMs);
-    resetClock(clock, timestamp);
+    resyncBaseline(clock, timestamp);
   }
 
   function getInputAdapter() {

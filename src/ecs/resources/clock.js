@@ -149,6 +149,22 @@ export function resetClock(clock, now) {
 }
 
 /**
+ * Resynchronise the clock baseline without zeroing simTimeMs.
+ *
+ * Use on resume/focus to prevent simTimeMs from being reset to 0
+ * while still recalibrating the frame-timing fields.
+ *
+ * @param {Clock} clock — Mutable clock record to update.
+ * @param {number} now — Current rAF timestamp (ms).
+ */
+export function resyncBaseline(clock, now) {
+  clock.lastFrameTime = now;
+  clock.realTimeMs = now;
+  clock.accumulator = 0;
+  clock.alpha = 0;
+}
+
+/**
  * Set the pause state of the clock.
  *
  * @param {Clock} clock — Mutable clock record to update.
