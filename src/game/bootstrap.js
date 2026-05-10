@@ -61,6 +61,8 @@ import { createHudSystem } from '../ecs/systems/hud-system.js';
 import { createInputSystem } from '../ecs/systems/input-system.js';
 import { createLevelProgressSystem } from '../ecs/systems/level-progress-system.js';
 import { createLifeSystem } from '../ecs/systems/life-system.js';
+import { createPauseInputSystem } from '../ecs/systems/pause-input-system.js';
+import { createPauseSystem } from '../ecs/systems/pause-system.js';
 import {
   createPlayerMoveSystem,
   PLAYER_MOVE_REQUIRED_MASK,
@@ -269,7 +271,7 @@ function createDefaultSystemsByPhase(options = {}) {
   const renderDomSystem = createRenderDomSystem();
 
   return {
-    input: [inputSystem],
+    input: [inputSystem, createPauseInputSystem()],
     physics: [playerMoveSystem],
     render: [
       createHudSystem({ hudElementsResourceKey: options.hudElementsResourceKey }),
@@ -282,6 +284,7 @@ function createDefaultSystemsByPhase(options = {}) {
         mapResourceKey,
         positionResourceKey,
       }),
+      createPauseSystem(),
       createTimerSystem(),
       createScoringSystem(),
       createLifeSystem(),
@@ -608,6 +611,8 @@ export function createBootstrap(options = {}) {
   world.setResource('levelTimer', { remainingSeconds: 0, activeLevel: -1 });
   world.setResource('playerLife', { lives: 3, isInvincible: false, invincibilityRemainingMs: 0 });
   world.setResource('collisionIntents', []); // B-04 requirement
+  world.setResource('pauseIntent', { restart: false, toggle: false });
+  world.setResource('levelFlow', {});
   world.setResource(options.hudElementsResourceKey || 'hudElements', options.hudElements || null);
 
   registerSystemsByPhase(
