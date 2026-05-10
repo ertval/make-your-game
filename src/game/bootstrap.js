@@ -70,6 +70,7 @@ import {
 import { createRenderCollectSystem } from '../ecs/systems/render-collect-system.js';
 import { createRenderDomSystem } from '../ecs/systems/render-dom-system.js';
 import { createDefaultScoreState, createScoringSystem } from '../ecs/systems/scoring-system.js';
+import { createScreensSystem } from '../ecs/systems/screens-system.js';
 import { createSpawnSystem } from '../ecs/systems/spawn-system.js';
 import { createTimerSystem } from '../ecs/systems/timer-system.js';
 import { DEFAULT_PHASE_ORDER, World } from '../ecs/world/world.js';
@@ -269,12 +270,17 @@ function createDefaultSystemsByPhase(options = {}) {
 
   const renderCollectSystem = createRenderCollectSystem();
   const renderDomSystem = createRenderDomSystem();
+  const screensSystem = createScreensSystem({
+    screensAdapterResourceKey: options.screensAdapterResourceKey,
+    storageProviderResourceKey: options.storageProviderResourceKey,
+  });
 
   return {
     input: [inputSystem, createPauseInputSystem()],
     physics: [playerMoveSystem],
     render: [
       createHudSystem({ hudElementsResourceKey: options.hudElementsResourceKey }),
+      screensSystem,
       renderCollectSystem,
       renderDomSystem,
     ],
@@ -537,6 +543,9 @@ export function createBootstrap(options = {}) {
   // Pre-register the adapter slot so runtime wiring has one explicit resource key
   // and systems never have to distinguish "never registered" from "registered null".
   ensureWorldResource(world, inputAdapterResourceKey, () => null);
+  ensureWorldResource(world, options.hudAdapterResourceKey || 'hudAdapter', () => null);
+  ensureWorldResource(world, options.screensAdapterResourceKey || 'screensAdapter', () => null);
+  ensureWorldResource(world, options.storageProviderResourceKey || 'storageProvider', () => null);
 
   // Create sprite pool and board adapter early for onLevelLoaded callback.
   // Headless tests have no document, so DOM rendering safely no-ops there.
@@ -720,18 +729,73 @@ export function createBootstrap(options = {}) {
     return adapter;
   }
 
+  function setHudAdapter(adapter) {
+    const key = options.hudAdapterResourceKey || 'hudAdapter';
+    if (adapter === null || adapter === undefined) {
+      world.setResource(key, null);
+      return null;
+    }
+    if (typeof adapter.update !== 'function') {
+      throw new Error('HUD adapter must expose an update(state) method.');
+    }
+    world.setResource(key, adapter);
+    return adapter;
+  }
+
+  function getHudAdapter() {
+    return world.getResource(options.hudAdapterResourceKey || 'hudAdapter') || null;
+  }
+
+  function setScreensAdapter(adapter) {
+    const key = options.screensAdapterResourceKey || 'screensAdapter';
+    if (adapter === null || adapter === undefined) {
+      const previous = world.getResource(key);
+      if (previous && typeof previous.destroy === 'function') {
+        previous.destroy();
+      }
+      world.setResource(key, null);
+      return null;
+    }
+    world.setResource(key, adapter);
+    return adapter;
+  }
+
+  function getScreensAdapter() {
+    return world.getResource(options.screensAdapterResourceKey || 'screensAdapter') || null;
+  }
+
+  function setStorageProvider(provider) {
+    const key = options.storageProviderResourceKey || 'storageProvider';
+    if (provider === null || provider === undefined) {
+      world.setResource(key, null);
+      return null;
+    }
+    world.setResource(key, provider);
+    return provider;
+  }
+
+  function getStorageProvider() {
+    return world.getResource(options.storageProviderResourceKey || 'storageProvider') || null;
+  }
+
   return {
     clock,
     eventQueueResourceKey,
     gameFlow,
     gameStatus,
+    getHudAdapter,
     getInputAdapter,
+    getScreensAdapter,
+    getStorageProvider,
     inputAdapterResourceKey,
     levelLoader,
     playerEntityResourceKey,
     registerRenderer,
     resyncTime,
+    setHudAdapter,
     setInputAdapter,
+    setScreensAdapter,
+    setStorageProvider,
     stepFrame,
     world,
   };

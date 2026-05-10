@@ -50,10 +50,109 @@ body {
 
 /** Legacy ID-based selectors for backward compatibility with index.html structure. */
 #hud,
-#game-board,
-#overlay-root {
+#game-board {
   background: color-mix(in srgb, var(--color-surface) 88%, #000 12%);
   border: 1px solid color-mix(in srgb, var(--color-accent) 40%, transparent 60%);
   border-radius: var(--radius-lg);
   padding: calc(var(--space-sm) * 0.75);
+}
+
+/* Overlay container — fixed full-viewport overlay above all game content */
+#overlay-root {
+  position: fixed;
+  inset: 0;
+  z-index: var(--z-overlay, 100);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+}
+
+/* Error display inside overlay — shown on critical failures */
+#overlay-error {
+  position: absolute;
+  bottom: var(--space-md);
+  left: var(--space-md);
+  right: var(--space-md);
+  padding: var(--space-md);
+  background: var(--color-danger, #ff4444);
+  color: #fff;
+  border-radius: var(--radius-md, 8px);
+  text-align: center;
+  z-index: 1;
+  pointer-events: auto;
+}
+
+#overlay-error.is-screen-hidden {
+  display: none;
+}
+
+/* Screen overlays — hidden by default, shown via adapter class toggle */
+.screen-overlay {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  pointer-events: auto;
+}
+
+.screen-overlay.is-screen-hidden {
+  display: none;
+}
+
+.screen-overlay.is-screen-visible {
+  display: flex;
+  background: var(--color-overlay-bg, rgba(0, 0, 0, 0.85));
+}
+
+/* Overlay panel — centered card with surface styling */
+.overlay__panel {
+  background: var(--color-surface, #1d2333);
+  border: 1px solid var(--color-accent, #ffb703);
+  border-radius: var(--radius-xl, 16px);
+  padding: var(--space-xl, 32px);
+  text-align: center;
+  max-width: 400px;
+  min-width: 280px;
+}
+
+.overlay__panel h1,
+.overlay__panel h2 {
+  margin: 0 0 var(--space-md, 16px);
+  color: var(--color-accent, #ffb703);
+}
+
+.overlay__actions {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm, 8px);
+}
+
+.overlay__actions button {
+  padding: var(--space-sm, 8px) var(--space-md, 16px);
+  background: var(--color-accent, #ffb703);
+  color: var(--color-bg, #12131a);
+  border: none;
+  border-radius: var(--radius-sm, 4px);
+  cursor: pointer;
+  font-size: 1rem;
+  font-weight: 600;
+}
+
+.overlay__actions button[data-active="true"] {
+  outline: 2px solid #fff;
+  outline-offset: 2px;
+}
+
+.overlay__actions button:focus-visible {
+  outline: 2px solid #fff;
+  outline-offset: 2px;
+}
+
+[data-high-score] {
+  margin: var(--space-sm, 8px) 0;
+  font-size: 0.9rem;
+  opacity: 0.8;
 }

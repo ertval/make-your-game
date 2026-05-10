@@ -198,16 +198,40 @@ export function createScreensAdapter(rootElement, options = {}) {
     activateScreenOptions('levelComplete', screens.levelComplete);
   }
 
-  function showGameOver() {
+  function showGameOver(score = null) {
     hideAll();
     showElement(screens.gameOver);
+    if (score !== null && screens.gameOver) {
+      const scoreEl = screens.gameOver.querySelector('[data-high-score]');
+      if (scoreEl) {
+        scoreEl.textContent = `High Score: ${String(score).padStart(5, '0')}`;
+      }
+    }
     activateScreenOptions('gameOver', screens.gameOver);
   }
 
-  function showVictory() {
+  function showVictory(score = null) {
     hideAll();
     showElement(screens.victory);
+    if (score !== null && screens.victory) {
+      const scoreEl = screens.victory.querySelector('[data-high-score]');
+      if (scoreEl) {
+        scoreEl.textContent = `High Score: ${String(score).padStart(5, '0')}`;
+      }
+    }
     activateScreenOptions('victory', screens.victory);
+  }
+
+  function onOptionClick(event) {
+    if (event.isTrusted) {
+      const option = event.currentTarget;
+      dispatchAction(getActionFromOption(option));
+    }
+  }
+
+  const allOptions = Array.from(rootElement.querySelectorAll('[data-option]'));
+  for (const option of allOptions) {
+    option.addEventListener('click', onOptionClick);
   }
 
   rootElement.addEventListener('keydown', onKeyDown);
@@ -215,6 +239,9 @@ export function createScreensAdapter(rootElement, options = {}) {
 
   function destroy() {
     rootElement.removeEventListener('keydown', onKeyDown);
+    for (const option of allOptions) {
+      option.removeEventListener('click', onOptionClick);
+    }
     clearActiveOptions();
     restorePreviousFocus();
   }

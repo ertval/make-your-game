@@ -166,7 +166,6 @@ describe('runtime adapter boundaries', () => {
     expect(runtime).toBeTruthy();
     expect(typeof runtime.start).toBe('function');
     expect(typeof windowStub.__MS_GHOSTMAN_RUNTIME__.startGame).toBe('function');
-    expect(documentStub.overlayRoot.textContent).toBe('Engine bootstrap ready.');
 
     runtime.stop();
   });

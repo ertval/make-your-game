@@ -58,9 +58,14 @@ function normalizeHighScoreValue(score) {
 }
 
 export function saveHighScore(score) {
-  safeWrite(HIGH_SCORE_STORAGE_KEY, {
-    score: normalizeHighScoreValue(score),
-  });
+  const currentHighScore = getHighScore();
+  const normalizedScore = normalizeHighScoreValue(score);
+
+  if (normalizedScore > currentHighScore) {
+    safeWrite(HIGH_SCORE_STORAGE_KEY, {
+      score: normalizedScore,
+    });
+  }
 }
 
 export function getHighScore() {
