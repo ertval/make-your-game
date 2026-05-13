@@ -1,18 +1,18 @@
 /**
- * D-08: DOM Renderer Adapter
+ * [LEGACY] D-08: DOM Renderer Adapter
+ *
+ * ⚠️  LEGACY — Superseded by the ECS-driven render-dom-system.
+ *     This file is NOT called from the game loop. It must NOT be re-imported
+ *     into the frame path. See DEAD-01 / MS-ghostman#DEAD-01 for context.
  *
  * Consumes the data-only RenderIntentBuffer (D-04) and performs the single
  * batch of DOM writes required by AGENTS.md. Isolates simulation logic
  * from browser side effects and enforces ordered phases per rAF.
  *
- * Architecture Note:
+ * Architecture Note (historical):
  * - This is the ONLY place allowed to perform per-frame DOM updates for game entities.
  * - Uses compositor-friendly properties (transform, opacity) to ensure 60FPS.
  * - Prevents layout thrashing by avoiding interleaved reads/writes.
- *
- * Public API:
- * - createDomRenderer(options) — factory for the renderer record.
- * - renderer.update(buffer) — perform the frame commit using the intent buffer.
  */
 
 /**
@@ -23,6 +23,12 @@
  * @returns {DomRenderer}
  */
 export function createDomRenderer({ appRoot }) {
+  if (typeof globalThis !== 'undefined' && globalThis.__MS_GHOSTMAN_RUNTIME__) {
+    throw new Error(
+      'renderer-dom.js (legacy) is not for the game loop. Use render-dom-system instead.',
+    );
+  }
+
   if (!appRoot) {
     throw new Error('DomRenderer requires an appRoot element.');
   }

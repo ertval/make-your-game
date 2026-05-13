@@ -41,7 +41,13 @@ import {
   resetVisualState,
 } from '../ecs/components/visual.js';
 import { createRenderIntentBuffer, resetRenderIntentBuffer } from '../ecs/render-intent.js';
-import { advanceSimTime, createClock, resetClock, tickClock } from '../ecs/resources/clock.js';
+import {
+  advanceSimTime,
+  createClock,
+  resetClock,
+  resyncBaseline,
+  tickClock,
+} from '../ecs/resources/clock.js';
 import {
   FIXED_DT_MS,
   MAX_RENDER_INTENTS,
@@ -55,6 +61,8 @@ import { createHudSystem } from '../ecs/systems/hud-system.js';
 import { createInputSystem } from '../ecs/systems/input-system.js';
 import { createLevelProgressSystem } from '../ecs/systems/level-progress-system.js';
 import { createLifeSystem } from '../ecs/systems/life-system.js';
+import { createPauseInputSystem } from '../ecs/systems/pause-input-system.js';
+import { createPauseSystem } from '../ecs/systems/pause-system.js';
 import {
   createPlayerMoveSystem,
   PLAYER_MOVE_REQUIRED_MASK,
@@ -62,7 +70,8 @@ import {
 import { createRenderCollectSystem } from '../ecs/systems/render-collect-system.js';
 import { createRenderDomSystem } from '../ecs/systems/render-dom-system.js';
 import { createDefaultScoreState, createScoringSystem } from '../ecs/systems/scoring-system.js';
-import { createSpawnSystem } from '../ecs/systems/spawn-system.js';
+import { createScreensSystem } from '../ecs/systems/screens-system.js';
+import { createInitialSpawnState, createSpawnSystem } from '../ecs/systems/spawn-system.js';
 import { createTimerSystem } from '../ecs/systems/timer-system.js';
 import { DEFAULT_PHASE_ORDER, World } from '../ecs/world/world.js';
 import { isDevelopment } from '../shared/env.js';
@@ -261,12 +270,17 @@ function createDefaultSystemsByPhase(options = {}) {
 
   const renderCollectSystem = createRenderCollectSystem();
   const renderDomSystem = createRenderDomSystem();
+  const screensSystem = createScreensSystem({
+    screensAdapterResourceKey: options.screensAdapterResourceKey,
+    storageProviderResourceKey: options.storageProviderResourceKey,
+  });
 
   return {
-    input: [inputSystem],
+    meta: [inputSystem, createPauseInputSystem(), createPauseSystem()],
     physics: [playerMoveSystem],
     render: [
       createHudSystem({ hudElementsResourceKey: options.hudElementsResourceKey }),
+      screensSystem,
       renderCollectSystem,
       renderDomSystem,
     ],
@@ -528,6 +542,9 @@ export function createBootstrap(options = {}) {
   // Pre-register the adapter slot so runtime wiring has one explicit resource key
   // and systems never have to distinguish "never registered" from "registered null".
   ensureWorldResource(world, inputAdapterResourceKey, () => null);
+  ensureWorldResource(world, options.hudAdapterResourceKey || 'hudAdapter', () => null);
+  ensureWorldResource(world, options.screensAdapterResourceKey || 'screensAdapter', () => null);
+  ensureWorldResource(world, options.storageProviderResourceKey || 'storageProvider', () => null);
 
   // Create sprite pool and board adapter early for onLevelLoaded callback.
   // Headless tests have no document, so DOM rendering safely no-ops there.
@@ -575,6 +592,27 @@ export function createBootstrap(options = {}) {
       // Restart destroys all entities, so runtime object pools must be rebuilt
       // before bomb and explosion systems can query pooled prop entities again.
       initializeBombExplosionResources(world, options);
+
+      // C-05: Reset gameplay stats so a new game/restart doesn't leak old data.
+      world.setResource('scoreState', createDefaultScoreState());
+      world.setResource('levelTimer', { remainingSeconds: 0, activeLevel: -1 });
+      world.setResource('playerLife', {
+        lives: 3,
+        isInvincible: false,
+        invincibilityRemainingMs: 0,
+      });
+      world.setResource('ghostSpawnState', createInitialSpawnState());
+      world.setResource('collisionIntents', []);
+      world.setResource('deadGhostIds', []);
+      world.setResource('pauseIntent', { restart: false, toggle: false });
+
+      // D-09: Reset sprite pool so old sprites are returned to idle state.
+      // This combined with render-dom-system's frame-0 map clear ensures
+      // that sprites are correctly re-acquired for new entities.
+      const spritePool = world.getResource('spritePool');
+      if (spritePool && typeof spritePool.reset === 'function') {
+        spritePool.reset();
+      }
     },
     world,
   });
@@ -601,7 +639,11 @@ export function createBootstrap(options = {}) {
   world.setResource('scoreState', createDefaultScoreState());
   world.setResource('levelTimer', { remainingSeconds: 0, activeLevel: -1 });
   world.setResource('playerLife', { lives: 3, isInvincible: false, invincibilityRemainingMs: 0 });
+  world.setResource('ghostSpawnState', createInitialSpawnState());
   world.setResource('collisionIntents', []); // B-04 requirement
+  world.setResource('pauseIntent', { restart: false, toggle: false });
+  world.setResource('deadGhostIds', []);
+  world.setResource('levelFlow', {});
   world.setResource(options.hudElementsResourceKey || 'hudElements', options.hudElements || null);
 
   registerSystemsByPhase(
@@ -620,6 +662,12 @@ export function createBootstrap(options = {}) {
     { fixedDtMs = FIXED_DT_MS, maxStepsPerFrame = MAX_STEPS_PER_FRAME } = {},
   ) {
     const timestamp = toFiniteTimestamp(frameNowMs);
+    world.runMeta({
+      alpha: clock.alpha,
+      dtMs: fixedDtMs,
+      isPaused: clock.isPaused,
+      simTimeMs: clock.simTimeMs,
+    });
     const steps = tickClock(clock, timestamp, maxStepsPerFrame, fixedDtMs);
 
     for (let stepIndex = 0; stepIndex < steps; stepIndex += 1) {
@@ -666,7 +714,7 @@ export function createBootstrap(options = {}) {
 
   function resyncTime(frameNowMs) {
     const timestamp = toFiniteTimestamp(frameNowMs);
-    resetClock(clock, timestamp);
+    resyncBaseline(clock, timestamp);
   }
 
   function getInputAdapter() {
@@ -709,18 +757,73 @@ export function createBootstrap(options = {}) {
     return adapter;
   }
 
+  function setHudAdapter(adapter) {
+    const key = options.hudAdapterResourceKey || 'hudAdapter';
+    if (adapter === null || adapter === undefined) {
+      world.setResource(key, null);
+      return null;
+    }
+    if (typeof adapter.update !== 'function') {
+      throw new Error('HUD adapter must expose an update(state) method.');
+    }
+    world.setResource(key, adapter);
+    return adapter;
+  }
+
+  function getHudAdapter() {
+    return world.getResource(options.hudAdapterResourceKey || 'hudAdapter') || null;
+  }
+
+  function setScreensAdapter(adapter) {
+    const key = options.screensAdapterResourceKey || 'screensAdapter';
+    if (adapter === null || adapter === undefined) {
+      const previous = world.getResource(key);
+      if (previous && typeof previous.destroy === 'function') {
+        previous.destroy();
+      }
+      world.setResource(key, null);
+      return null;
+    }
+    world.setResource(key, adapter);
+    return adapter;
+  }
+
+  function getScreensAdapter() {
+    return world.getResource(options.screensAdapterResourceKey || 'screensAdapter') || null;
+  }
+
+  function setStorageProvider(provider) {
+    const key = options.storageProviderResourceKey || 'storageProvider';
+    if (provider === null || provider === undefined) {
+      world.setResource(key, null);
+      return null;
+    }
+    world.setResource(key, provider);
+    return provider;
+  }
+
+  function getStorageProvider() {
+    return world.getResource(options.storageProviderResourceKey || 'storageProvider') || null;
+  }
+
   return {
     clock,
     eventQueueResourceKey,
     gameFlow,
     gameStatus,
+    getHudAdapter,
     getInputAdapter,
+    getScreensAdapter,
+    getStorageProvider,
     inputAdapterResourceKey,
     levelLoader,
     playerEntityResourceKey,
     registerRenderer,
     resyncTime,
+    setHudAdapter,
     setInputAdapter,
+    setScreensAdapter,
+    setStorageProvider,
     stepFrame,
     world,
   };

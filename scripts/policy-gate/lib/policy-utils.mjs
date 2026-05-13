@@ -301,6 +301,7 @@ export const SHARED_OWNERSHIP_PATTERNS = [
   'README.md',
   'LICENSE',
   '.github/**',
+  '.claude/**',
   'docs/**',
   'styles/base.css',
   'package-lock.json',

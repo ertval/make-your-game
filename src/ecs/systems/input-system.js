@@ -56,7 +56,7 @@ export function createInputSystem(options = {}) {
 
   return {
     name: 'input-system',
-    phase: 'input',
+    phase: 'meta',
     // Resource capabilities document the adapter and snapshot stores this
     // system reads so policy and tooling can inspect its world dependencies.
     resourceCapabilities: {

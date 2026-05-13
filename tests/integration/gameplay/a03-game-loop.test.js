@@ -376,7 +376,7 @@ describe('game loop and runtime', () => {
       now: 0,
     });
 
-    expect(bootstrap.world.systemsByPhase.get('input').map((entry) => entry.system.name)).toContain(
+    expect(bootstrap.world.systemsByPhase.get('meta').map((entry) => entry.system.name)).toContain(
       'input-system',
     );
     expect(
@@ -778,7 +778,7 @@ describe('game loop and runtime', () => {
   });
 
   it('preloads the shipped maps and starts the browser runtime with an injected input adapter', async () => {
-    const { documentStub, overlayRoot } = createBrowserDocumentStub();
+    const { documentStub } = createBrowserDocumentStub();
     const requestedUrls = [];
     const windowStub = createWindowStub();
 
@@ -814,7 +814,6 @@ describe('game loop and runtime', () => {
     expect(windowStub.addEventListener).toHaveBeenCalledWith('keyup', expect.any(Function));
     expect(windowStub.addEventListener).toHaveBeenCalledWith('blur', expect.any(Function));
     expect(windowStub.addEventListener).toHaveBeenCalledWith('focus', expect.any(Function));
-    expect(overlayRoot.textContent).toBe('Engine bootstrap ready.');
 
     runtime.stop();
   });

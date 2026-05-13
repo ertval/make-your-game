@@ -68,10 +68,17 @@ export function createSpritePool({ document: doc = globalThis.document, dev = fa
   function warmUp(containerElement) {
     for (const [type, size] of Object.entries(POOL_SIZES)) {
       const pool = idle.get(type);
+
+      // 1. Create missing elements up to the target size
       while (pool.length < size) {
         const el = createElement(type);
-        containerElement.appendChild(el);
         pool.push(el);
+      }
+
+      // 2. Ensure all pool elements (including existing ones) are in the container.
+      // appendChild moves the element if it's already in the DOM.
+      for (const el of pool) {
+        containerElement.appendChild(el);
       }
     }
   }

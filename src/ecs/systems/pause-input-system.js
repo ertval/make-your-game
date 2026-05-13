@@ -70,7 +70,7 @@ export function createPauseInputSystem(options = {}) {
 
   return {
     name: 'pause-input-system',
-    phase: 'input',
+    phase: 'meta',
     resourceCapabilities: {
       read: [gameStatusResourceKey, inputStateResourceKey, pauseIntentResourceKey],
       write: [pauseIntentResourceKey],

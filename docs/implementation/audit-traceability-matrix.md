@@ -33,10 +33,10 @@ This document is the single source of truth for requirement-to-audit-to-ticket-t
 
 ## Current Automation Reality
 
-- `tests/e2e/audit/audit-question-map.js` includes all 27 audit IDs plus execution metadata, threshold definitions, and manual-evidence manifest linkage.
+- `tests/e2e/audit/audit-question-map.js` includes all 27 audit IDs plus execution metadata, threshold definitions, and manual-evidence manifest linkage. `SEMI_AUTOMATABLE_THRESHOLDS` stores canonical AGENTS.md values (16.7ms p95 frame time, 60 FPS p95).
 - `tests/e2e/audit/audit.e2e.test.js` enforces executable non-browser obligations: inventory/category parity, threshold declaration checks, and manual evidence manifest/artifact existence.
-- `tests/e2e/audit/audit.browser.spec.js` executes browser runtime/performance assertions, including explicit thresholds for `AUDIT-F-17`, `AUDIT-F-18`, and `AUDIT-B-05`, runtime input behavior for `AUDIT-F-11` and `AUDIT-F-12`, and the platform DOM contract (no `<canvas>` element, HUD shell visible).
-- Manual evidence obligations for `AUDIT-F-19`, `AUDIT-F-20`, `AUDIT-F-21`, and `AUDIT-B-06` are tracked through `docs/audit-reports/manual-evidence.manifest.json`.
+- `tests/e2e/audit/audit.browser.spec.js` executes browser runtime/performance assertions, including explicit thresholds for `AUDIT-F-17`, `AUDIT-F-18`, and `AUDIT-B-05`, runtime input behavior for `AUDIT-F-11` and `AUDIT-F-12`, and the platform DOM contract (no `<canvas>` element, HUD shell visible). A `CI_TOLERANCE_FACTOR` env var relaxes thresholds for headless rAF noise (default 1.05 locally, 1.3 in CI); set to 1.0 for strict canonical check.
+- Manual evidence obligations for `AUDIT-F-19`, `AUDIT-F-20`, `AUDIT-F-21`, and `AUDIT-B-06` are tracked through `docs/audit-reports/manual-evidence.manifest.json` (all 4 entries signed off by ekaramet 2026-05-06).
 
 ## Alignment Verification Summary
 

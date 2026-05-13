@@ -36,7 +36,10 @@
  * - startBrowserApplication(options)
  */
 
+import { createHudAdapter } from './adapters/dom/hud-adapter.js';
+import { createScreensAdapter } from './adapters/dom/screens-adapter.js';
 import { createInputAdapter } from './adapters/io/input-adapter.js';
+import { getHighScore, saveHighScore } from './adapters/io/storage-adapter.js';
 import { percentileFromSorted, toSortedNumericArray } from './debug/frame-stats.js';
 import { FIXED_DT_MS, MAX_STEPS_PER_FRAME, TOTAL_LEVELS } from './ecs/resources/constants.js';
 import { createMapResource } from './ecs/resources/map-resource.js';
@@ -200,12 +203,15 @@ export function renderCriticalError(overlayRoot, error) {
   }
 
   const nextMessage = `Critical error: ${toMessage(error)}`;
-  const previous = String(overlayRoot.textContent || '').trim();
+  const errorElement = overlayRoot.querySelector?.('#overlay-error') || overlayRoot;
 
-  overlayRoot.setAttribute('aria-live', 'assertive');
-  overlayRoot.setAttribute('role', 'alert');
+  errorElement.setAttribute?.('aria-live', 'assertive');
+  errorElement.setAttribute?.('role', 'alert');
+  errorElement.classList?.remove('is-screen-hidden');
+
+  const previous = String(errorElement.textContent || '').trim();
   // Keep one plain-text line per error so multiple faults remain readable without unsafe HTML sinks.
-  overlayRoot.textContent =
+  errorElement.textContent =
     previous.length > 0 && !previous.includes(nextMessage)
       ? `${previous}\n${nextMessage}`
       : nextMessage;
@@ -478,6 +484,9 @@ export async function bootstrapApplication({
   // the bootstrap step loop — registering it would cause double DOM writes per
   // frame and bypass the sprite pool.
 
+  const hudSection = targetDocument.getElementById('hud');
+  const hudAdapter = hudSection ? createHudAdapter(hudSection) : null;
+
   const hudElements = {
     timer: targetDocument.querySelector('[data-hud="timer"]'),
     score: targetDocument.querySelector('[data-hud="score"]'),
@@ -522,6 +531,45 @@ export async function bootstrapApplication({
     // validated at injection time and teardown on stop is symmetric.
     bootstrap.setInputAdapter(inputAdapter);
 
+    // Create and register the screens adapter with game-flow callbacks.
+    const screensAdapter =
+      overlayRoot && typeof overlayRoot.querySelector === 'function'
+        ? createScreensAdapter(overlayRoot, {
+            gameplayElement: boardContainerElement,
+            onAction(action) {
+              switch (action) {
+                case 'start-primary':
+                case 'gameover-play-again':
+                case 'victory-play-again':
+                  bootstrap.gameFlow.startGame({ levelIndex: 0 });
+                  break;
+                case 'level-next':
+                  bootstrap.gameFlow.startGame();
+                  break;
+                default:
+                  break;
+              }
+              overlayRoot.querySelectorAll('.screen-overlay.is-screen-visible').forEach((el) => {
+                el.classList.remove('is-screen-visible');
+                el.classList.add('is-screen-hidden');
+              });
+            },
+            onResume() {
+              bootstrap.gameFlow.resumeGame();
+            },
+            onRestart() {
+              bootstrap.gameFlow.restartLevel();
+            },
+          })
+        : null;
+
+    bootstrap.setHudAdapter(hudAdapter);
+    bootstrap.setScreensAdapter(screensAdapter);
+    bootstrap.setStorageProvider({
+      saveHighScore,
+      getHighScore,
+    });
+
     installUnhandledRejectionHandler({
       logger,
       overlayRoot,
@@ -535,9 +583,6 @@ export async function bootstrapApplication({
       windowRef: targetWindow,
     });
 
-    if (overlayRoot) {
-      overlayRoot.textContent = 'Engine bootstrap ready.';
-    }
     runtime.start();
     return runtime;
   } catch (error) {

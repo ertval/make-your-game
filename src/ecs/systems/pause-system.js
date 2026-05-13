@@ -88,7 +88,7 @@ export function createPauseSystem(options = {}) {
 
   return {
     name: 'pause-system',
-    phase: 'logic',
+    phase: 'meta',
     resourceCapabilities: {
       read: [clockResourceKey, gameStatusResourceKey, levelFlowResourceKey, pauseIntentResourceKey],
       write: [

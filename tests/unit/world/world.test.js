@@ -360,7 +360,7 @@ describe('World', () => {
     const world = new World();
 
     // 232: getPhaseOrder
-    expect(world.getPhaseOrder()).toEqual(['input', 'physics', 'logic', 'render']);
+    expect(world.getPhaseOrder()).toEqual(['meta', 'input', 'physics', 'logic', 'render']);
 
     // 406-407: runRenderCommit with no systems
     world.runRenderCommit();
