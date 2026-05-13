@@ -32,7 +32,7 @@ Source plan: `docs/implementation/implementation-plan.md` (Section 3)
   - Level clear: +1000 + (remainingSeconds × 10) is implemented as a pure helper. Runtime integration is deferred to a later scoring/flow integration ticket.
 - [x] Consume collision intents (B-04) for the current scoring pipeline.
 - [x] C-01 scoring authority is implemented for the current collision-intent pipeline. Explosion-event scoring is not part of C-01 and will be integrated in a later ticket once event-queue usage is established through `B-09` or later runtime event consumers such as `C-07`.
-- [ ] Runtime integration into the default bootstrap / system stack is deferred to later integration tickets (`A-05`, `C-05`, `B-09`) and is not completed in C-01.
+- [ ] The level-clear scoring runtime hookup remains pending. The pure helper exists, but the `PLAYING → LEVEL_COMPLETE` runtime award integration has not yet landed and will be completed in a focused follow-up integration step.
 - [x] Verification gate: unit tests match every value in `game-description.md` §6.
 
 ---
@@ -69,7 +69,7 @@ Source plan: `docs/implementation/implementation-plan.md` (Section 3)
 - [x] Death-return respawn is `5000ms`, with respawned ghosts re-entering the FIFO queue and still respecting the active cap.
 - [x] The spawn system owns a dedicated `ghostSpawnState` world resource with `elapsedMs`, `releasedGhostIds`, `queuedGhostIds`, `respawnQueue`, and `activeGhostCap`.
 - [x] Deterministic ghost order comes from a `ghostIds` resource when present; otherwise falls back to `[0..activeGhostCap-1]` (the resolved per-level cap), so under-cap maps no longer over-spawn during fallback.
-- [x] Spawn-state updates are resource-only for now; direct ghost-entity mutation remains deferred, so C-03 stays isolated from collision, audio, UI, and bootstrap integration.
+- [x] Spawn-state updates are resource-only by design. Direct ghost-entity mutation (entity creation, AI targeting, position/velocity updates, DOM rendering) is deferred to `B-08 Ghost AI System (Track B, Phase 3)`. C-03 deliberately stays isolated from collision, audio, UI, and bootstrap integration — this is the intended scope, not an incomplete Track C implementation. If ghosts are not visibly moving at runtime, that is expected until B-08 lands.
 - [x] Verification gate: unit tests validate stagger timing, FIFO/cap behavior, respawn delay, and duplicate protection.
 
 ---
@@ -80,19 +80,15 @@ Source plan: `docs/implementation/implementation-plan.md` (Section 3)
 **Depends On**: `D-01` (clock/game-status), `D-03` (map resource), `C-02` (timer/lives), `A-03` (game loop), `A-11` (audit gate, non-blocking)
 **Impacts**: ECS pause/progression flow contracts and later pause menu/runtime integration (`AUDIT-F-07..F-10`)
 **Blocks**: A-05, A-06, A-08, C-05
-**READY_FOR_MAIN**: NO
+**READY_FOR_MAIN**: YES
 
-C-04 is complete at ECS system layer only. Visible pause UI, restart UX, default runtime wiring,
-and full level-flow/loader UI integration remain later-ticket work (`C-05+` / Track A
-integration).
+C-04 is runtime-integrated. The ECS systems (`pause-input-system`, `pause-system`, `level-progress-system`) are registered in the default bootstrap, and the visible pause menu, restart UX, and level-flow advancement are wired through the C-05 adapters that ship alongside this work. Runtime integration landed via `ekaramet/integration-track-D-C-followups`.
 
 **C-04 Status**
-- Scope: ECS system-layer only
-- Pause: implemented via in-place resource mutation
-- Restart: emits intent only via `levelFlow.pendingRestart`
-- Level progression: emits intent only via `levelFlow.pendingLevelAdvance`
-
-Runtime integration (`bootstrap`, UI, level loader, visible pause menu) is out of scope for C-04.
+- Scope: ECS system layer + default runtime registration
+- Pause: in-place resource mutation, dispatched once per rAF in the `meta` phase
+- Restart: `levelFlow.pendingRestart` is consumed by the bootstrap restart path, which fully resets gameplay resources, the sprite pool, and intent buffers
+- Level progression: `levelFlow.pendingLevelAdvance` is consumed by the runtime level loader to advance levels and trigger overlays
 
 **Deliverables**:
 - `src/ecs/systems/pause-system.js` — FSM-only pause, continue, and paused-restart transitions
@@ -100,19 +96,15 @@ Runtime integration (`bootstrap`, UI, level loader, visible pause menu) is out o
 - `src/ecs/systems/level-progress-system.js` — pellet completion detection
 
 - [x] Implements ECS system-layer logic for pause and level progression.
-- [x] Implemented in this PR: `pause-input-system`, `pause-system`, and `level-progress-system`.
+- [x] Implemented: `pause-input-system`, `pause-system`, and `level-progress-system`.
 - [x] System-layer FSM intents: `PLAYING ↔ PAUSED` and `PLAYING → LEVEL_COMPLETE`.
-- [x] C-04 remains limited to ECS resources and state transitions. Default runtime registration/bootstrap wiring remains out of scope for this track-owned implementation slice.
-- [x] C-04 does NOT apply level-clear scoring. It only transitions `PLAYING → LEVEL_COMPLETE`. Score integration is handled separately.
-- [x] Pause Continue intent: `PAUSED → PLAYING` transition is implemented at the ECS resource layer only.
-- [x] Pause Restart intent: `pause-system` accepts resource-layer restart intent, but visible restart UX and full runtime reset/reload behavior remain deferred.
-- [x] Verification gate: focused unit tests cover `pause-input-system`, `pause-system`, and `level-progress-system` system-layer behavior.
+- [x] Default runtime registration: all three systems are registered in the default bootstrap (pause systems in the `meta` phase, level-progress in `logic`).
+- [x] C-04 does NOT apply level-clear scoring. It only transitions `PLAYING → LEVEL_COMPLETE`. Score integration is handled separately (C-01 runtime hookup tracked under a follow-up PR).
+- [x] Pause Continue intent: `PAUSED → PLAYING` transition is implemented and live through the runtime pause menu (Continue button + Enter key).
+- [x] Pause Restart intent: `pause-system` accepts the restart intent, and the bootstrap restart path performs the full reset/reload (score, timer, lives, ghost spawn state, sprite pool, intent buffers).
+- [x] Verification gate: focused unit tests cover `pause-input-system`, `pause-system`, and `level-progress-system`; e2e coverage in `tests/e2e/game-loop.pause.spec.js`, `tests/e2e/c-05-screens-navigation.spec.js`, and `tests/e2e/stress/race-condition.spec.js`.
 
-C-04 is system-layer complete only. Runtime integration, HUD, overlays, visible pause UI, and full
-restart/player-facing behavior are implemented in later tickets. `AUDIT-F-07` through
-`AUDIT-F-10` remain PARTIAL for C-04 because this ticket does not include default runtime
-registration/bootstrap wiring, visible pause menu/overlays, restart reset/reload behavior,
-level-flow/level-loader runtime advancement, or browser rAF/performance/manual evidence.
+C-04 is runtime-integrated. `AUDIT-F-07` through `AUDIT-F-10` are covered by the e2e pause/restart suite plus the signed-off manual evidence entries for F-19/F-20/F-21/B-06 in `docs/audit-reports/manual-evidence.manifest.json`.
 
 ---
 
@@ -122,9 +114,9 @@ level-flow/level-loader runtime advancement, or browser rAF/performance/manual e
 **Depends On**: `D-05` (CSS layout), `C-02` (timer/lives data), `C-04` (pause/progression states), `A-11` (audit gate, non-blocking)
 **Impacts**: Visible gameplay metrics (`AUDIT-F-14..F-16`), pause/start/restart UX (`AUDIT-F-07..F-09`)
 **Blocks**: A-05, A-06, A-08, D-11
-**READY_FOR_MAIN**: NO
+**READY_FOR_MAIN**: YES
 
-C-05 is SYSTEM / ADAPTER SCOPE COMPLETE ONLY. Runtime mounting, bootstrap wiring, gameplay-flow orchestration, and live product integration remain deferred to later tickets (`C-06+` / Track A integration).
+C-05 is runtime-integrated. `hud-adapter`, `screens-adapter`, and `storage-adapter` are mounted via the bootstrap injection slots (`setHudAdapter`, `setScreensAdapter`, `setStorageProvider`), and the `hud-system` plus the new `screens-system` ECS bridge are registered in the default `render` phase. Overlays (start/pause/level-complete/game-over/victory) are active in the live runtime shell. Runtime integration landed via `ekaramet/integration-track-D-C-followups`.
 
 **Deliverables**:
 - `src/adapters/dom/hud-adapter.js` — textContent updates for lives, score, timer, bomb count, fire radius, level number
@@ -144,7 +136,7 @@ C-05 is SYSTEM / ADAPTER SCOPE COMPLETE ONLY. Runtime mounting, bootstrap wiring
 - [x] Implement `adapters/io/storage-adapter.js`: High score saving/reading from `localStorage` with untrusted data validation on read.
 - [x] Verification gate: adapter tests confirm HUD metrics update correctly via safe sinks; e2e harness tests confirm keyboard-only navigation across screen-overlay flows owned by C-05.
 
-C-05 is complete at the system / adapter boundary only. It does not yet mount HUD/screen DOM into the live runtime shell, register adapter resources through bootstrap, or deliver full gameplay/runtime completion in product flow.
+C-05 is runtime-integrated: the HUD/screen DOM is mounted into the live runtime shell, adapter resources are registered through bootstrap, and the full gameplay/runtime product flow (start → play → pause → restart → level complete → game over / victory, with high-score persistence) is exercised end-to-end by `tests/e2e/c-05-screens-navigation.spec.js`, `tests/e2e/track-c-integration.spec.js`, and `tests/integration/gameplay/restart-flow.test.js`.
 
 ### Storage Trust Boundary & Validation Contract
 
