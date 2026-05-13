@@ -32,7 +32,7 @@ Source plan: `docs/implementation/implementation-plan.md` (Section 3)
   - Level clear: +1000 + (remainingSeconds × 10) is implemented as a pure helper. Runtime integration is deferred to a later scoring/flow integration ticket.
 - [x] Consume collision intents (B-04) for the current scoring pipeline.
 - [x] C-01 scoring authority is implemented for the current collision-intent pipeline. Explosion-event scoring is not part of C-01 and will be integrated in a later ticket once event-queue usage is established through `B-09` or later runtime event consumers such as `C-07`.
-- [ ] The level-clear scoring runtime hookup remains pending. The pure helper exists, but the `PLAYING → LEVEL_COMPLETE` runtime award integration has not yet landed and will be completed in a focused follow-up integration step.
+- [x] Level-clear scoring runtime hookup is live: `scoring-system` observes the `PLAYING → LEVEL_COMPLETE` transition and awards `1000 + remainingSeconds * 10` exactly once via a `levelClearBonusAwarded` one-shot flag on the `scoreState` resource (re-armed when gameplay returns to PLAYING). Verification: `tests/integration/gameplay/c-01-level-clear-bonus.test.js`. Remaining event-driven scoring work (explosion events, cross-system event hooks) stays scoped to `B-09` / `C-07`.
 - [x] Verification gate: unit tests match every value in `game-description.md` §6.
 
 ---
