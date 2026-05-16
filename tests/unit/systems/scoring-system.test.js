@@ -29,6 +29,7 @@ describe('scoring-system', () => {
       totalPoints: 0,
       comboCounter: 0,
       lastProcessedFrame: null,
+      levelClearBonusAwarded: false,
     });
   });
 
@@ -43,6 +44,7 @@ describe('scoring-system', () => {
       totalPoints: 0,
       comboCounter: 0,
       lastProcessedFrame: null,
+      levelClearBonusAwarded: false,
     });
   });
 
@@ -71,6 +73,7 @@ describe('scoring-system', () => {
       totalPoints: 0,
       comboCounter: 0,
       lastProcessedFrame: 0,
+      levelClearBonusAwarded: false,
     });
   });
 
@@ -87,6 +90,7 @@ describe('scoring-system', () => {
       totalPoints: 0,
       comboCounter: 0,
       lastProcessedFrame: 0,
+      levelClearBonusAwarded: false,
     });
   });
 
@@ -108,6 +112,7 @@ describe('scoring-system', () => {
       totalPoints: 160,
       comboCounter: 0,
       lastProcessedFrame: 0,
+      levelClearBonusAwarded: false,
     });
   });
 
@@ -128,6 +133,7 @@ describe('scoring-system', () => {
       totalPoints: 1400,
       comboCounter: 3,
       lastProcessedFrame: 0,
+      levelClearBonusAwarded: false,
     });
   });
 
@@ -148,6 +154,7 @@ describe('scoring-system', () => {
       totalPoints: 1000,
       comboCounter: 2,
       lastProcessedFrame: 0,
+      levelClearBonusAwarded: false,
     });
   });
 
@@ -167,6 +174,7 @@ describe('scoring-system', () => {
       totalPoints: 600,
       comboCounter: 2,
       lastProcessedFrame: 0,
+      levelClearBonusAwarded: false,
     });
   });
 
@@ -184,6 +192,7 @@ describe('scoring-system', () => {
       totalPoints: 10,
       comboCounter: 0,
       lastProcessedFrame: 0,
+      levelClearBonusAwarded: false,
     });
   });
 
@@ -202,6 +211,7 @@ describe('scoring-system', () => {
       totalPoints: 110,
       comboCounter: 0,
       lastProcessedFrame: 1,
+      levelClearBonusAwarded: false,
     });
   });
 
@@ -223,6 +233,7 @@ describe('scoring-system', () => {
       totalPoints: 50,
       comboCounter: 0,
       lastProcessedFrame: null,
+      levelClearBonusAwarded: false,
     });
   });
 
@@ -240,6 +251,7 @@ describe('scoring-system', () => {
       totalPoints: 10,
       comboCounter: 0,
       lastProcessedFrame: 7,
+      levelClearBonusAwarded: false,
     });
   });
 
@@ -265,6 +277,7 @@ describe('scoring-system', () => {
       totalPoints: 20,
       comboCounter: 0,
       lastProcessedFrame: null,
+      levelClearBonusAwarded: false,
     });
   });
 });

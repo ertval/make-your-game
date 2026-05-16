@@ -29,10 +29,10 @@ Source plan: `docs/implementation/implementation-plan.md` (Section 3)
 - [x] Implement `scoring-system.js` with exact canonical values:
   - Pellet: +10, Power Pellet: +50, Ghost kill (normal): +200, Ghost kill (stunned): +400.
   - Chain multiplier: `200 * 2^(n-1)` per ghost. Power-up pickup: +100. Retain full authority over all pointing and combo logic here in C-01.
-  - Level clear: +1000 + (remainingSeconds × 10) is implemented as a pure helper. Runtime integration is deferred to a later scoring/flow integration ticket.
+  - Level clear: +1000 + (remainingSeconds × 10) ships as a pure helper and is now consumed at runtime — `scoring-system` observes the `PLAYING → LEVEL_COMPLETE` transition and awards the bonus exactly once (one-shot guarded on `scoreState.levelClearBonusAwarded`).
 - [x] Consume collision intents (B-04) for the current scoring pipeline.
 - [x] C-01 scoring authority is implemented for the current collision-intent pipeline. Explosion-event scoring is not part of C-01 and will be integrated in a later ticket once event-queue usage is established through `B-09` or later runtime event consumers such as `C-07`.
-- [ ] The level-clear scoring runtime hookup remains pending. The pure helper exists, but the `PLAYING → LEVEL_COMPLETE` runtime award integration has not yet landed and will be completed in a focused follow-up integration step.
+- [x] Level-clear scoring runtime hookup is live: `scoring-system` observes the `PLAYING → LEVEL_COMPLETE` transition and awards `1000 + remainingSeconds * 10` exactly once via a `levelClearBonusAwarded` one-shot flag on the `scoreState` resource (re-armed when gameplay returns to PLAYING). Verification: `tests/integration/gameplay/c-01-level-clear-bonus.test.js`. Remaining event-driven scoring work (explosion events, cross-system event hooks) stays scoped to `B-09` / `C-07`.
 - [x] Verification gate: unit tests match every value in `game-description.md` §6.
 
 ---

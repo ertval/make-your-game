@@ -34,9 +34,9 @@ Coverage mapping remains canonical in `audit-traceability-matrix.md`.
 ## 📈 Summary Snapshot
 
 - Total tickets: `44`
-- Done: `21`
+- Done: `26`
 - In Progress: `0`
-- Not Started: `23`
+- Not Started: `18`
 
 ## ✅ Phase 0 — Fully Implemented and Audited
 
@@ -49,19 +49,19 @@ All P0 tickets complete. Audit reports published and remediation verified.
   - `docs/audit-reports/phase-0/audit-report-p0-track-d-deduplicated-2026-04-14.md`
 - **Remediation status:** All Track A/B/C/D issues mapped and resolved. Loader fallback removed (`level-loader.js`), strict map-resource validation active. CI gates (CI-01 through CI-X03) enforced via policy-gate and executable audit suites.
 
-## 🔲 Phase 1 — Visual Prototype (P1)
+## ✅ Phase 1 — Visual Prototype (P1)
 
-**Status:** In Progress — Tickets D-08 and A-11 pending.
+**Status:** Complete — all P1 tickets done.
 
-- **Audit reports published:** _Pending A-11 completion_
-- **Remediation status:** D-05 ✅, D-06 ✅, B-02 ✅, B-03 ✅, D-07 ✅, D-09 ✅, D-08 ⏳, A-11 ⏳
+- **Audit reports published:** A-11 consolidation complete; per-track P1 fix reports under `docs/audit-reports/phase-1/`.
+- **Remediation status:** D-05 ✅, D-06 ✅, B-02 ✅, B-03 ✅, D-07 ✅, D-09 ✅, D-08 ✅, A-11 ✅
 
 ## 🔲 Phase 2 — Playable MVP (P2)
 
-**Status:** Not Started — Blocks on P1 completion (A-11).
+**Status:** In Progress — C-06 (audio adapter) and A-12 (P2 consolidation) remain.
 
 - **Audit reports published:** _Pending A-12 completion_
-- **Remediation status:** B-04 ✅, C-02 ✅, C-01 ✅, C-03 ✅, B-05 ✅, A-07 ✅, C-04 ⏳, C-05 ⏳, C-06 ⏳, A-12 ⏳
+- **Remediation status:** B-04 ✅, C-02 ✅, C-01 ✅, C-03 ✅, B-05 ✅, A-07 ✅, C-04 ✅, C-05 ✅, C-06 ⏳, A-12 ⏳
 
 ## 🔲 Phase 3 — Feature Complete + Hardening (P3)
 
@@ -133,7 +133,7 @@ Canonical ticket ID ranges used by policy checks:
 
 - [x] **B-04** P2 - Entity Collision System (Depends on: B-01, B-03, D-03, A-11) | Blocks: A-06; A-08; B-05; B-06; B-07; B-08; C-01; C-02; A-12
 - [x] **C-02** P2 - Timer & Life Systems (Depends on: D-01, B-04, A-11 audit gate, non-blocking) | Blocks: A-05; A-08; B-09; C-01; C-04; C-05; A-12
-- [x] **C-01** P2 - Scoring System — System-level implementation complete; runtime integration deferred to later tickets (Depends on: B-04, C-02, D-01, A-11 audit gate, non-blocking) | Blocks: A-05; A-06; A-08; B-09; A-12
+- [x] **C-01** P2 - Scoring System — Runtime-integrated. Collision-driven point awards and the level-clear bonus (`1000 + remainingSeconds × 10`) are live in the default bootstrap via `scoring-system`, with one-shot protection on `scoreState.levelClearBonusAwarded` (re-armed when gameplay returns to PLAYING). Verification: `tests/unit/systems/scoring-system.test.js` + `tests/integration/gameplay/c-01-level-clear-bonus.test.js`. Remaining event-driven scoring scope (explosion events, cross-system event hooks) stays with `B-09` / `C-07` (Depends on: B-04, C-02, D-01, A-11 audit gate, non-blocking) | Blocks: A-05; A-06; A-08; B-09; A-12
 - [x] **C-03** P2 - Spawn System — Implementation complete and within scope. Owns `ghostSpawnState` (absolute stagger timing, FIFO queueing, `mapResource.maxGhosts` cap, `5000ms` respawn). Resource-only by design; ghost-entity creation, AI, and movement are deferred to `B-08 Ghost AI System (Track B, P3)` — not a Track C gap (Depends on: D-01, D-03, A-11 audit gate, non-blocking) | Blocks: A-06; A-08; B-08; A-12
 - [x] **C-04** P2 - Pause & Level Progression Systems — READY_FOR_MAIN: YES. `pause-input-system`, `pause-system`, and `level-progress-system` are registered in the default bootstrap (`meta` + `logic` phases). Pause menu, restart reset/reload, and level-flow advancement are runtime-integrated through the C-05 adapters; covered by `tests/e2e/game-loop.pause.spec.js`, `tests/e2e/c-05-screens-navigation.spec.js`, and `tests/e2e/stress/race-condition.spec.js`. Runtime integration landed in `ekaramet/integration-track-D-C-followups` (Depends on: D-01, D-03, C-02, A-03, A-11 audit gate, non-blocking) | Blocks: A-05; A-06; A-08; B-09; C-05; A-12
 - [x] **C-05** P2 - HUD Adapter & Screen Overlays — READY_FOR_MAIN: YES. `hud-adapter`, `screens-adapter`, and `storage-adapter` are mounted via bootstrap injection slots, with `hud-system` and `screens-system` registered in the default `render` phase. Overlays (start/pause/level-complete/game-over/victory), keyboard-only navigation, focus restore, and validated high-score localStorage reads are live. Verification: `tests/integration/adapters/*`, `tests/integration/gameplay/restart-flow.test.js`, `tests/e2e/c-05-screens-navigation.spec.js`, and `tests/e2e/track-c-integration.spec.js`. Runtime integration landed in `ekaramet/integration-track-D-C-followups` (Depends on: D-05, C-02, C-04, A-11 audit gate, non-blocking) | Blocks: A-05; A-06; A-08; D-11; A-12

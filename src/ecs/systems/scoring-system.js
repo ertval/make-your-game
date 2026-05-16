@@ -9,14 +9,18 @@
  * Public API:
  * - SCORE_* constants: canonical point values for scoring actions.
  * - computeChainGhostScore(chainIndex): deterministic chain-reaction score helper.
- * - computeLevelClearBonus(remainingSeconds): pure helper for C-04 to consume later.
+ * - computeLevelClearBonus(remainingSeconds): pure helper consumed at the
+ *   PLAYING -> LEVEL_COMPLETE transition.
  * - createDefaultScoreState(): canonical world-resource initializer.
  * - ensureScoreState(scoreState): sanitize a mutable score resource in place.
  * - createScoringSystem(options): logic-phase ECS scoring system factory.
  *
  * Implementation notes:
- * - The runtime currently has no level-complete event source, so the level
- *   clear bonus remains a pure helper and is not consumed automatically yet.
+ * - The level-clear bonus is awarded exactly once per PLAYING -> LEVEL_COMPLETE
+ *   transition. A `levelClearBonusAwarded` flag on the score resource provides
+ *   the one-shot guard; it is reset back to false while gameplay is PLAYING so
+ *   a subsequent level can earn its own bonus. Score remains the single source
+ *   of truth for the award state — no globals, no out-of-band coupling.
  * - Stunned ghost kills have an explicit fixed value in the game design. To
  *   keep that rule unambiguous, only non-stunned ghost deaths participate in
  *   the normal ghost chain sequence; stunned ghost kills always award +400 and
@@ -33,6 +37,7 @@ import { GAME_STATE } from '../resources/game-status.js';
 
 const DEFAULT_COLLISION_INTENTS_RESOURCE_KEY = 'collisionIntents';
 const DEFAULT_GAME_STATUS_RESOURCE_KEY = 'gameStatus';
+const DEFAULT_LEVEL_TIMER_RESOURCE_KEY = 'levelTimer';
 const DEFAULT_SCORE_RESOURCE_KEY = 'scoreState';
 
 /** Points for eating a regular pellet. */
@@ -93,6 +98,7 @@ export function createDefaultScoreState() {
     totalPoints: 0,
     comboCounter: 0,
     lastProcessedFrame: null,
+    levelClearBonusAwarded: false,
   };
 }
 
@@ -121,6 +127,10 @@ export function ensureScoreState(scoreState) {
     scoreState.lastProcessedFrame = null;
   } else {
     scoreState.lastProcessedFrame = Math.floor(scoreState.lastProcessedFrame);
+  }
+
+  if (typeof scoreState.levelClearBonusAwarded !== 'boolean') {
+    scoreState.levelClearBonusAwarded = false;
   }
 
   return scoreState;
@@ -194,13 +204,19 @@ export function createScoringSystem(options = {}) {
   const collisionIntentsResourceKey =
     options.collisionIntentsResourceKey || DEFAULT_COLLISION_INTENTS_RESOURCE_KEY;
   const gameStatusResourceKey = options.gameStatusResourceKey || DEFAULT_GAME_STATUS_RESOURCE_KEY;
+  const levelTimerResourceKey = options.levelTimerResourceKey || DEFAULT_LEVEL_TIMER_RESOURCE_KEY;
   const scoreResourceKey = options.scoreResourceKey || DEFAULT_SCORE_RESOURCE_KEY;
 
   return {
     name: 'scoring-system',
     phase: 'logic',
     resourceCapabilities: {
-      read: [collisionIntentsResourceKey, gameStatusResourceKey, scoreResourceKey],
+      read: [
+        collisionIntentsResourceKey,
+        gameStatusResourceKey,
+        levelTimerResourceKey,
+        scoreResourceKey,
+      ],
       write: [scoreResourceKey],
     },
     update(context) {
@@ -216,9 +232,31 @@ export function createScoringSystem(options = {}) {
         context.world.setResource(scoreResourceKey, scoreState);
       }
 
+      // Award the level-clear bonus exactly once when gameplay observes the
+      // PLAYING -> LEVEL_COMPLETE transition. The one-shot guard lives on the
+      // score resource itself; it is cleared again while PLAYING below so the
+      // next level can earn its own bonus after the loader advances.
+      if (
+        gameStatus?.currentState === GAME_STATE.LEVEL_COMPLETE &&
+        !scoreState.levelClearBonusAwarded
+      ) {
+        const levelTimer = context.world.getResource(levelTimerResourceKey);
+        const remainingSeconds = Number.isFinite(levelTimer?.remainingSeconds)
+          ? levelTimer.remainingSeconds
+          : 0;
+        scoreState.totalPoints += computeLevelClearBonus(remainingSeconds);
+        scoreState.levelClearBonusAwarded = true;
+      }
+
       if (gameStatus?.currentState !== GAME_STATE.PLAYING) {
         scoreState.comboCounter = 0;
         return;
+      }
+
+      // Re-arm the one-shot once gameplay is back in PLAYING (e.g. after the
+      // level loader advanced past LEVEL_COMPLETE).
+      if (scoreState.levelClearBonusAwarded) {
+        scoreState.levelClearBonusAwarded = false;
       }
 
       if (frameIndex !== null && scoreState.lastProcessedFrame === frameIndex) {
