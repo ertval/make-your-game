@@ -45,7 +45,6 @@
  *   guard keeps the AI consistent if the systems are wired independently.
  */
 
-import { resetGhost } from '../components/actors.js';
 import { COMPONENT_MASK } from '../components/registry.js';
 import {
   CLYDE_DISTANCE_THRESHOLD,
@@ -56,7 +55,7 @@ import {
   PINKY_TARGET_OFFSET,
 } from '../resources/constants.js';
 import { GAME_STATE } from '../resources/game-status.js';
-import { isPassableForGhost } from '../resources/map-resource.js';
+import { isInGhostHouse, isPassableForGhost } from '../resources/map-resource.js';
 import { readEntityTile } from '../shared/tile-utils.js';
 
 const DEFAULT_GAME_STATUS_RESOURCE_KEY = 'gameStatus';
@@ -178,9 +177,11 @@ export function computeInkyTarget(playerTile, playerVector, blinkyTile) {
 export function computeClydeTarget(playerTile, ghostTile, mapResource) {
   const dRow = playerTile.row - ghostTile.row;
   const dCol = playerTile.col - ghostTile.col;
-  const euclideanDistance = Math.sqrt(dRow * dRow + dCol * dCol);
+  // Squared comparison avoids the sqrt: dist > T ⇔ dist² > T² for T ≥ 0.
+  const distanceSquared = dRow * dRow + dCol * dCol;
+  const thresholdSquared = CLYDE_DISTANCE_THRESHOLD * CLYDE_DISTANCE_THRESHOLD;
 
-  if (euclideanDistance > CLYDE_DISTANCE_THRESHOLD) {
+  if (distanceSquared > thresholdSquared) {
     return { row: playerTile.row, col: playerTile.col };
   }
 
@@ -256,13 +257,28 @@ export function resolveGhostSpeed(ghostStore, ghostId, mapResource) {
  * Walls are blocked via the map resource; bomb cells are blocked if the
  * optional bomb-occupancy resource is registered.
  *
+ * Ghost-house gate (game-description.md §5.4): only DEAD ghosts (eyes) may
+ * enter the ghost house from outside. Ghosts already inside the house may
+ * still move freely so the initial spawn can leave the house.
+ *
  * @param {object} mapResource - Map resource.
+ * @param {number} currentRow - Ghost's current tile row.
+ * @param {number} currentCol - Ghost's current tile col.
  * @param {number} nextRow - Target tile row.
  * @param {number} nextCol - Target tile col.
+ * @param {number} state - Ghost state from GHOST_STATE.
  * @param {Set<number> | Map<number, unknown> | null} bombCells - Optional bomb-occupied cell set keyed by `row*cols+col`.
  * @returns {boolean} True when the tile is enterable this step.
  */
-function isGhostTilePassable(mapResource, nextRow, nextCol, bombCells) {
+function isGhostTilePassable(
+  mapResource,
+  currentRow,
+  currentCol,
+  nextRow,
+  nextCol,
+  state,
+  bombCells,
+) {
   if (!isPassableForGhost(mapResource, nextRow, nextCol)) {
     return false;
   }
@@ -274,16 +290,28 @@ function isGhostTilePassable(mapResource, nextRow, nextCol, bombCells) {
     }
   }
 
+  // One-way ghost-house gate: live and stunned ghosts may not re-enter the
+  // house from outside. Eyes (DEAD) may always re-enter.
+  if (state !== GHOST_STATE.DEAD) {
+    if (
+      isInGhostHouse(mapResource, nextRow, nextCol) &&
+      !isInGhostHouse(mapResource, currentRow, currentCol)
+    ) {
+      return false;
+    }
+  }
+
   return true;
 }
 
 /**
  * Pick the next movement direction for a ghost at a tile-center decision point.
  *
- * Normal ghosts pick the direction whose adjacent tile is closest to the
- * target (Euclidean squared distance). They may not reverse. Stunned ghosts
- * pick the direction farthest from the player and may reverse. Dead ghosts
- * pick the direction closest to the ghost spawn point and may reverse.
+ * Normal ghosts pick the direction whose adjacent tile minimizes the squared
+ * distance to the target tile. They may not reverse. Stunned ghosts pick the
+ * direction that maximizes squared distance from the player and may reverse.
+ * Dead ghosts pick the direction closest to the ghost spawn point and may
+ * reverse.
  *
  * @param {{
  *   ghostTile: { row: number, col: number },
@@ -317,7 +345,17 @@ export function selectGhostDirection(context) {
     const nextRow = ghostTile.row + vector.rowDelta;
     const nextCol = ghostTile.col + vector.colDelta;
 
-    if (!isGhostTilePassable(mapResource, nextRow, nextCol, bombCells)) {
+    if (
+      !isGhostTilePassable(
+        mapResource,
+        ghostTile.row,
+        ghostTile.col,
+        nextRow,
+        nextCol,
+        state,
+        bombCells,
+      )
+    ) {
       continue;
     }
 
@@ -357,7 +395,17 @@ export function selectGhostDirection(context) {
       const vector = GHOST_DIRECTION_VECTOR[reverseDir];
       const nextRow = ghostTile.row + vector.rowDelta;
       const nextCol = ghostTile.col + vector.colDelta;
-      if (isGhostTilePassable(mapResource, nextRow, nextCol, bombCells)) {
+      if (
+        isGhostTilePassable(
+          mapResource,
+          ghostTile.row,
+          ghostTile.col,
+          nextRow,
+          nextCol,
+          state,
+          bombCells,
+        )
+      ) {
         return reverseDir;
       }
     }
@@ -625,14 +673,17 @@ export function createGhostAiSystem(options = {}) {
           ghostStore.state[ghostId] = GHOST_STATE.NORMAL;
         }
 
-        // Respawn handoff: when a ghost is DEAD and the spawn system has
-        // already re-released it, return it to NORMAL at the spawn point.
-        // We skip the rest of this tick so the ghost starts fresh next frame
-        // and downstream systems observe the canonical spawn-point position.
+        // Respawn handoff: a DEAD ghost is only revived once it has navigated
+        // its eyes back to the ghost spawn point AND the C-03 spawn system has
+        // re-released it (the 5-second penalty delay completed). Gating on
+        // "at spawn point" avoids reviving a just-killed ghost that is still
+        // present in `releasedGhostIds` before C-03's next-tick prune.
         if (
           releasedGhostSet &&
           ghostStore.state?.[ghostId] === GHOST_STATE.DEAD &&
-          releasedGhostSet.has(ghostId)
+          releasedGhostSet.has(ghostId) &&
+          positionStore.row[ghostId] === mapResource.ghostSpawnRow &&
+          positionStore.col[ghostId] === mapResource.ghostSpawnCol
         ) {
           restoreReleasedDeadGhost(ghostStore, positionStore, velocityStore, ghostId, mapResource);
           continue;
@@ -711,6 +762,3 @@ export function createGhostAiSystem(options = {}) {
     },
   };
 }
-
-// Re-export reset helper so tests can build harnesses without importing actors.
-export { resetGhost };

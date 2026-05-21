@@ -266,6 +266,65 @@ describe('ghost-ai-system: direction selection', () => {
     expect(['left', 'right']).toContain(direction);
   });
 
+  it('blocks live ghosts from entering the ghost house from outside (one-way gate)', () => {
+    const mapResource = createMapResource(createGhostMap());
+    // Ghost is just above the ghost-house top row; moving down would enter the house.
+    const direction = selectGhostDirection({
+      ghostTile: { row: 3, col: 4 },
+      targetTile: { row: 7, col: 4 },
+      state: GHOST_STATE.NORMAL,
+      previousVector: { rowDelta: 1, colDelta: 0 },
+      mapResource,
+      bombCells: null,
+      prefersDistance: false,
+    });
+    expect(direction).not.toBe('down');
+  });
+
+  it('blocks stunned ghosts from entering the ghost house from outside', () => {
+    const mapResource = createMapResource(createGhostMap());
+    const direction = selectGhostDirection({
+      ghostTile: { row: 3, col: 4 },
+      targetTile: { row: 7, col: 4 },
+      state: GHOST_STATE.STUNNED,
+      previousVector: { rowDelta: 1, colDelta: 0 },
+      mapResource,
+      bombCells: null,
+      prefersDistance: false,
+    });
+    expect(direction).not.toBe('down');
+  });
+
+  it('allows DEAD eyes to enter the ghost house', () => {
+    const mapResource = createMapResource(createGhostMap());
+    const direction = selectGhostDirection({
+      ghostTile: { row: 3, col: 4 },
+      targetTile: { row: 4, col: 4 },
+      state: GHOST_STATE.DEAD,
+      previousVector: null,
+      mapResource,
+      bombCells: null,
+      prefersDistance: false,
+    });
+    expect(direction).toBe('down');
+  });
+
+  it('allows ghosts already inside the house to move freely between house cells', () => {
+    const mapResource = createMapResource(createGhostMap());
+    // Ghost is inside the ghost house and moves to another ghost-house cell.
+    const direction = selectGhostDirection({
+      ghostTile: { row: 4, col: 4 },
+      targetTile: { row: 4, col: 5 },
+      state: GHOST_STATE.NORMAL,
+      previousVector: null,
+      mapResource,
+      bombCells: null,
+      prefersDistance: false,
+    });
+    // Right is a ghost-house cell and the ghost is currently in the house, so it's allowed.
+    expect(direction).toBe('right');
+  });
+
   it('refuses bomb cells when the bomb-occupancy set marks them', () => {
     const mapResource = createMapResource(createGhostMap());
     // From (1,4) the candidates are up (wall), left(1,3), right(1,5), down(2,4).
@@ -424,12 +483,13 @@ describe('ghost-ai-system: integration', () => {
     expect(newDistanceSq).toBeLessThan(initialDistanceSq);
   });
 
-  it('respawn handoff: DEAD ghost in releasedGhostIds returns to NORMAL at spawn point', () => {
+  it('respawn handoff: DEAD ghost at spawn point + in releasedGhostIds returns to NORMAL', () => {
     const { world, ghostStore, positionStore, mapResource, ghostHandles } = createGhostHarness({
       ghostCount: 1,
     });
     const ghostId = ghostHandles[0].id;
-    placeGhost(positionStore, ghostId, 2, 2);
+    // Ghost has already navigated its eyes back to the spawn point.
+    placeGhost(positionStore, ghostId, mapResource.ghostSpawnRow, mapResource.ghostSpawnCol);
     ghostStore.type[ghostId] = GHOST_TYPE.BLINKY;
     ghostStore.state[ghostId] = GHOST_STATE.DEAD;
     ghostStore.speed[ghostId] = 4.0;
@@ -448,6 +508,33 @@ describe('ghost-ai-system: integration', () => {
     expect(ghostStore.state[ghostId]).toBe(GHOST_STATE.NORMAL);
     expect(positionStore.row[ghostId]).toBe(mapResource.ghostSpawnRow);
     expect(positionStore.col[ghostId]).toBe(mapResource.ghostSpawnCol);
+  });
+
+  it('does NOT revive a just-killed DEAD ghost still in releasedGhostIds before it reaches spawn', () => {
+    const { world, ghostStore, positionStore, ghostHandles } = createGhostHarness({
+      ghostCount: 1,
+    });
+    const ghostId = ghostHandles[0].id;
+    // Ghost just died mid-map; spawn-system hasn't pruned releasedGhostIds yet.
+    placeGhost(positionStore, ghostId, 1, 1);
+    ghostStore.type[ghostId] = GHOST_TYPE.BLINKY;
+    ghostStore.state[ghostId] = GHOST_STATE.DEAD;
+    ghostStore.speed[ghostId] = 4.0;
+
+    world.setResource('ghostSpawnState', {
+      elapsedMs: 0,
+      releasedGhostIds: [ghostId],
+      queuedGhostIds: [],
+      respawnQueue: [],
+      activeGhostCap: 4,
+    });
+
+    const system = createGhostAiSystem();
+    runUpdate(system, world, { dtMs: FIXED_DT_MS });
+
+    // The ghost must remain DEAD until it actually returns to the spawn point
+    // and the C-03 respawn delay has completed.
+    expect(ghostStore.state[ghostId]).toBe(GHOST_STATE.DEAD);
   });
 
   it('produces identical traces across two seeded runs (determinism)', () => {
