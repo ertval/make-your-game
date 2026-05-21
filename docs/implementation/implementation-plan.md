@@ -54,20 +54,27 @@ graph TB
         MAIN["main.ecs.js (entry)"]
         RENDERER["Renderer Adapter (DOM)"]
         INPUT["Input Adapter"]
-        AUDIO["Audio Adapter"]
+        AUDIO["Audio Adapter (Web Audio)"]
     end
 
     subgraph "Core ECS Simulation (Pure Data & Behavior)"
-        WORLD["World (Entities, Scheduling)"]
-        
+        WORLD["World (Entities, Scheduling, Resources)"]
+
+        subgraph "World Resources (adapter slots)"
+          RES_INPUT["resources.inputAdapter"]
+          RES_AUDIO["resources.audio"]
+          RES_HUD["resources.hudAdapter"]
+        end
+
         subgraph "Systems"
             SYS_INPUT["Input System"]
             SYS_MOVE["Movement & Collision Systems"]
             SYS_BOMB["Bomb & Explosion Systems"]
             SYS_AI["Ghost AI System"]
+            SYS_AUDIO["Audio Cue System (C-07)"]
             SYS_RENDER["Render Collect & DOM Systems"]
         end
-        
+
         subgraph "Components"
           COMP_POS["Position, Velocity"]
           COMP_ACT["Player, Ghost, Bomb"]
@@ -75,20 +82,27 @@ graph TB
         end
     end
 
-    MAIN --> WORLD
+    MAIN -- "setInputAdapter / setAudioAdapter / setHudAdapter" --> WORLD
+    INPUT -. "registered as" .-> RES_INPUT
+    AUDIO -. "registered as" .-> RES_AUDIO
+
     WORLD --> SYS_INPUT
     WORLD --> SYS_AI
     WORLD --> SYS_MOVE
     WORLD --> SYS_BOMB
+    WORLD --> SYS_AUDIO
     WORLD --> SYS_RENDER
-    
-    SYS_INPUT -. reads .-> INPUT
+
+    SYS_INPUT -. "world.getResource('inputAdapter')" .-> RES_INPUT
+    SYS_AUDIO -. "world.getResource('audio')" .-> RES_AUDIO
     SYS_RENDER -. writes .-> RENDERER
-    
+
     SYS_INPUT --> COMP_POS
     SYS_MOVE --> COMP_POS
     SYS_AI --> COMP_ACT
 ```
+
+> **Audio adapter boundary**: see [`runtime-audio.md`](runtime-audio.md) for the as-built C-06 contract. Systems consume audio exclusively through `world.getResource('audio')`; the adapter module is never imported from a system.
 
 ### Core Architectural Boundaries
 
@@ -99,9 +113,10 @@ graph TB
    - Systems run in fixed order and mutate component data in place in hot paths.
    - No DOM calls in simulation systems.
 3. **Adapter Layer**
-   - Input adapter, render adapter, storage adapter, audio adapter.
-   - Converts browser events/DOM into normalized data for ECS resources.
+   - Input adapter, render adapter, storage adapter, audio adapter (Web Audio).
+   - Converts browser events/DOM/audio APIs into normalized data for ECS resources.
    - **Adapters are registered as World resources** and accessed via the resource API. Systems MUST NOT import adapters directly — direct imports violate DOM isolation boundaries.
+   - Canonical resource keys: `inputAdapter`, `audio`, `hudAdapter`, `screensAdapter`, `storageProvider`. The audio adapter binds the Web Audio boundary only — no `HTMLAudioElement`, no module-level singleton. See [`runtime-audio.md`](runtime-audio.md).
 4. **Render Boundary**
    - Two-stage rendering:
      - `render-collect-system`: computes render intents from ECS state

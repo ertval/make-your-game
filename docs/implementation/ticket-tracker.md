@@ -34,9 +34,9 @@ Coverage mapping remains canonical in `audit-traceability-matrix.md`.
 ## 📈 Summary Snapshot
 
 - Total tickets: `44`
-- Done: `26`
+- Done: `27`
 - In Progress: `0`
-- Not Started: `18`
+- Not Started: `17`
 
 ## ✅ Phase 0 — Fully Implemented and Audited
 
@@ -58,10 +58,10 @@ All P0 tickets complete. Audit reports published and remediation verified.
 
 ## 🔲 Phase 2 — Playable MVP (P2)
 
-**Status:** In Progress — C-06 (audio adapter) and A-12 (P2 consolidation) remain.
+**Status:** In Progress — A-12 (P2 consolidation) remains.
 
 - **Audit reports published:** _Pending A-12 completion_
-- **Remediation status:** B-04 ✅, C-02 ✅, C-01 ✅, C-03 ✅, B-05 ✅, A-07 ✅, C-04 ✅, C-05 ✅, C-06 ⏳, A-12 ⏳
+- **Remediation status:** B-04 ✅, C-02 ✅, C-01 ✅, C-03 ✅, B-05 ✅, A-07 ✅, C-04 ✅, C-05 ✅, C-06 ✅, A-12 ⏳
 
 ## 🔲 Phase 3 — Feature Complete + Hardening (P3)
 
@@ -139,7 +139,7 @@ Canonical ticket ID ranges used by policy checks:
 - [x] **C-05** P2 - HUD Adapter & Screen Overlays — READY_FOR_MAIN: YES. `hud-adapter`, `screens-adapter`, and `storage-adapter` are mounted via bootstrap injection slots, with `hud-system` and `screens-system` registered in the default `render` phase. Overlays (start/pause/level-complete/game-over/victory), keyboard-only navigation, focus restore, and validated high-score localStorage reads are live. Verification: `tests/integration/adapters/*`, `tests/integration/gameplay/restart-flow.test.js`, `tests/e2e/c-05-screens-navigation.spec.js`, and `tests/e2e/track-c-integration.spec.js`. Runtime integration landed in `ekaramet/integration-track-D-C-followups` (Depends on: D-05, C-02, C-04, A-11 audit gate, non-blocking) | Blocks: A-05; A-06; A-08; D-11; A-12
 - [x] **B-05** P2 - Core Gameplay Event Surface (Depends on: B-04, D-01, A-11) | Blocks: A-08; B-09; A-12
 - [x] **A-07** P2 - CI, Schema Validation & Asset Gates (Depends on: A-01, D-03, A-11) | Blocks: A-09, C-10, D-11, A-12
-- [ ] **C-06** P2 - Audio Adapter Implementation (Depends on: A-01, D-01, A-11 audit gate, non-blocking) | Blocks: C-07; C-08; C-09; A-12
+- [x] **C-06** P2 - Audio Adapter Implementation — Adapter contract complete. `src/adapters/io/audio-adapter.js` owns the Web Audio boundary (autoplay-safe AudioContext unlock on first `pointerdown`/`keydown`, `decodeAudioData` pre-decode + cached `AudioBuffer`s, master/music/sfx/ui gain graph, BufferSource-per-playback for overlapping SFX, missing-clip warn-and-no-op, `visibilitychange` suspend/resume). The adapter docstring specifies that ECS systems MUST consume it via `world.getResource('audio')` and MUST NOT import the module directly. Verification: `tests/integration/adapters/audio-adapter.test.js` (30 deterministic tests across decode flow, buffer caching, overlapping playback, missing-clip fallback, visibility lifecycle, gain updates, music replacement, failed-fetch resilience). Runtime wiring (bootstrap `setAudioAdapter` slot, manifest module, level-load preload, app-boundary construction in `main.ecs.js`) is delivered by a separate Track A integration PR (`ekaramet/integration-track-C-audio-wiring`) because those files are out of Track C ownership scope (Depends on: A-01, D-01, A-11 audit gate, non-blocking) | Blocks: C-07; C-08; C-09; A-12
 - [ ] **A-12** P2 - Consolidate P2 audits + publish 4 deduplicated track fix reports (Depends on: B-04, C-02, C-01, C-03, C-04, C-05, B-05, A-07, C-06) | Blocks: B-06; B-07; B-08; B-09; C-07; A-04; A-05; A-06; A-08
 
 ### Q3 / P3 Feature Complete + Hardening
