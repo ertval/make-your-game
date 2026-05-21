@@ -218,7 +218,7 @@ function tickPlayerSpeedBoost(playerStore, entityId, deltaMs) {
 }
 
 /**
- * Apply a Power Pellet collection: stun every NORMAL ghost for the canonical window.
+ * Apply a Power Pellet collection: stun every NORMAL ghost for the canonical STUN_MS duration.
  *
  * Already-stunned ghosts have their timers reset (non-stacking refresh). DEAD
  * ghosts mid-respawn are intentionally left alone — the design treats their
