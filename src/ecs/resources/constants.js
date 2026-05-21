@@ -97,15 +97,15 @@ export const GHOST_STATE = {
 };
 
 /** Clyde distance threshold for target switching (tiles).
- *  Used by the B-08 ghost AI system to toggle Clyde between chase and retreat. */
+ *  @internal Reserved for the ghost-AI system (DEAD-06). */
 export const CLYDE_DISTANCE_THRESHOLD = 8;
 
 /** Pinky target offset ahead of player (tiles).
- *  Used by the B-08 ghost AI system for Pinky's ambush targeting math. */
+ *  @internal Reserved for the ghost-AI system (DEAD-06). */
 export const PINKY_TARGET_OFFSET = 4;
 
 /** Inky reference offset ahead of player (tiles).
- *  Used by the B-08 ghost AI system as the pivot for Inky's double-vector target. */
+ *  @internal Reserved for the ghost-AI system (DEAD-06). */
 export const INKY_REFERENCE_OFFSET = 2;
 
 /** Minimum valid exits at an intersection for ghost pathfinding.

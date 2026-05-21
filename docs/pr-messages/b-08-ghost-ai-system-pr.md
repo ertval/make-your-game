@@ -13,7 +13,6 @@
 - **Respawn handoff** — DEAD → NORMAL transition is gated on the ghost actually being at the ghost spawn point AND present in `releasedGhostIds`, so a just-killed ghost still in `releasedGhostIds` before C-03's next-tick prune is no longer instantly revived; the 5-second penalty delay owned by C-03 is preserved.
 - **Wall and bomb avoidance** — wall passability via `isPassableForGhost`; an optional `bombCellOccupancy` resource (Set, Map, or array) makes bomb cells impassable when registered.
 - **`tests/unit/systems/ghost-ai-system.test.js`** (new): 29 unit tests covering all four targeting formulas, direction selection (closest/farthest tile, no-reverse, dead-end forced reverse, bomb-cell blocking, ghost-house gate with NORMAL/STUNNED blocked and DEAD allowed, in-house free movement), speed resolution (stunned floor, per-entity override, map fallback), stun timer expiry, dead eyes returning toward the spawn point, respawn handoff (positive case + regression for the early-revive bug), PAUSED gating, and a determinism trace across two seeded runs.
-- **`src/ecs/resources/constants.js`**: refreshed JSDoc on `CLYDE_DISTANCE_THRESHOLD`, `PINKY_TARGET_OFFSET`, and `INKY_REFERENCE_OFFSET` — they were previously labeled "Reserved for the ghost-AI system" and are now in use.
 
 ### 🎯 Why
 - **Rationale**: B-08's verification gate requires the exact targeting math from `docs/game-description.md` §5.1, the documented state machine from §5.3, the one-way ghost-house gate from §5.4, and seeded determinism in the trace — none of which existed yet.
@@ -39,7 +38,7 @@
 ### 📋 Required Checks
 - [x] **Read Standards**: I have reviewed [AGENTS.md](file:///AGENTS.md) and the agentic workflow guide.
 - [x] **Policy Compliance**: Ran the applicable local checks (`check`, `test:unit`, `test:integration`).
-- [x] **Ownership**: Verified files remain within Track B ticket ownership scope (`src/ecs/systems/`, `tests/unit/systems/`, and a docstring-only refresh in `src/ecs/resources/constants.js`).
+- [x] **Ownership**: Verified files remain within Track B ticket ownership scope (`src/ecs/systems/ghost-ai-system.js`, `tests/unit/systems/ghost-ai-system.test.js`).
 - [x] **Branching**: Branch name follows `<owner>/<TRACK>-<NN>` convention (`asmyrogl/B-08`).
 - [x] **Audit Coverage**: Confirmed full coverage for F-01 through F-21 and B-01 through B-06 is unchanged.
 - [ ] **Evidence**: Manual-With-Evidence artifacts not affected by B-08.
