@@ -158,26 +158,40 @@ This contract is implemented in `src/adapters/io/storage-adapter.js` and defines
 
 ---
 
-#### C-06: Audio Adapter Implementation
+#### C-06: Audio Adapter Implementation — ✅ Complete (adapter); runtime wiring via Track A handoff
 **Priority**: Critical
 **Phase**: P2 Playable MVP
 **Depends On**: `A-01` (scaffolding), `D-01` (constants resource), `A-11` (audit gate, non-blocking)
 **Impacts**: Runtime audio boundary, fallback resilience, async decode baseline (`AUDIT-B-05`)
 **Blocks**: C-07, C-08, C-09
 
-**Deliverables**:
-- `src/adapters/io/audio-adapter.js` — AudioContext, decodeAudioData, playSfx/playMusic, volume control, visibility handling
+**Status**: Adapter contract delivered under Track C ownership. Runtime registration (bootstrap slot, manifest module, level-load preload, app-boundary construction) is out of Track C scope per `scripts/policy-gate/lib/policy-utils.mjs`, and is delivered by a separate Track A integration PR (`ekaramet/integration-track-C-audio-wiring`) — same pattern as the C-04 / C-05 / B-03 runtime-integration handoffs already on record.
 
-- [ ] Implement `adapters/io/audio-adapter.js`:
-  - `AudioContext` initialization on first user interaction (browser autoplay policy).
-  - Pre-decode gameplay-critical SFX using `AudioContext.decodeAudioData()` during level load.
-  - Provide `playSfx(cueId)` and `playMusic(trackId)` methods that map to decoded buffers.
-  - Support volume control per category (SFX, music, UI).
-  - Support simultaneous SFX playback (bomb + pellet collect can overlap).
-- [ ] Provide fallback behavior for missing clips: `console.warn` and continue without breaking the game loop.
-- [ ] Register adapter as a World resource (never imported directly by systems).
-- [ ] Handle `visibilitychange` to suspend/resume AudioContext for battery and tab-throttle.
-- [ ] Verification gate: adapter tests validate async decode path, playback, and fallback behavior.
+**Deliverables (Track C, this ticket)**:
+- `src/adapters/io/audio-adapter.js` — AudioContext, `decodeAudioData`, `playSfx` / `playMusic`, master/music/sfx/ui gain graph, BufferSource-per-playback, `visibilitychange` handling, missing-clip fallback. Framework-agnostic factory (`createAudioAdapter(options)`) with injectable `windowTarget` / `documentTarget` / `audioContextCtor` / `fetchImpl` for tests.
+- `tests/integration/adapters/audio-adapter.test.js` — 30 deterministic tests (placed under `tests/integration/adapters/` per Track C ownership glob `tests/integration/adapters/audio-*.test.js`).
+
+**Deliverables (Track A handoff PR, follow-up)**:
+- `src/ecs/resources/audio-manifest.js` — canonical `AUDIO_CUE.*` IDs (`pellet`, `bomb`, `powerup`, `game-over`, `level-theme`), `AUDIO_CATEGORY` constants, `DEFAULT_AUDIO_MANIFEST`, `GAMEPLAY_CRITICAL_SFX`, `buildAudioManifest`, `pickSfxManifest`.
+- `src/game/bootstrap.js` — pre-registered `'audio'` World resource slot, `setAudioAdapter` / `getAudioAdapter` accessors, deduped critical-SFX preload from `onLevelLoaded` / late adapter registration.
+- `src/main.ecs.js` — `createAudioAdapter(...)` constructed at the app boundary inside a `try / catch`; init failure logs `console.warn` and leaves the slot `null` without crashing the game loop. `runtime.stop()` clears the slot via `bootstrap.setAudioAdapter(null)`.
+
+- [x] Implement `adapters/io/audio-adapter.js`:
+  - `AudioContext` is constructed lazily on the first `pointerdown`/`keydown` and resumed in line with the browser autoplay policy. Unlock listeners self-detach via `{ once: true }`.
+  - `loadClips(manifest)` runs `fetch → arrayBuffer → decodeAudioData` per cue and stores decoded `AudioBuffer`s in internal `Map`s (sfx/music) so repeat playbacks reuse the cached buffer.
+  - `playSfx(cueId)` and `playMusic(trackId)` map cue IDs to decoded buffers; each playback allocates a fresh `AudioBufferSourceNode` because Web Audio forbids restarting a source — this is also how overlapping SFX works.
+  - `setVolume(category, value)` updates per-category gain (master, music, sfx, ui) and clamps to `[0, 1]`. Volumes set before the context exists are honored once gain nodes are created.
+  - `suspend()` / `resume()` forward to the underlying context; `stopMusic()` halts the active music source idempotently; `destroy()` tears down listeners, stops playback, clears Maps, and closes the context.
+- [x] Missing clips warn-and-no-op: `console.warn` once per cue ID, return `null`, never throw. Failed `fetch` / `decodeAudioData` are reported in the `loadClips` result without escaping.
+- [x] Adapter docstring locks the World resource contract: ECS systems MUST consume the adapter via `world.getResource('audio')` and MUST NOT `import` the adapter module. The runtime registration that wires this contract live (bootstrap `setAudioAdapter`) lands in the Track A integration handoff PR.
+- [x] `document.visibilitychange` suspends the running context when the tab is hidden and resumes it when visible — battery and tab-throttle friendly.
+- [x] Verification gate: `tests/integration/adapters/audio-adapter.test.js` (30 tests, fully deterministic) covers async decode flow, buffer caching, independent BufferSource per playback, overlapping SFX, missing-clip warn/no-op, visibilitychange lifecycle, category gain updates, music replacement, and failed-fetch/decode resilience.
+
+**Out of scope for C-06 (covered by later tickets)**:
+- Wiring gameplay events (BombPlaced, PelletCollected, …) to `playSfx` calls and music state across `GAME_STATE` transitions — `C-07`.
+- Producing the actual `.mp3`/`.ogg` asset files — `C-08`.
+- Lazy/streaming load policy for non-critical audio + perf budgets — `C-09`.
+- Audio manifest JSON Schema + manifest file under `assets/manifests/` — `C-10`.
 
 ---
 
