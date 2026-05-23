@@ -145,8 +145,8 @@ Canonical ticket ID ranges used by policy checks:
 ### Q3 / P3 Feature Complete + Hardening
 
 - [x] **B-06** P3 - Bomb & Explosion Systems (Depends on: B-02, B-03, B-04, D-01, D-03, A-12) | Blocks: A-05; A-06; A-08; B-07; B-09; A-13
-- [ ] **B-07** P3 - Power-Up System (Depends on: B-04, B-06, D-01, A-12) | Blocks: A-06; A-08; B-08; A-13
-- [ ] **B-08** P3 - Ghost AI System (Depends on: B-03, B-04, B-07, C-03, D-01, D-03, A-12) | Blocks: A-06; A-08; B-09; A-13
+- [x] **B-07** P3 - Power-Up System (Depends on: B-04, B-06, D-01, A-12) | Blocks: A-06; A-08; B-08; A-13
+- [x] **B-08** P3 - Ghost AI System (Depends on: B-03, B-04, B-07, C-03, D-01, D-03, A-12) | Blocks: A-06; A-08; B-09; A-13
 - [ ] **B-09** P3 - Cross-System Gameplay Event Hooks (Depends on: B-05, B-06, B-08, C-01, C-02, C-04, D-01, A-12) | Blocks: A-05; A-06; A-08; C-07; A-13
 - [ ] **C-07** P3 - Audio Cue Mapping & Runtime Integration (Depends on: B-09, C-06, A-12) | Blocks: A-08; A-13
 - [x] **A-04** P3 - Unit Tests - ECS Core & Resources (Depends on: A-02, A-03, D-01, D-03, A-12; Early pull reason: foundational regression gate landed ahead of phase gate) | Blocks: A-13
