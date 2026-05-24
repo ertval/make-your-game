@@ -15,7 +15,7 @@
 - **`assets/generated/visuals/128px/`** (NEW/REFRESHED): 60 WebPs total — 10 player (idle, walk-{up,down,left,right}-{01,02}, death), 32 ghost walk (4 types × 4 dirs × 2 frames), 4 bomb fuse, 4 explosion, 2 wall-destruct, plus 8 existing sprites re-encoded at lossless quality 92 for set-wide consistency.
 - **`assets/generated/visuals/sheets/v5_no_background/`** and **`assets/generated/visuals/removed_background/`** (NEW, 9.6 MB): Source PNGs (background-removed) committed for sprite-extraction reproducibility — build-time inputs only, no runtime consumer.
 - **`assets/source/visual/sprite-handoff.json`** (NEW): Sprite metadata handoff table consumed by the D-11 visual manifest.
-- **`docs/audit-reports/D-10-audit-report.md`** (NEW), **AUDIT-F-20 / F-21 evidence addenda** (MODIFIED), **`tests/e2e/board-reset.spec.js`** (NEW), and unit suites for the two new systems.
+- **AUDIT-F-20 / F-21 evidence addenda** (MODIFIED), **`tests/e2e/board-reset.spec.js`** (NEW), and unit suites for the two new systems.
 
 ### 🎯 Why
 - **Rationale**: Before this PR the player sprite never changed frame regardless of movement direction, and pellet cells stayed rendered after collection. Both broke the perceived liveness of the board. Extracting the ghost/bomb/explosion frames in the same pass is cheaper than scheduling a second extraction during D-11.
@@ -38,7 +38,6 @@
 - **AUDIT-F-20** | `Manual-With-Evidence` | Verification: code inspection — `background-image` swaps repaint the already-promoted player sprite layer only; no new compositor layers | Evidence: `docs/audit-reports/evidence/AUDIT-F-20.layers.md` (D-10 addendum)
 - **AUDIT-F-21** | `Manual-With-Evidence` | Verification: code inspection — no new `will-change` declarations introduced by the 10 player walk-frame classes | Evidence: `docs/audit-reports/evidence/AUDIT-F-21.promotion.md` (D-10 addendum)
 - **AUDIT-D-10-F-22** | `Automated` | Verification: Playwright e2e proves pellet cell count restores after `runtime.restart()` | Evidence: `tests/e2e/board-reset.spec.js`
-- **Full D-10 report**: `docs/audit-reports/D-10-audit-report.md`
 
 ---
 

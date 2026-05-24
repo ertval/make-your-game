@@ -225,7 +225,7 @@
 - [x] 9 WebP (lossless, 128×128) player walk frames extracted from `player_direction_v4` sheet. **Format deviation**: spec says SVG preferred; WebP lossless used because source sheet is raster — preserves per-pixel accuracy, no path-element budget applies.
 - [x] Bootstrap wired: `createPlayerAnimationSystem()` registered in logic phase (after explosion-system, before render-collect).
 - [x] Verification gate (automated): 19 unit tests in `tests/unit/systems/player-animation-system.test.js`; 11 unit tests in `tests/unit/systems/board-sync-system.test.js`; +4 integration tests in `tests/integration/adapters/renderer-adapter.test.js`; bootstrap logic-phase order list pinned in `tests/unit/game/bootstrap.test.js`. `npm run policy` green (882 tests).
-- [x] **DEFERRED from D-08**: DevTools layer/paint evidence confirms AUDIT-F-20 and AUDIT-F-21 compliance — code inspection confirms no new `will-change` declarations; `background-image` swaps repaint the already-promoted player sprite layer only. Addenda in `docs/audit-reports/evidence/AUDIT-F-20.layers.md` and `AUDIT-F-21.promotion.md`. Full report: `docs/audit-reports/D-10-audit-report.md`.
+- [x] **DEFERRED from D-08**: DevTools layer/paint evidence confirms AUDIT-F-20 and AUDIT-F-21 compliance — code inspection confirms no new `will-change` declarations; `background-image` swaps repaint the already-promoted player sprite layer only. Addenda in `docs/audit-reports/evidence/AUDIT-F-20.layers.md` and `AUDIT-F-21.promotion.md`.
 - [x] **DEFERRED from D-03/D-06**: Playwright e2e restart test proves canonical map reset — `tests/e2e/board-reset.spec.js` verifies pellet cell count restores after `runtime.restart()`.
 
 ---
