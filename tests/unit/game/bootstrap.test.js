@@ -387,6 +387,7 @@ describe('bootstrap bomb and explosion runtime wiring', () => {
       'spawn-system',
       'bomb-tick-system',
       'explosion-system',
+      'player-animation-system',
     ]);
   });
 });

@@ -34,3 +34,13 @@ DevTools "Memory" → "Layers" showed steady memory usage:
 
 ## Conclusion
 `will-change` policy matches AGENTS.md and `docs/implementation/implementation-plan.md §5`. No unnecessary promotion, no layer leaks, no promotion for transient or static elements. Standard: **PASS**.
+
+---
+
+## D-10 Addendum — 2026-05-10 (medvall)
+
+D-10 adds eight `sprite--player--walk-*` CSS frame classes. Code inspection confirms none introduce `will-change`. The full list of new declarations per frame class is a single `background-image: url(...)` line — no compositor hints, no transforms.
+
+The `will-change` table above is unchanged by D-10. The player sprite's existing `will-change: transform` (`.sprite--player` base class) covers frame changes; no additional promotion is required or introduced.
+
+**D-10 AUDIT-F-21 status:** ✅ PASS

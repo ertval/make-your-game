@@ -52,6 +52,8 @@ export function createBoardAdapter({
 } = {}) {
   const docRef = doc;
   let boardElement = null;
+  let cellElements = [];
+  let boardCols = 0;
 
   /**
    * Generate the static board DOM from a map resource.
@@ -82,6 +84,8 @@ export function createBoardAdapter({
     boardElement.classList.add(...BOARD_CLASSES);
     boardElement.style.setProperty('--board-rows', String(rows));
     boardElement.style.setProperty('--board-columns', String(cols));
+    cellElements = new Array(rows * cols);
+    boardCols = cols;
 
     for (let r = 0; r < rows; r += 1) {
       for (let c = 0; c < cols; c += 1) {
@@ -100,6 +104,7 @@ export function createBoardAdapter({
         cellElement.setAttribute('data-col', String(c));
         cellElement.setAttribute('data-type', String(cellType));
 
+        cellElements[cellIndex] = cellElement;
         boardElement.appendChild(cellElement);
       }
     }
@@ -129,7 +134,26 @@ export function createBoardAdapter({
       }
 
       boardElement = null;
+      cellElements = [];
+      boardCols = 0;
     }
+  }
+
+  /**
+   * Update a single cell's CSS class to reflect a new cell type.
+   * Called by board-sync-system when the map changes (e.g. pellet collected).
+   *
+   * @param {number} row
+   * @param {number} col
+   * @param {number} cellType
+   */
+  function updateCell(row, col, cellType) {
+    const el = cellElements[row * boardCols + col];
+    if (!el) return;
+    for (const cls of Object.values(CELL_TYPE_CLASSES)) {
+      el.classList.remove(cls);
+    }
+    el.classList.add(CELL_TYPE_CLASSES[cellType] || 'cell-empty');
   }
 
   /**
@@ -145,5 +169,6 @@ export function createBoardAdapter({
     generateBoard,
     clearBoard,
     getBoard,
+    updateCell,
   };
 }

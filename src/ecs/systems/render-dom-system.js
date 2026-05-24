@@ -65,6 +65,22 @@ const KIND_TO_CLASSES = {
 };
 
 /**
+ * Player spriteId → CSS frame class. IDs match sprite-handoff.json array order.
+ */
+const PLAYER_SPRITE_CLASSES = [
+  'sprite--player--idle', // 0
+  null, // 1 player-death (not yet in use)
+  'sprite--player--walk-up-01', // 2
+  'sprite--player--walk-up-02', // 3
+  'sprite--player--walk-down-01', // 4
+  'sprite--player--walk-down-02', // 5
+  'sprite--player--walk-left-01', // 6
+  'sprite--player--walk-left-02', // 7
+  'sprite--player--walk-right-01', // 8
+  'sprite--player--walk-right-02', // 9
+];
+
+/**
  * Convert opacity byte (0-255) to CSS opacity string.
  */
 function opacityToCss(byte) {
@@ -160,6 +176,12 @@ export function createRenderDomSystem(options = {}) {
         const baseClasses = KIND_TO_CLASSES[kind] || [];
         for (const cls of baseClasses) {
           el.classList.add(cls);
+        }
+
+        if (kind === RENDERABLE_KIND.PLAYER) {
+          const spriteId = buffer.spriteId[i];
+          const frameClass = PLAYER_SPRITE_CLASSES[spriteId];
+          if (frameClass) el.classList.add(frameClass);
         }
 
         applyVisualFlagClasses(el, classBits);
