@@ -1,0 +1,194 @@
+{
+  "note": "D-10 handoff table for D-11 manifest mapping. All sprites at 128px display size. className follows kebab-case spriteId convention — D-11 should align with actual CSS class names used by render-dom-system.",
+  "sprites": [
+    { "spriteId": "player-idle", "width": 128, "height": 128, "className": "player-idle" },
+    { "spriteId": "player-death", "width": 128, "height": 128, "className": "player-death" },
+    {
+      "spriteId": "player-walk-up-01",
+      "width": 128,
+      "height": 128,
+      "className": "player-walk-up-01"
+    },
+    {
+      "spriteId": "player-walk-up-02",
+      "width": 128,
+      "height": 128,
+      "className": "player-walk-up-02"
+    },
+    {
+      "spriteId": "player-walk-down-01",
+      "width": 128,
+      "height": 128,
+      "className": "player-walk-down-01"
+    },
+    {
+      "spriteId": "player-walk-down-02",
+      "width": 128,
+      "height": 128,
+      "className": "player-walk-down-02"
+    },
+    {
+      "spriteId": "player-walk-left-01",
+      "width": 128,
+      "height": 128,
+      "className": "player-walk-left-01"
+    },
+    {
+      "spriteId": "player-walk-left-02",
+      "width": 128,
+      "height": 128,
+      "className": "player-walk-left-02"
+    },
+    {
+      "spriteId": "player-walk-right-01",
+      "width": 128,
+      "height": 128,
+      "className": "player-walk-right-01"
+    },
+    {
+      "spriteId": "player-walk-right-02",
+      "width": 128,
+      "height": 128,
+      "className": "player-walk-right-02"
+    },
+
+    {
+      "spriteId": "ghost-blinky-normal",
+      "width": 128,
+      "height": 128,
+      "className": "ghost-blinky-normal"
+    },
+    {
+      "spriteId": "ghost-blinky-walk-01",
+      "width": 128,
+      "height": 128,
+      "className": "ghost-blinky-walk-01"
+    },
+    {
+      "spriteId": "ghost-blinky-walk-02",
+      "width": 128,
+      "height": 128,
+      "className": "ghost-blinky-walk-02"
+    },
+    {
+      "spriteId": "ghost-pinky-normal",
+      "width": 128,
+      "height": 128,
+      "className": "ghost-pinky-normal"
+    },
+    {
+      "spriteId": "ghost-pinky-walk-01",
+      "width": 128,
+      "height": 128,
+      "className": "ghost-pinky-walk-01"
+    },
+    {
+      "spriteId": "ghost-pinky-walk-02",
+      "width": 128,
+      "height": 128,
+      "className": "ghost-pinky-walk-02"
+    },
+    {
+      "spriteId": "ghost-inky-normal",
+      "width": 128,
+      "height": 128,
+      "className": "ghost-inky-normal"
+    },
+    {
+      "spriteId": "ghost-inky-walk-01",
+      "width": 128,
+      "height": 128,
+      "className": "ghost-inky-walk-01"
+    },
+    {
+      "spriteId": "ghost-inky-walk-02",
+      "width": 128,
+      "height": 128,
+      "className": "ghost-inky-walk-02"
+    },
+    {
+      "spriteId": "ghost-clyde-normal",
+      "width": 128,
+      "height": 128,
+      "className": "ghost-clyde-normal"
+    },
+    {
+      "spriteId": "ghost-clyde-walk-01",
+      "width": 128,
+      "height": 128,
+      "className": "ghost-clyde-walk-01"
+    },
+    {
+      "spriteId": "ghost-clyde-walk-02",
+      "width": 128,
+      "height": 128,
+      "className": "ghost-clyde-walk-02"
+    },
+    { "spriteId": "ghost-stunned", "width": 128, "height": 128, "className": "ghost-stunned" },
+    {
+      "spriteId": "ghost-stunned-01",
+      "width": 128,
+      "height": 128,
+      "className": "ghost-stunned-01"
+    },
+    {
+      "spriteId": "ghost-stunned-02",
+      "width": 128,
+      "height": 128,
+      "className": "ghost-stunned-02"
+    },
+    { "spriteId": "ghost-eyes-dead", "width": 128, "height": 128, "className": "ghost-eyes-dead" },
+
+    { "spriteId": "bomb-idle", "width": 102, "height": 102, "className": "bomb-idle" },
+    { "spriteId": "bomb-fuse-01", "width": 102, "height": 102, "className": "bomb-fuse-01" },
+    { "spriteId": "bomb-fuse-02", "width": 102, "height": 102, "className": "bomb-fuse-02" },
+    { "spriteId": "bomb-fuse-03", "width": 102, "height": 102, "className": "bomb-fuse-03" },
+
+    { "spriteId": "fire-tile", "width": 128, "height": 128, "className": "fire-tile" },
+    {
+      "spriteId": "fire-tile-center",
+      "width": 128,
+      "height": 128,
+      "className": "fire-tile-center"
+    },
+
+    {
+      "spriteId": "wall-indestructible",
+      "width": 128,
+      "height": 128,
+      "className": "wall-indestructible"
+    },
+    {
+      "spriteId": "wall-destructible",
+      "width": 128,
+      "height": 128,
+      "className": "wall-destructible"
+    },
+    {
+      "spriteId": "wall-destruct-cracked",
+      "width": 128,
+      "height": 128,
+      "className": "wall-destruct-cracked"
+    },
+    {
+      "spriteId": "wall-destruct-shattered",
+      "width": 128,
+      "height": 128,
+      "className": "wall-destruct-shattered"
+    },
+
+    { "spriteId": "pellet", "width": 38, "height": 38, "className": "pellet" },
+    { "spriteId": "power-pellet", "width": 64, "height": 64, "className": "power-pellet" },
+    { "spriteId": "power-pellet-01", "width": 76, "height": 76, "className": "power-pellet-01" },
+    { "spriteId": "power-pellet-02", "width": 83, "height": 83, "className": "power-pellet-02" },
+
+    { "spriteId": "powerup-bomb", "width": 76, "height": 76, "className": "powerup-bomb" },
+    { "spriteId": "powerup-fire", "width": 76, "height": 76, "className": "powerup-fire" },
+    { "spriteId": "powerup-speed", "width": 76, "height": 76, "className": "powerup-speed" },
+
+    { "spriteId": "hud-heart-full", "width": 64, "height": 64, "className": "hud-heart-full" },
+    { "spriteId": "hud-heart-empty", "width": 64, "height": 64, "className": "hud-heart-empty" },
+    { "spriteId": "hud-bomb-icon", "width": 64, "height": 64, "className": "hud-bomb-icon" },
+    { "spriteId": "hud-fire-radius", "width": 64, "height": 64, "className": "hud-fire-radius" }
+  ]
+}

@@ -184,4 +184,80 @@ describe('board-adapter', () => {
 
     expect(reset).toHaveBeenCalledTimes(1);
   });
+
+  describe('updateCell', () => {
+    function createTrackingDoc() {
+      const created = [];
+      return {
+        created,
+        document: {
+          createElement: vi.fn(() => {
+            const removed = [];
+            const added = [];
+            const el = {
+              classList: {
+                add: vi.fn((cls) => added.push(cls)),
+                remove: vi.fn((cls) => removed.push(cls)),
+              },
+              style: { setProperty: vi.fn() },
+              setAttribute: vi.fn(),
+              appendChild: vi.fn(),
+              parentNode: null,
+              _added: added,
+              _removed: removed,
+            };
+            created.push(el);
+            return el;
+          }),
+        },
+      };
+    }
+
+    it('targets the correct cell element by row/col', () => {
+      const { created, document } = createTrackingDoc();
+      const adapter2 = createBoardAdapter({ document });
+      const container2 = { firstChild: null, appendChild: vi.fn(), removeChild: vi.fn() };
+      const map = { rows: 2, cols: 3, grid: new Uint8Array([3, 3, 3, 1, 1, 1]) };
+
+      adapter2.generateBoard(map, container2);
+
+      // Board element is created first, then 6 cells. Cell (1, 2) is the last created cell.
+      const cellElements = created.slice(1); // skip board element
+      const targetCell = cellElements[1 * 3 + 2];
+      const before = targetCell._added.length;
+
+      adapter2.updateCell(1, 2, 0);
+
+      expect(targetCell._removed).toEqual(expect.arrayContaining(['cell-pellet']));
+      expect(targetCell._added.slice(before)).toEqual(['cell-empty']);
+    });
+
+    it('is a no-op for out-of-range coordinates', () => {
+      const { document } = createTrackingDoc();
+      const adapter2 = createBoardAdapter({ document });
+      const container2 = { firstChild: null, appendChild: vi.fn(), removeChild: vi.fn() };
+      adapter2.generateBoard({ rows: 1, cols: 1, grid: new Uint8Array([3]) }, container2);
+
+      expect(() => adapter2.updateCell(99, 99, 0)).not.toThrow();
+    });
+
+    it('does nothing before generateBoard has been called', () => {
+      const { document } = createTrackingDoc();
+      const adapter2 = createBoardAdapter({ document });
+      expect(() => adapter2.updateCell(0, 0, 0)).not.toThrow();
+    });
+
+    it('falls back to cell-empty for unknown cell types', () => {
+      const { created, document } = createTrackingDoc();
+      const adapter2 = createBoardAdapter({ document });
+      const container2 = { firstChild: null, appendChild: vi.fn(), removeChild: vi.fn() };
+      adapter2.generateBoard({ rows: 1, cols: 1, grid: new Uint8Array([3]) }, container2);
+
+      const cellEl = created[1];
+      const before = cellEl._added.length;
+      adapter2.updateCell(0, 0, 999);
+
+      expect(cellEl._added.slice(before)).toEqual(['cell-empty']);
+    });
+  });
 });

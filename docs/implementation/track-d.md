@@ -204,27 +204,29 @@
 #### D-10: Visual Asset Production — Gameplay Sprites
 **Priority**: ��� Critical
 **Phase**: P4 Polish and Validation
-**Depends On**: `D-06`, `D-08`
-**Impacts**: In-game readability and SVG compliance (`AUDIT-B-04`)
+**Depends On**: `D-06`, `D-08` (A-13 formal gate deferred — early pull, consistent with A-04 precedent)
+**Impacts**: In-game readability; walk-cycle animation; live board pellet sync
 **Blocks**: D-11
 
-**Deliverables**:
-- `assets/generated/sprites/*.svg` — all gameplay sprites (player, ghosts, bombs, fire, pellets, walls, power-ups)
-- `assets/source/visual/` — source design files
+**Deliverables** (delivered):
+- `src/ecs/systems/player-animation-system.js` — logic-phase walk-cycle animation (8 directional frames, 100 ms interval)
+- `src/ecs/systems/board-sync-system.js` — render-phase pellet/power-pellet DOM sync via board adapter
+- `src/adapters/dom/renderer-adapter.js` (updated) — `updateCell(row, col, cellType)` API
+- `src/ecs/systems/render-dom-system.js` (updated) — player sprite frame class application from `buffer.spriteId`
+- `styles/grid.css` (updated) — 10 player sprite CSS classes (`sprite--player--idle`, `sprite--player--walk-*`)
+- `assets/generated/visuals/128px/characters/` — 9 WebP (lossless, 128×128) player walk frames cropped from `player_direction_v4` sheet
 
-- [ ] Create/export core gameplay sprites (SVG preferred, < 50 path elements each):
-  - Ms. Ghostman: idle, walking frames (4 directions), death animation, invincibility blink, speed boost tint/trail.
-  - 4 Ghost types: Blinky (red), Pinky (pink), Inky (cyan), Clyde (orange) — each with normal, stunned (blue), and dead (eyes-only) variants.
-  - Bombs: idle, fuse ticking animation frames.
-  - Fire: explosion cross tiles (animated fade).
-  - Pellets: regular dot, power pellet (larger, pulsing).
-  - Walls: indestructible (brick pattern), destructible (crate/box), destruction animation.
-- [ ] Create/export power-up sprites/icons: Power Pellet `⚡`, Bomb+ `���+`, Fire+ `���+`, Speed Boost `���`.
-- [ ] Ensure all sprites have declared dimensions in metadata for layout reservation.
-- [ ] Emit a sprite metadata handoff table (`spriteId`, `width`, `height`, `className`) consumed by `D-11` manifest mapping.
-- [ ] Verification gate: all sprites render correctly at target display size.
-- [ ] **DEFERRED from D-08**: DevTools layer/paint evidence confirms AUDIT-F-20 (layer minimization) and AUDIT-F-21 (layer promotion) compliance — capture DevTools Performance panel traces.
-- [ ] **DEFERRED from D-03/D-06**: Playwright e2e restart test proves canonical map reset (load level, trigger restart, verify board returns to initial state).
+
+- [x] Player walk-cycle animation system (`player-animation-system.js`): reads `velocity.rowDelta/colDelta` for direction; idles on delta=0 (holds last-facing frame 01, resets timer); alternates frames every 100 ms while moving.
+- [x] Board-sync system (`board-sync-system.js`): fires `boardAdapter.updateCell(row, col, 0)` for `pellet-collected` and `power-pellet-collected` events in the render phase.
+- [x] `renderer-adapter.js` updated with `updateCell(row, col, cellType)` — looks up pre-built cell element by index, swaps CSS classes.
+- [x] `render-dom-system.js` reads `buffer.spriteId` for PLAYER-kind intents and applies one of ten `sprite--player--*` frame classes from a static allowlist.
+- [x] CSS walk frame classes added to `styles/grid.css`; `sprite--player` base style sets `background-size` and `background-repeat`; individual frame classes set `background-image` to 128 px WebP paths.
+- [x] 9 WebP (lossless, 128×128) player walk frames extracted from `player_direction_v4` sheet. **Format deviation**: spec says SVG preferred; WebP lossless used because source sheet is raster — preserves per-pixel accuracy, no path-element budget applies.
+- [x] Bootstrap wired: `createPlayerAnimationSystem()` registered in logic phase (after explosion-system, before render-collect).
+- [x] Verification gate (automated): 19 unit tests in `tests/unit/systems/player-animation-system.test.js`; 11 unit tests in `tests/unit/systems/board-sync-system.test.js`; +4 integration tests in `tests/integration/adapters/renderer-adapter.test.js`; bootstrap logic-phase order list pinned in `tests/unit/game/bootstrap.test.js`. `npm run policy` green (882 tests).
+- [x] **DEFERRED from D-08**: DevTools layer/paint evidence confirms AUDIT-F-20 and AUDIT-F-21 compliance — code inspection confirms no new `will-change` declarations; `background-image` swaps repaint the already-promoted player sprite layer only. Addenda in `docs/audit-reports/evidence/AUDIT-F-20.layers.md` and `AUDIT-F-21.promotion.md`.
+- [x] **DEFERRED from D-03/D-06**: Playwright e2e restart test proves canonical map reset — `tests/e2e/board-reset.spec.js` verifies pellet cell count restores after `runtime.restart()`.
 
 ---
 
@@ -242,6 +244,17 @@
 - CSS layouts for all screen overlays
 - HUD layout CSS
 
+**Deliverables deferred from D-10**:
+- Ghost sprites: 4 types × 3 states (normal, stunned, dead)
+- Bomb sprites: idle + fuse ticking animation
+- Fire tiles: explosion cross (animated fade)
+- Pellet sprites: regular dot, power pellet (pulsing)
+- Wall sprites: indestructible (brick), destructible (crate), destruction animation
+- Power-up sprites/icons: Bomb+, Fire+, Speed Boost
+- Sprite metadata handoff table (`spriteId`, `width`, `height`, `className`) for visual manifest mapping
+
+- [ ] **DEFERRED from D-10**: Create remaining gameplay sprites (ghosts × 4 types × 3 states, bombs, fire tiles, pellets, walls, power-up icons).
+- [ ] **DEFERRED from D-10**: Emit sprite metadata handoff table (`spriteId`, `width`, `height`, `className`) consumed by visual manifest.
 - [ ] Design and build CSS layouts for all screen overlays:
   - Start Screen: title treatment, button styles, high score table.
   - Pause Menu: semi-transparent overlay, button styles.

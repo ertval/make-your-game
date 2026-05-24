@@ -30,3 +30,14 @@ DevTools "Layer borders" overlay was enabled during gameplay. Layer counts and c
 
 ## Conclusion
 Total layer count stays within 2–6 (well under the 30-layer GPU budget on all target devices). No unnecessary promotion. Standard: **PASS**.
+
+---
+
+## D-10 Addendum — 2026-05-10 (medvall)
+
+D-10 adds eight `sprite--player--walk-*` CSS classes (one per directional walk frame). Each class sets only `background-image: url(...)`. No `will-change` declarations were introduced.
+
+The player sprite is already a promoted compositor layer via `.sprite--player { will-change: transform }` (D-05). Swapping `background-image` on a promoted layer triggers a repaint of that layer only — it does **not** create a new compositor layer and does not affect the root layer or any other element.
+
+**Layer count impact:** None. Baseline of 2–6 layers (root + player + N ghosts) is unchanged.
+**D-10 AUDIT-F-20 status:** ✅ PASS

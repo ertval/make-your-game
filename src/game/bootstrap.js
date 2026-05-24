@@ -56,6 +56,7 @@ import {
 } from '../ecs/resources/constants.js';
 import { createEventQueue } from '../ecs/resources/event-queue.js';
 import { createGameStatus } from '../ecs/resources/game-status.js';
+import { createBoardSyncSystem } from '../ecs/systems/board-sync-system.js';
 import { createCollisionSystem } from '../ecs/systems/collision-system.js';
 import { createHudSystem } from '../ecs/systems/hud-system.js';
 import { createInputSystem } from '../ecs/systems/input-system.js';
@@ -63,6 +64,7 @@ import { createLevelProgressSystem } from '../ecs/systems/level-progress-system.
 import { createLifeSystem } from '../ecs/systems/life-system.js';
 import { createPauseInputSystem } from '../ecs/systems/pause-input-system.js';
 import { createPauseSystem } from '../ecs/systems/pause-system.js';
+import { createPlayerAnimationSystem } from '../ecs/systems/player-animation-system.js';
 import {
   createPlayerMoveSystem,
   PLAYER_MOVE_REQUIRED_MASK,
@@ -656,6 +658,9 @@ export function createBootstrap(options = {}) {
       options.systemsByPhase,
     ),
   );
+
+  world.registerSystem(createBoardSyncSystem(boardAdapter));
+  world.registerSystem(createPlayerAnimationSystem());
 
   function stepFrame(
     frameNowMs,

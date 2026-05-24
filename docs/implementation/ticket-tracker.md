@@ -160,7 +160,7 @@ Canonical ticket ID ranges used by policy checks:
 - [ ] **C-08** P4 - Sound Effects & Music Production (Depends on: C-06, A-13) | Blocks: C-09; C-10; A-14
 - [ ] **C-09** P4 - Audio Preloading & Performance (Depends on: C-06, C-08, A-13) | Blocks: A-09; A-14
 - [ ] **C-10** P4 - Audio Manifest Schema & Validation (Depends on: C-08, A-07, A-13) | Blocks: A-14
-- [ ] **D-10** P4 - Visual Asset Production - Gameplay Sprites (Depends on: D-06, D-08, A-13) | Blocks: D-11; A-14
+- [x] **D-10** P4 - Visual Asset Production - Gameplay Sprites (Depends on: D-06, D-08, A-13) | Blocks: D-11; A-14
 - [ ] **D-11** P4 - Visual Assets (UI & Screens) + Visual Manifest & Validation (Depends on: C-05, D-10, A-07, A-13) | Blocks: A-09; A-14
 - [ ] **A-09** P4 - Evidence Aggregation & Final QA Polish (Depends on: A-05, A-06, A-07, A-08, C-09, D-11, A-13) | Blocks: A-14
 - [ ] **A-14** P4 - Consolidate P4 audits + publish 4 deduplicated track fix reports (Depends on: C-08, C-09, C-10, D-10, D-11, A-09) | Blocks: None
