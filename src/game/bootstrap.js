@@ -63,6 +63,7 @@ import { createGameStatus } from '../ecs/resources/game-status.js';
 import { createBoardSyncSystem } from '../ecs/systems/board-sync-system.js';
 import { createCollisionSystem } from '../ecs/systems/collision-system.js';
 import { createGhostAiSystem, GHOST_AI_REQUIRED_MASK } from '../ecs/systems/ghost-ai-system.js';
+import { createGhostAnimationSystem } from '../ecs/systems/ghost-animation-system.js';
 import { createHudSystem } from '../ecs/systems/hud-system.js';
 import { createInputSystem } from '../ecs/systems/input-system.js';
 import { createLevelProgressSystem } from '../ecs/systems/level-progress-system.js';
@@ -315,6 +316,10 @@ function createDefaultSystemsByPhase(options = {}) {
       // The release-bridge must run after createSpawnSystem so it observes the
       // freshly updated releasedGhostIds list before the next physics phase.
       createGhostReleaseSystem(),
+      // Ghost-animation-system writes renderable.spriteId and visualState bits
+      // for every released ghost so the render phase can pick the right
+      // per-personality walk frame, stunned, or dead variant.
+      createGhostAnimationSystem(),
       ...createBombExplosionLogicSystems({
         ...options,
         eventQueueResourceKey,
