@@ -773,8 +773,12 @@ describe('game loop and runtime', () => {
       (entityId) => !previousIds.has(entityId),
     );
 
-    expect(velocityMaskEntityIdsAfterStep).toHaveLength(velocityMaskEntityIdsBeforeStep.length + 1);
-    expect(deferredEntityIds).toHaveLength(1);
+    // After the first step we expect:
+    // - the dispatch-mutation-discipline system to defer one entity create
+    // - the ghost-release-system to defer a mask change on Blinky (delay = 0),
+    //   which adds the VELOCITY bit and therefore one entry to the 0b0010 query.
+    expect(velocityMaskEntityIdsAfterStep).toHaveLength(velocityMaskEntityIdsBeforeStep.length + 2);
+    expect(deferredEntityIds).toHaveLength(2);
   });
 
   it('preloads the shipped maps and starts the browser runtime with an injected input adapter', async () => {
