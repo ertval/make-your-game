@@ -104,6 +104,8 @@ graph TB
 
 > **Audio adapter boundary**: see [`runtime-audio.md`](runtime-audio.md) for the as-built C-06 contract. Systems consume audio exclusively through `world.getResource('audio')`; the adapter module is never imported from a system.
 
+> **Audio cue runtime integration**: the C-07 driver at `src/adapters/io/audio-integration.js` exports `AUDIO_CUE_MAPPING` (event type → SFX cue id), `MUSIC_STATE_MAPPING` (game state → music track id), and `createAudioCueRunner({ warnUnknownEvents })`. The runner drains the D-01 event queue each tick and dispatches mapped cues plus music transitions across `MENU / PLAYING / PAUSED / LEVEL_COMPLETE / GAME_OVER / VICTORY`. Track A registers the runner via a thin system wrapper that resolves world resources and forwards to `runner.tick({ audio, eventQueue, gameStatus })`.
+
 ### Core Architectural Boundaries
 
 1. **World Layer**

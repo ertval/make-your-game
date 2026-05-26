@@ -161,23 +161,31 @@ The runtime invariant: **no audio failure crashes the game loop**.
 
 ## 8. ECS Consumption Pattern
 
-A future system (C-07 cue mapping) will consume audio like this:
+The C-07 cue mapping driver lives at `src/adapters/io/audio-integration.js` and
+consumes audio through the world resource API. The Track A integration handoff
+PR registers it inside a thin system wrapper whose `update()` resolves world
+resources and forwards to `audioCueRunner.tick(context)`:
 
 ```js
-// CORRECT — read the adapter from the World resource.
+// CORRECT — read the adapter from the World resource and forward to the
+// Track C-owned cue runner. The wrapper itself holds no audio logic.
+import { createAudioCueRunner } from '../../adapters/io/audio-integration.js';
+
 function createAudioCueSystem() {
+  const runner = createAudioCueRunner();
   return {
     name: 'audio-cue-system',
-    phase: 'logic',
-    update(_, { resources }) {
-      const audio = resources.get('audio');
-      const events = resources.get('eventQueue');
-      if (!audio || !events) return;
-      for (const event of events.drain()) {
-        if (event.type === 'BombPlaced') {
-          audio.playSfx(AUDIO_CUE.BOMB);
-        }
-      }
+    phase: 'render',
+    resourceCapabilities: {
+      read: ['audio', 'eventQueue', 'gameStatus'],
+      write: ['eventQueue'], // drain() clears the queue
+    },
+    update(context) {
+      runner.tick({
+        audio: context.world.getResource('audio'),
+        eventQueue: context.world.getResource('eventQueue'),
+        gameStatus: context.world.getResource('gameStatus'),
+      });
     },
   };
 }
@@ -206,6 +214,7 @@ audio.playSfx('bomb');
 | Verification | Anchor |
 |---|---|
 | Adapter unit/integration tests | `tests/integration/adapters/audio-adapter.test.js` — 30 deterministic tests across decode flow, buffer caching, overlapping playback, missing-clip fallback, visibility lifecycle, category gains, music replacement, failed fetch/decode. (Placed under `tests/integration/adapters/` per Track C ownership glob — see `scripts/policy-gate/lib/policy-utils.mjs`.) |
+| C-07 cue runner tests | `tests/integration/adapters/audio-integration.test.js` — 20 deterministic tests across cue table coverage, (frame, order) preservation, overlapping playback dispatch, music-state debounce, terminal transitions, malformed-event tolerance, pre-wiring no-op. |
 | No direct system imports | `grep -rn 'audio-adapter\|createAudioAdapter' src/ecs/` returns zero matches. |
 | No hardcoded asset paths in systems | `grep -rn '/assets/audio\|\.wav\|\.ogg\|\.mp3' src/ecs/` returns zero matches. |
 | Bootstrap registers `'audio'` resource | Lands in the Track A integration handoff PR: `src/game/bootstrap.js` (`ensureWorldResource(world, audioAdapterResourceKey, () => null)` + `setAudioAdapter`). |
@@ -215,9 +224,9 @@ audio.playSfx('bomb');
 
 ## 10. Out of Scope (Owned by Later Tickets)
 
-| Concern | Owner |
-|---|---|
-| Gameplay event → cue mapping (bomb placed → `sfx-bomb-place`, etc.); music state machine across `GAME_STATE` | **C-07** |
-| Producing the actual `.mp3` / `.ogg` audio files; loudness normalization across categories | **C-08** |
-| Lazy/streaming load policy for non-critical audio; Performance API thresholds for audio decode timing | **C-09** |
-| `assets/manifests/audio-manifest.json` + JSON Schema validation gate | **C-10** |
+| Concern | Owner | Status |
+|---|---|---|
+| Gameplay event → cue mapping table; music state machine across `GAME_STATE`; runtime cue runner | **C-07** | Driver shipped at `src/adapters/io/audio-integration.js` with 20 deterministic tests at `tests/integration/adapters/audio-integration.test.js`. Runtime system registration handled by the Track A integration handoff PR (same PR that wires `setAudioAdapter`). |
+| Producing the actual `.mp3` / `.ogg` audio files; loudness normalization across categories | **C-08** | Pending. Until C-08 lands, the adapter warns once per missing cue and no-ops — runtime is unaffected. |
+| Lazy/streaming load policy for non-critical audio; Performance API thresholds for audio decode timing | **C-09** | Pending. |
+| `assets/manifests/audio-manifest.json` + JSON Schema validation gate | **C-10** | JSON Schema at `docs/schemas/audio-manifest.schema.json` is in place; gate is wired through `npm run validate:schema`. Manifest entries for C-07 cue IDs land with C-08 alongside the asset files. |
