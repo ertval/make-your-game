@@ -119,8 +119,7 @@ No other audit IDs change status. F-01 … F-21 and B-01 … B-06 coverage uncha
 
 ---
 
-<details>
-<summary>📖 <b>Local Command Reference</b> (Click to expand)</summary>
+### 📖 Local Command Reference
 
 | Command | Purpose |
 | :--- | :--- |
@@ -132,5 +131,3 @@ No other audit IDs change status. F-01 … F-21 and B-01 … B-06 coverage uncha
 | `npm run test:e2e` | Debug: Playwright browser tests |
 | `npm run test:audit` | Debug: Audit map validation |
 | `npm run validate:schema` | Schema validation |
-
-</details>
