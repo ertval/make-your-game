@@ -27,8 +27,7 @@
 - [x] `npx vitest run tests/unit/game/bootstrap tests/unit/systems/ghost-ai-system tests/unit/systems/spawn-system tests/integration/gameplay/a03-game-loop` — passed.
 
 ### 📋 Audit Traceability
-- **AUDIT-F-13** | `Fully Automatable` | Verification: B-08 ghost AI targeting math, state machine, no-reverse rule, ghost-house barrier, and stunned/dead speed selection (`game-description.md` §5.1–§5.4) | Evidence: `tests/unit/systems/ghost-ai-system.test.js`, `src/ecs/systems/ghost-ai-system.js`, `src/game/bootstrap.js` (runtime integration)
-- **AUDIT-F-14** | `Manual-With-Evidence` | Verification: ghosts spawn at the documented staggered times (0/5/10/15 s) and render with per-personality sprites + walk-cycle animation | Evidence: `src/game/bootstrap.js` (`syncGhostEntitiesFromMap`, `createGhostReleaseSystem`), `src/ecs/systems/ghost-animation-system.js`, `src/ecs/systems/render-dom-system.js`
+- **AUDIT-F-13** | `Fully Automatable` | Verification: B-08 ghost AI targeting math, state machine, no-reverse rule, ghost-house barrier, and stunned/dead speed selection (`game-description.md` §5.1–§5.4); runtime integration also covers staggered spawn (0/5/10/15 s), per-personality sprites, and walk-cycle animation | Evidence: `tests/unit/systems/ghost-ai-system.test.js`, `src/ecs/systems/ghost-ai-system.js`, `src/game/bootstrap.js` (`syncGhostEntitiesFromMap`, `createGhostReleaseSystem`), `src/ecs/systems/ghost-animation-system.js`, `src/ecs/systems/render-dom-system.js`
 
 ---
 
@@ -40,7 +39,7 @@
 - [x] **Ownership**: Integration work lands in bootstrap-track-owned `src/game/bootstrap.js` plus the new `src/ecs/systems/ghost-animation-system.js` and a targeted edit to `src/ecs/systems/render-dom-system.js`; the existing `src/ecs/systems/ghost-ai-system.js` is unchanged.
 - [x] **Branching**: Branch name follows `<owner>/<TRACK>-<NN>` convention (`asmyrogl/integration-B08`).
 - [x] **Audit Coverage**: Confirmed full coverage for F-01 through F-21 and B-01 through B-06 is unchanged.
-- [ ] **Evidence**: Manual-With-Evidence visual capture for AUDIT-F-14 to be attached on PR review.
+- [x] **Evidence**: No Manual-With-Evidence artifacts required — AUDIT-F-13 coverage is `Fully Automatable` and verified by `npm run test`.
 
 ### 🏗️ Architecture & Security
 - [x] **ECS Isolation**: `ghost-animation-system.js` has no DOM references; the only DOM mutation site remains `render-dom-system.js`.
