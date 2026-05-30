@@ -224,6 +224,58 @@ This contract is implemented in `src/adapters/io/storage-adapter.js` and defines
 - [ ] Ensure music stops/changes appropriately across game states (MENU, PLAYING, PAUSED, GAME_OVER, VICTORY).
 - [ ] Verification gate: integration tests validate every event→audio mapping fires correctly.
 
+**Track A integration handoff** (out of Track C ownership scope, mirrors the
+C-04 / C-05 / B-03 / C-06 handoff pattern):
+
+- File: `src/adapters/io/audio-integration.js` ships the cue mapping table,
+  the music-state table, and the `createAudioCueRunner({ warnUnknownEvents })`
+  driver. Public surface: `AUDIO_CUE_MAPPING`, `MUSIC_STATE_MAPPING`,
+  `resolveCueForEvent`, `resolveMusicForState`, `createAudioCueRunner`.
+- The runner exposes a single `tick({ audio, eventQueue, gameStatus })`
+  method. It never imports the world, the audio adapter module, or the
+  event queue module directly — all collaborators are injected per tick.
+- Track A wires the runner with a thin system wrapper whose `update()`
+  resolves world resources and forwards to the runner. The wrapper adds
+  no audio logic; it is pure plumbing so the Track C-owned cue table
+  remains the only place audio behavior is described:
+
+  ```js
+  // Track A-owned: registered in createDefaultSystemsByPhase().
+  function createAudioCueSystem() {
+    const runner = createAudioCueRunner();
+    return {
+      name: 'audio-cue-system',
+      phase: 'render',
+      resourceCapabilities: {
+        read: ['audio', 'eventQueue', 'gameStatus'],
+        write: ['eventQueue'], // drain() clears the queue
+      },
+      update(context) {
+        runner.tick({
+          audio: context.world.getResource('audio'),
+          eventQueue: context.world.getResource('eventQueue'),
+          gameStatus: context.world.getResource('gameStatus'),
+        });
+      },
+    };
+  }
+  ```
+
+- Phase: `render`. Audio is a downstream feedback channel — running after
+  `logic` (where collision / scoring / life / level-progress systems emit
+  the events the runner consumes) guarantees the cue heard in frame N
+  corresponds to the simulation of frame N. Placing it under `render`
+  also matches the existing convention that observable side effects (DOM,
+  HUD, audio) live outside the simulation phases.
+- Ordering within `render`: the runner can run before or after
+  `render-dom-system` — the only hard requirement is that it runs after
+  every logic-phase system that calls `emitGameplayEvent(...)`. Track A
+  should append the wrapper at the end of the `render` registration list
+  so future audio-emitting render systems remain free to enqueue cues.
+- Asset note: the cue ids in `AUDIO_CUE_MAPPING` are forward references
+  to assets delivered by `C-08`. Until C-08 lands, the C-06 adapter
+  warns once per missing cue and no-ops, so the runtime is unaffected.
+
 ---
 
 #### C-08: Sound Effects & Music Production
