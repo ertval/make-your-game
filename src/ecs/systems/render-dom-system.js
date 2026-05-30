@@ -26,9 +26,11 @@
  */
 
 import { RENDERABLE_KIND, VISUAL_FLAGS } from '../components/visual.js';
+import { GHOST_TYPE } from '../resources/constants.js';
 
 const DEFAULT_RENDER_INTENT_RESOURCE_KEY = 'renderIntent';
 const DEFAULT_SPRITE_POOL_RESOURCE_KEY = 'spritePool';
+const DEFAULT_GHOST_RESOURCE_KEY = 'ghost';
 
 const TILE_SIZE_PX = 32;
 
@@ -81,6 +83,37 @@ const PLAYER_SPRITE_CLASSES = [
 ];
 
 /**
+ * Ghost type enum → CSS suffix used for the per-personality base sprite. The
+ * matching `.sprite--ghost--{type}` classes live in `styles/grid.css` and
+ * supply each ghost's idle background-image.
+ */
+const GHOST_TYPE_SUFFIX = {
+  [GHOST_TYPE.BLINKY]: 'blinky',
+  [GHOST_TYPE.PINKY]: 'pinky',
+  [GHOST_TYPE.INKY]: 'inky',
+  [GHOST_TYPE.CLYDE]: 'clyde',
+};
+
+/**
+ * Ghost spriteId → CSS walk-frame suffix. IDs are produced by
+ * ghost-animation-system and align with PLAYER_SPRITE_CLASSES indices so the
+ * walk-cycle math stays identical across the two animation systems. A null
+ * entry means "no walk-frame override" — only the type's idle sprite is shown.
+ */
+const GHOST_SPRITE_FRAMES = [
+  null, // 0 IDLE — fall back to base type sprite
+  null, // 1 reserved (mirrors PLAYER_SPRITE_CLASSES[1])
+  'walk-up-01', // 2
+  'walk-up-02', // 3
+  'walk-down-01', // 4
+  'walk-down-02', // 5
+  'walk-left-01', // 6
+  'walk-left-02', // 7
+  'walk-right-01', // 8
+  'walk-right-02', // 9
+];
+
+/**
  * Convert opacity byte (0-255) to CSS opacity string.
  */
 function opacityToCss(byte) {
@@ -108,6 +141,7 @@ export function createRenderDomSystem(options = {}) {
   const renderIntentResourceKey =
     options.renderIntentResourceKey || DEFAULT_RENDER_INTENT_RESOURCE_KEY;
   const spritePoolResourceKey = options.spritePoolResourceKey || DEFAULT_SPRITE_POOL_RESOURCE_KEY;
+  const ghostResourceKey = options.ghostResourceKey || DEFAULT_GHOST_RESOURCE_KEY;
 
   /** @type {Map<number, {type: string, element: Element}>} Entity ID to {type, element} */
   const entityElementMap = new Map();
@@ -118,11 +152,15 @@ export function createRenderDomSystem(options = {}) {
     name: 'render-dom-system',
     phase: 'render',
     resourceCapabilities: {
-      read: [renderIntentResourceKey, spritePoolResourceKey],
+      read: [renderIntentResourceKey, spritePoolResourceKey, ghostResourceKey],
     },
     update(context) {
       const buffer = context.world.getResource(renderIntentResourceKey);
       const spritePool = context.world.getResource(spritePoolResourceKey);
+      // The ghost store is optional so tests that wire render-dom-system
+      // without gameplay components keep working; without it ghosts render
+      // only the base `.sprite--ghost` class.
+      const ghostStore = context.world.getResource(ghostResourceKey);
 
       if (!buffer || !spritePool) {
         return;
@@ -182,6 +220,29 @@ export function createRenderDomSystem(options = {}) {
           const spriteId = buffer.spriteId[i];
           const frameClass = PLAYER_SPRITE_CLASSES[spriteId];
           if (frameClass) el.classList.add(frameClass);
+        } else if (kind === RENDERABLE_KIND.GHOST && ghostStore) {
+          const ghostType = ghostStore.type[entityId];
+          const typeSuffix = GHOST_TYPE_SUFFIX[ghostType];
+          if (typeSuffix) {
+            // The base `.sprite--ghost--{type}` class provides the per-ghost
+            // idle background-image. Stunned and dead state classes (added
+            // below by applyVisualFlagClasses) override this image via CSS
+            // ordering in styles/grid.css.
+            el.classList.add(`sprite--ghost--${typeSuffix}`);
+
+            // Walk-cycle frames only apply while the ghost is in NORMAL
+            // state. Skipping them when STUNNED/DEAD is set lets the state
+            // background-image win via specificity ordering.
+            const isStateOverridden =
+              (classBits & (VISUAL_FLAGS.STUNNED | VISUAL_FLAGS.DEAD)) !== 0;
+            if (!isStateOverridden) {
+              const spriteId = buffer.spriteId[i];
+              const frameSuffix = GHOST_SPRITE_FRAMES[spriteId];
+              if (frameSuffix) {
+                el.classList.add(`sprite--ghost--${typeSuffix}--${frameSuffix}`);
+              }
+            }
+          }
         }
 
         applyVisualFlagClasses(el, classBits);

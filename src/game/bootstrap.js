@@ -20,8 +20,10 @@ import { updateBoardCss } from '../adapters/dom/renderer-board-css.js';
 import { createSpritePool } from '../adapters/dom/sprite-pool-adapter.js';
 import { assertValidInputAdapter } from '../adapters/io/input-adapter.js';
 import {
+  createGhostStore,
   createInputStateStore,
   createPlayerStore,
+  resetGhost,
   resetInputState,
   resetPlayer,
 } from '../ecs/components/actors.js';
@@ -50,6 +52,8 @@ import {
 } from '../ecs/resources/clock.js';
 import {
   FIXED_DT_MS,
+  GHOST_STATE,
+  GHOST_TYPE,
   MAX_RENDER_INTENTS,
   MAX_STEPS_PER_FRAME,
   TOTAL_LEVELS,
@@ -58,6 +62,8 @@ import { createEventQueue } from '../ecs/resources/event-queue.js';
 import { createGameStatus } from '../ecs/resources/game-status.js';
 import { createBoardSyncSystem } from '../ecs/systems/board-sync-system.js';
 import { createCollisionSystem } from '../ecs/systems/collision-system.js';
+import { createGhostAiSystem, GHOST_AI_REQUIRED_MASK } from '../ecs/systems/ghost-ai-system.js';
+import { createGhostAnimationSystem } from '../ecs/systems/ghost-animation-system.js';
 import { createHudSystem } from '../ecs/systems/hud-system.js';
 import { createInputSystem } from '../ecs/systems/input-system.js';
 import { createLevelProgressSystem } from '../ecs/systems/level-progress-system.js';
@@ -92,6 +98,16 @@ const DEFAULT_INPUT_STATE_RESOURCE_KEY = 'inputState';
 const DEFAULT_PLAYER_ENTITY_RESOURCE_KEY = 'playerEntity';
 // D-01 canonical resource key for the cross-system deterministic event queue.
 const DEFAULT_EVENT_QUEUE_RESOURCE_KEY = 'eventQueue';
+const DEFAULT_GHOST_RESOURCE_KEY = 'ghost';
+const DEFAULT_GHOST_ENTITIES_RESOURCE_KEY = 'ghostEntities';
+const DEFAULT_GHOST_IDS_RESOURCE_KEY = 'ghostIds';
+const DEFAULT_GHOST_SPAWN_STATE_RESOURCE_KEY = 'ghostSpawnState';
+
+// Full mask applied to a ghost entity once the spawn-system releases it. The
+// AI query mask is widened with RENDERABLE and COLLIDER so the released ghost
+// gets rendered and participates in collisions immediately.
+const GHOST_RUNTIME_MASK =
+  GHOST_AI_REQUIRED_MASK | COMPONENT_MASK.RENDERABLE | COMPONENT_MASK.COLLIDER;
 
 /**
  * Resolve the input adapter resource key from bootstrap options.
@@ -279,7 +295,7 @@ function createDefaultSystemsByPhase(options = {}) {
 
   return {
     meta: [inputSystem, createPauseInputSystem(), createPauseSystem()],
-    physics: [playerMoveSystem],
+    physics: [playerMoveSystem, createGhostAiSystem()],
     render: [
       createHudSystem({ hudElementsResourceKey: options.hudElementsResourceKey }),
       screensSystem,
@@ -297,6 +313,13 @@ function createDefaultSystemsByPhase(options = {}) {
       createLifeSystem(),
       createLevelProgressSystem(),
       createSpawnSystem(),
+      // The release-bridge must run after createSpawnSystem so it observes the
+      // freshly updated releasedGhostIds list before the next physics phase.
+      createGhostReleaseSystem(),
+      // Ghost-animation-system writes renderable.spriteId and visualState bits
+      // for every released ghost so the render phase can pick the right
+      // per-personality walk frame, stunned, or dead variant.
+      createGhostAnimationSystem(),
       ...createBombExplosionLogicSystems({
         ...options,
         eventQueueResourceKey,
@@ -369,6 +392,7 @@ function initializeMovementResources(world, options = {}) {
   ensureWorldResource(world, inputStateResourceKey, () => createInputStateStore(maxEntities));
   ensureWorldResource(world, 'renderable', () => createRenderableStore(maxEntities));
   ensureWorldResource(world, 'visualState', () => createVisualStateStore(maxEntities));
+  ensureWorldResource(world, DEFAULT_GHOST_RESOURCE_KEY, () => createGhostStore(maxEntities));
 
   if (!world.hasResource(playerEntityResourceKey)) {
     world.setResource(playerEntityResourceKey, null);
@@ -463,6 +487,189 @@ function syncPlayerEntityFromMap(world, mapResource, options = {}) {
   positionStore.targetCol[entityId] = spawnCol;
 
   return playerHandle;
+}
+
+/**
+ * Destroy any ghost entities tracked in the world resource and clear the
+ * deterministic id list. Called before each level (re)load so recycled slots
+ * never leak state between maps or restart cycles.
+ *
+ * @param {World} world - ECS world owning the ghost entities.
+ * @param {string} ghostEntitiesResourceKey - Resource key holding the handle list.
+ * @param {string} ghostIdsResourceKey - Resource key holding the deterministic id list.
+ */
+function clearGhostEntities(world, ghostEntitiesResourceKey, ghostIdsResourceKey) {
+  const handles = world.getResource(ghostEntitiesResourceKey);
+  if (Array.isArray(handles)) {
+    for (const handle of handles) {
+      if (handle && world.isEntityAlive(handle)) {
+        world.destroyEntity(handle);
+      }
+    }
+  }
+  world.setResource(ghostEntitiesResourceKey, []);
+  world.setResource(ghostIdsResourceKey, []);
+}
+
+/**
+ * Create the ghost entities for the active map.
+ *
+ * Ghosts are created in the deterministic order defined by
+ * `mapResource.activeGhostTypes` (Blinky, Pinky, Inky, Clyde) with an initial
+ * mask of 0 so they do not appear in any ECS query until the spawn system
+ * releases them per the staggered delays in `GHOST_SPAWN_DELAYS`. The
+ * companion `ghost-release-system` flips each ghost's mask to
+ * `GHOST_RUNTIME_MASK` the first time it shows up in
+ * `ghostSpawnState.releasedGhostIds`.
+ *
+ * @param {World} world - ECS world receiving the ghost entities.
+ * @param {MapResource | null | undefined} mapResource - Newly loaded map data.
+ * @param {object} [options] - Optional resource-key overrides shared with bootstrap.
+ */
+function syncGhostEntitiesFromMap(world, mapResource, options = {}) {
+  const ghostResourceKey = options.ghostResourceKey || DEFAULT_GHOST_RESOURCE_KEY;
+  const positionResourceKey = options.positionResourceKey || DEFAULT_POSITION_RESOURCE_KEY;
+  const velocityResourceKey = options.velocityResourceKey || DEFAULT_VELOCITY_RESOURCE_KEY;
+  const ghostEntitiesResourceKey =
+    options.ghostEntitiesResourceKey || DEFAULT_GHOST_ENTITIES_RESOURCE_KEY;
+  const ghostIdsResourceKey = options.ghostIdsResourceKey || DEFAULT_GHOST_IDS_RESOURCE_KEY;
+
+  clearGhostEntities(world, ghostEntitiesResourceKey, ghostIdsResourceKey);
+
+  if (
+    !mapResource ||
+    !Number.isFinite(mapResource.ghostSpawnRow) ||
+    !Number.isFinite(mapResource.ghostSpawnCol)
+  ) {
+    return;
+  }
+
+  const maxGhosts = Math.max(0, Math.floor(Number(mapResource.maxGhosts) || 0));
+  if (maxGhosts === 0) {
+    return;
+  }
+
+  const fallbackTypes = [GHOST_TYPE.BLINKY, GHOST_TYPE.PINKY, GHOST_TYPE.INKY, GHOST_TYPE.CLYDE];
+  const activeTypes = Array.isArray(mapResource.activeGhostTypes)
+    ? mapResource.activeGhostTypes
+    : fallbackTypes;
+
+  const ghostStore = world.getResource(ghostResourceKey);
+  const positionStore = world.getResource(positionResourceKey);
+  const velocityStore = world.getResource(velocityResourceKey);
+  const renderableStore = world.getResource('renderable');
+  const visualStateStore = world.getResource('visualState');
+  const colliderStore = world.getResource('collider');
+
+  if (!ghostStore || !positionStore || !velocityStore || !renderableStore || !visualStateStore) {
+    return;
+  }
+
+  const spawnRow = mapResource.ghostSpawnRow;
+  const spawnCol = mapResource.ghostSpawnCol;
+  const ghostSpeed = Number(mapResource.ghostSpeed) || 0;
+
+  const handles = [];
+  const ghostIds = [];
+
+  for (let index = 0; index < maxGhosts; index += 1) {
+    // Ghost begins masked-out so it stays invisible and is skipped by the AI
+    // query until the spawn system releases it on its staggered timer.
+    const handle = world.createEntity(0);
+    const entityId = handle.id;
+
+    resetGhost(ghostStore, entityId);
+    resetPosition(positionStore, entityId);
+    resetVelocity(velocityStore, entityId);
+    resetRenderable(renderableStore, entityId);
+    resetVisualState(visualStateStore, entityId);
+
+    const ghostType = activeTypes[index] ?? fallbackTypes[index] ?? GHOST_TYPE.BLINKY;
+    ghostStore.type[entityId] = ghostType;
+    ghostStore.state[entityId] = GHOST_STATE.NORMAL;
+    ghostStore.timerMs[entityId] = 0;
+    ghostStore.speed[entityId] = ghostSpeed;
+
+    positionStore.row[entityId] = spawnRow;
+    positionStore.col[entityId] = spawnCol;
+    positionStore.prevRow[entityId] = spawnRow;
+    positionStore.prevCol[entityId] = spawnCol;
+    positionStore.targetRow[entityId] = spawnRow;
+    positionStore.targetCol[entityId] = spawnCol;
+
+    renderableStore.kind[entityId] = RENDERABLE_KIND.GHOST;
+    renderableStore.spriteId[entityId] = 0;
+
+    if (colliderStore) {
+      colliderStore.type[entityId] = COLLIDER_TYPE.GHOST;
+    }
+
+    handles.push(handle);
+    ghostIds.push(entityId);
+  }
+
+  world.setResource(ghostEntitiesResourceKey, handles);
+  world.setResource(ghostIdsResourceKey, ghostIds);
+}
+
+/**
+ * Bridge the C-03 spawn-timing state (`ghostSpawnState.releasedGhostIds`) with
+ * the ECS query system by promoting each released ghost entity to the full
+ * runtime mask the first time it appears in the released set.
+ *
+ * The mask transition is edge-triggered: once flipped to `GHOST_RUNTIME_MASK`
+ * we leave it alone so the AI system can still process DEAD/eyes-return
+ * frames during the respawn penalty (the spawn-system temporarily prunes the
+ * dead ghost from `releasedGhostIds` while its respawn timer is pending).
+ *
+ * @param {object} [options] - Resource key overrides.
+ * @returns {object} ECS logic-phase system descriptor.
+ */
+function createGhostReleaseSystem(options = {}) {
+  const ghostEntitiesResourceKey =
+    options.ghostEntitiesResourceKey || DEFAULT_GHOST_ENTITIES_RESOURCE_KEY;
+  const spawnResourceKey = options.spawnResourceKey || DEFAULT_GHOST_SPAWN_STATE_RESOURCE_KEY;
+
+  return {
+    name: 'ghost-release-system',
+    phase: 'logic',
+    resourceCapabilities: {
+      read: [ghostEntitiesResourceKey, spawnResourceKey],
+      write: [],
+    },
+    update(context) {
+      const world = context.world;
+      const handles = world.getResource(ghostEntitiesResourceKey);
+      if (!Array.isArray(handles) || handles.length === 0) {
+        return;
+      }
+
+      const spawnState = world.getResource(spawnResourceKey);
+      const releasedIds = spawnState?.releasedGhostIds;
+      if (!Array.isArray(releasedIds) || releasedIds.length === 0) {
+        return;
+      }
+
+      const releasedSet = new Set(releasedIds);
+
+      for (const handle of handles) {
+        if (!handle || !world.isEntityAlive(handle)) {
+          continue;
+        }
+
+        if (!releasedSet.has(handle.id)) {
+          continue;
+        }
+
+        if (world.getEntityMask(handle) === 0) {
+          // The per-system world view forbids direct entity-mask mutations
+          // during a phase tick, so we defer the change to the post-phase
+          // mutation flush instead.
+          world.deferSetEntityMask(handle, GHOST_RUNTIME_MASK);
+        }
+      }
+    },
+  };
 }
 
 export function registerSystemsByPhase(world, systemsByPhase = {}) {
@@ -566,6 +773,7 @@ export function createBootstrap(options = {}) {
       }
       updateBoardCss(mapResource);
       syncPlayerEntityFromMap(world, mapResource, options);
+      syncGhostEntitiesFromMap(world, mapResource, options);
       // BUG-01: level transition must reset frame counters so fixed-step
       // progression restarts cleanly for the new level.
       world.frame = 0;

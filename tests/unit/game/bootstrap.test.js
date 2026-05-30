@@ -385,6 +385,8 @@ describe('bootstrap bomb and explosion runtime wiring', () => {
       'life-system',
       'level-progress-system',
       'spawn-system',
+      'ghost-release-system',
+      'ghost-animation-system',
       'bomb-tick-system',
       'explosion-system',
       'player-animation-system',
