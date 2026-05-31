@@ -33,6 +33,11 @@
 import { COMPONENT_MASK } from '../components/registry.js';
 import { GHOST_STATE, SPEED_BOOST_MS, STUN_MS } from '../resources/constants.js';
 import { GAME_STATE } from '../resources/game-status.js';
+import {
+  emitGameplayEvent,
+  GAMEPLAY_EVENT_SOURCE,
+  GAMEPLAY_EVENT_TYPE,
+} from './collision-gameplay-events.js';
 
 const DEFAULT_COLLISION_INTENTS_RESOURCE_KEY = 'collisionIntents';
 const DEFAULT_GAME_STATUS_RESOURCE_KEY = 'gameStatus';
@@ -40,6 +45,7 @@ const DEFAULT_GHOST_RESOURCE_KEY = 'ghost';
 const DEFAULT_PLAYER_RESOURCE_KEY = 'player';
 const DEFAULT_PLAYER_ENTITY_RESOURCE_KEY = 'playerEntity';
 const DEFAULT_POWER_UP_STATE_RESOURCE_KEY = 'powerUpState';
+const DEFAULT_EVENT_QUEUE_RESOURCE_KEY = 'eventQueue';
 const MAX_DELTA_MS = 1000;
 
 /**
@@ -340,6 +346,8 @@ export function createPowerUpSystem(options = {}) {
     options.playerEntityResourceKey || DEFAULT_PLAYER_ENTITY_RESOURCE_KEY;
   const powerUpStateResourceKey =
     options.powerUpStateResourceKey || DEFAULT_POWER_UP_STATE_RESOURCE_KEY;
+  // B-09: thread the event queue so a Power Pellet stun publishes GhostStunned.
+  const eventQueueResourceKey = options.eventQueueResourceKey || DEFAULT_EVENT_QUEUE_RESOURCE_KEY;
 
   return {
     name: 'power-up-system',
@@ -352,7 +360,7 @@ export function createPowerUpSystem(options = {}) {
         playerEntityResourceKey,
         playerResourceKey,
       ],
-      write: [ghostResourceKey, playerResourceKey, powerUpStateResourceKey],
+      write: [ghostResourceKey, playerResourceKey, powerUpStateResourceKey, eventQueueResourceKey],
     },
     update(context) {
       const world = context.world;
@@ -360,6 +368,7 @@ export function createPowerUpSystem(options = {}) {
       const playerStore = world.getResource(playerResourceKey);
       const ghostStore = world.getResource(ghostResourceKey);
       const playerEntity = world.getResource(playerEntityResourceKey);
+      const eventQueue = world.getResource(eventQueueResourceKey);
       const intents = readCollisionIntents(world.getResource(collisionIntentsResourceKey));
       const powerUpState = ensurePowerUpState(world.getResource(powerUpStateResourceKey));
       // The resource is always reseated so the contract is "after update, this
@@ -405,6 +414,19 @@ export function createPowerUpSystem(options = {}) {
             // actually stunned (e.g. skipped entirely when all ghosts are DEAD).
             if (stunnedCount > 0) {
               powerUpState.stunRemainingMs = STUN_MS;
+              // B-09: GhostStunned is a broadcast fact (all NORMAL ghosts at
+              // once), so it carries the stunned count and window rather than a
+              // single owning entity/tile.
+              emitGameplayEvent(
+                eventQueue,
+                GAMEPLAY_EVENT_TYPE.GHOST_STUNNED,
+                {
+                  durationMs: STUN_MS,
+                  sourceSystem: GAMEPLAY_EVENT_SOURCE.POWER_UP,
+                  stunnedCount,
+                },
+                frameIndex,
+              );
             }
             continue;
           }

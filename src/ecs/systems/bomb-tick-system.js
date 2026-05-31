@@ -26,6 +26,11 @@ import { COMPONENT_MASK } from '../components/registry.js';
 import { COLLIDER_TYPE } from '../components/spatial.js';
 import { BOMB_FUSE_MS, DEFAULT_FIRE_RADIUS } from '../resources/constants.js';
 import { readEntityTile } from '../shared/tile-utils.js';
+import {
+  emitGameplayEvent,
+  GAMEPLAY_EVENT_SOURCE,
+  GAMEPLAY_EVENT_TYPE,
+} from './collision-gameplay-events.js';
 
 export const BOMB_TICK_PLAYER_REQUIRED_MASK =
   COMPONENT_MASK.PLAYER | COMPONENT_MASK.POSITION | COMPONENT_MASK.INPUT_STATE;
@@ -332,6 +337,34 @@ function placeBombForPlayer({
 }
 
 /**
+ * Emit the B-09 BombPlaced event for a freshly activated bomb slot.
+ *
+ * Reads the authoritative tile/radius/owner straight from the bomb store after
+ * activation so the event payload matches the simulation state exactly. Skips
+ * quietly when no event queue is registered (partial test harnesses).
+ *
+ * @param {EventQueue | null | undefined} eventQueue - Optional event queue resource.
+ * @param {BombStore} bombStore - Bomb component store.
+ * @param {number} bombEntityId - Activated bomb entity slot.
+ * @param {number} frame - Fixed-step frame index.
+ * @returns {GameEvent | null} Enqueued event or null when no queue is registered.
+ */
+function emitBombPlacedEvent(eventQueue, bombStore, bombEntityId, frame) {
+  return emitGameplayEvent(
+    eventQueue,
+    GAMEPLAY_EVENT_TYPE.BOMB_PLACED,
+    {
+      entityId: bombEntityId,
+      ownerId: bombStore.ownerId[bombEntityId],
+      radius: bombStore.radius[bombEntityId],
+      sourceSystem: GAMEPLAY_EVENT_SOURCE.BOMB_TICK,
+      tile: { row: bombStore.row[bombEntityId], col: bombStore.col[bombEntityId] },
+    },
+    frame,
+  );
+}
+
+/**
  * Build the detonation queue payload for one expired bomb.
  *
  * Explosion resolution owns geometry and scoring metadata. The tick system only
@@ -430,6 +463,8 @@ export function createBombTickSystem(options = {}) {
   const bombResourceKey = options.bombResourceKey || 'bomb';
   const bombDetonationQueueResourceKey =
     options.bombDetonationQueueResourceKey || 'bombDetonationQueue';
+  // B-09: thread the event queue so placement publishes the BombPlaced fact.
+  const eventQueueResourceKey = options.eventQueueResourceKey || 'eventQueue';
   const playerRequiredMask = options.playerRequiredMask ?? BOMB_TICK_PLAYER_REQUIRED_MASK;
   const bombRequiredMask = options.bombRequiredMask ?? BOMB_TICK_BOMB_REQUIRED_MASK;
   const reusableTile = { row: 0, col: 0 };
@@ -444,6 +479,7 @@ export function createBombTickSystem(options = {}) {
         colliderResourceKey,
         bombResourceKey,
         bombDetonationQueueResourceKey,
+        eventQueueResourceKey,
       ],
     },
     update(context) {
@@ -455,6 +491,7 @@ export function createBombTickSystem(options = {}) {
       const colliderStore = world.getResource(colliderResourceKey);
       const bombStore = world.getResource(bombResourceKey);
       const bombDetonationQueue = world.getResource(bombDetonationQueueResourceKey);
+      const eventQueue = world.getResource(eventQueueResourceKey);
 
       if (
         !mapResource ||
@@ -480,7 +517,7 @@ export function createBombTickSystem(options = {}) {
       );
 
       for (const playerEntityId of world.query(playerRequiredMask)) {
-        placeBombForPlayer({
+        const placedBombId = placeBombForPlayer({
           bombEntityIds,
           bombStore,
           colliderStore,
@@ -491,6 +528,10 @@ export function createBombTickSystem(options = {}) {
           positionStore,
           reusableTile,
         });
+
+        if (placedBombId >= 0) {
+          emitBombPlacedEvent(eventQueue, bombStore, placedBombId, context.frame);
+        }
       }
     },
   };

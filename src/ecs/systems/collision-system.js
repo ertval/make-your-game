@@ -791,6 +791,8 @@ function resolveDynamicCellCollisions(
         continue;
       }
 
+      const fireChainMetadata = readFireChainMetadata(fireStore, fireId);
+
       appendCollisionIntent(collisionIntents, {
         type: 'ghost-death',
         entityId: ghostId,
@@ -798,9 +800,27 @@ function resolveDynamicCellCollisions(
         col: tile.col,
         cause: 'fire',
         sourceEntityId: fireId,
-        ...readFireChainMetadata(fireStore, fireId),
+        ...fireChainMetadata,
         ghostState,
       });
+
+      // B-09: publish the cross-system GhostDefeated fact so the scoring combo
+      // multiplier (C-01) and audio/visual consumers observe the same ordered
+      // event. chainDepth defaults to the root explosion depth when the fire
+      // store does not expose chain metadata (older/partial harnesses).
+      emitGameplayEvent(
+        eventContext?.eventQueue,
+        GAMEPLAY_EVENT_TYPE.GHOST_DEFEATED,
+        {
+          entityId: ghostId,
+          chainDepth: fireChainMetadata.chainDepth ?? 1,
+          ghostState,
+          sourceEntityId: fireId,
+          sourceSystem: eventContext?.sourceSystem || GAMEPLAY_EVENT_SOURCE.COLLISION,
+          tile: createEventTile(tile.row, tile.col),
+        },
+        eventContext?.frame,
+      );
 
       // Marking the ghost dead immediately prevents the same lingering fire
       // tile from emitting duplicate death intents on subsequent fixed steps.
