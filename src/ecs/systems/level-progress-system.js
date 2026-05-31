@@ -22,7 +22,13 @@
 
 import { canTransition, GAME_STATE, transitionTo } from '../resources/game-status.js';
 import { countPellets, countPowerPellets } from '../resources/map-resource.js';
+import {
+  emitGameplayEvent,
+  GAMEPLAY_EVENT_SOURCE,
+  GAMEPLAY_EVENT_TYPE,
+} from './collision-gameplay-events.js';
 
+const DEFAULT_EVENT_QUEUE_RESOURCE_KEY = 'eventQueue';
 const DEFAULT_GAME_STATUS_RESOURCE_KEY = 'gameStatus';
 const DEFAULT_LEVEL_FLOW_RESOURCE_KEY = 'levelFlow';
 const DEFAULT_MAP_RESOURCE_KEY = 'mapResource';
@@ -54,6 +60,20 @@ function isFinalLevelByCount(mapResource, totalLevels) {
   return levelNumber >= totalLevels;
 }
 
+/**
+ * Resolve the 1-based level number for the LevelCleared payload.
+ *
+ * The payload schema requires a positive integer, so a missing or non-finite
+ * map level falls back to 1 rather than emitting an invalid event.
+ *
+ * @param {MapResource | null | undefined} mapResource - Active map resource.
+ * @returns {number} Positive integer level number.
+ */
+function resolveLevelNumber(mapResource) {
+  const levelNumber = Math.floor(Number(mapResource?.level));
+  return Number.isInteger(levelNumber) && levelNumber > 0 ? levelNumber : 1;
+}
+
 function publishPendingLevelAdvance(world, levelFlowResourceKey) {
   const levelFlow = world.getResource(levelFlowResourceKey);
   const nextLevelFlow =
@@ -68,6 +88,7 @@ function publishPendingLevelAdvance(world, levelFlowResourceKey) {
 }
 
 export function createLevelProgressSystem(options = {}) {
+  const eventQueueResourceKey = options.eventQueueResourceKey || DEFAULT_EVENT_QUEUE_RESOURCE_KEY;
   const gameStatusResourceKey = options.gameStatusResourceKey || DEFAULT_GAME_STATUS_RESOURCE_KEY;
   const levelFlowResourceKey = options.levelFlowResourceKey || DEFAULT_LEVEL_FLOW_RESOURCE_KEY;
   const mapResourceKey = options.mapResourceKey || DEFAULT_MAP_RESOURCE_KEY;
@@ -84,7 +105,7 @@ export function createLevelProgressSystem(options = {}) {
     phase: 'logic',
     resourceCapabilities: {
       read: [gameStatusResourceKey, levelFlowResourceKey, mapResourceKey],
-      write: [gameStatusResourceKey, levelFlowResourceKey],
+      write: [eventQueueResourceKey, gameStatusResourceKey, levelFlowResourceKey],
     },
     update(context) {
       const world = context.world;
@@ -95,9 +116,20 @@ export function createLevelProgressSystem(options = {}) {
         return;
       }
 
+      const eventQueue = world.getResource(eventQueueResourceKey);
+
       if (gameStatus.currentState === GAME_STATE.LEVEL_COMPLETE) {
         if (isFinalLevel(mapResource, world) === true) {
-          tryTransition(gameStatus, GAME_STATE.VICTORY);
+          // Victory is a pure lifecycle transition; emit only when the final
+          // level actually advances LEVEL_COMPLETE → VICTORY.
+          if (tryTransition(gameStatus, GAME_STATE.VICTORY)) {
+            emitGameplayEvent(
+              eventQueue,
+              GAMEPLAY_EVENT_TYPE.VICTORY,
+              { sourceSystem: GAMEPLAY_EVENT_SOURCE.LEVEL_PROGRESS },
+              context.frame,
+            );
+          }
           return;
         }
 
@@ -113,7 +145,21 @@ export function createLevelProgressSystem(options = {}) {
         return;
       }
 
-      tryTransition(gameStatus, GAME_STATE.LEVEL_COMPLETE);
+      // LevelCleared fires on the PLAYING → LEVEL_COMPLETE transition for every
+      // level (including the final one, which then advances to Victory next
+      // tick), so consumers observe the canonical "LevelCleared → Victory"
+      // ordering on the last level.
+      if (tryTransition(gameStatus, GAME_STATE.LEVEL_COMPLETE)) {
+        emitGameplayEvent(
+          eventQueue,
+          GAMEPLAY_EVENT_TYPE.LEVEL_CLEARED,
+          {
+            level: resolveLevelNumber(mapResource),
+            sourceSystem: GAMEPLAY_EVENT_SOURCE.LEVEL_PROGRESS,
+          },
+          context.frame,
+        );
+      }
     },
   };
 }
