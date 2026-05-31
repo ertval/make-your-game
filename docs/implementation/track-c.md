@@ -207,7 +207,7 @@ This contract is implemented in `src/adapters/io/storage-adapter.js` and defines
 - Cue consumption system in audio adapter
 - Music state management across game states
 
-- [ ] Define audio cue mapping table from gameplay event types to manifest audio IDs:
+- [x] Define audio cue mapping table from gameplay event types to manifest audio IDs:
   - `BombPlaced` → `sfx-bomb-place`
   - `BombDetonated` → `sfx-bomb-explode`
   - `PelletCollected` → `sfx-pellet-collect`
@@ -219,10 +219,10 @@ This contract is implemented in `src/adapters/io/storage-adapter.js` and defines
   - `LevelCleared` → `sfx-level-complete`
   - `GameOver` → `sfx-game-over`
   - `Victory` → `sfx-victory`
-- [ ] Implement cue consumption in audio adapter: read event queue each frame and trigger corresponding audio.
-- [ ] Handle overlapping SFX (multiple pellets, chain explosions) without clipping.
-- [ ] Ensure music stops/changes appropriately across game states (MENU, PLAYING, PAUSED, GAME_OVER, VICTORY).
-- [ ] Verification gate: integration tests validate every event→audio mapping fires correctly.
+- [x] Implement cue consumption in audio adapter: read event queue each frame and trigger corresponding audio.
+- [x] Handle overlapping SFX (multiple pellets, chain explosions) without clipping.
+- [x] Ensure music stops/changes appropriately across game states (MENU, PLAYING, PAUSED, GAME_OVER, VICTORY).
+- [x] Verification gate: integration tests validate every event→audio mapping fires correctly.
 
 **Track A integration handoff** (out of Track C ownership scope, mirrors the
 C-04 / C-05 / B-03 / C-06 handoff pattern):
