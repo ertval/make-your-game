@@ -99,7 +99,7 @@ C-04 is runtime-integrated. The ECS systems (`pause-input-system`, `pause-system
 - [x] Implemented: `pause-input-system`, `pause-system`, and `level-progress-system`.
 - [x] System-layer FSM intents: `PLAYING ↔ PAUSED` and `PLAYING → LEVEL_COMPLETE`.
 - [x] Default runtime registration: all three systems are registered in the default bootstrap (pause systems in the `meta` phase, level-progress in `logic`).
-- [x] C-04 does NOT apply level-clear scoring. It only transitions `PLAYING → LEVEL_COMPLETE`. Score integration is handled separately (C-01 runtime hookup tracked under a follow-up PR).
+- [x] C-04 does NOT apply level-clear scoring directly. It owns only the `PLAYING → LEVEL_COMPLETE` transition. Level-clear score awards are handled by the C-01 `scoring-system` runtime integration.
 - [x] Pause Continue intent: `PAUSED → PLAYING` transition is implemented and live through the runtime pause menu (Continue button + Enter key).
 - [x] Pause Restart intent: `pause-system` accepts the restart intent, and the bootstrap restart path performs the full reset/reload (score, timer, lives, ghost spawn state, sprite pool, intent buffers).
 - [x] Verification gate: focused unit tests cover `pause-input-system`, `pause-system`, and `level-progress-system`; e2e coverage in `tests/e2e/game-loop.pause.spec.js`, `tests/e2e/c-05-screens-navigation.spec.js`, and `tests/e2e/stress/race-condition.spec.js`.
