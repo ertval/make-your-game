@@ -38,6 +38,7 @@
 
 import { createHudAdapter } from './adapters/dom/hud-adapter.js';
 import { createScreensAdapter } from './adapters/dom/screens-adapter.js';
+import { createAudioAdapter } from './adapters/io/audio-adapter.js';
 import { createInputAdapter } from './adapters/io/input-adapter.js';
 import { getHighScore, saveHighScore } from './adapters/io/storage-adapter.js';
 import { percentileFromSorted, toSortedNumericArray } from './debug/frame-stats.js';
@@ -195,6 +196,50 @@ async function loadDefaultMaps({ fetchImpl } = {}) {
   }
 
   return Promise.all(preloadTasks);
+}
+
+/**
+ * Build the audio adapter clip manifest from the shipped audio-manifest.json.
+ *
+ * The manifest file is the C-08/C-10 asset list (`{ assets: [{ id, path,
+ * category }] }`); the adapter's loadClips expects it grouped by category as
+ * `{ sfx: { id: url }, music: {...}, ui: {...} }`. Ambience is folded into the
+ * music store because the adapter only owns sfx/music/ui buffer maps.
+ *
+ * @param {{ fetchImpl?: Function, logger?: Console }} [options]
+ * @returns {Promise<{ sfx: object, music: object, ui: object }>} Grouped clip manifest.
+ */
+async function loadAudioClipManifest({ fetchImpl, logger = console } = {}) {
+  const grouped = { sfx: {}, music: {}, ui: {} };
+  if (typeof fetchImpl !== 'function') {
+    return grouped;
+  }
+
+  try {
+    const response = await fetchImpl('/assets/manifests/audio-manifest.json');
+    if (!response || response.ok !== true) {
+      return grouped;
+    }
+
+    const manifest = await response.json();
+    const assets = Array.isArray(manifest?.assets) ? manifest.assets : [];
+    for (const asset of assets) {
+      if (!asset || typeof asset.id !== 'string' || typeof asset.path !== 'string') {
+        continue;
+      }
+      const bucket =
+        asset.category === 'music' || asset.category === 'ambience'
+          ? grouped.music
+          : asset.category === 'ui'
+            ? grouped.ui
+            : grouped.sfx;
+      bucket[asset.id] = asset.path.startsWith('/') ? asset.path : `/${asset.path}`;
+    }
+  } catch (error) {
+    logger.warn('Audio manifest load failed; continuing without preloaded clips.', error);
+  }
+
+  return grouped;
 }
 
 export function renderCriticalError(overlayRoot, error) {
@@ -421,6 +466,11 @@ export function createGameRuntime({
       }
     }
 
+    // Release the AudioContext through the same explicit-slot path on stop.
+    if (typeof bootstrap.setAudioAdapter === 'function') {
+      bootstrap.setAudioAdapter(null);
+    }
+
     if (targetWindow && typeof targetWindow.removeEventListener === 'function') {
       targetWindow.removeEventListener('blur', onBlur);
       targetWindow.removeEventListener('focus', onFocus);
@@ -531,12 +581,27 @@ export async function bootstrapApplication({
     // validated at injection time and teardown on stop is symmetric.
     bootstrap.setInputAdapter(inputAdapter);
 
+    // UI confirm feedback. Menu/overlay button confirmations are not part of
+    // the deterministic simulation, so they play straight through the audio
+    // adapter resource (resolved lazily so it works once the adapter is wired
+    // below) rather than the gameplay event queue. Resolved via the bootstrap
+    // accessor, not a module import, so the adapter resource contract holds.
+    const playUiConfirm = () => {
+      bootstrap.getAudioAdapter()?.playSfx('ui-confirm');
+    };
+
     // Create and register the screens adapter with game-flow callbacks.
     const screensAdapter =
       overlayRoot && typeof overlayRoot.querySelector === 'function'
         ? createScreensAdapter(overlayRoot, {
             gameplayElement: boardContainerElement,
             onAction(action) {
+              // The screens adapter calls onAction for every confirmed action
+              // (start, play-again, level-next, AND pause-continue /
+              // pause-restart) before delegating to onResume/onRestart, so the
+              // confirm cue lives here only — playing it again in onResume /
+              // onRestart would double-trigger it.
+              playUiConfirm();
               switch (action) {
                 case 'start-primary':
                 case 'gameover-play-again':
@@ -569,6 +634,37 @@ export async function bootstrapApplication({
       saveHighScore,
       getHighScore,
     });
+
+    // Construct the Web Audio boundary at the app edge and register it as the
+    // 'audio' world resource so the render-phase cue system can drive it. Init
+    // failures are non-fatal: the slot stays null and the game loop runs silent.
+    try {
+      const audioFetch =
+        targetWindow?.fetch?.bind(targetWindow) || globalThis.fetch?.bind(globalThis);
+      const audioAdapter = createAudioAdapter({
+        windowTarget: targetWindow,
+        documentTarget: targetDocument,
+      });
+      // Conservative default mix (hearing safety + clipping headroom). The
+      // adapter defaults every category to full gain (1.0), so overlapping SFX
+      // plus music would stack toward 0 dBFS and clip/blast. Master < 1 leaves
+      // headroom for simultaneous cues; music sits under the SFX so gameplay
+      // feedback stays audible without being painful. Honored once the gain
+      // nodes are created even though set before the AudioContext exists.
+      audioAdapter.setVolume('master', 0.8);
+      audioAdapter.setVolume('music', 0.4);
+      audioAdapter.setVolume('sfx', 0.7);
+      audioAdapter.setVolume('ui', 0.6);
+      bootstrap.setAudioAdapter(audioAdapter);
+      // Fire-and-forget decode so startup is never blocked on audio (C-09 intent).
+      loadAudioClipManifest({ fetchImpl: audioFetch, logger }).then((clipManifest) => {
+        audioAdapter.loadClips(clipManifest).catch((error) => {
+          logger.warn('Audio clip preload failed.', error);
+        });
+      });
+    } catch (error) {
+      logger.warn('Audio initialization failed; continuing without sound.', error);
+    }
 
     installUnhandledRejectionHandler({
       logger,

@@ -131,6 +131,7 @@ export function createBombExplosionLogicSystems(options = {}) {
       bombDetonationQueueResourceKey,
       bombResourceKey,
       colliderResourceKey,
+      eventQueueResourceKey,
       inputStateResourceKey,
       mapResourceKey,
       playerResourceKey,

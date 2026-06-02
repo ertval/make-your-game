@@ -148,7 +148,9 @@ export function createLevelProgressSystem(options = {}) {
       // LevelCleared fires on the PLAYING → LEVEL_COMPLETE transition for every
       // level (including the final one, which then advances to Victory next
       // tick), so consumers observe the canonical "LevelCleared → Victory"
-      // ordering on the last level.
+      // ordering on the last level. The C-07/C-08 audio cue runner maps this same
+      // 'LevelCleared' event to sfx-level-complete, so it fires exactly once per
+      // cleared level off the one-shot transition edge.
       if (tryTransition(gameStatus, GAME_STATE.LEVEL_COMPLETE)) {
         emitGameplayEvent(
           eventQueue,

@@ -18,6 +18,7 @@
 import { createBoardAdapter } from '../adapters/dom/renderer-adapter.js';
 import { updateBoardCss } from '../adapters/dom/renderer-board-css.js';
 import { createSpritePool } from '../adapters/dom/sprite-pool-adapter.js';
+import { createAudioCueRunner } from '../adapters/io/audio-integration.js';
 import { assertValidInputAdapter } from '../adapters/io/input-adapter.js';
 import {
   createGhostStore,
@@ -103,6 +104,50 @@ const DEFAULT_GHOST_RESOURCE_KEY = 'ghost';
 const DEFAULT_GHOST_ENTITIES_RESOURCE_KEY = 'ghostEntities';
 const DEFAULT_GHOST_IDS_RESOURCE_KEY = 'ghostIds';
 const DEFAULT_GHOST_SPAWN_STATE_RESOURCE_KEY = 'ghostSpawnState';
+// Canonical world-resource key for the runtime audio adapter (C-06 contract).
+const DEFAULT_AUDIO_RESOURCE_KEY = 'audio';
+
+/**
+ * Thin render-phase wrapper around the C-07 audio cue runner.
+ *
+ * The wrapper adds no audio logic; it only resolves world resources and
+ * forwards them to the runner, which maps drained gameplay events onto SFX
+ * cues and reconciles music against the current game state. It runs in the
+ * `render` phase so it observes every logic-phase event emitted this frame.
+ *
+ * @param {{ eventQueueResourceKey?: string, gameStatusResourceKey?: string, audioResourceKey?: string }} [options]
+ * @returns {object} A registrable render-phase system.
+ */
+function createAudioCueSystem(options = {}) {
+  const eventQueueResourceKey = options.eventQueueResourceKey || DEFAULT_EVENT_QUEUE_RESOURCE_KEY;
+  const gameStatusResourceKey = options.gameStatusResourceKey || 'gameStatus';
+  const audioResourceKey = options.audioResourceKey || DEFAULT_AUDIO_RESOURCE_KEY;
+  const bombAudioActiveResourceKey = options.bombAudioActiveResourceKey || 'bombAudioActive';
+  const runner = createAudioCueRunner();
+
+  return {
+    name: 'audio-cue-system',
+    phase: 'render',
+    resourceCapabilities: {
+      read: [
+        audioResourceKey,
+        eventQueueResourceKey,
+        gameStatusResourceKey,
+        bombAudioActiveResourceKey,
+      ],
+      // drain() clears the queue, so this system writes the event-queue resource.
+      write: [eventQueueResourceKey],
+    },
+    update(context) {
+      runner.tick({
+        audio: context.world.getResource(audioResourceKey),
+        eventQueue: context.world.getResource(eventQueueResourceKey),
+        gameStatus: context.world.getResource(gameStatusResourceKey),
+        bombActive: context.world.getResource(bombAudioActiveResourceKey) === true,
+      });
+    },
+  };
+}
 
 // Full mask applied to a ghost entity once the spawn-system releases it. The
 // AI query mask is widened with RENDERABLE and COLLIDER so the released ghost
@@ -304,6 +349,9 @@ function createDefaultSystemsByPhase(options = {}) {
       screensSystem,
       renderCollectSystem,
       renderDomSystem,
+      // Audio is a downstream feedback channel: appended last in `render` so it
+      // drains every gameplay event emitted by the logic phase this frame.
+      createAudioCueSystem({ eventQueueResourceKey }),
     ],
     logic: [
       createCollisionSystem({
@@ -885,6 +933,12 @@ export function createBootstrap(options = {}) {
   world.setResource('pauseIntent', { restart: false, toggle: false });
   world.setResource('deadGhostIds', []);
   world.setResource('levelFlow', {});
+  // Bomb-tick writes this each frame; the audio cue system reads it to loop/stop
+  // the fuse SFX. Pre-registered so the reader never sees an undefined slot.
+  world.setResource('bombAudioActive', false);
+  // Pre-register the audio adapter slot as null so the cue system can read it
+  // safely before the app boundary constructs and injects the real adapter.
+  world.setResource(options.audioAdapterResourceKey || DEFAULT_AUDIO_RESOURCE_KEY, null);
   world.setResource(options.hudElementsResourceKey || 'hudElements', options.hudElements || null);
 
   registerSystemsByPhase(
@@ -1050,11 +1104,48 @@ export function createBootstrap(options = {}) {
     return world.getResource(options.storageProviderResourceKey || 'storageProvider') || null;
   }
 
+  /**
+   * Register (or clear) the runtime audio adapter as the canonical `'audio'`
+   * world resource. Passing null/undefined destroys the previous adapter so
+   * runtime teardown releases the AudioContext through one code path.
+   *
+   * @param {object | null} adapter - Audio adapter contract or null to clear it.
+   * @returns {object | null} The stored adapter, or null after clearing.
+   */
+  function setAudioAdapter(adapter) {
+    const key = options.audioAdapterResourceKey || DEFAULT_AUDIO_RESOURCE_KEY;
+    const previous = world.getResource(key) || null;
+
+    if (adapter === null || adapter === undefined) {
+      if (previous && typeof previous.destroy === 'function') {
+        previous.destroy();
+      }
+      world.setResource(key, null);
+      return null;
+    }
+
+    if (typeof adapter.playSfx !== 'function') {
+      throw new Error('Audio adapter must expose a playSfx(cueId) method.');
+    }
+
+    if (previous && previous !== adapter && typeof previous.destroy === 'function') {
+      previous.destroy();
+    }
+
+    world.setResource(key, adapter);
+    return adapter;
+  }
+
+  function getAudioAdapter() {
+    return world.getResource(options.audioAdapterResourceKey || DEFAULT_AUDIO_RESOURCE_KEY) || null;
+  }
+
   return {
     clock,
     eventQueueResourceKey,
     gameFlow,
     gameStatus,
+    getAudioAdapter,
     getHudAdapter,
     getInputAdapter,
     getScreensAdapter,
@@ -1064,6 +1155,7 @@ export function createBootstrap(options = {}) {
     playerEntityResourceKey,
     registerRenderer,
     resyncTime,
+    setAudioAdapter,
     setHudAdapter,
     setInputAdapter,
     setScreensAdapter,
