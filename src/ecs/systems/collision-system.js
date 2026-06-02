@@ -38,6 +38,7 @@
 import { COMPONENT_MASK } from '../components/registry.js';
 import { COLLIDER_TYPE } from '../components/spatial.js';
 import { CELL_TYPE, GHOST_STATE } from '../resources/constants.js';
+import { enqueue } from '../resources/event-queue.js';
 import {
   getCell,
   isGhostHouseCell,
@@ -801,6 +802,22 @@ function resolveDynamicCellCollisions(
         ...readFireChainMetadata(fireStore, fireId),
         ghostState,
       });
+
+      // Audio-only defeat event for the C-07 cue runner (→ sfx-ghost-kill).
+      // Enqueued directly: 'GhostDefeated' is outside the validated
+      // GAMEPLAY_EVENT_TYPE surface, like the other audio-only events.
+      enqueue(
+        eventContext?.eventQueue,
+        'GhostDefeated',
+        {
+          sourceSystem: eventContext?.sourceSystem || GAMEPLAY_EVENT_SOURCE.COLLISION,
+          entityId: ghostId,
+          cause: 'fire',
+          ghostState,
+          tile: createEventTile(tile.row, tile.col),
+        },
+        eventContext?.frame,
+      );
 
       // Marking the ghost dead immediately prevents the same lingering fire
       // tile from emitting duplicate death intents on subsequent fixed steps.

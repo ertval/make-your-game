@@ -25,6 +25,7 @@
 import { COMPONENT_MASK } from '../components/registry.js';
 import { COLLIDER_TYPE } from '../components/spatial.js';
 import { BOMB_FUSE_MS, DEFAULT_FIRE_RADIUS } from '../resources/constants.js';
+import { enqueue } from '../resources/event-queue.js';
 import { readEntityTile } from '../shared/tile-utils.js';
 
 export const BOMB_TICK_PLAYER_REQUIRED_MASK =
@@ -430,6 +431,13 @@ export function createBombTickSystem(options = {}) {
   const bombResourceKey = options.bombResourceKey || 'bomb';
   const bombDetonationQueueResourceKey =
     options.bombDetonationQueueResourceKey || 'bombDetonationQueue';
+  // D-01 event queue: 'BombPlaced' is an audio-only event (outside the
+  // validated GAMEPLAY_EVENT_TYPE surface) consumed by the C-07 cue runner and
+  // mapped to sfx-bomb-place, so it is enqueued directly.
+  const eventQueueResourceKey = options.eventQueueResourceKey || 'eventQueue';
+  // Boolean flag the audio cue runner reads to drive the looping fuse SFX: true
+  // while at least one bomb is active this frame. Resource-only, no audio import.
+  const bombAudioActiveResourceKey = options.bombAudioActiveResourceKey || 'bombAudioActive';
   const playerRequiredMask = options.playerRequiredMask ?? BOMB_TICK_PLAYER_REQUIRED_MASK;
   const bombRequiredMask = options.bombRequiredMask ?? BOMB_TICK_BOMB_REQUIRED_MASK;
   const reusableTile = { row: 0, col: 0 };
@@ -444,6 +452,8 @@ export function createBombTickSystem(options = {}) {
         colliderResourceKey,
         bombResourceKey,
         bombDetonationQueueResourceKey,
+        eventQueueResourceKey,
+        bombAudioActiveResourceKey,
       ],
     },
     update(context) {
@@ -479,8 +489,10 @@ export function createBombTickSystem(options = {}) {
         context.frame,
       );
 
+      const eventQueue = world.getResource(eventQueueResourceKey);
+
       for (const playerEntityId of world.query(playerRequiredMask)) {
-        placeBombForPlayer({
+        const placedBombId = placeBombForPlayer({
           bombEntityIds,
           bombStore,
           colliderStore,
@@ -491,7 +503,33 @@ export function createBombTickSystem(options = {}) {
           positionStore,
           reusableTile,
         });
+
+        if (placedBombId >= 0) {
+          // Audio-only placement event for the C-07 cue runner (→ sfx-bomb-place).
+          enqueue(
+            eventQueue,
+            'BombPlaced',
+            {
+              sourceSystem: 'bomb-tick-system',
+              entityId: placedBombId,
+              ownerId: playerEntityId,
+              tile: { row: bombStore.row[placedBombId], col: bombStore.col[placedBombId] },
+            },
+            context.frame,
+          );
+        }
       }
+
+      // Publish whether any bomb is currently active so the audio runner can
+      // loop/stop the fuse SFX from real state (leak-proof vs counting events).
+      let anyBombActive = false;
+      for (const bombEntityId of bombEntityIds) {
+        if (isActiveBomb(colliderStore, bombEntityId)) {
+          anyBombActive = true;
+          break;
+        }
+      }
+      world.setResource(bombAudioActiveResourceKey, anyBombActive);
     },
   };
 }

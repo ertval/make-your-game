@@ -20,10 +20,16 @@
  *   by a later ticket so this system stays focused on progression flow only.
  */
 
+import { enqueue } from '../resources/event-queue.js';
 import { canTransition, GAME_STATE, transitionTo } from '../resources/game-status.js';
 import { countPellets, countPowerPellets } from '../resources/map-resource.js';
 
 const DEFAULT_GAME_STATUS_RESOURCE_KEY = 'gameStatus';
+// D-01 event-queue key. The audio cue runner (C-07) maps the 'LevelCleared'
+// event type onto the sfx-level-complete cue. 'LevelCleared' is an audio-only
+// event outside the validated GAMEPLAY_EVENT_TYPE surface, so it is enqueued
+// directly rather than through emitGameplayEvent.
+const DEFAULT_EVENT_QUEUE_RESOURCE_KEY = 'eventQueue';
 const DEFAULT_LEVEL_FLOW_RESOURCE_KEY = 'levelFlow';
 const DEFAULT_MAP_RESOURCE_KEY = 'mapResource';
 const DEFAULT_TOTAL_LEVELS = 3;
@@ -68,6 +74,7 @@ function publishPendingLevelAdvance(world, levelFlowResourceKey) {
 }
 
 export function createLevelProgressSystem(options = {}) {
+  const eventQueueResourceKey = options.eventQueueResourceKey || DEFAULT_EVENT_QUEUE_RESOURCE_KEY;
   const gameStatusResourceKey = options.gameStatusResourceKey || DEFAULT_GAME_STATUS_RESOURCE_KEY;
   const levelFlowResourceKey = options.levelFlowResourceKey || DEFAULT_LEVEL_FLOW_RESOURCE_KEY;
   const mapResourceKey = options.mapResourceKey || DEFAULT_MAP_RESOURCE_KEY;
@@ -83,8 +90,8 @@ export function createLevelProgressSystem(options = {}) {
     name: 'level-progress-system',
     phase: 'logic',
     resourceCapabilities: {
-      read: [gameStatusResourceKey, levelFlowResourceKey, mapResourceKey],
-      write: [gameStatusResourceKey, levelFlowResourceKey],
+      read: [eventQueueResourceKey, gameStatusResourceKey, levelFlowResourceKey, mapResourceKey],
+      write: [eventQueueResourceKey, gameStatusResourceKey, levelFlowResourceKey],
     },
     update(context) {
       const world = context.world;
@@ -113,7 +120,16 @@ export function createLevelProgressSystem(options = {}) {
         return;
       }
 
-      tryTransition(gameStatus, GAME_STATE.LEVEL_COMPLETE);
+      if (tryTransition(gameStatus, GAME_STATE.LEVEL_COMPLETE)) {
+        // One-shot: emit only on the actual PLAYING → LEVEL_COMPLETE edge so the
+        // level-complete jingle fires exactly once per cleared level.
+        enqueue(
+          world.getResource(eventQueueResourceKey),
+          'LevelCleared',
+          { sourceSystem: 'level-progress-system', level: Number(mapResource?.level) || null },
+          context.frame,
+        );
+      }
     },
   };
 }

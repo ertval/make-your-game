@@ -27,6 +27,7 @@
  * Adapter methods:
  * - loadClips(manifest): fetch + decodeAudioData each clip in the manifest.
  * - playSfx(cueId): play a one-shot SFX cue (overlapping playback supported).
+ * - playSfxLoop(cueId) / stopSfxLoop(cueId): start/stop a looping SFX cue (e.g. bomb fuse).
  * - playMusic(trackId, options): play a music track, replacing any previous one.
  * - stopMusic(): stop the currently playing music track.
  * - setVolume(category, value): set linear gain for master/music/sfx/ui.
@@ -129,6 +130,8 @@ export function createAudioAdapter(options = {}) {
   /** @type {AudioBufferSourceNode | null} */
   let activeMusicSource = null;
   let activeMusicId = null;
+  /** @type {Map<string, AudioBufferSourceNode>} Active looping SFX by cue id. */
+  const loopSfxSources = new Map();
   let destroyed = false;
   let unlockBound = false;
 
@@ -365,6 +368,86 @@ export function createAudioAdapter(options = {}) {
   }
 
   /**
+   * Start a looping SFX cue (e.g. a bomb fuse) routed through the sfx/ui gain.
+   *
+   * Idempotent per cue: if the cue is already looping, the existing source is
+   * returned rather than layering a second loop. Returns null (warn-once) when
+   * the clip is missing or no AudioContext is available, so callers can retry.
+   *
+   * @param {string} cueId - Cue identifier from the loaded manifest.
+   * @returns {AudioBufferSourceNode | null} The looping source, or null when no playback occurred.
+   */
+  function playSfxLoop(cueId) {
+    if (typeof cueId !== 'string' || !cueId) {
+      return null;
+    }
+    const existing = loopSfxSources.get(cueId);
+    if (existing) {
+      return existing;
+    }
+    const context = ensureContext();
+    if (!context) {
+      return null;
+    }
+    const entry = clipIndex.get(cueId);
+    if (entry && entry.category === 'music') {
+      warnMissing(cueId, 'sfx');
+      return null;
+    }
+    const buffer = entry ? entry.buffers.get(cueId) : sfxBuffers.get(cueId);
+    if (!buffer) {
+      warnMissing(cueId, 'sfx');
+      return null;
+    }
+    const destination = categoryDestinationFor(cueId);
+    if (!destination) {
+      return null;
+    }
+
+    try {
+      const source = context.createBufferSource();
+      source.buffer = buffer;
+      source.loop = true;
+      source.connect(destination);
+      source.onended = () => {
+        if (loopSfxSources.get(cueId) === source) {
+          loopSfxSources.delete(cueId);
+        }
+      };
+      source.start(0);
+      loopSfxSources.set(cueId, source);
+      return source;
+    } catch (error) {
+      console.warn(`audio-adapter: playSfxLoop("${cueId}") failed`, error);
+      return null;
+    }
+  }
+
+  /**
+   * Stop a looping SFX cue started by playSfxLoop. Idempotent.
+   *
+   * @param {string} cueId - Cue identifier to stop.
+   */
+  function stopSfxLoop(cueId) {
+    const source = loopSfxSources.get(cueId);
+    if (!source) {
+      return;
+    }
+    loopSfxSources.delete(cueId);
+    try {
+      source.onended = null;
+      source.stop(0);
+    } catch {
+      // Already stopped / never started — safe to ignore.
+    }
+    try {
+      source.disconnect();
+    } catch {
+      // Already disconnected.
+    }
+  }
+
+  /**
    * Play a music track, replacing any currently playing music.
    *
    * @param {string} trackId - Music track identifier from the loaded manifest.
@@ -506,6 +589,9 @@ export function createAudioAdapter(options = {}) {
       documentTarget.removeEventListener('visibilitychange', onVisibilityChange);
     }
     stopMusic();
+    for (const cueId of [...loopSfxSources.keys()]) {
+      stopSfxLoop(cueId);
+    }
     sfxBuffers.clear();
     musicBuffers.clear();
     clipIndex.clear();
@@ -546,6 +632,8 @@ export function createAudioAdapter(options = {}) {
   return {
     loadClips,
     playSfx,
+    playSfxLoop,
+    stopSfxLoop,
     playMusic,
     stopMusic,
     setVolume,

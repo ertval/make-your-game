@@ -27,9 +27,16 @@
 import { resetInputState } from '../components/actors.js';
 import { resetPosition, resetVelocity } from '../components/spatial.js';
 import { INVINCIBILITY_MS, PLAYER_START_LIVES } from '../resources/constants.js';
+import { enqueue } from '../resources/event-queue.js';
 import { canTransition, GAME_STATE, transitionTo } from '../resources/game-status.js';
 
 const DEFAULT_COLLISION_INTENTS_RESOURCE_KEY = 'collisionIntents';
+// D-01 canonical event-queue key. The audio cue runner (C-07) maps the
+// `LifeLost` / `GameOver` event types it drains here onto the SFX cue ids
+// `sfx-player-hit` / `sfx-game-over` (see AUDIO_CUE_MAPPING). These two event
+// strings are NOT part of GAMEPLAY_EVENT_TYPE, so they are enqueued directly
+// rather than through emitGameplayEvent (whose validator rejects them).
+const DEFAULT_EVENT_QUEUE_RESOURCE_KEY = 'eventQueue';
 const DEFAULT_GAME_STATUS_RESOURCE_KEY = 'gameStatus';
 const DEFAULT_INPUT_STATE_RESOURCE_KEY = 'inputState';
 const DEFAULT_MAP_RESOURCE_KEY = 'mapResource';
@@ -181,6 +188,7 @@ function hasPlayerDeathIntent(collisionIntents) {
 export function createLifeSystem(options = {}) {
   const collisionIntentsResourceKey =
     options.collisionIntentsResourceKey || DEFAULT_COLLISION_INTENTS_RESOURCE_KEY;
+  const eventQueueResourceKey = options.eventQueueResourceKey || DEFAULT_EVENT_QUEUE_RESOURCE_KEY;
   const gameStatusResourceKey = options.gameStatusResourceKey || DEFAULT_GAME_STATUS_RESOURCE_KEY;
   const inputStateResourceKey = options.inputStateResourceKey || DEFAULT_INPUT_STATE_RESOURCE_KEY;
   const mapResourceKey = options.mapResourceKey || DEFAULT_MAP_RESOURCE_KEY;
@@ -199,6 +207,7 @@ export function createLifeSystem(options = {}) {
     resourceCapabilities: {
       read: [
         collisionIntentsResourceKey,
+        eventQueueResourceKey,
         gameStatusResourceKey,
         inputStateResourceKey,
         mapResourceKey,
@@ -210,6 +219,7 @@ export function createLifeSystem(options = {}) {
         velocityResourceKey,
       ],
       write: [
+        eventQueueResourceKey,
         gameStatusResourceKey,
         inputStateResourceKey,
         playerResourceKey,
@@ -252,7 +262,22 @@ export function createLifeSystem(options = {}) {
 
       playerLife.lives = Math.max(0, playerLife.lives - 1);
 
+      // Publish the death fact so downstream feedback channels (audio cue
+      // runner) react to it. Enqueued directly because 'LifeLost'/'GameOver'
+      // are audio-only event types outside the validated GAMEPLAY_EVENT_TYPE
+      // surface. 'LifeLost' fires on EVERY life lost (including the fatal one)
+      // so the player-death SFX (LifeLost → sfx-player-hit) plays each time;
+      // 'GameOver' fires additionally only when the last life is gone.
+      const eventQueue = context.world.getResource(eventQueueResourceKey);
+      enqueue(
+        eventQueue,
+        'LifeLost',
+        { sourceSystem: 'life-system', livesRemaining: playerLife.lives },
+        context.frame,
+      );
+
       if (playerLife.lives === 0) {
+        enqueue(eventQueue, 'GameOver', { sourceSystem: 'life-system' }, context.frame);
         context.world.setResource(respawnIntentResourceKey, false);
         triggerGameOver(gameStatus);
         return;

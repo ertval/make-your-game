@@ -408,6 +408,50 @@ describe('explosion-system geometry and map interaction', () => {
     });
   });
 
+  it('emits a WallDestroyed audio event after BombDetonated when a destructible wall breaks', () => {
+    const {
+      bombDetonationQueue,
+      bombStore,
+      colliderStore,
+      eventQueue,
+      positionStore,
+      system,
+      world,
+    } = createExplosionHarness([[3, 4, CELL_TYPE.DESTRUCTIBLE]]);
+    const bomb = addActiveBomb(world, positionStore, colliderStore, bombStore, 3, 3, 2);
+
+    queueDetonation(bombDetonationQueue, bomb, bombStore);
+    system.update({ dtMs: 0, frame: 0, world });
+
+    const types = drain(eventQueue).map((event) => event.type);
+    // Explosion sound first, then the wall-break cue layered on top.
+    expect(types).toContain(GAMEPLAY_EVENT_TYPE.BOMB_DETONATED);
+    expect(types).toContain('WallDestroyed');
+    expect(types.indexOf(GAMEPLAY_EVENT_TYPE.BOMB_DETONATED)).toBeLessThan(
+      types.indexOf('WallDestroyed'),
+    );
+  });
+
+  it('does not emit WallDestroyed when the explosion breaks no wall', () => {
+    const {
+      bombDetonationQueue,
+      bombStore,
+      colliderStore,
+      eventQueue,
+      positionStore,
+      system,
+      world,
+    } = createExplosionHarness([]);
+    const bomb = addActiveBomb(world, positionStore, colliderStore, bombStore, 3, 3, 2);
+
+    queueDetonation(bombDetonationQueue, bomb, bombStore);
+    system.update({ dtMs: 0, frame: 0, world });
+
+    const types = drain(eventQueue).map((event) => event.type);
+    expect(types).toContain(GAMEPLAY_EVENT_TYPE.BOMB_DETONATED);
+    expect(types).not.toContain('WallDestroyed');
+  });
+
   it('lets fire pass through pellets without destroying them', () => {
     const {
       bombDetonationQueue,
