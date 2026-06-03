@@ -76,6 +76,7 @@ import {
   createPlayerMoveSystem,
   PLAYER_MOVE_REQUIRED_MASK,
 } from '../ecs/systems/player-move-system.js';
+import { createPowerUpSystem } from '../ecs/systems/power-up-system.js';
 import { createRenderCollectSystem } from '../ecs/systems/render-collect-system.js';
 import { createRenderDomSystem } from '../ecs/systems/render-dom-system.js';
 import { createDefaultScoreState, createScoringSystem } from '../ecs/systems/scoring-system.js';
@@ -305,6 +306,8 @@ function createDefaultSystemsByPhase(options = {}) {
   const playerResourceKey = options.playerResourceKey || DEFAULT_PLAYER_RESOURCE_KEY;
   const positionResourceKey = options.positionResourceKey || DEFAULT_POSITION_RESOURCE_KEY;
   const velocityResourceKey = options.velocityResourceKey || DEFAULT_VELOCITY_RESOURCE_KEY;
+  const playerEntityResourceKey =
+    options.playerEntityResourceKey || DEFAULT_PLAYER_ENTITY_RESOURCE_KEY;
   const mapResourceKey = options.mapResourceKey || 'mapResource';
   // B-05: thread the event queue key so Track B systems can enqueue events
   // through the world resource API without importing bootstrap or adapters.
@@ -356,10 +359,27 @@ function createDefaultSystemsByPhase(options = {}) {
         mapResourceKey,
         positionResourceKey,
       }),
-      createTimerSystem(),
+      // B-09: power-up-system must run after collision so it observes this
+      // frame's power-pellet/power-up intents, and it is registered here in the
+      // default stack so its GhostStunned (and power-up effects) actually fire
+      // in the real game loop.
+      createPowerUpSystem({
+        eventQueueResourceKey,
+        playerEntityResourceKey,
+        playerResourceKey,
+      }),
+      createTimerSystem({ eventQueueResourceKey }),
       createScoringSystem(),
-      createLifeSystem({ eventQueueResourceKey }),
-      createLevelProgressSystem({ eventQueueResourceKey }),
+      createLifeSystem({
+        eventQueueResourceKey,
+        inputStateResourceKey,
+        mapResourceKey,
+        playerEntityResourceKey,
+        playerResourceKey,
+        positionResourceKey,
+        velocityResourceKey,
+      }),
+      createLevelProgressSystem({ eventQueueResourceKey, mapResourceKey }),
       createSpawnSystem(),
       // The release-bridge must run after createSpawnSystem so it observes the
       // freshly updated releasedGhostIds list before the next physics phase.

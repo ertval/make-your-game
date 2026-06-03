@@ -24,7 +24,14 @@
 
 import { LEVEL_TIMERS } from '../resources/constants.js';
 import { canTransition, GAME_STATE, transitionTo } from '../resources/game-status.js';
+import {
+  emitGameplayEvent,
+  GAME_OVER_CAUSE,
+  GAMEPLAY_EVENT_SOURCE,
+  GAMEPLAY_EVENT_TYPE,
+} from './collision-gameplay-events.js';
 
+const DEFAULT_EVENT_QUEUE_RESOURCE_KEY = 'eventQueue';
 const DEFAULT_GAME_STATUS_RESOURCE_KEY = 'gameStatus';
 const DEFAULT_LEVEL_LOADER_RESOURCE_KEY = 'levelLoader';
 const DEFAULT_TIMER_RESOURCE_KEY = 'levelTimer';
@@ -99,18 +106,23 @@ function getDeltaSeconds(context) {
   return Math.min(deltaMs, MAX_DELTA_MS) / 1000;
 }
 
-function expireTimer(gameStatus, timerState) {
+function expireTimer(gameStatus, timerState, handleGameOver) {
   timerState.remainingSeconds = 0;
 
   if (gameStatus && canTransition(gameStatus, GAME_STATE.GAME_OVER)) {
     transitionTo(gameStatus, GAME_STATE.GAME_OVER);
+    // Emit only on the real transition so a blocked/repeat expiry never spams
+    // GameOver into the event queue across subsequent frames.
+    if (typeof handleGameOver === 'function') {
+      handleGameOver();
+    }
   }
 }
 
-function expireIfNeeded(gameStatus, timerState) {
+function expireIfNeeded(gameStatus, timerState, handleGameOver) {
   if (timerState.remainingSeconds <= 0) {
     if (gameStatus?.currentState !== GAME_STATE.GAME_OVER) {
-      expireTimer(gameStatus, timerState);
+      expireTimer(gameStatus, timerState, handleGameOver);
     }
     return true;
   }
@@ -119,6 +131,7 @@ function expireIfNeeded(gameStatus, timerState) {
 }
 
 export function createTimerSystem(options = {}) {
+  const eventQueueResourceKey = options.eventQueueResourceKey || DEFAULT_EVENT_QUEUE_RESOURCE_KEY;
   const gameStatusResourceKey = options.gameStatusResourceKey || DEFAULT_GAME_STATUS_RESOURCE_KEY;
   const levelLoaderResourceKey =
     options.levelLoaderResourceKey || DEFAULT_LEVEL_LOADER_RESOURCE_KEY;
@@ -129,7 +142,7 @@ export function createTimerSystem(options = {}) {
     phase: 'logic',
     resourceCapabilities: {
       read: [gameStatusResourceKey, levelLoaderResourceKey, timerResourceKey],
-      write: [gameStatusResourceKey, timerResourceKey],
+      write: [eventQueueResourceKey, gameStatusResourceKey, timerResourceKey],
     },
     update(context) {
       const gameStatus = context.world.getResource(gameStatusResourceKey);
@@ -141,7 +154,22 @@ export function createTimerSystem(options = {}) {
 
       context.world.setResource(timerResourceKey, timerState);
 
-      if (expireIfNeeded(gameStatus, timerState)) {
+      // The expiry helpers fire this callback exactly once, on the real
+      // PLAYING → GAME_OVER transition, so timer GameOver stays deterministic.
+      const eventQueue = context.world.getResource(eventQueueResourceKey);
+      const handleGameOver = () => {
+        emitGameplayEvent(
+          eventQueue,
+          GAMEPLAY_EVENT_TYPE.GAME_OVER,
+          {
+            cause: GAME_OVER_CAUSE.TIME,
+            sourceSystem: GAMEPLAY_EVENT_SOURCE.TIMER,
+          },
+          context.frame,
+        );
+      };
+
+      if (expireIfNeeded(gameStatus, timerState, handleGameOver)) {
         return;
       }
 
@@ -153,7 +181,7 @@ export function createTimerSystem(options = {}) {
         timerState.remainingSeconds - getDeltaSeconds(context),
       );
 
-      expireIfNeeded(gameStatus, timerState);
+      expireIfNeeded(gameStatus, timerState, handleGameOver);
     },
   };
 }

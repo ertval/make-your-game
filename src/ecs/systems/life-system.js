@@ -27,15 +27,16 @@
 import { resetInputState } from '../components/actors.js';
 import { resetPosition, resetVelocity } from '../components/spatial.js';
 import { INVINCIBILITY_MS, PLAYER_START_LIVES } from '../resources/constants.js';
-import { enqueue } from '../resources/event-queue.js';
 import { canTransition, GAME_STATE, transitionTo } from '../resources/game-status.js';
+import { readEntityTile } from '../shared/tile-utils.js';
+import {
+  emitGameplayEvent,
+  GAME_OVER_CAUSE,
+  GAMEPLAY_EVENT_SOURCE,
+  GAMEPLAY_EVENT_TYPE,
+} from './collision-gameplay-events.js';
 
 const DEFAULT_COLLISION_INTENTS_RESOURCE_KEY = 'collisionIntents';
-// D-01 canonical event-queue key. The audio cue runner (C-07) maps the
-// `LifeLost` / `GameOver` event types it drains here onto the SFX cue ids
-// `sfx-player-hit` / `sfx-game-over` (see AUDIO_CUE_MAPPING). These two event
-// strings are NOT part of GAMEPLAY_EVENT_TYPE, so they are enqueued directly
-// rather than through emitGameplayEvent (whose validator rejects them).
 const DEFAULT_EVENT_QUEUE_RESOURCE_KEY = 'eventQueue';
 const DEFAULT_GAME_STATUS_RESOURCE_KEY = 'gameStatus';
 const DEFAULT_INPUT_STATE_RESOURCE_KEY = 'inputState';
@@ -207,7 +208,6 @@ export function createLifeSystem(options = {}) {
     resourceCapabilities: {
       read: [
         collisionIntentsResourceKey,
-        eventQueueResourceKey,
         gameStatusResourceKey,
         inputStateResourceKey,
         mapResourceKey,
@@ -260,26 +260,50 @@ export function createLifeSystem(options = {}) {
         return;
       }
 
+      // Capture the player's tile before any respawn snaps it back to spawn, so
+      // the spatial LifeLost payload reports the actual death location.
+      const eventQueue = context.world.getResource(eventQueueResourceKey);
+      const playerEntity = context.world.getResource(playerEntityResourceKey);
+      const positionStore = context.world.getResource(positionResourceKey);
+      const playerId = playerEntity?.id;
+      const hasSpatialContext =
+        Number.isInteger(playerId) && playerId >= 0 && positionStore != null;
+      const deathTile = hasSpatialContext ? readEntityTile(positionStore, playerId) : null;
+
       playerLife.lives = Math.max(0, playerLife.lives - 1);
 
-      // Publish the death fact so downstream feedback channels (audio cue
-      // runner) react to it. Enqueued directly because 'LifeLost'/'GameOver'
-      // are audio-only event types outside the validated GAMEPLAY_EVENT_TYPE
-      // surface. 'LifeLost' fires on EVERY life lost (including the fatal one)
-      // so the player-death SFX (LifeLost → sfx-player-hit) plays each time;
-      // 'GameOver' fires additionally only when the last life is gone.
-      const eventQueue = context.world.getResource(eventQueueResourceKey);
-      enqueue(
-        eventQueue,
-        'LifeLost',
-        { sourceSystem: 'life-system', livesRemaining: playerLife.lives },
-        context.frame,
-      );
+      // LifeLost is a spatial event; only emit when we have a concrete entity at
+      // a finite tile (the validator rejects NaN tiles, and a throw inside a
+      // system update would quarantine it). emitGameplayEvent is itself a no-op
+      // when the queue is absent.
+      if (deathTile && Number.isFinite(deathTile.row) && Number.isFinite(deathTile.col)) {
+        emitGameplayEvent(
+          eventQueue,
+          GAMEPLAY_EVENT_TYPE.LIFE_LOST,
+          {
+            entityId: playerId,
+            livesRemaining: playerLife.lives,
+            sourceSystem: GAMEPLAY_EVENT_SOURCE.LIFE,
+            tile: { row: deathTile.row, col: deathTile.col },
+          },
+          context.frame,
+        );
+      }
 
       if (playerLife.lives === 0) {
-        enqueue(eventQueue, 'GameOver', { sourceSystem: 'life-system' }, context.frame);
         context.world.setResource(respawnIntentResourceKey, false);
         triggerGameOver(gameStatus);
+        // GameOver is a lifecycle event (no owning tile); emitted after LifeLost
+        // so consumers observe the canonical "LifeLost → GameOver" ordering.
+        emitGameplayEvent(
+          eventQueue,
+          GAMEPLAY_EVENT_TYPE.GAME_OVER,
+          {
+            cause: GAME_OVER_CAUSE.LIVES,
+            sourceSystem: GAMEPLAY_EVENT_SOURCE.LIFE,
+          },
+          context.frame,
+        );
         return;
       }
 

@@ -38,7 +38,6 @@
 import { COMPONENT_MASK } from '../components/registry.js';
 import { COLLIDER_TYPE } from '../components/spatial.js';
 import { CELL_TYPE, GHOST_STATE } from '../resources/constants.js';
-import { enqueue } from '../resources/event-queue.js';
 import {
   getCell,
   isGhostHouseCell,
@@ -792,6 +791,8 @@ function resolveDynamicCellCollisions(
         continue;
       }
 
+      const fireChainMetadata = readFireChainMetadata(fireStore, fireId);
+
       appendCollisionIntent(collisionIntents, {
         type: 'ghost-death',
         entityId: ghostId,
@@ -799,21 +800,23 @@ function resolveDynamicCellCollisions(
         col: tile.col,
         cause: 'fire',
         sourceEntityId: fireId,
-        ...readFireChainMetadata(fireStore, fireId),
+        ...fireChainMetadata,
         ghostState,
       });
 
-      // Audio-only defeat event for the C-07 cue runner (→ sfx-ghost-kill).
-      // Enqueued directly: 'GhostDefeated' is outside the validated
-      // GAMEPLAY_EVENT_TYPE surface, like the other audio-only events.
-      enqueue(
+      // B-09: publish the cross-system GhostDefeated fact so the scoring combo
+      // multiplier (C-01) and audio/visual consumers observe the same ordered
+      // event. chainDepth defaults to the root explosion depth when the fire
+      // store does not expose chain metadata (older/partial harnesses).
+      emitGameplayEvent(
         eventContext?.eventQueue,
-        'GhostDefeated',
+        GAMEPLAY_EVENT_TYPE.GHOST_DEFEATED,
         {
-          sourceSystem: eventContext?.sourceSystem || GAMEPLAY_EVENT_SOURCE.COLLISION,
           entityId: ghostId,
-          cause: 'fire',
+          chainDepth: fireChainMetadata.chainDepth ?? 1,
           ghostState,
+          sourceEntityId: fireId,
+          sourceSystem: eventContext?.sourceSystem || GAMEPLAY_EVENT_SOURCE.COLLISION,
           tile: createEventTile(tile.row, tile.col),
         },
         eventContext?.frame,

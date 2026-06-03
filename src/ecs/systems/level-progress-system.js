@@ -20,16 +20,16 @@
  *   by a later ticket so this system stays focused on progression flow only.
  */
 
-import { enqueue } from '../resources/event-queue.js';
 import { canTransition, GAME_STATE, transitionTo } from '../resources/game-status.js';
 import { countPellets, countPowerPellets } from '../resources/map-resource.js';
+import {
+  emitGameplayEvent,
+  GAMEPLAY_EVENT_SOURCE,
+  GAMEPLAY_EVENT_TYPE,
+} from './collision-gameplay-events.js';
 
-const DEFAULT_GAME_STATUS_RESOURCE_KEY = 'gameStatus';
-// D-01 event-queue key. The audio cue runner (C-07) maps the 'LevelCleared'
-// event type onto the sfx-level-complete cue. 'LevelCleared' is an audio-only
-// event outside the validated GAMEPLAY_EVENT_TYPE surface, so it is enqueued
-// directly rather than through emitGameplayEvent.
 const DEFAULT_EVENT_QUEUE_RESOURCE_KEY = 'eventQueue';
+const DEFAULT_GAME_STATUS_RESOURCE_KEY = 'gameStatus';
 const DEFAULT_LEVEL_FLOW_RESOURCE_KEY = 'levelFlow';
 const DEFAULT_MAP_RESOURCE_KEY = 'mapResource';
 const DEFAULT_TOTAL_LEVELS = 3;
@@ -58,6 +58,20 @@ function isFinalLevelByCount(mapResource, totalLevels) {
   }
 
   return levelNumber >= totalLevels;
+}
+
+/**
+ * Resolve the 1-based level number for the LevelCleared payload.
+ *
+ * The payload schema requires a positive integer, so a missing or non-finite
+ * map level falls back to 1 rather than emitting an invalid event.
+ *
+ * @param {MapResource | null | undefined} mapResource - Active map resource.
+ * @returns {number} Positive integer level number.
+ */
+function resolveLevelNumber(mapResource) {
+  const levelNumber = Math.floor(Number(mapResource?.level));
+  return Number.isInteger(levelNumber) && levelNumber > 0 ? levelNumber : 1;
 }
 
 function publishPendingLevelAdvance(world, levelFlowResourceKey) {
@@ -90,7 +104,7 @@ export function createLevelProgressSystem(options = {}) {
     name: 'level-progress-system',
     phase: 'logic',
     resourceCapabilities: {
-      read: [eventQueueResourceKey, gameStatusResourceKey, levelFlowResourceKey, mapResourceKey],
+      read: [gameStatusResourceKey, levelFlowResourceKey, mapResourceKey],
       write: [eventQueueResourceKey, gameStatusResourceKey, levelFlowResourceKey],
     },
     update(context) {
@@ -102,9 +116,20 @@ export function createLevelProgressSystem(options = {}) {
         return;
       }
 
+      const eventQueue = world.getResource(eventQueueResourceKey);
+
       if (gameStatus.currentState === GAME_STATE.LEVEL_COMPLETE) {
         if (isFinalLevel(mapResource, world) === true) {
-          tryTransition(gameStatus, GAME_STATE.VICTORY);
+          // Victory is a pure lifecycle transition; emit only when the final
+          // level actually advances LEVEL_COMPLETE → VICTORY.
+          if (tryTransition(gameStatus, GAME_STATE.VICTORY)) {
+            emitGameplayEvent(
+              eventQueue,
+              GAMEPLAY_EVENT_TYPE.VICTORY,
+              { sourceSystem: GAMEPLAY_EVENT_SOURCE.LEVEL_PROGRESS },
+              context.frame,
+            );
+          }
           return;
         }
 
@@ -120,13 +145,18 @@ export function createLevelProgressSystem(options = {}) {
         return;
       }
 
+      // LevelCleared fires on the PLAYING → LEVEL_COMPLETE transition for every
+      // level (including the final one, which then advances to Victory next
+      // tick), so consumers observe the canonical "LevelCleared → Victory"
+      // ordering on the last level.
       if (tryTransition(gameStatus, GAME_STATE.LEVEL_COMPLETE)) {
-        // One-shot: emit only on the actual PLAYING → LEVEL_COMPLETE edge so the
-        // level-complete jingle fires exactly once per cleared level.
-        enqueue(
-          world.getResource(eventQueueResourceKey),
-          'LevelCleared',
-          { sourceSystem: 'level-progress-system', level: Number(mapResource?.level) || null },
+        emitGameplayEvent(
+          eventQueue,
+          GAMEPLAY_EVENT_TYPE.LEVEL_CLEARED,
+          {
+            level: resolveLevelNumber(mapResource),
+            sourceSystem: GAMEPLAY_EVENT_SOURCE.LEVEL_PROGRESS,
+          },
           context.frame,
         );
       }
