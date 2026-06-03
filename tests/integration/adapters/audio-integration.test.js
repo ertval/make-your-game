@@ -84,7 +84,7 @@ describe('audio-integration: cue mapping table', () => {
       BombPlaced: 'sfx-bomb-place',
       BombDetonated: 'sfx-bomb-explode',
       PelletCollected: 'sfx-pellet-collect',
-      PowerPelletCollected: ['sfx-power-pellet-collect', 'sfx-speed-boost-on'],
+      PowerPelletCollected: 'sfx-power-pellet-collect',
       PowerUpCollected: 'sfx-powerup-collect',
       LifeLost: 'sfx-player-hit',
       GhostDefeated: 'sfx-ghost-kill',
@@ -112,12 +112,9 @@ describe('audio-integration: cue mapping table', () => {
     expect(resolveCueForEvent(123)).toBeNull();
   });
 
-  it('resolveCuesForEvent normalizes single and multi-cue mappings to arrays', () => {
+  it('resolveCuesForEvent normalizes single-cue mappings to a one-element array', () => {
     expect(resolveCuesForEvent('BombPlaced')).toEqual(['sfx-bomb-place']);
-    expect(resolveCuesForEvent('PowerPelletCollected')).toEqual([
-      'sfx-power-pellet-collect',
-      'sfx-speed-boost-on',
-    ]);
+    expect(resolveCuesForEvent('PowerPelletCollected')).toEqual(['sfx-power-pellet-collect']);
     expect(resolveCuesForEvent('NotARealEvent')).toEqual([]);
   });
 });
@@ -178,8 +175,8 @@ describe('audio-integration: bomb fuse loop', () => {
   });
 });
 
-describe('audio-integration: multi-cue events', () => {
-  it('plays both the pickup and speed-boost cues for one PowerPelletCollected event', () => {
+describe('audio-integration: power-pellet frenzy loop', () => {
+  it('plays only the pickup blip on PowerPelletCollected (frenzy SFX is not a one-shot)', () => {
     const audio = createAudioAdapterSpy();
     const eventQueue = createEventQueue();
     const gameStatus = createGameStatus(GAME_STATE.PLAYING);
@@ -188,7 +185,44 @@ describe('audio-integration: multi-cue events', () => {
     enqueue(eventQueue, 'PowerPelletCollected', {}, 0);
     runner.tick({ audio, eventQueue, gameStatus });
 
-    expect(audio.calls.playSfx).toEqual(['sfx-power-pellet-collect', 'sfx-speed-boost-on']);
+    expect(audio.calls.playSfx).toEqual(['sfx-power-pellet-collect']);
+    expect(audio.calls.playSfx).not.toContain('sfx-speed-boost-on');
+  });
+
+  it('loops the frenzy SFX while the power pellet is active during PLAYING', () => {
+    const audio = createAudioAdapterSpy();
+    const eventQueue = createEventQueue();
+    const gameStatus = createGameStatus(GAME_STATE.PLAYING);
+    const runner = createAudioCueRunner();
+
+    runner.tick({ audio, eventQueue, gameStatus, powerPelletActive: true });
+
+    expect(audio.calls.playSfxLoop).toEqual(['sfx-speed-boost-on']);
+    expect(audio.calls.stopSfxLoop).toEqual([]);
+  });
+
+  it('stops the frenzy loop once the power pellet window ends', () => {
+    const audio = createAudioAdapterSpy();
+    const eventQueue = createEventQueue();
+    const gameStatus = createGameStatus(GAME_STATE.PLAYING);
+    const runner = createAudioCueRunner();
+
+    runner.tick({ audio, eventQueue, gameStatus, powerPelletActive: true });
+    runner.tick({ audio, eventQueue, gameStatus, powerPelletActive: false });
+
+    expect(audio.calls.playSfxLoop).toEqual(['sfx-speed-boost-on']);
+    expect(audio.calls.stopSfxLoop).toEqual(['sfx-speed-boost-on']);
+  });
+
+  it('does not loop the frenzy SFX outside PLAYING even when active', () => {
+    const audio = createAudioAdapterSpy();
+    const eventQueue = createEventQueue();
+    const gameStatus = createGameStatus(GAME_STATE.PAUSED);
+    const runner = createAudioCueRunner();
+
+    runner.tick({ audio, eventQueue, gameStatus, powerPelletActive: true });
+
+    expect(audio.calls.playSfxLoop).toEqual([]);
   });
 });
 

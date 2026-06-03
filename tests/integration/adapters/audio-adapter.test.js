@@ -449,6 +449,72 @@ describe('audio-adapter: playSfx', () => {
   });
 });
 
+describe('audio-adapter: looping SFX', () => {
+  it('loops only the non-silent region so encoder padding does not gap the loop', async () => {
+    const sampleRate = 1000;
+    const length = 100;
+    const data = new Float32Array(length); // silent edges (encoder padding)
+    for (let i = 20; i < 80; i += 1) {
+      data[i] = 0.5; // audible body: samples 20..79
+    }
+    const decodedBuffer = {
+      duration: length / sampleRate,
+      length,
+      sampleRate,
+      numberOfChannels: 1,
+      getChannelData: () => data,
+    };
+    const { adapter } = setup({ context: { decodeImpl: async () => decodedBuffer } });
+    await adapter.loadClips({ sfx: { 'sfx-loop': '/audio/loop.mp3' } });
+
+    const source = adapter.playSfxLoop('sfx-loop');
+
+    expect(source).not.toBeNull();
+    expect(source.loop).toBe(true);
+    // Loop region trims the silent padding: [20, 80) samples -> [0.02s, 0.08s).
+    expect(source.loopStart).toBeCloseTo(0.02, 5);
+    expect(source.loopEnd).toBeCloseTo(0.08, 5);
+  });
+
+  it('snaps the loop boundaries toward the quietest nearby samples', async () => {
+    const sampleRate = 1000;
+    const length = 100;
+    const data = new Float32Array(length);
+    data[10] = 0.8; // first above the silence threshold...
+    data[11] = 0.02; // ...but a much quieter sample sits one step in.
+    for (let i = 12; i < 88; i += 1) {
+      data[i] = 0.5;
+    }
+    data[88] = 0.02; // quiet sample just before the loud tail edge
+    data[89] = 0.8;
+    const decodedBuffer = {
+      duration: length / sampleRate,
+      length,
+      sampleRate,
+      numberOfChannels: 1,
+      getChannelData: () => data,
+    };
+    const { adapter } = setup({ context: { decodeImpl: async () => decodedBuffer } });
+    await adapter.loadClips({ sfx: { 'sfx-loop': '/audio/loop.mp3' } });
+
+    const source = adapter.playSfxLoop('sfx-loop');
+
+    // Edges snap from samples 10/89 to the quieter 11/88.
+    expect(source.loopStart).toBeCloseTo(0.011, 5);
+    expect(source.loopEnd).toBeCloseTo(0.089, 5);
+  });
+
+  it('idempotently returns the existing loop source without restarting it', async () => {
+    const { adapter } = setup();
+    await adapter.loadClips({ sfx: { 'sfx-loop': '/audio/loop.mp3' } });
+
+    const first = adapter.playSfxLoop('sfx-loop');
+    const second = adapter.playSfxLoop('sfx-loop');
+
+    expect(second).toBe(first);
+  });
+});
+
 describe('audio-adapter: playMusic', () => {
   it('stops the previous music source before starting a new one', async () => {
     const { adapter } = setup();

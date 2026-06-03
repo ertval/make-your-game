@@ -123,6 +123,7 @@ function createAudioCueSystem(options = {}) {
   const gameStatusResourceKey = options.gameStatusResourceKey || 'gameStatus';
   const audioResourceKey = options.audioResourceKey || DEFAULT_AUDIO_RESOURCE_KEY;
   const bombAudioActiveResourceKey = options.bombAudioActiveResourceKey || 'bombAudioActive';
+  const powerUpStateResourceKey = options.powerUpStateResourceKey || 'powerUpState';
   const runner = createAudioCueRunner();
 
   return {
@@ -134,16 +135,21 @@ function createAudioCueSystem(options = {}) {
         eventQueueResourceKey,
         gameStatusResourceKey,
         bombAudioActiveResourceKey,
+        powerUpStateResourceKey,
       ],
       // drain() clears the queue, so this system writes the event-queue resource.
       write: [eventQueueResourceKey],
     },
     update(context) {
+      const powerUpState = context.world.getResource(powerUpStateResourceKey);
       runner.tick({
         audio: context.world.getResource(audioResourceKey),
         eventQueue: context.world.getResource(eventQueueResourceKey),
         gameStatus: context.world.getResource(gameStatusResourceKey),
         bombActive: context.world.getResource(bombAudioActiveResourceKey) === true,
+        // Power-pellet frenzy window: loop the frenzy SFX while the stun timer
+        // is live (started by a power pellet, ticked by power-up-system).
+        powerPelletActive: (powerUpState?.stunRemainingMs ?? 0) > 0,
       });
     },
   };

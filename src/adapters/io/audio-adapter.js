@@ -72,6 +72,106 @@ function clampGain(value) {
   return value;
 }
 
+/**
+ * Nudge a loop boundary toward the quietest sample within a small window so the
+ * loop wraps as close to zero amplitude as possible. This shaves the faint
+ * click that remains when a trim boundary lands mid-waveform (a zero-crossing
+ * snap). Returns the original index when no quieter sample is nearby.
+ *
+ * @param {Float32Array} data - Channel PCM samples.
+ * @param {number} fromIndex - Starting sample index.
+ * @param {number} direction - +1 to search forward, -1 to search backward.
+ * @param {number} window - Maximum samples to search.
+ * @returns {number} Index of the quietest sample found (or fromIndex).
+ */
+function snapToQuietestSample(data, fromIndex, direction, window) {
+  let bestIndex = fromIndex;
+  let bestAbs = Math.abs(data[fromIndex]);
+  for (let step = 1; step <= window; step += 1) {
+    const i = fromIndex + direction * step;
+    if (i < 0 || i >= data.length) {
+      break;
+    }
+    const abs = Math.abs(data[i]);
+    if (abs < bestAbs) {
+      bestAbs = abs;
+      bestIndex = i;
+    }
+  }
+  return bestIndex;
+}
+
+/**
+ * Find the seamless loop region of a decoded buffer by trimming near-silent
+ * edges and snapping the boundaries toward zero-crossings. MP3 encoder
+ * delay/padding decodes to a few ms of leading/trailing silence; with
+ * `source.loop = true` that silence replays every iteration and is heard as a
+ * gap. Looping only the non-silent region (with zero-snapped edges) removes the
+ * gap and minimizes the loop-wrap click.
+ *
+ * Defensive: any buffer that does not expose PCM data (e.g. test mocks) falls
+ * back to looping the whole buffer.
+ *
+ * @param {AudioBuffer} buffer - Decoded audio buffer.
+ * @returns {{ loopStart: number, loopEnd: number }} Loop region in seconds.
+ */
+function computeLoopRegion(buffer) {
+  const duration = Number.isFinite(buffer?.duration) ? buffer.duration : 0;
+  const fallback = { loopStart: 0, loopEnd: duration };
+  const length = Number.isInteger(buffer?.length) ? buffer.length : 0;
+  const sampleRate = buffer?.sampleRate;
+
+  if (typeof buffer?.getChannelData !== 'function' || length <= 0 || !sampleRate) {
+    return fallback;
+  }
+
+  // ~ -56 dBFS: treats encoder padding / dead air as silence without trimming
+  // an audible loop body.
+  const SILENCE_THRESHOLD = 0.0015;
+  const channelCount = buffer.numberOfChannels || 1;
+  let firstNonSilent = length;
+  let lastNonSilent = -1;
+
+  for (let channel = 0; channel < channelCount; channel += 1) {
+    const data = buffer.getChannelData(channel);
+    for (let i = 0; i < length; i += 1) {
+      if (Math.abs(data[i]) > SILENCE_THRESHOLD) {
+        if (i < firstNonSilent) {
+          firstNonSilent = i;
+        }
+        break;
+      }
+    }
+    for (let i = length - 1; i >= 0; i -= 1) {
+      if (Math.abs(data[i]) > SILENCE_THRESHOLD) {
+        if (i > lastNonSilent) {
+          lastNonSilent = i;
+        }
+        break;
+      }
+    }
+  }
+
+  if (lastNonSilent <= firstNonSilent) {
+    return fallback;
+  }
+
+  // Snap each edge toward the nearest near-zero sample (≤10 ms in, bounded so we
+  // never cross the midpoint) to shave the residual loop-wrap click.
+  const channel0 = buffer.getChannelData(0);
+  const snapWindow = Math.max(
+    0,
+    Math.min(Math.round(sampleRate * 0.01), Math.floor((lastNonSilent - firstNonSilent) / 2)),
+  );
+  const loopStartSample = snapToQuietestSample(channel0, firstNonSilent, 1, snapWindow);
+  const loopEndSample = snapToQuietestSample(channel0, lastNonSilent, -1, snapWindow);
+
+  return {
+    loopStart: loopStartSample / sampleRate,
+    loopEnd: (loopEndSample + 1) / sampleRate,
+  };
+}
+
 function resolveAudioContextCtor(windowTarget, override) {
   if (typeof override === 'function') {
     return override;
@@ -132,6 +232,8 @@ export function createAudioAdapter(options = {}) {
   let activeMusicId = null;
   /** @type {Map<string, AudioBufferSourceNode>} Active looping SFX by cue id. */
   const loopSfxSources = new Map();
+  /** @type {Map<string, { loopStart: number, loopEnd: number }>} Cached seamless loop regions. */
+  const loopRegions = new Map();
   let destroyed = false;
   let unlockBound = false;
 
@@ -404,17 +506,27 @@ export function createAudioAdapter(options = {}) {
       return null;
     }
 
+    let region = loopRegions.get(cueId);
+    if (!region) {
+      region = computeLoopRegion(buffer);
+      loopRegions.set(cueId, region);
+    }
+
     try {
       const source = context.createBufferSource();
       source.buffer = buffer;
       source.loop = true;
+      // Loop only the non-silent region so MP3 encoder padding does not play a
+      // gap on every wrap. Starting at loopStart also drops the first-pass gap.
+      source.loopStart = region.loopStart;
+      source.loopEnd = region.loopEnd;
       source.connect(destination);
       source.onended = () => {
         if (loopSfxSources.get(cueId) === source) {
           loopSfxSources.delete(cueId);
         }
       };
-      source.start(0);
+      source.start(0, region.loopStart);
       loopSfxSources.set(cueId, source);
       return source;
     } catch (error) {
@@ -595,6 +707,7 @@ export function createAudioAdapter(options = {}) {
     sfxBuffers.clear();
     musicBuffers.clear();
     clipIndex.clear();
+    loopRegions.clear();
     gainNodes.clear();
     if (audioContext && typeof audioContext.close === 'function') {
       try {

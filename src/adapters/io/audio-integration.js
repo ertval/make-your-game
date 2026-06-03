@@ -84,9 +84,11 @@ export const AUDIO_CUE_MAPPING = Object.freeze({
   BombDetonated: 'sfx-bomb-explode',
   WallDestroyed: 'sfx-wall-destroy',
   PelletCollected: 'sfx-pellet-collect',
-  // The power pellet fires two overlapping cues: the pickup blip and the
-  // power-mode (speed-boost) activation sting, matching the arcade feel.
-  PowerPelletCollected: ['sfx-power-pellet-collect', 'sfx-speed-boost-on'],
+  // The power pellet pickup fires only the pickup blip here. The power-mode
+  // "frenzy" sting (sfx-speed-boost-on) is NOT a one-shot — it loops for as
+  // long as the frenzy/stun window is active, driven by simulation state in
+  // reconcilePowerPelletLoop (see POWER_PELLET_LOOP_CUE), not this event.
+  PowerPelletCollected: 'sfx-power-pellet-collect',
   PowerUpCollected: 'sfx-powerup-collect',
   // Higher-level events emitted (or planned) by Track B/C systems.
   LifeLost: 'sfx-player-hit',
@@ -121,6 +123,14 @@ export const MUSIC_STATE_MAPPING = Object.freeze({
  * moment none remain (detonation, level reset, leaving PLAYING).
  */
 const FUSE_LOOP_CUE = 'sfx-bomb-fuse';
+
+/**
+ * Looping SFX cue for the power-pellet "frenzy" window. Like the fuse, it is
+ * driven by live simulation state (the stun timer started by a power pellet)
+ * rather than a one-shot event: it loops while ghosts are frenzied/stunned
+ * during PLAYING and stops the instant that window ends.
+ */
+const POWER_PELLET_LOOP_CUE = 'sfx-speed-boost-on';
 
 /**
  * Resolve a gameplay event type to its raw mapping value.
@@ -209,9 +219,10 @@ export function createAudioCueRunner(options = {}) {
   const warnUnknownEvents = options.warnUnknownEvents !== false;
   const warnedUnknown = new Set();
   let lastState = null;
-  // Whether the looping fuse SFX is currently playing, so we only start/stop it
-  // on edges instead of re-issuing the call every frame.
+  // Whether each looping SFX is currently playing, so we only start/stop on
+  // edges instead of re-issuing the call every frame.
   let fusePlaying = false;
+  let powerPelletLoopPlaying = false;
 
   function maybeWarnUnknown(type) {
     if (!warnUnknownEvents || !isDev()) {
@@ -316,32 +327,28 @@ export function createAudioCueRunner(options = {}) {
     }
   }
 
-  function reconcileFuse(audio, gameStatus, bombActive) {
-    const isPlaying = gameStatus?.currentState === GAME_STATE.PLAYING;
-    // Fuse only loops during live play: a bomb on the game-over screen or a
-    // paused board should be silent.
-    const shouldPlay = bombActive === true && isPlaying;
-
-    if (shouldPlay === fusePlaying) {
-      return;
+  // Start/stop a state-driven looping cue on edges only. Returns the next
+  // "playing" state. When starting, playSfxLoop returns null while the clip is
+  // still decoding (or the context is suspended), so we stay false and retry on
+  // the next tick until playback actually begins. On a hard error we keep the
+  // previous state so the runner does not spin on the same failing transition.
+  function reconcileLoop(audio, cueId, shouldPlay, isPlaying) {
+    if (shouldPlay === isPlaying) {
+      return isPlaying;
     }
-
     try {
       if (shouldPlay) {
-        // playSfxLoop returns null while the clip is still decoding; keep
-        // fusePlaying false so we retry next tick until it actually starts.
-        const started =
-          typeof audio.playSfxLoop === 'function' ? audio.playSfxLoop(FUSE_LOOP_CUE) : null;
-        fusePlaying = Boolean(started);
-      } else {
-        if (typeof audio.stopSfxLoop === 'function') {
-          audio.stopSfxLoop(FUSE_LOOP_CUE);
-        }
-        fusePlaying = false;
+        const started = typeof audio.playSfxLoop === 'function' ? audio.playSfxLoop(cueId) : null;
+        return Boolean(started);
       }
+      if (typeof audio.stopSfxLoop === 'function') {
+        audio.stopSfxLoop(cueId);
+      }
+      return false;
     } catch (error) {
       // eslint-disable-next-line no-console
-      console.warn('audio-integration: fuse loop reconciliation threw', error);
+      console.warn(`audio-integration: loop reconciliation for "${cueId}" threw`, error);
+      return isPlaying;
     }
   }
 
@@ -351,15 +358,29 @@ export function createAudioCueRunner(options = {}) {
       // tick silently — gameplay continues without audio feedback.
       return;
     }
+    const isPlaying = context.gameStatus?.currentState === GAME_STATE.PLAYING;
     consumeEvents(context.audio, context.eventQueue);
     reconcileMusic(context.audio, context.gameStatus);
-    reconcileFuse(context.audio, context.gameStatus, context.bombActive);
+    // Both loops only sound during live play (silent on pause / overlays / end).
+    fusePlaying = reconcileLoop(
+      context.audio,
+      FUSE_LOOP_CUE,
+      context.bombActive === true && isPlaying,
+      fusePlaying,
+    );
+    powerPelletLoopPlaying = reconcileLoop(
+      context.audio,
+      POWER_PELLET_LOOP_CUE,
+      context.powerPelletActive === true && isPlaying,
+      powerPelletLoopPlaying,
+    );
   }
 
   function reset() {
     warnedUnknown.clear();
     lastState = null;
     fusePlaying = false;
+    powerPelletLoopPlaying = false;
   }
 
   return { tick, reset };
