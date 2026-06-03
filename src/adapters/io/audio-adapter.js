@@ -172,6 +172,87 @@ function computeLoopRegion(buffer) {
   };
 }
 
+/**
+ * Pre-render a seamless looping buffer by crossfading the loop region's tail
+ * back into its head. `computeLoopRegion` removes encoder padding and snaps to
+ * zero-crossings, but the loop *body* itself may not be musically continuous —
+ * the phrase at `loopEnd` rarely resolves back into the phrase at `loopStart`,
+ * so a plain `source.loop = true` splice can still be heard as a "gap" where the
+ * pattern restarts. Mixing the last `fade` samples (faded out) into the first
+ * `fade` samples (faded in) with an equal-power curve blends the end of one
+ * iteration into the start of the next, masking that restart regardless of how
+ * the source clip was authored. The returned buffer loops cleanly over its full
+ * `0..duration` range.
+ *
+ * Equal-power (cos/sin) rather than linear so the summed loudness stays
+ * constant through the fade — a linear crossfade would dip ~3 dB at the midpoint
+ * and be heard as a pulse. Done once per cue and cached; not on the hot path.
+ *
+ * Defensive: returns null when PCM data or `createBuffer` is unavailable (test
+ * mocks) or the region is too short to fade, so callers fall back to the
+ * original buffer + loopStart/loopEnd splice.
+ *
+ * @param {BaseAudioContext} context - Context used to allocate the new buffer.
+ * @param {AudioBuffer} buffer - Decoded source buffer.
+ * @param {{ loopStart: number, loopEnd: number }} region - Loop region (seconds).
+ * @param {number} fadeSeconds - Target crossfade length in seconds.
+ * @returns {AudioBuffer | null} Crossfaded loop buffer, or null to fall back.
+ */
+function buildSeamlessLoopBuffer(context, buffer, region, fadeSeconds) {
+  if (
+    typeof buffer?.getChannelData !== 'function' ||
+    typeof context?.createBuffer !== 'function' ||
+    !Number.isFinite(buffer?.sampleRate)
+  ) {
+    return null;
+  }
+
+  const sampleRate = buffer.sampleRate;
+  const startSample = Math.max(0, Math.round(region.loopStart * sampleRate));
+  const endSample = Math.min(buffer.length, Math.round(region.loopEnd * sampleRate));
+  const regionLength = endSample - startSample;
+
+  // Fade must fit inside the region and never exceed half of it (the head and
+  // tail fade windows must not overlap). Bail on regions too short to matter.
+  const fade = Math.min(Math.round(fadeSeconds * sampleRate), Math.floor(regionLength / 2));
+  if (regionLength <= 0 || fade <= 0) {
+    return null;
+  }
+
+  // The looped buffer is the region minus the tail we fold back into the head.
+  const loopLength = regionLength - fade;
+  const channelCount = buffer.numberOfChannels || 1;
+
+  let out;
+  try {
+    out = context.createBuffer(channelCount, loopLength, sampleRate);
+  } catch (error) {
+    console.warn('audio-adapter: createBuffer for seamless loop failed', error);
+    return null;
+  }
+
+  for (let channel = 0; channel < channelCount; channel += 1) {
+    const src = buffer.getChannelData(channel);
+    const dst = out.getChannelData(channel);
+    // Copy the loop body verbatim.
+    for (let i = 0; i < loopLength; i += 1) {
+      dst[i] = src[startSample + i];
+    }
+    // Crossfade: the first `fade` samples are the head fading in while the tail
+    // (the `fade` samples just past loopLength) fades out, summed equal-power.
+    for (let i = 0; i < fade; i += 1) {
+      const t = (i + 0.5) / fade; // sample-centred so the curve is symmetric
+      const fadeIn = Math.sin((t * Math.PI) / 2);
+      const fadeOut = Math.cos((t * Math.PI) / 2);
+      const head = src[startSample + i];
+      const tail = src[startSample + loopLength + i];
+      dst[i] = head * fadeIn + tail * fadeOut;
+    }
+  }
+
+  return out;
+}
+
 function resolveAudioContextCtor(windowTarget, override) {
   if (typeof override === 'function') {
     return override;
@@ -234,6 +315,8 @@ export function createAudioAdapter(options = {}) {
   const loopSfxSources = new Map();
   /** @type {Map<string, { loopStart: number, loopEnd: number }>} Cached seamless loop regions. */
   const loopRegions = new Map();
+  /** @type {Map<string, AudioBuffer>} Cached crossfaded loop buffers (per cue). */
+  const loopBuffers = new Map();
   let destroyed = false;
   let unlockBound = false;
 
@@ -512,21 +595,40 @@ export function createAudioAdapter(options = {}) {
       loopRegions.set(cueId, region);
     }
 
+    // Crossfade the loop tail into its head once, then loop the whole rendered
+    // buffer — this masks the restart "gap" even when the clip body is not
+    // musically continuous. Cached per cue; null means fall back to the splice.
+    let loopBuffer = loopBuffers.get(cueId);
+    if (loopBuffer === undefined) {
+      // ~30 ms: long enough to mask a discontinuity, short enough not to smear
+      // a percussive loop body. Clamped to half the region inside the builder.
+      loopBuffer = buildSeamlessLoopBuffer(context, buffer, region, 0.03);
+      loopBuffers.set(cueId, loopBuffer);
+    }
+
     try {
       const source = context.createBufferSource();
-      source.buffer = buffer;
-      source.loop = true;
-      // Loop only the non-silent region so MP3 encoder padding does not play a
-      // gap on every wrap. Starting at loopStart also drops the first-pass gap.
-      source.loopStart = region.loopStart;
-      source.loopEnd = region.loopEnd;
+      if (loopBuffer) {
+        // The rendered buffer already excludes padding and is wrap-continuous,
+        // so loop its full range from the start.
+        source.buffer = loopBuffer;
+        source.loop = true;
+      } else {
+        source.buffer = buffer;
+        source.loop = true;
+        // Fallback: loop only the non-silent region so MP3 encoder padding does
+        // not play a gap on every wrap. Starting at loopStart drops the
+        // first-pass gap.
+        source.loopStart = region.loopStart;
+        source.loopEnd = region.loopEnd;
+      }
       source.connect(destination);
       source.onended = () => {
         if (loopSfxSources.get(cueId) === source) {
           loopSfxSources.delete(cueId);
         }
       };
-      source.start(0, region.loopStart);
+      source.start(0, loopBuffer ? 0 : region.loopStart);
       loopSfxSources.set(cueId, source);
       return source;
     } catch (error) {
@@ -708,6 +810,7 @@ export function createAudioAdapter(options = {}) {
     musicBuffers.clear();
     clipIndex.clear();
     loopRegions.clear();
+    loopBuffers.clear();
     gainNodes.clear();
     if (audioContext && typeof audioContext.close === 'function') {
       try {

@@ -145,6 +145,20 @@ function buildMockAudioContextCtor({ decodeImpl, initialState = 'running' } = {}
       return source;
     }
 
+    // Real AudioContexts expose createBuffer; the adapter uses it to pre-render
+    // the crossfaded seamless-loop buffer. The mock returns a minimal buffer
+    // backed by Float32Array channels so the crossfade math runs for real.
+    createBuffer(channels, length, sampleRate) {
+      const data = Array.from({ length: channels }, () => new Float32Array(length));
+      return {
+        numberOfChannels: channels,
+        length,
+        sampleRate,
+        duration: length / sampleRate,
+        getChannelData: (channel) => data[channel],
+      };
+    }
+
     async decodeAudioData(arrayBuffer) {
       this.decodeCalls.push(arrayBuffer);
       if (typeof decodeImpl === 'function') {
@@ -450,12 +464,12 @@ describe('audio-adapter: playSfx', () => {
 });
 
 describe('audio-adapter: looping SFX', () => {
-  it('loops only the non-silent region so encoder padding does not gap the loop', async () => {
+  it('renders a crossfaded loop buffer over the trimmed region so wraps are seamless', async () => {
     const sampleRate = 1000;
     const length = 100;
     const data = new Float32Array(length); // silent edges (encoder padding)
     for (let i = 20; i < 80; i += 1) {
-      data[i] = 0.5; // audible body: samples 20..79
+      data[i] = 0.5; // audible body: samples 20..79 -> region [20, 80), len 60
     }
     const decodedBuffer = {
       duration: length / sampleRate,
@@ -471,22 +485,34 @@ describe('audio-adapter: looping SFX', () => {
 
     expect(source).not.toBeNull();
     expect(source.loop).toBe(true);
-    // Loop region trims the silent padding: [20, 80) samples -> [0.02s, 0.08s).
-    expect(source.loopStart).toBeCloseTo(0.02, 5);
-    expect(source.loopEnd).toBeCloseTo(0.08, 5);
+    // The crossfade path loops a freshly rendered buffer from its start, so the
+    // raw source loopStart/loopEnd splice is no longer used.
+    expect(source.startedAt).toBe(0);
+    expect(source.loopStart).toBeUndefined();
+    expect(source.loopEnd).toBeUndefined();
+    // Rendered length = trimmed region (~60) minus the fade folded back into the
+    // head. fade = min(round(0.03*1000)=30, floor(60/2)=30) = 30, so the loop
+    // body is ~30 samples (zero-snap may shift an edge by one).
+    expect(source.buffer).not.toBe(decodedBuffer);
+    expect(source.buffer.length).toBeGreaterThanOrEqual(28);
+    expect(source.buffer.length).toBeLessThanOrEqual(31);
+    expect(source.buffer.sampleRate).toBe(sampleRate);
   });
 
-  it('snaps the loop boundaries toward the quietest nearby samples', async () => {
+  it('equal-power crossfades the loop tail into its head for a continuous wrap', async () => {
+    // Region body is a constant 0.5 except a 0.9 spike at the very first and a
+    // 0.1 dip at the very last sample. After folding tail->head the boundary
+    // samples become a blend, proving the crossfade ran (not a raw copy).
+    // Region is 200 samples so it comfortably exceeds the 30-sample fade window,
+    // leaving an untouched body to assert against.
     const sampleRate = 1000;
-    const length = 100;
+    const length = 300;
     const data = new Float32Array(length);
-    data[10] = 0.8; // first above the silence threshold...
-    data[11] = 0.02; // ...but a much quieter sample sits one step in.
-    for (let i = 12; i < 88; i += 1) {
-      data[i] = 0.5;
+    for (let i = 50; i < 250; i += 1) {
+      data[i] = 0.5; // region [50, 250), length 200
     }
-    data[88] = 0.02; // quiet sample just before the loud tail edge
-    data[89] = 0.8;
+    data[50] = 0.9; // head edge of region
+    data[249] = 0.1; // tail edge of region
     const decodedBuffer = {
       duration: length / sampleRate,
       length,
@@ -498,10 +524,24 @@ describe('audio-adapter: looping SFX', () => {
     await adapter.loadClips({ sfx: { 'sfx-loop': '/audio/loop.mp3' } });
 
     const source = adapter.playSfxLoop('sfx-loop');
+    const rendered = source.buffer.getChannelData(0);
 
-    // Edges snap from samples 10/89 to the quieter 11/88.
-    expect(source.loopStart).toBeCloseTo(0.011, 5);
-    expect(source.loopEnd).toBeCloseTo(0.089, 5);
+    // Rendered length = trimmed region minus the 30-sample fade folded into the
+    // head. Zero-snap may nudge an edge by a sample, so assert the relationship
+    // rather than an exact count: ~170, and strictly less than the full region.
+    expect(rendered.length).toBeGreaterThanOrEqual(168);
+    expect(rendered.length).toBeLessThan(200);
+    // First sample = head*sin(t~0) + tail*cos(t~0); fade-in≈0, fade-out≈1, so it
+    // is dominated by the faded-out tail (~0.5 body) rather than the 0.9 head
+    // spike — proving the tail was mixed in.
+    expect(rendered[0]).toBeLessThan(0.9);
+    // Mid-buffer (index 50, past the 30-sample fade) is the untouched body level.
+    expect(rendered[50]).toBeCloseTo(0.5, 5);
+    // Every rendered sample stays within the source's amplitude envelope (no
+    // crossfade overshoot/clipping).
+    for (let i = 0; i < rendered.length; i += 1) {
+      expect(Math.abs(rendered[i])).toBeLessThanOrEqual(0.9 + 1e-6);
+    }
   });
 
   it('idempotently returns the existing loop source without restarting it', async () => {
