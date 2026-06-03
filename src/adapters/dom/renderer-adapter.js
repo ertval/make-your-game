@@ -66,19 +66,18 @@ export function createBoardAdapter({
       throw new Error('generateBoard requires mapResource and containerElement.');
     }
 
+    clearBoard();
+
     // Clear any existing board children before generating new one
     while (containerElement.firstChild) {
       containerElement.removeChild(containerElement.firstChild);
     }
-    boardElement = null;
 
     const { rows, cols, grid } = mapResource;
 
     if (!Number.isFinite(rows) || !Number.isFinite(cols)) {
       throw new Error('mapResource must have valid rows and cols.');
     }
-
-    clearBoard();
 
     boardElement = docRef.createElement('div');
     boardElement.classList.add(...BOARD_CLASSES);

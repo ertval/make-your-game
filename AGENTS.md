@@ -1,9 +1,3 @@
----
-version: 1.2.0
-last-updated: 2026-04-11
-status: active
----
-
 # Agent Instructions: Ms. Ghostman — Modern JavaScript 2026 DOM + ECS Game Development
 
 > **Standards & Guidelines** — Mandatory technical constraints and workflows for development.

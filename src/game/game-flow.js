@@ -84,6 +84,8 @@ export function createGameFlow({ gameStatus, clock, levelLoader, world, onRestar
   function startGame(options = {}) {
     const levelIndex = Number.isFinite(options.levelIndex) ? options.levelIndex : 0;
     const state = gameStatus.currentState;
+    const needsRestart =
+      levelIndex === 0 || state === GAME_STATE.GAME_OVER || state === GAME_STATE.VICTORY;
 
     if (state === GAME_STATE.PLAYING) {
       applyPauseFromState(clock, gameStatus);
@@ -103,6 +105,13 @@ export function createGameFlow({ gameStatus, clock, levelLoader, world, onRestar
     }
 
     if (gameStatus.currentState === GAME_STATE.MENU) {
+      if (needsRestart) {
+        destroyAllEntitiesDeferred();
+        if (typeof onRestart === 'function') {
+          onRestart();
+        }
+      }
+
       let loadedLevel = true;
       if (levelLoader && typeof levelLoader.loadLevel === 'function') {
         loadedLevel = levelLoader.loadLevel(levelIndex, {
