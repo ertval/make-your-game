@@ -25,7 +25,7 @@ All audio assets are **initial production candidates**. If any SFX/music feels o
   | `wall-destroy.mp3` | `sfx-wall-destroy` | — | `WallDestroyed` |
   | `pellet-collect.mp3` | `sfx-pellet-collect` | — | `PelletCollected` |
   | `power-pellet.mp3` | `sfx-power-pellet-collect` | — | `PowerPelletCollected` |
-  | `speed-boost-on.mp3` | `sfx-speed-boost-on` | — | `PowerPelletCollected` (overlap) |
+  | `speed-boost-on.mp3` | `sfx-speed-boost-on` | ✅ | live frenzy state (`powerPelletActive`) |
   | `ghost-kill.mp3` | `sfx-ghost-kill` | — | `GhostDefeated` |
   | `player-death.mp3` | `sfx-player-hit` | — | `LifeLost` |
   | `level-complete.mp3` | `sfx-level-complete` | — | `LevelCleared` |
