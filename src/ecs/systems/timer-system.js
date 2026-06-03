@@ -106,23 +106,23 @@ function getDeltaSeconds(context) {
   return Math.min(deltaMs, MAX_DELTA_MS) / 1000;
 }
 
-function expireTimer(gameStatus, timerState, onGameOver) {
+function expireTimer(gameStatus, timerState, handleGameOver) {
   timerState.remainingSeconds = 0;
 
   if (gameStatus && canTransition(gameStatus, GAME_STATE.GAME_OVER)) {
     transitionTo(gameStatus, GAME_STATE.GAME_OVER);
     // Emit only on the real transition so a blocked/repeat expiry never spams
     // GameOver into the event queue across subsequent frames.
-    if (typeof onGameOver === 'function') {
-      onGameOver();
+    if (typeof handleGameOver === 'function') {
+      handleGameOver();
     }
   }
 }
 
-function expireIfNeeded(gameStatus, timerState, onGameOver) {
+function expireIfNeeded(gameStatus, timerState, handleGameOver) {
   if (timerState.remainingSeconds <= 0) {
     if (gameStatus?.currentState !== GAME_STATE.GAME_OVER) {
-      expireTimer(gameStatus, timerState, onGameOver);
+      expireTimer(gameStatus, timerState, handleGameOver);
     }
     return true;
   }
@@ -157,7 +157,7 @@ export function createTimerSystem(options = {}) {
       // The expiry helpers fire this callback exactly once, on the real
       // PLAYING → GAME_OVER transition, so timer GameOver stays deterministic.
       const eventQueue = context.world.getResource(eventQueueResourceKey);
-      const onGameOver = () => {
+      const handleGameOver = () => {
         emitGameplayEvent(
           eventQueue,
           GAMEPLAY_EVENT_TYPE.GAME_OVER,
@@ -169,7 +169,7 @@ export function createTimerSystem(options = {}) {
         );
       };
 
-      if (expireIfNeeded(gameStatus, timerState, onGameOver)) {
+      if (expireIfNeeded(gameStatus, timerState, handleGameOver)) {
         return;
       }
 
@@ -181,7 +181,7 @@ export function createTimerSystem(options = {}) {
         timerState.remainingSeconds - getDeltaSeconds(context),
       );
 
-      expireIfNeeded(gameStatus, timerState, onGameOver);
+      expireIfNeeded(gameStatus, timerState, handleGameOver);
     },
   };
 }
