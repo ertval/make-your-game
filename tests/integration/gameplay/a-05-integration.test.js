@@ -119,6 +119,7 @@ function createElementStub(tagName) {
       this.firstChild = children[0] || null;
       return child;
     },
+    removeAttribute() {},
     setAttribute() {},
     style: {
       display: '',

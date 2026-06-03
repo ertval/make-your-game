@@ -281,4 +281,28 @@ describe('pause-system', () => {
     expect(harness.world.getResource('clock').isPaused).toBe(false);
     expectPauseIntentCleared(harness.world);
   });
+
+  it('handles non-object rawPauseIntent gracefully', () => {
+    const harness = createHarness(GAME_STATE.PLAYING, 'not-an-object');
+    expect(() => updatePauseSystem(harness)).not.toThrow();
+    expectPauseIntentCleared(harness.world);
+  });
+
+  it('strictly converts non-boolean truthy values to false in pauseIntent', () => {
+    const harness = createHarness(GAME_STATE.PLAYING, {
+      restart: 1,
+      toggle: 'true',
+    });
+    updatePauseSystem(harness);
+    expectPauseIntentCleared(harness.world);
+  });
+
+  it('safely returns when the clock resource is not an object', () => {
+    const harness = createHarness(
+      GAME_STATE.PLAYING,
+      { restart: false, toggle: true },
+      { clock: 'not-an-object' },
+    );
+    expect(() => updatePauseSystem(harness)).not.toThrow();
+  });
 });

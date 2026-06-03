@@ -51,6 +51,7 @@ function createRealPool() {
     createElement: vi.fn(() => ({
       classList: { add: vi.fn() },
       style: { transform: '' },
+      removeAttribute: vi.fn(),
     })),
   };
   return createSpritePool({ document: mockDoc });

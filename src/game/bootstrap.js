@@ -762,7 +762,17 @@ export function createBootstrap(options = {}) {
   const nowProvider =
     typeof options.nowProvider === 'function'
       ? options.nowProvider
-      : () => (typeof performance !== 'undefined' ? performance.now() : Date.now());
+      : () => {
+          // Fall back to clock.lastFrameTime in headless/test environments to ensure
+          // deterministic manual step progression and prevent time regressions.
+          if (
+            typeof window === 'undefined' ||
+            (typeof process !== 'undefined' && process.env.NODE_ENV === 'test')
+          ) {
+            return clock.lastFrameTime;
+          }
+          return typeof performance !== 'undefined' ? performance.now() : Date.now();
+        };
 
   // Movement systems need their component stores present before fixed-step work begins.
   initializeMovementResources(world, { ...options, maxEntities });
