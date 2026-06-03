@@ -380,6 +380,7 @@ describe('bootstrap bomb and explosion runtime wiring', () => {
 
     expect(logicSystemNames).toEqual([
       'collision-system',
+      'power-up-system',
       'timer-system',
       'scoring-system',
       'life-system',

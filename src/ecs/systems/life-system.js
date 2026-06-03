@@ -28,8 +28,16 @@ import { resetInputState } from '../components/actors.js';
 import { resetPosition, resetVelocity } from '../components/spatial.js';
 import { INVINCIBILITY_MS, PLAYER_START_LIVES } from '../resources/constants.js';
 import { canTransition, GAME_STATE, transitionTo } from '../resources/game-status.js';
+import { readEntityTile } from '../shared/tile-utils.js';
+import {
+  emitGameplayEvent,
+  GAME_OVER_CAUSE,
+  GAMEPLAY_EVENT_SOURCE,
+  GAMEPLAY_EVENT_TYPE,
+} from './collision-gameplay-events.js';
 
 const DEFAULT_COLLISION_INTENTS_RESOURCE_KEY = 'collisionIntents';
+const DEFAULT_EVENT_QUEUE_RESOURCE_KEY = 'eventQueue';
 const DEFAULT_GAME_STATUS_RESOURCE_KEY = 'gameStatus';
 const DEFAULT_INPUT_STATE_RESOURCE_KEY = 'inputState';
 const DEFAULT_MAP_RESOURCE_KEY = 'mapResource';
@@ -181,6 +189,7 @@ function hasPlayerDeathIntent(collisionIntents) {
 export function createLifeSystem(options = {}) {
   const collisionIntentsResourceKey =
     options.collisionIntentsResourceKey || DEFAULT_COLLISION_INTENTS_RESOURCE_KEY;
+  const eventQueueResourceKey = options.eventQueueResourceKey || DEFAULT_EVENT_QUEUE_RESOURCE_KEY;
   const gameStatusResourceKey = options.gameStatusResourceKey || DEFAULT_GAME_STATUS_RESOURCE_KEY;
   const inputStateResourceKey = options.inputStateResourceKey || DEFAULT_INPUT_STATE_RESOURCE_KEY;
   const mapResourceKey = options.mapResourceKey || DEFAULT_MAP_RESOURCE_KEY;
@@ -210,6 +219,7 @@ export function createLifeSystem(options = {}) {
         velocityResourceKey,
       ],
       write: [
+        eventQueueResourceKey,
         gameStatusResourceKey,
         inputStateResourceKey,
         playerResourceKey,
@@ -250,11 +260,50 @@ export function createLifeSystem(options = {}) {
         return;
       }
 
+      // Capture the player's tile before any respawn snaps it back to spawn, so
+      // the spatial LifeLost payload reports the actual death location.
+      const eventQueue = context.world.getResource(eventQueueResourceKey);
+      const playerEntity = context.world.getResource(playerEntityResourceKey);
+      const positionStore = context.world.getResource(positionResourceKey);
+      const playerId = playerEntity?.id;
+      const hasSpatialContext =
+        Number.isInteger(playerId) && playerId >= 0 && positionStore != null;
+      const deathTile = hasSpatialContext ? readEntityTile(positionStore, playerId) : null;
+
       playerLife.lives = Math.max(0, playerLife.lives - 1);
+
+      // LifeLost is a spatial event; only emit when we have a concrete entity at
+      // a finite tile (the validator rejects NaN tiles, and a throw inside a
+      // system update would quarantine it). emitGameplayEvent is itself a no-op
+      // when the queue is absent.
+      if (deathTile && Number.isFinite(deathTile.row) && Number.isFinite(deathTile.col)) {
+        emitGameplayEvent(
+          eventQueue,
+          GAMEPLAY_EVENT_TYPE.LIFE_LOST,
+          {
+            entityId: playerId,
+            livesRemaining: playerLife.lives,
+            sourceSystem: GAMEPLAY_EVENT_SOURCE.LIFE,
+            tile: { row: deathTile.row, col: deathTile.col },
+          },
+          context.frame,
+        );
+      }
 
       if (playerLife.lives === 0) {
         context.world.setResource(respawnIntentResourceKey, false);
         triggerGameOver(gameStatus);
+        // GameOver is a lifecycle event (no owning tile); emitted after LifeLost
+        // so consumers observe the canonical "LifeLost → GameOver" ordering.
+        emitGameplayEvent(
+          eventQueue,
+          GAMEPLAY_EVENT_TYPE.GAME_OVER,
+          {
+            cause: GAME_OVER_CAUSE.LIVES,
+            sourceSystem: GAMEPLAY_EVENT_SOURCE.LIFE,
+          },
+          context.frame,
+        );
         return;
       }
 
