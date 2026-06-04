@@ -86,6 +86,7 @@ export function createBoardAdapter({
   let cellElements = [];
   let boardCols = 0;
   let resizeHandler = null;
+  let resizeRafId = null;
 
   /**
    * Compute and apply the board-fit scale (--fit-scale) on the board element.
@@ -104,10 +105,10 @@ export function createBoardAdapter({
     if (!win || typeof win.getComputedStyle !== 'function') return;
 
     // Derive the board's true pixel size from its actual grid geometry
-    // (rows × cols × --tile-size). The CSS width/height come from the root
-    // --board-width/--board-height which are fixed at the 21×17 default and do
-    // NOT track per-level board dimensions, so reading computed width/height
-    // here would over/under-scale levels with a different size.
+    // (rows × cols × --tile-size), using this board's own column/cell counts
+    // rather than any root-level CSS dimensions. This keeps the fit correct for
+    // boards whose size differs from the current --board-width/--board-height
+    // and avoids depending on computed layout being flushed.
     const tileSize = readCssNumber(win, '--tile-size', FIT_DEFAULTS.tileSize);
     const cols = boardCols;
     const rows = cols > 0 ? cellElements.length / cols : 0;
@@ -128,6 +129,30 @@ export function createBoardAdapter({
 
     const scale = Math.max(0, Math.min(availW / boardW, availH / boardH, maxScale));
     boardElement.style.setProperty('--fit-scale', String(scale));
+  }
+
+  /**
+   * Coalesce board-fit recalculations to at most one per animation frame.
+   *
+   * A continuous drag-resize fires `resize` dozens of times per second; running
+   * fitBoardToViewport() on each would do a synchronous getComputedStyle read +
+   * style write every time (layout thrash). Batching through requestAnimationFrame
+   * collapses a burst of events into a single recalculation per frame while
+   * preserving the exact scaling result. Falls back to a synchronous call when
+   * requestAnimationFrame is unavailable (headless/test environments), keeping
+   * behavior identical there.
+   */
+  function scheduleBoardFit() {
+    const win = docRef.defaultView ?? globalThis;
+    if (!win || typeof win.requestAnimationFrame !== 'function') {
+      fitBoardToViewport();
+      return;
+    }
+    if (resizeRafId !== null) return;
+    resizeRafId = win.requestAnimationFrame(() => {
+      resizeRafId = null;
+      fitBoardToViewport();
+    });
   }
 
   /**
@@ -191,7 +216,7 @@ export function createBoardAdapter({
 
     const win = docRef.defaultView ?? globalThis;
     if (resizeHandler === null && win && typeof win.addEventListener === 'function') {
-      resizeHandler = () => fitBoardToViewport();
+      resizeHandler = () => scheduleBoardFit();
       win.addEventListener('resize', resizeHandler);
     }
 
@@ -221,6 +246,10 @@ export function createBoardAdapter({
       if (resizeHandler !== null && win && typeof win.removeEventListener === 'function') {
         win.removeEventListener('resize', resizeHandler);
       }
+      if (resizeRafId !== null && win && typeof win.cancelAnimationFrame === 'function') {
+        win.cancelAnimationFrame(resizeRafId);
+      }
+      resizeRafId = null;
       resizeHandler = null;
 
       boardElement = null;
