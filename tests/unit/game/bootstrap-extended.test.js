@@ -118,16 +118,20 @@ describe('Bootstrap extended coverage', () => {
         ghostSpawnPoint: { row: 2, col: 2 },
       },
     };
+    let currentTime = 0;
     const bootstrap = createBootstrap({
       now: 0,
+      nowProvider: () => currentTime,
       loadMapForLevel: () => mockMap,
     });
     const world = bootstrap.world;
     const gameFlow = world.getResource('gameFlow');
 
     gameFlow.startGame();
-    bootstrap.stepFrame(FIXED_DT_MS);
-    bootstrap.stepFrame(FIXED_DT_MS * 2);
+    currentTime = FIXED_DT_MS;
+    bootstrap.stepFrame(currentTime);
+    currentTime = FIXED_DT_MS * 2;
+    bootstrap.stepFrame(currentTime);
 
     expect(world.frame).toBeGreaterThan(0);
 
@@ -175,5 +179,24 @@ describe('Bootstrap extended coverage', () => {
 
     // Test toFiniteTimestamp fallback
     bootstrap.resyncTime(NaN);
+  });
+
+  it('resets spritePool on restart if spritePool exists and has reset function', () => {
+    const bootstrap = createBootstrap({ now: 0 });
+    const mockSpritePool = {
+      reset: vi.fn(),
+    };
+    bootstrap.world.setResource('spritePool', mockSpritePool);
+    bootstrap.gameFlow.setState(GAME_STATE.PLAYING);
+    bootstrap.gameFlow.restartLevel();
+    expect(mockSpritePool.reset).toHaveBeenCalledTimes(1);
+  });
+
+  it('does not throw on restart if spritePool exists but lacks reset function', () => {
+    const bootstrap = createBootstrap({ now: 0 });
+    const invalidSpritePool = {};
+    bootstrap.world.setResource('spritePool', invalidSpritePool);
+    bootstrap.gameFlow.setState(GAME_STATE.PLAYING);
+    expect(() => bootstrap.gameFlow.restartLevel()).not.toThrow();
   });
 });

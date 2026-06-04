@@ -138,6 +138,7 @@ export function createSpritePool({ document: doc = globalThis.document, dev = fa
     if (idx === -1) return;
 
     activePool.splice(idx, 1);
+    element.removeAttribute('style');
     element.style.transform = OFFSCREEN_TRANSFORM;
     idle.get(type).push(element);
   }
@@ -150,6 +151,7 @@ export function createSpritePool({ document: doc = globalThis.document, dev = fa
       const activePool = active.get(type);
       const idlePool = idle.get(type);
       for (const el of activePool) {
+        el.removeAttribute('style');
         el.style.transform = OFFSCREEN_TRANSFORM;
         idlePool.push(el);
       }

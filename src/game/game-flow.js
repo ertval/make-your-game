@@ -103,6 +103,13 @@ export function createGameFlow({ gameStatus, clock, levelLoader, world, onRestar
     }
 
     if (gameStatus.currentState === GAME_STATE.MENU) {
+      if (levelIndex === 0) {
+        destroyAllEntitiesDeferred();
+        if (typeof onRestart === 'function') {
+          onRestart();
+        }
+      }
+
       let loadedLevel = true;
       if (levelLoader && typeof levelLoader.loadLevel === 'function') {
         loadedLevel = levelLoader.loadLevel(levelIndex, {

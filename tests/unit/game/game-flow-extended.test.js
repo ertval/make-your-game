@@ -103,4 +103,38 @@ describe('Game flow extended coverage', () => {
     expect(gameFlow.resumeGame()).toBe(true);
     expect(clock.isPaused).toBe(false);
   });
+
+  it('covers destroyAllEntitiesDeferred branch coverage variations', () => {
+    const clock = { isPaused: false };
+    const { GAME_STATE } = gameStatusModule;
+    const gameStatus = { currentState: GAME_STATE.PLAYING };
+
+    // 1. world exists but has no relevant methods
+    const gameFlow1 = createGameFlow({ clock, gameStatus, world: {} });
+    expect(gameFlow1.restartLevel()).toBe(true);
+
+    // 2. world.deferDestroyAllEntities is a function but world.flushDeferredMutations is not
+    const world2 = {
+      deferDestroyAllEntities: vi.fn(),
+    };
+    const gameFlow2 = createGameFlow({ clock, gameStatus, world: world2 });
+    expect(gameFlow2.restartLevel()).toBe(true);
+    expect(world2.deferDestroyAllEntities).toHaveBeenCalledTimes(1);
+
+    // 3. world lacks deferDestroyAllEntities, has getActiveEntityHandles, but lacks deferDestroyEntity
+    const world3 = {
+      getActiveEntityHandles: () => [{ id: 1 }],
+    };
+    const gameFlow3 = createGameFlow({ clock, gameStatus, world: world3 });
+    expect(gameFlow3.restartLevel()).toBe(true);
+
+    // 4. world lacks deferDestroyAllEntities, has getActiveEntityHandles and deferDestroyEntity, but lacks flushDeferredMutations
+    const world4 = {
+      getActiveEntityHandles: () => [{ id: 1 }],
+      deferDestroyEntity: vi.fn(),
+    };
+    const gameFlow4 = createGameFlow({ clock, gameStatus, world: world4 });
+    expect(gameFlow4.restartLevel()).toBe(true);
+    expect(world4.deferDestroyEntity).toHaveBeenCalledTimes(1);
+  });
 });

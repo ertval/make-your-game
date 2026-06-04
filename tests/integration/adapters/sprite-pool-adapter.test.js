@@ -22,6 +22,7 @@ function createMockDocument() {
       classList: { add: vi.fn() },
       style: { transform: '' },
       appendChild: vi.fn(),
+      removeAttribute: vi.fn(),
     })),
   };
 }
@@ -30,6 +31,7 @@ function makePool(dev = false) {
   const doc = createMockDocument();
   const pool = createSpritePool({ document: doc, dev });
   const container = doc.createElement('div');
+  container.appendChild = vi.fn();
   pool.warmUp(container);
   return { pool, doc, container };
 }
@@ -98,11 +100,12 @@ describe('sprite-pool-adapter', () => {
   });
 
   describe('release', () => {
-    it('moves element back to idle and sets offscreen transform', () => {
+    it('moves element back to idle, sets offscreen transform, and clears inline style', () => {
       const { pool } = makePool();
       const el = pool.acquire(SPRITE_TYPE.BOMB);
       pool.release(SPRITE_TYPE.BOMB, el);
       expect(el.style.transform).toBe(OFFSCREEN);
+      expect(el.removeAttribute).toHaveBeenCalledWith('style');
       expect(pool.stats(SPRITE_TYPE.BOMB).idle).toBe(POOL_MAX_BOMBS);
       expect(pool.stats(SPRITE_TYPE.BOMB).active).toBe(0);
     });
@@ -163,12 +166,13 @@ describe('sprite-pool-adapter', () => {
       expect(pool.stats(SPRITE_TYPE.BOMB).idle).toBe(POOL_MAX_BOMBS);
     });
 
-    it('sets offscreen transform on all released elements', () => {
+    it('sets offscreen transform and clears inline style on all released elements', () => {
       const { pool } = makePool();
       const el = pool.acquire(SPRITE_TYPE.PELLET);
       el.style.transform = 'translate3d(100px, 200px, 0)';
       pool.reset();
       expect(el.style.transform).toBe(OFFSCREEN);
+      expect(el.removeAttribute).toHaveBeenCalledWith('style');
     });
   });
 

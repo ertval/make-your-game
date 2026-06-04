@@ -30,19 +30,14 @@ if (scripts['test:coverage']) {
   commands.push({ script: 'test' });
 }
 
-// We only run the e2e part of audit tests here to avoid running vitest audit tests twice.
-const hasAuditE2E = Boolean(scripts['test:audit:e2e'] || scripts['test:audit']);
-if (scripts['test:audit:e2e']) {
+// We run the full E2E test suite if present, which covers both audit and non-audit browser specs in a single run.
+// If test:e2e is not defined, we fall back to running test:audit:e2e or test:audit.
+if (scripts['test:e2e']) {
+  commands.push({ script: 'test:e2e' });
+} else if (scripts['test:audit:e2e']) {
   commands.push({ script: 'test:audit:e2e' });
 } else if (scripts['test:audit']) {
   commands.push({ script: 'test:audit' });
-}
-
-if (scripts['test:e2e']) {
-  commands.push({
-    script: 'test:e2e',
-    env: hasAuditE2E ? { ...process.env, PLAYWRIGHT_IGNORE_AUDIT: 'true' } : undefined,
-  });
 }
 
 if (scripts['validate:schema']) {

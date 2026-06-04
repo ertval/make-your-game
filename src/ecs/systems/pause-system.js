@@ -130,6 +130,9 @@ export function createPauseSystem(options = {}) {
         }
       }
 
+      // Keep simulation frozen for any non-playing state (menu, paused, game over, victory).
+      syncClockPauseState(world, clockResourceKey, gameStatus.currentState !== GAME_STATE.PLAYING);
+
       world.setResource(pauseIntentResourceKey, createDefaultPauseIntent());
     },
   };

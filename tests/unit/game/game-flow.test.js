@@ -179,4 +179,31 @@ describe('game-flow', () => {
     expect(world.isEntityAlive(firstEntity)).toBe(false);
     expect(world.isEntityAlive(secondEntity)).toBe(false);
   });
+
+  it('destroys active entities and triggers onRestart when starting levelIndex 0 from MENU', () => {
+    const world = new World();
+    const entity = world.createEntity(0b0001);
+    const gameStatus = createGameStatus(GAME_STATE.MENU);
+    const clock = createClock(0);
+    const levelLoader = {
+      loadLevel: vi.fn(() => ({ level: 1 })),
+    };
+    const onRestart = vi.fn();
+
+    const gameFlow = createGameFlow({
+      clock,
+      gameStatus,
+      levelLoader,
+      world,
+      onRestart,
+    });
+
+    expect(world.getEntityCount()).toBe(1);
+    expect(gameFlow.startGame({ levelIndex: 0 })).toBe(true);
+
+    expect(levelLoader.loadLevel).toHaveBeenCalledWith(0, { reason: 'start-game' });
+    expect(world.getEntityCount()).toBe(0);
+    expect(world.isEntityAlive(entity)).toBe(false);
+    expect(onRestart).toHaveBeenCalledTimes(1);
+  });
 });

@@ -255,7 +255,7 @@ export function createAudioCueRunner(options = {}) {
   }
 
   function tick(context) {
-    if (!context || !context.audio) {
+    if (!context?.audio) {
       // No adapter wired yet (pre Track A integration handoff). Drop the
       // tick silently — gameplay continues without audio feedback.
       return;

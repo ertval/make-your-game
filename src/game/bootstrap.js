@@ -762,7 +762,17 @@ export function createBootstrap(options = {}) {
   const nowProvider =
     typeof options.nowProvider === 'function'
       ? options.nowProvider
-      : () => (typeof performance !== 'undefined' ? performance.now() : Date.now());
+      : () => {
+          // Fall back to clock.lastFrameTime in headless/test environments to ensure
+          // deterministic manual step progression and prevent time regressions.
+          if (
+            typeof window === 'undefined' ||
+            (typeof process !== 'undefined' && process.env.NODE_ENV === 'test')
+          ) {
+            return clock.lastFrameTime;
+          }
+          return typeof performance !== 'undefined' ? performance.now() : Date.now();
+        };
 
   // Movement systems need their component stores present before fixed-step work begins.
   initializeMovementResources(world, { ...options, maxEntities });
@@ -835,6 +845,7 @@ export function createBootstrap(options = {}) {
       world.setResource('collisionIntents', []);
       world.setResource('deadGhostIds', []);
       world.setResource('pauseIntent', { restart: false, toggle: false });
+      world.setResource('levelFlow', {});
 
       // D-09: Reset sprite pool so old sprites are returned to idle state.
       // This combined with render-dom-system's frame-0 map clear ensures
