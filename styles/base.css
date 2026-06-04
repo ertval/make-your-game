@@ -77,21 +77,26 @@ body {
  * --board-width/--board-height (which gameplay coordinates depend on). The board
  * keeps its real pixel size; a uniform visual transform scales it to fill the
  * available area so the playfield is the primary visual focus (≈60–80% of the
- * viewport height on desktop). Pure CSS — the scale factor is the smaller of the
- * width-fit and height-fit ratios (uniform, so tile aspect ratio is preserved),
- * capped at --board-max-scale. Sprites keep crisp pixel-art rendering when
- * upscaled via image-rendering on the grid.
+ * viewport height on desktop). The uniform scale factor (--fit-scale) is computed
+ * in JS by the board adapter (fitBoardToViewport) and set on the board element.
+ *
+ * Why JS and not pure CSS: deriving the scale in CSS requires dividing a length
+ * by a length inside calc() (viewport ÷ board size). Blink accepts this as a
+ * unitless ratio, but Gecko (Firefox) follows the spec strictly — length ÷ length
+ * is invalid there, so --fit-scale becomes guaranteed-invalid and the transform
+ * falls back to none, rendering the board at its small intrinsic size. Computing
+ * the ratio in JS yields a plain <number> every engine applies identically.
+ *
+ * The scale is uniform (tile aspect ratio preserved) and capped at
+ * --board-max-scale. Sprites keep crisp pixel-art rendering when upscaled via
+ * image-rendering on the grid. Default of 1 keeps the board visible before the
+ * adapter runs (and if JS is unavailable).
  */
 #game-board > .game-board,
 #game-board > .board-grid {
   flex: none;
   image-rendering: pixelated;
-  --fit-scale: min(
-    calc((100vw - 4 * var(--space-md)) / var(--board-width)),
-    calc((100vh - var(--hud-row-height, 72px) - 8 * var(--space-md)) / var(--board-height)),
-    var(--board-max-scale, 4)
-  );
-  transform: scale(var(--fit-scale));
+  transform: scale(var(--fit-scale, 1));
   transform-origin: center center;
 }
 

@@ -260,4 +260,132 @@ describe('board-adapter', () => {
       expect(cellEl._added.slice(before)).toEqual(['cell-empty']);
     });
   });
+
+  describe('board-fit scaling', () => {
+    /**
+     * Build a document whose defaultView exposes a viewport + getComputedStyle
+     * returning the given CSS layout tokens, and whose board element records
+     * every setProperty call so we can read back --fit-scale.
+     */
+    function createFitDoc({ innerWidth, innerHeight, cssVars }) {
+      const listeners = {};
+      const setProps = new Map();
+      const boardEl = {
+        classList: { add: vi.fn() },
+        style: {
+          setProperty: vi.fn((name, value) => setProps.set(name, value)),
+          getProperty: (name) => setProps.get(name),
+        },
+        setAttribute: vi.fn(),
+        appendChild: vi.fn(),
+        parentNode: { removeChild: vi.fn() },
+      };
+      const win = {
+        innerWidth,
+        innerHeight,
+        getComputedStyle: () => ({ getPropertyValue: (name) => cssVars[name] ?? '' }),
+        addEventListener: vi.fn((type, fn) => {
+          listeners[type] = fn;
+        }),
+        removeEventListener: vi.fn((type) => {
+          delete listeners[type];
+        }),
+      };
+      let cellCount = 0;
+      const document = {
+        defaultView: win,
+        documentElement: {},
+        createElement: vi.fn(() => {
+          // First createElement is the board; the rest are cells.
+          if (cellCount === 0) {
+            cellCount += 1;
+            return boardEl;
+          }
+          cellCount += 1;
+          return {
+            classList: { add: vi.fn() },
+            style: { setProperty: vi.fn() },
+            setAttribute: vi.fn(),
+            appendChild: vi.fn(),
+            parentNode: null,
+          };
+        }),
+      };
+      return { document, win, boardEl, setProps, listeners };
+    }
+
+    const CSS_VARS = {
+      '--tile-size': '32px',
+      '--space-md': '16px',
+      '--hud-row-height': '72px',
+      '--board-max-scale': '4',
+    };
+
+    it('sets --fit-scale from the true board geometry (rows×cols×tile), not the root size', () => {
+      // 15×11 board (480×352px) in a 1440×900 viewport.
+      // min((1440-64)/480, (900-72-128)/352, 4) = min(2.867, 1.989, 4) = ~1.9886.
+      const { document, boardEl, setProps } = createFitDoc({
+        innerWidth: 1440,
+        innerHeight: 900,
+        cssVars: CSS_VARS,
+      });
+      const adapter2 = createBoardAdapter({ document });
+      const container2 = { firstChild: null, appendChild: vi.fn(), removeChild: vi.fn() };
+      adapter2.generateBoard({ rows: 11, cols: 15, grid: new Uint8Array(15 * 11) }, container2);
+
+      expect(boardEl).toBe(adapter2.getBoard());
+      const fitScale = Number.parseFloat(setProps.get('--fit-scale'));
+      expect(fitScale).toBeCloseTo((900 - 72 - 128) / 352, 4);
+    });
+
+    it('caps the scale at --board-max-scale for tiny boards', () => {
+      // 1×1 board (32px). Uncapped scale would be huge; must clamp to 4.
+      const { document, setProps } = createFitDoc({
+        innerWidth: 1440,
+        innerHeight: 900,
+        cssVars: CSS_VARS,
+      });
+      const adapter2 = createBoardAdapter({ document });
+      const container2 = { firstChild: null, appendChild: vi.fn(), removeChild: vi.fn() };
+      adapter2.generateBoard({ rows: 1, cols: 1, grid: new Uint8Array(1) }, container2);
+
+      expect(Number.parseFloat(setProps.get('--fit-scale'))).toBe(4);
+    });
+
+    it('registers a resize listener on generate and removes it on clear', () => {
+      const { document, win, listeners } = createFitDoc({
+        innerWidth: 1440,
+        innerHeight: 900,
+        cssVars: CSS_VARS,
+      });
+      const adapter2 = createBoardAdapter({ document });
+      const container2 = { firstChild: null, appendChild: vi.fn(), removeChild: vi.fn() };
+      adapter2.generateBoard({ rows: 2, cols: 2, grid: new Uint8Array(4) }, container2);
+
+      expect(win.addEventListener).toHaveBeenCalledWith('resize', expect.any(Function));
+      expect(typeof listeners.resize).toBe('function');
+
+      adapter2.clearBoard();
+      expect(win.removeEventListener).toHaveBeenCalledWith('resize', expect.any(Function));
+      expect(listeners.resize).toBeUndefined();
+    });
+
+    it('re-fits the board when the resize listener fires', () => {
+      const ctx = createFitDoc({ innerWidth: 1440, innerHeight: 900, cssVars: CSS_VARS });
+      const adapter2 = createBoardAdapter({ document: ctx.document });
+      const container2 = { firstChild: null, appendChild: vi.fn(), removeChild: vi.fn() };
+      adapter2.generateBoard({ rows: 11, cols: 15, grid: new Uint8Array(15 * 11) }, container2);
+
+      const initial = Number.parseFloat(ctx.setProps.get('--fit-scale'));
+
+      // Shrink the viewport and fire the registered resize handler.
+      ctx.win.innerWidth = 375;
+      ctx.win.innerHeight = 667;
+      ctx.listeners.resize();
+
+      const resized = Number.parseFloat(ctx.setProps.get('--fit-scale'));
+      expect(resized).toBeLessThan(initial);
+      expect(resized).toBeCloseTo((375 - 64) / 480, 4);
+    });
+  });
 });
