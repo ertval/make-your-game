@@ -424,13 +424,34 @@
 
 /* --- HUD Layout --- */
 
-/** HUD container fixed at top of viewport. */
+/**
+ * HUD top bar. Lives in the app-shell grid's first row (above the board) and
+ * lays its metrics out as a single horizontal strip. Wraps on narrow viewports
+ * so labels stay visible instead of overflowing.
+ */
+#hud {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-sm) var(--space-2xl);
+  min-height: var(--hud-row-height, 72px);
+  padding-block: var(--space-sm);
+  /* Readable from normal desktop distance; scales down gracefully on mobile. */
+  font-size: clamp(19px, 1.7vw + 10px, 26px);
+  font-weight: 700;
+  line-height: 1.2;
+}
+
+/** Fixed-overlay HUD variant (class-based) for layouts not using the app-shell grid. */
 .hud {
   position: fixed;
   top: var(--space-sm);
   left: 50%;
   transform: translateX(-50%);
   display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
   gap: var(--space-lg);
   padding: var(--space-sm) var(--space-md);
   background: var(--color-hud-bg);
@@ -444,22 +465,40 @@
 /** Individual HUD metric (score, timer, lives). */
 .hud__metric {
   display: flex;
-  align-items: center;
-  gap: var(--space-xs);
+  align-items: baseline;
+  gap: var(--space-sm);
+  margin: 0;
   color: var(--color-ink);
 }
 
-/** HUD metric label styling. */
+/**
+ * Screen-reader status line. Visually collapsed out of the strip (it is empty
+ * most of the time) while staying available to assistive tech via aria-live.
+ */
+#hud [data-hud="status"] {
+  margin: 0;
+  flex-basis: 100%;
+  text-align: center;
+}
+
+#hud [data-hud="status"]:empty {
+  display: none;
+}
+
+/** HUD metric label styling — smaller, accented, uppercase for hierarchy. */
 .hud__label {
   color: var(--color-accent);
   text-transform: uppercase;
-  font-size: 12px;
-  letter-spacing: 0.05em;
+  font-size: 0.7em;
+  font-weight: 700;
+  letter-spacing: 0.08em;
 }
 
-/** HUD metric value styling. */
+/** HUD metric value styling — primary emphasis, larger and brighter. */
 .hud__value {
+  color: var(--color-ink);
   font-variant-numeric: tabular-nums;
+  font-weight: 700;
   min-width: 3ch;
 }
 

@@ -45,6 +45,36 @@ function createHudElement() {
   };
 }
 
+/**
+ * Build a metric element that mirrors the real HUD markup: a permanent label
+ * node plus a dedicated [data-hud-value] child the adapter should write into.
+ */
+function createLabeledMetricElement(label, initialValue) {
+  let valueText = initialValue;
+  const valueNode = {
+    get textContent() {
+      return valueText;
+    },
+    set textContent(value) {
+      valueText = value;
+    },
+  };
+  const element = {
+    attributes: new Map(),
+    get textContent() {
+      return `${label} ${valueText}`;
+    },
+    querySelector(selector) {
+      return selector === '[data-hud-value]' ? valueNode : null;
+    },
+    setAttribute(name, value) {
+      this.attributes.set(name, value);
+    },
+  };
+
+  return { element, valueNode };
+}
+
 function createRootElement() {
   const entries = {
     bombs: createHudElement(),
@@ -287,6 +317,34 @@ describe('hud-adapter', () => {
     expect(entries.fire.getInnerHtmlWrites()).toBe(0);
     expect(entries.level.getInnerHtmlWrites()).toBe(0);
     expect(entries.status.getInnerHtmlWrites()).toBe(0);
+  });
+
+  it('writes into the value node and preserves metric labels', () => {
+    const timer = createLabeledMetricElement('Timer:', '0:00');
+    const score = createLabeledMetricElement('Score:', '00000');
+    const level = createLabeledMetricElement('Level:', '1');
+    const selectorMap = new Map([
+      ['[data-hud="timer"]', timer.element],
+      ['[data-hud="score"]', score.element],
+      ['[data-hud="level"]', level.element],
+    ]);
+    const rootElement = {
+      querySelector(selector) {
+        return selectorMap.get(selector) || null;
+      },
+    };
+    const adapter = createHudAdapter(rootElement);
+
+    adapter.update({ lives: 3, score: 250, timer: 95, bombs: 0, fire: 0, level: 1 });
+
+    // Value nodes hold only the formatted value...
+    expect(timer.valueNode.textContent).toBe('1:35');
+    expect(score.valueNode.textContent).toBe('00250');
+    expect(level.valueNode.textContent).toBe('1');
+    // ...while the metric element still renders its permanent label.
+    expect(timer.element.textContent).toBe('Timer: 1:35');
+    expect(score.element.textContent).toBe('Score: 00250');
+    expect(level.element.textContent).toBe('Level: 1');
   });
 
   it('falls back to Date.now when performance.now is unavailable', () => {

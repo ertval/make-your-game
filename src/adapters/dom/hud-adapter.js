@@ -11,6 +11,10 @@
  *
  * Implementation notes:
  * - HUD nodes are queried once during adapter creation and then reused.
+ * - Each metric node carries a permanent label (e.g. "Score:") plus a dedicated
+ *   value node ([data-hud-value]). The adapter writes only into the value node so
+ *   labels are never overwritten; it falls back to the metric element itself when
+ *   no value node exists (partial test fixtures).
  * - Missing HUD nodes are tolerated so the adapter can operate against partial
  *   test fixtures without throwing.
  * - Rendering uses only textContent to preserve the safe-sink requirement.
@@ -32,6 +36,23 @@ function setTextContentIfChanged(element, value) {
   if (element && element.textContent !== value) {
     element.textContent = value;
   }
+}
+
+/**
+ * Resolve the node a metric value should be written into. Prefers a dedicated
+ * [data-hud-value] child so the metric's label text is preserved; falls back to
+ * the metric element itself when no value node exists (e.g. test fixtures).
+ */
+function resolveValueNode(element) {
+  if (element && typeof element.querySelector === 'function') {
+    const valueNode = element.querySelector('[data-hud-value]');
+
+    if (valueNode) {
+      return valueNode;
+    }
+  }
+
+  return element;
 }
 
 export function formatLives(lives) {
@@ -84,6 +105,14 @@ export function createHudAdapter(rootElement) {
     status: rootElement.querySelector('[data-hud="status"]'),
     timer: rootElement.querySelector('[data-hud="timer"]'),
   };
+  const valueNodes = {
+    bombs: resolveValueNode(elements.bombs),
+    fire: resolveValueNode(elements.fire),
+    level: resolveValueNode(elements.level),
+    lives: resolveValueNode(elements.lives),
+    score: resolveValueNode(elements.score),
+    timer: resolveValueNode(elements.timer),
+  };
   let lastAnnouncedAt = 0;
   let lastAnnouncement = '';
   let previousState = null;
@@ -104,12 +133,12 @@ export function createHudAdapter(rootElement) {
       timer: formatTimer(timer),
     };
 
-    setTextContentIfChanged(elements.lives, nextFormattedState.lives);
-    setTextContentIfChanged(elements.score, nextFormattedState.score);
-    setTextContentIfChanged(elements.timer, nextFormattedState.timer);
-    setTextContentIfChanged(elements.bombs, nextFormattedState.bombs);
-    setTextContentIfChanged(elements.fire, nextFormattedState.fire);
-    setTextContentIfChanged(elements.level, nextFormattedState.level);
+    setTextContentIfChanged(valueNodes.lives, nextFormattedState.lives);
+    setTextContentIfChanged(valueNodes.score, nextFormattedState.score);
+    setTextContentIfChanged(valueNodes.timer, nextFormattedState.timer);
+    setTextContentIfChanged(valueNodes.bombs, nextFormattedState.bombs);
+    setTextContentIfChanged(valueNodes.fire, nextFormattedState.fire);
+    setTextContentIfChanged(valueNodes.level, nextFormattedState.level);
 
     const statusMessage = buildStatusMessage(previousState, lives, score, timer, level);
     const now = getNow();

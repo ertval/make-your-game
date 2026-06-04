@@ -57,6 +57,44 @@ body {
   padding: calc(var(--space-sm) * 0.75);
 }
 
+/**
+ * Board stage. The #game-board section is the centering container for the
+ * fixed-size board grid the renderer mounts inside it (.game-board/.board-grid).
+ * It fills the app-shell's 1fr row beneath the HUD and centers the playfield on
+ * both axes. Centering and scaling are visual-only, so the renderer's
+ * fixed-pixel grid and sprite coordinates stay untouched.
+ */
+#game-board {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 0;
+  overflow: hidden;
+}
+
+/**
+ * Fit the fixed-pixel board to the viewport without changing its intrinsic
+ * --board-width/--board-height (which gameplay coordinates depend on). The board
+ * keeps its real pixel size; a uniform visual transform scales it to fill the
+ * available area so the playfield is the primary visual focus (≈60–80% of the
+ * viewport height on desktop). Pure CSS — the scale factor is the smaller of the
+ * width-fit and height-fit ratios (uniform, so tile aspect ratio is preserved),
+ * capped at --board-max-scale. Sprites keep crisp pixel-art rendering when
+ * upscaled via image-rendering on the grid.
+ */
+#game-board > .game-board,
+#game-board > .board-grid {
+  flex: none;
+  image-rendering: pixelated;
+  --fit-scale: min(
+    calc((100vw - 4 * var(--space-md)) / var(--board-width)),
+    calc((100vh - var(--hud-row-height, 72px) - 8 * var(--space-md)) / var(--board-height)),
+    var(--board-max-scale, 4)
+  );
+  transform: scale(var(--fit-scale));
+  transform-origin: center center;
+}
+
 /* Overlay container — fixed full-viewport overlay above all game content */
 #overlay-root {
   position: fixed;

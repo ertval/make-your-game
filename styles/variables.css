@@ -92,6 +92,15 @@
   --board-width: calc(var(--tile-size) * var(--board-columns));
   --board-height: calc(var(--tile-size) * var(--board-rows));
 
+  /**
+   * Presentation-only layout tokens. The board is visually scaled (transform)
+   * to fill the viewport up to --board-max-scale; --hud-row-height reserves the
+   * top-bar height in the board-fit calculation. Neither affects gameplay
+   * coordinates, which always use the fixed --tile-size grid above.
+   */
+  --board-max-scale: 4;
+  --hud-row-height: 72px;
+
   /** Border radius values for UI elements. */
   --radius-sm: 4px;
   --radius-md: 8px;
