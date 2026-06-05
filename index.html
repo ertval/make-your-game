@@ -9,12 +9,12 @@
   <body>
     <main id="app" class="app-shell">
       <section id="hud" aria-label="Game HUD">
-        <p data-hud="timer">Timer: 0:00</p>
-        <p data-hud="score">Score: 00000</p>
-        <p data-hud="lives">Lives: 3</p>
-        <p data-hud="bombs">Bombs: 0</p>
-        <p data-hud="fire">Fire: 0</p>
-        <p data-hud="level">Level: 1</p>
+        <p class="hud__metric" data-hud="timer"><span class="hud__label">Timer:</span> <span class="hud__value" data-hud-value>0:00</span></p>
+        <p class="hud__metric" data-hud="score"><span class="hud__label">Score:</span> <span class="hud__value" data-hud-value>00000</span></p>
+        <p class="hud__metric" data-hud="lives"><span class="hud__label">Lives:</span> <span class="hud__value" data-hud-value>3</span></p>
+        <p class="hud__metric" data-hud="bombs"><span class="hud__label">Bombs:</span> <span class="hud__value" data-hud-value>0</span></p>
+        <p class="hud__metric" data-hud="fire"><span class="hud__label">Fire:</span> <span class="hud__value" data-hud-value>0</span></p>
+        <p class="hud__metric" data-hud="level"><span class="hud__label">Level:</span> <span class="hud__value" data-hud-value>1</span></p>
         <p data-hud="status" aria-live="polite" aria-atomic="true"></p>
       </section>
       <section id="game-board" aria-label="Game Board" tabindex="-1"></section>

@@ -57,6 +57,49 @@ body {
   padding: calc(var(--space-sm) * 0.75);
 }
 
+/**
+ * Board stage. The #game-board section is the centering container for the
+ * fixed-size board grid the renderer mounts inside it (.game-board/.board-grid).
+ * It fills the app-shell's 1fr row beneath the HUD and centers the playfield on
+ * both axes. Centering and scaling are visual-only, so the renderer's
+ * fixed-pixel grid and sprite coordinates stay untouched.
+ */
+#game-board {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 0;
+  overflow: hidden;
+}
+
+/**
+ * Fit the fixed-pixel board to the viewport without changing its intrinsic
+ * --board-width/--board-height (which gameplay coordinates depend on). The board
+ * keeps its real pixel size; a uniform visual transform scales it to fill the
+ * available area so the playfield is the primary visual focus (≈60–80% of the
+ * viewport height on desktop). The uniform scale factor (--fit-scale) is computed
+ * in JS by the board adapter (fitBoardToViewport) and set on the board element.
+ *
+ * Why JS and not pure CSS: deriving the scale in CSS requires dividing a length
+ * by a length inside calc() (viewport ÷ board size). Blink accepts this as a
+ * unitless ratio, but Gecko (Firefox) follows the spec strictly — length ÷ length
+ * is invalid there, so --fit-scale becomes guaranteed-invalid and the transform
+ * falls back to none, rendering the board at its small intrinsic size. Computing
+ * the ratio in JS yields a plain <number> every engine applies identically.
+ *
+ * The scale is uniform (tile aspect ratio preserved) and capped at
+ * --board-max-scale. Sprites keep crisp pixel-art rendering when upscaled via
+ * image-rendering on the grid. Default of 1 keeps the board visible before the
+ * adapter runs (and if JS is unavailable).
+ */
+#game-board > .game-board,
+#game-board > .board-grid {
+  flex: none;
+  image-rendering: pixelated;
+  transform: scale(var(--fit-scale, 1));
+  transform-origin: center center;
+}
+
 /* Overlay container — fixed full-viewport overlay above all game content */
 #overlay-root {
   position: fixed;

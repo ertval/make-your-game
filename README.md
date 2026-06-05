@@ -272,6 +272,11 @@ For a free GitHub account, the repository must be public to publish a Pages site
 - **Compositor Friendly**: All movement updates restricted to `transform` and `opacity`.
 - **Minimal Jank**: Strict avoidance of layout thrashing through batched read/write phases.
 
+### 📐 Responsive Board Fit
+- The board automatically scales to fill the available viewport (centered, capped at `--board-max-scale`) and re-fits on window resize, coalesced to one recalculation per animation frame.
+- Scaling is **visual-only**: it applies a uniform `transform: scale()` via `--fit-scale`. The fixed `--tile-size` grid, integer `(row, col)` coordinates, and all gameplay/ECS logic are unchanged.
+- The scale factor is computed in JS (`fitBoardToViewport` in `src/adapters/dom/renderer-adapter.js`) rather than CSS. A CSS `calc()` would divide a length by a length (viewport ÷ board size), which Firefox/Gecko rejects per spec while Chrome/Blink accepts — so the board would render at its small intrinsic size in Firefox. A JS-computed plain number scales identically across engines.
+
 ### ⚡ Targets
 
 | Metric | Target |
