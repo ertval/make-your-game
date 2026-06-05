@@ -2,7 +2,6 @@
 name: implement-ticket
 description: Orchestrate the implementation of a specific ticket for the Ms. Ghostman ECS Engine.
 agent: agent
-tools: [execute, read, edit, search, web, agent, todo]
 ---
 
 # Ticket Orchestrator: {Ticket}
@@ -32,7 +31,7 @@ You are the **Master Orchestrator** for the Ms. Ghostman project. Your goal is t
    - **Adapter Interface**: If touching the DOM, define the resource API for the system.
    - **Validation Gate**: A pass/fail checklist derived from the ticket's **Verification Gate** in `docs/implementation/track-*.md` and relevant `docs/audit.md` IDs.
 
-### Phase 2: Implementation (Spawn Domain Agents)****b 
+### Phase 2: Implementation (Spawn Domain Agents)
 **Task**: Depending on the ticket track, spawn specialized implementation agents.
 - **Track B/C (Simulation/Logic)**:
   - Implement systems in `src/ecs/systems/` and components in `src/ecs/components/`.
