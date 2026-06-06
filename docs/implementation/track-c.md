@@ -10,7 +10,7 @@ Source plan: `docs/implementation/implementation-plan.md` (Section 3)
 - **P1 Visual Prototype**: No new Track C tickets
 - **P2 Playable MVP**: `C-01` to `C-06`
 - **P3 Feature Complete + Hardening**: `C-07`
-- **P4 Polish and Validation**: `C-08` to `C-10`
+- **P4 Polish and Validation**: `C-08` to `C-11`
 
 > Note: `A-11` is referenced for audit traceability only and does not block Track C ticket execution.
 
@@ -358,5 +358,43 @@ C-04 / C-05 / B-03 / C-06 handoff pattern):
 - [ ] Create `assets/manifests/audio-manifest.json` with all audio asset entries.
 - [ ] Wire manifest schema validation into CI (fails on invalid entries).
 - [ ] Verification gate: CI rejects invalid manifest entries; valid entries pass.
+
+---
+
+#### C-11: Audio Settings Persistence, Settings Overlay & Fuse Sequencing
+**Priority**: High
+**Phase**: P4 Polish and Validation
+**Depends On**: `C-06` (audio adapter gain API), `C-08` (assets), `C-07` (cue runner)
+**Impacts**: Player experience — audio settings persist across sessions; bomb-place/fuse sounds play sequentially
+**Blocks**: None
+
+**Deliverables**:
+- `src/adapters/io/storage-adapter.js` — `getAudioSettings`, `setAudioSettings`, `updateAudioSetting`, `normalizeAudioSettings`
+- `src/adapters/io/audio-integration.js` — `applyAudioSettings`, `fuseLoopDelay` option in `createAudioCueRunner`
+- `src/adapters/dom/screens-audio-toggle.js` (new) — persistent top-right audio quick-toggle adapter
+- `src/adapters/dom/screens-adapter.js` — Settings overlay (open from Start/Pause, Back navigation, `syncSettingsControls`, `onSettingChange`)
+- `src/game/bootstrap.js` — `fuseLoopDelay` forwarded from `createBootstrap` options to `createAudioCueSystem`
+- Tests: `storage-adapter.test.js`, `screens-settings.test.js`, extended `audio-integration.test.js` and `bomb-explosion-runtime-wiring.test.js`, new `c-11-settings-navigation.spec.js` (e2e)
+- PR message: `docs/pr-messages/C-11-audio-settings-fuse-sequencing-pr.md`
+
+**Sub-features**:
+
+**C-11A — Persisted Audio Settings**:
+- [x] `storage-adapter.js` extended with `AUDIO_SETTINGS_STORAGE_KEY`, `DEFAULT_AUDIO_SETTINGS` (`musicEnabled: true, sfxEnabled: true, volumes: 1.0`), `getAudioSettings()`, `setAudioSettings(settings)`, `updateAudioSetting(key, value)`, `normalizeAudioSettings(raw)`.
+- [x] `normalizeAudioSettings` clamps volumes to `[0, 1]`, coerces booleans, falls back to defaults for corrupt/missing values.
+- [x] `applyAudioSettings(audio, settings)` added to `audio-integration.js`; uses only `setMasterVolume` / `setMusicVolume` / `setSfxVolume` / `setUiVolume` — no play/stop calls.
+- [x] Settings restored from `localStorage` before the first frame and re-applied on every change.
+
+**C-11B — Settings Overlay & Audio Quick-Toggle**:
+- [x] `screens-adapter.js` — `showSettings(origin)` / `backFromSettings()` overlay-to-overlay transitions; `syncSettingsControls(settings)` syncs toggle + slider state; `onSettingChange(key, value)` callback for every user action.
+- [x] `screens-audio-toggle.js` (new) — `createAudioQuickToggle(rootElement, options)` binds `[data-audio-toggle]` buttons, manages `aria-pressed` + emoji icon, calls `options.onToggle(key, enabled)`. Tolerates missing DOM nodes.
+- [x] `index.html` / `styles/` — Settings overlay markup and top-right quick-toggle button markup added.
+- [x] `main.ecs.js` — wires both surfaces to `applyAudioSettings` and the storage layer.
+
+**C-11C — Bomb-Place → Fuse-Loop Sequencing**:
+- [x] `createAudioCueRunner` accepts `options.fuseLoopDelay` (ms, default `BOMB_PLACE_SFX_DURATION_MS = 310`) and `options.now` (injectable clock).
+- [x] On rising edge of `bombActive`, runner sets `fuseLoopAllowedAt = now() + fuseLoopDelay`; fuse loop start is held until that timestamp passes.
+- [x] Fuse loop stop path unchanged — stops the instant `bombActive` drops.
+- [x] `createBootstrap` / `createAudioCueSystem` forward `options.fuseLoopDelay` so integration tests can pass `fuseLoopDelay: 0`.
 
 ---
