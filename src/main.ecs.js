@@ -38,9 +38,16 @@
 
 import { createHudAdapter } from './adapters/dom/hud-adapter.js';
 import { createScreensAdapter } from './adapters/dom/screens-adapter.js';
+import { createAudioQuickToggle } from './adapters/dom/screens-audio-toggle.js';
 import { createAudioAdapter } from './adapters/io/audio-adapter.js';
+import { applyAudioSettings } from './adapters/io/audio-integration.js';
 import { createInputAdapter } from './adapters/io/input-adapter.js';
-import { getHighScore, saveHighScore } from './adapters/io/storage-adapter.js';
+import {
+  getAudioSettings,
+  getHighScore,
+  saveHighScore,
+  updateAudioSetting,
+} from './adapters/io/storage-adapter.js';
 import { percentileFromSorted, toSortedNumericArray } from './debug/frame-stats.js';
 import { FIXED_DT_MS, MAX_STEPS_PER_FRAME, TOTAL_LEVELS } from './ecs/resources/constants.js';
 import { createMapResource } from './ecs/resources/map-resource.js';
@@ -590,11 +597,33 @@ export async function bootstrapApplication({
       bootstrap.getAudioAdapter()?.playSfx('ui-confirm');
     };
 
+    // C-11B: forward-declared so the settings handler can keep the persistent
+    // quick-toggle and the Settings overlay in sync after either changes a value.
+    let audioQuickToggle = null;
+
+    // C-11B settings change handler: persist immediately (C-11A storage), apply
+    // the new mix to the live audio adapter, and mirror the change onto whichever
+    // audio UI did not originate it. One funnel keeps the two surfaces consistent.
+    const handleSettingChange = (key, value) => {
+      updateAudioSetting(key, value);
+      // UI sounds share the SFX volume (no separate UI slider): keep uiVolume in
+      // lockstep with sfxVolume so the merged control drives both categories.
+      if (key === 'sfxVolume') {
+        updateAudioSetting('uiVolume', value);
+      }
+      const settings = getAudioSettings();
+      applyAudioSettings(bootstrap.getAudioAdapter(), settings);
+      audioQuickToggle?.sync(settings);
+      screensAdapter?.syncSettingsControls(settings);
+    };
+
     // Create and register the screens adapter with game-flow callbacks.
     const screensAdapter =
       overlayRoot && typeof overlayRoot.querySelector === 'function'
         ? createScreensAdapter(overlayRoot, {
             gameplayElement: boardContainerElement,
+            initialSettings: getAudioSettings(),
+            onSettingChange: handleSettingChange,
             onAction(action) {
               // The screens adapter calls onAction for every confirmed action
               // (start, play-again, level-next, AND pause-continue /
@@ -635,6 +664,17 @@ export async function bootstrapApplication({
       getHighScore,
     });
 
+    // C-11B: bind the persistent top-right audio quick-toggle (always-visible
+    // mute/unmute for music + sfx). It shares the same persistence + apply funnel
+    // as the Settings overlay via handleSettingChange.
+    const quickToggleRoot = targetDocument.getElementById('audio-quick-toggle');
+    audioQuickToggle = quickToggleRoot
+      ? createAudioQuickToggle(quickToggleRoot, {
+          initialSettings: getAudioSettings(),
+          onToggle: handleSettingChange,
+        })
+      : null;
+
     // Construct the Web Audio boundary at the app edge and register it as the
     // 'audio' world resource so the render-phase cue system can drive it. Init
     // failures are non-fatal: the slot stays null and the game loop runs silent.
@@ -649,16 +689,17 @@ export async function bootstrapApplication({
         // requiring a second click for audio.
         navigatorTarget: targetWindow?.navigator ?? null,
       });
-      // Conservative default mix (hearing safety + clipping headroom). The
-      // adapter defaults every category to full gain (1.0), so overlapping SFX
-      // plus music would stack toward 0 dBFS and clip/blast. Master < 1 leaves
-      // headroom for simultaneous cues; music sits under the SFX so gameplay
-      // feedback stays audible without being painful. Honored once the gain
-      // nodes are created even though set before the AudioContext exists.
+      // Master headroom (hearing safety + clipping): the adapter defaults every
+      // category to full gain, so overlapping SFX + music would stack toward
+      // 0 dBFS and clip. Master < 1 leaves room for simultaneous cues. Honored
+      // once the gain nodes are created even though set before the AudioContext
+      // exists. Per-category music/sfx/ui levels are owned by the player's
+      // persisted C-11A settings (applied below), not hardcoded here.
       audioAdapter.setVolume('master', 0.8);
-      audioAdapter.setVolume('music', 0.4);
-      audioAdapter.setVolume('sfx', 0.7);
-      audioAdapter.setVolume('ui', 0.6);
+      // C-11A: restore persisted audio settings and apply them BEFORE the first
+      // playback (loadClips/cue dispatch). getAudioSettings() always returns a
+      // complete, validated object — malformed storage falls back to defaults.
+      applyAudioSettings(audioAdapter, getAudioSettings());
       bootstrap.setAudioAdapter(audioAdapter);
       // Fire-and-forget decode so startup is never blocked on audio (C-09 intent).
       loadAudioClipManifest({ fetchImpl: audioFetch, logger }).then((clipManifest) => {

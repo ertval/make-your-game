@@ -333,5 +333,81 @@ describe('main.ecs.js', () => {
         expect.stringContaining('HUD element "[data-hud="timer"]" not found.'),
       );
     });
+
+    it('C-11A: restores persisted audio settings and applies them at startup', async () => {
+      // Seed persisted settings (music muted, custom sfx/ui levels).
+      const store = {
+        'ms-ghostman.audioSettings': JSON.stringify({
+          musicEnabled: false,
+          sfxEnabled: true,
+          musicVolume: 0.9,
+          sfxVolume: 0.3,
+          uiVolume: 0.5,
+        }),
+      };
+      globalThis.localStorage = {
+        getItem: (key) => (key in store ? store[key] : null),
+        setItem: (key, value) => {
+          store[key] = value;
+        },
+        removeItem: (key) => {
+          delete store[key];
+        },
+      };
+
+      // Minimal AudioContext that records the gain assigned to each category, in
+      // the order the adapter creates them: master, music, sfx, ui.
+      const createdGains = [];
+      class MockAudioContext {
+        constructor() {
+          this.state = 'suspended';
+          this.destination = {};
+        }
+        createGain() {
+          const node = { gain: { value: 1 }, connect() {} };
+          createdGains.push(node);
+          return node;
+        }
+        resume() {
+          this.state = 'running';
+          return Promise.resolve();
+        }
+      }
+      mockWindow.AudioContext = MockAudioContext;
+
+      // Capture the unlock listeners so we can simulate the first gesture, which
+      // is what materializes the AudioContext + gain nodes.
+      const unlockHandlers = [];
+      mockWindow.addEventListener = vi.fn((type, handler) => {
+        if (type === 'keydown' || type === 'pointerdown') {
+          unlockHandlers.push(handler);
+        }
+      });
+
+      await bootstrapApplication({
+        documentRef: mockDocument,
+        windowRef: mockWindow,
+        logger: { warn: vi.fn(), error: vi.fn() },
+      });
+
+      // No context yet (autoplay policy): the restored settings live in the
+      // adapter's volume map but no gain node exists until a gesture.
+      expect(createdGains.length).toBe(0);
+
+      // Simulate the first user gesture -> ensureContext() creates the gain
+      // nodes and applies the already-restored category volumes to them.
+      for (const handler of unlockHandlers) {
+        handler({ type: 'keydown' });
+      }
+
+      // Gain nodes are created in CATEGORY_NAMES order: master, music, sfx, ui.
+      expect(createdGains.length).toBe(4);
+      const [, music, sfx, ui] = createdGains;
+      expect(music.gain.value).toBe(0); // musicEnabled:false -> 0
+      expect(sfx.gain.value).toBe(0.3); // sfxEnabled:true at stored volume
+      expect(ui.gain.value).toBe(0.5);
+
+      delete globalThis.localStorage;
+    });
   });
 });
