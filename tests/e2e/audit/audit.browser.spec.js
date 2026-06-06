@@ -528,3 +528,59 @@ test('AUDIT-B-03 entity and DOM pooling logic executes', async ({ page }) => {
   expect(domCount1).toBeLessThanOrEqual(600);
   expect(domCount2).toBe(domCount1);
 });
+
+test('AUDIT-F-21 layer promotion check (will-change only on player/ghosts)', async ({ page }) => {
+  await bootRuntime(page);
+  await startGameAndWait(page, { levelIndex: 0 });
+
+  const invalidElements = await page.evaluate(() => {
+    const elWithWillChange = [];
+    for (const el of document.querySelectorAll('*')) {
+      const style = window.getComputedStyle(el);
+      if (style.willChange.includes('transform')) {
+        const classes = Array.from(el.classList);
+        const isPlayer = classes.some((c) => c.includes('player'));
+        const isGhost = classes.some((c) => c.includes('ghost'));
+        if (!isPlayer && !isGhost) {
+          elWithWillChange.push({ tag: el.tagName, class: el.className });
+        }
+      }
+    }
+    return elWithWillChange;
+  });
+
+  expect(invalidElements).toEqual([]);
+});
+
+test('AUDIT-F-19/F-20/F-21/B-06 record browser trace for manual evidence', async ({
+  page,
+  context,
+}) => {
+  const recordTrace = process.env.RECORD_AUDIT_TRACE === 'true';
+  if (recordTrace) {
+    try {
+      await context.tracing.start({ screenshots: true, snapshots: true });
+    } catch {
+      // Tracing may already be started by the Playwright config/runner
+    }
+  }
+
+  await bootRuntime(page);
+  await startGameAndWait(page, { levelIndex: 0 });
+
+  // Move around to trigger paints, style updates, and layers
+  await page.keyboard.down('ArrowRight');
+  await page.waitForTimeout(200);
+  await page.keyboard.up('ArrowRight');
+  await page.keyboard.down('ArrowDown');
+  await page.waitForTimeout(200);
+  await page.keyboard.up('ArrowDown');
+
+  // Place a bomb and wait for explosion to log performance
+  await page.keyboard.press('Space');
+  await page.waitForTimeout(3500);
+
+  if (recordTrace) {
+    await context.tracing.stop({ path: 'docs/audit-reports/evidence/playwright-trace.zip' });
+  }
+});
