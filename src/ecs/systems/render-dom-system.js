@@ -83,6 +83,19 @@ const PLAYER_SPRITE_CLASSES = [
 ];
 
 /**
+ * Fire-tile spriteId → CSS frame class. Render-collect-system writes spriteId
+ * 0..N-1 based on `burnTimerMs` progress (0 = peak / just detonated, N-1 = embers).
+ * The base `.sprite--fire` class sets sizing + the bright peak fallback so a
+ * missing spriteId still shows a valid sprite.
+ */
+const FIRE_SPRITE_CLASSES = [
+  'sprite--fire--01', // 0 — peak blast
+  'sprite--fire--02', // 1 — bright fade
+  'sprite--fire--03', // 2 — color shift to rust
+  'sprite--fire--04', // 3 — embers / fading out
+];
+
+/**
  * Ghost type enum → CSS suffix used for the per-personality base sprite. The
  * matching `.sprite--ghost--{type}` classes live in `styles/grid.css` and
  * supply each ghost's idle background-image.
@@ -167,6 +180,16 @@ export function createRenderDomSystem(options = {}) {
       }
 
       if (context.world.renderFrame === 0) {
+        // Restart / level transition: the bootstrap layer flips renderFrame
+        // back to 0 so frame counters start clean. Without releasing the
+        // pool elements first, any sprite tracked from the previous run
+        // (e.g. a ghost that won't be queryable again for several seconds
+        // because its mask is 0 while it waits in the spawn house) stays
+        // stuck at its last on-board transform — a `Map.clear()` only
+        // forgets the entries, it does not return the elements to the pool.
+        for (const info of entityElementMap.values()) {
+          spritePool.release(info.type, info.element);
+        }
         entityElementMap.clear();
       }
 
@@ -219,6 +242,10 @@ export function createRenderDomSystem(options = {}) {
         if (kind === RENDERABLE_KIND.PLAYER) {
           const spriteId = buffer.spriteId[i];
           const frameClass = PLAYER_SPRITE_CLASSES[spriteId];
+          if (frameClass) el.classList.add(frameClass);
+        } else if (kind === RENDERABLE_KIND.FIRE) {
+          const spriteId = buffer.spriteId[i];
+          const frameClass = FIRE_SPRITE_CLASSES[spriteId];
           if (frameClass) el.classList.add(frameClass);
         } else if (kind === RENDERABLE_KIND.GHOST && ghostStore) {
           const ghostType = ghostStore.type[entityId];

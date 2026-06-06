@@ -609,4 +609,112 @@ describe('render-dom-system', () => {
       expect(spritePool.release).toHaveBeenCalledWith('ghost', ghostEl);
     });
   });
+
+  describe('renderFrame=0 reset (restart / level transition)', () => {
+    /**
+     * Regression for: "Sometimes when restarting, or reaching a new level, a
+     * ghost which hasn't spawned yet is still being rendered where they
+     * previously were."
+     *
+     * On restart and on level transition, bootstrap flips `world.renderFrame`
+     * back to 0 so frame counters start clean. The render-dom system uses
+     * this as the signal to drop its `entityElementMap` tracking — but a
+     * `Map.clear()` only forgets the entries; it does not return the pool
+     * elements. Any sprite that was tracked from the previous run (e.g. a
+     * ghost whose new mask is 0 while it waits in the spawn house) stays
+     * stuck on the board at its last transform until *something* re-acquires
+     * the element. The fix releases all tracked elements back to the pool
+     * before clearing the map.
+     */
+    it('releases every tracked element back to the pool when renderFrame resets to 0', async () => {
+      const { buffer, fillBuffer, spritePool } = createHarness();
+
+      // Frame 1: a player and a ghost are tracked.
+      fillBuffer([
+        { entityId: 1, kind: RENDERABLE_KIND.PLAYER, x: 1, y: 1, opacity: 255, classBits: 0 },
+        { entityId: 7, kind: RENDERABLE_KIND.GHOST, x: 5, y: 5, opacity: 255, classBits: 0 },
+      ]);
+
+      const playerEl = { classList: { add: vi.fn(), remove: vi.fn() }, style: {} };
+      const ghostEl = { classList: { add: vi.fn(), remove: vi.fn() }, style: {} };
+      spritePool.acquire.mockReturnValueOnce(playerEl).mockReturnValueOnce(ghostEl);
+
+      renderDomSystem.update({
+        world: {
+          renderFrame: 1,
+          getResource: (k) => {
+            if (k === 'renderIntent') return buffer;
+            if (k === 'spritePool') return spritePool;
+            return null;
+          },
+        },
+      });
+
+      expect(spritePool.release).not.toHaveBeenCalled();
+
+      // Frame 0 (simulates restart / level transition): buffer is empty —
+      // the new level's entities haven't produced intents yet. The old
+      // entries in entityElementMap must be released so their elements
+      // don't stay parked at the previous transform.
+      resetRenderIntentBuffer(buffer);
+
+      renderDomSystem.update({
+        world: {
+          renderFrame: 0,
+          getResource: (k) => {
+            if (k === 'renderIntent') return buffer;
+            if (k === 'spritePool') return spritePool;
+            return null;
+          },
+        },
+      });
+
+      // Both previously-tracked elements must be released. The exact order
+      // depends on Map insertion order; we just want both calls.
+      expect(spritePool.release).toHaveBeenCalledWith('player', playerEl);
+      expect(spritePool.release).toHaveBeenCalledWith('ghost', ghostEl);
+      expect(spritePool.release).toHaveBeenCalledTimes(2);
+    });
+
+    it('does not double-release elements that were already released by the steady-state cleanup loop', async () => {
+      // Sanity check: the renderFrame=0 release path is for the restart edge
+      // only; the per-frame "entity dropped out of intent list" cleanup must
+      // continue to handle steady-state releases without help.
+      const { buffer, fillBuffer, spritePool } = createHarness();
+
+      fillBuffer([
+        { entityId: 3, kind: RENDERABLE_KIND.PLAYER, x: 0, y: 0, opacity: 255, classBits: 0 },
+      ]);
+      const playerEl = { classList: { add: vi.fn(), remove: vi.fn() }, style: {} };
+      spritePool.acquire.mockReturnValueOnce(playerEl);
+
+      // Steady-state frame 5.
+      renderDomSystem.update({
+        world: {
+          renderFrame: 5,
+          getResource: (k) => {
+            if (k === 'renderIntent') return buffer;
+            if (k === 'spritePool') return spritePool;
+            return null;
+          },
+        },
+      });
+      expect(spritePool.release).not.toHaveBeenCalled();
+
+      // Steady-state frame 6 with no intents → entity dropped out → release.
+      resetRenderIntentBuffer(buffer);
+      renderDomSystem.update({
+        world: {
+          renderFrame: 6,
+          getResource: (k) => {
+            if (k === 'renderIntent') return buffer;
+            if (k === 'spritePool') return spritePool;
+            return null;
+          },
+        },
+      });
+      expect(spritePool.release).toHaveBeenCalledTimes(1);
+      expect(spritePool.release).toHaveBeenCalledWith('player', playerEl);
+    });
+  });
 });
