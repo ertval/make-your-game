@@ -644,6 +644,10 @@ export async function bootstrapApplication({
       const audioAdapter = createAudioAdapter({
         windowTarget: targetWindow,
         documentTarget: targetDocument,
+        // Lets the adapter resume immediately when the player already pressed
+        // Enter / clicked to start during the async bootstrap, instead of
+        // requiring a second click for audio.
+        navigatorTarget: targetWindow?.navigator ?? null,
       });
       // Conservative default mix (hearing safety + clipping headroom). The
       // adapter defaults every category to full gain (1.0), so overlapping SFX

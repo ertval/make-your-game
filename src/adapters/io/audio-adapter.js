@@ -276,12 +276,41 @@ function resolveFetch(windowTarget, override) {
   return null;
 }
 
+function resolveNavigator(windowTarget, override) {
+  if (override) {
+    return override;
+  }
+  if (windowTarget?.navigator) {
+    return windowTarget.navigator;
+  }
+  return typeof navigator !== 'undefined' ? navigator : null;
+}
+
+/**
+ * Whether the page has already received a user gesture this document lifetime.
+ *
+ * The audio adapter is constructed asynchronously (after the map load), but the
+ * input adapter binds keystrokes immediately — so the player can press Enter to
+ * start the game (an accepted gesture) before the unlock listeners exist. In
+ * that race the gesture is gone, but `navigator.userActivation.hasBeenActive`
+ * still reports it, letting us resume the context on construction instead of
+ * waiting for the player to click. (Pure arrow movement does NOT grant audio
+ * activation in Firefox, so this only helps once an accepted gesture occurred.)
+ *
+ * @param {Navigator | null} navigatorTarget - Navigator (or test stub) to probe.
+ * @returns {boolean} True when a prior gesture is recorded.
+ */
+function hasPriorUserActivation(navigatorTarget) {
+  return navigatorTarget?.userActivation?.hasBeenActive === true;
+}
+
 /**
  * Create the runtime audio adapter.
  *
  * @param {{
  *   windowTarget?: (Window & typeof globalThis) | null,
  *   documentTarget?: Document | null,
+ *   navigatorTarget?: Navigator | null,
  *   audioContextCtor?: typeof AudioContext | null,
  *   fetchImpl?: typeof fetch | null,
  *   autoUnlock?: boolean,
@@ -292,6 +321,7 @@ export function createAudioAdapter(options = {}) {
   const windowTarget = options.windowTarget || (typeof window !== 'undefined' ? window : null);
   const documentTarget =
     options.documentTarget || (typeof document !== 'undefined' ? document : null);
+  const navigatorTarget = resolveNavigator(windowTarget, options.navigatorTarget);
   const AudioContextCtor = resolveAudioContextCtor(windowTarget, options.audioContextCtor);
   const fetchImpl = resolveFetch(windowTarget, options.fetchImpl);
   const autoUnlock = options.autoUnlock !== false;
@@ -357,12 +387,32 @@ export function createAudioAdapter(options = {}) {
 
   function unlockContext() {
     const context = ensureContext();
-    if (context && context.state === 'suspended' && typeof context.resume === 'function') {
-      context.resume().catch((error) => {
+    if (!context) {
+      return;
+    }
+    if (context.state !== 'suspended') {
+      removeUnlockListeners();
+      return;
+    }
+    if (typeof context.resume !== 'function') {
+      return;
+    }
+    // Detach the listeners only once resume() actually leaves the suspended
+    // state. Firefox silently keeps the context suspended for gestures it does
+    // not accept as audio activation (notably arrow keys — Space/Enter/click are
+    // accepted), so a one-shot listener would be consumed by a rejected arrow
+    // press and never retry. Keeping the listeners bound until success means the
+    // first accepted gesture still unlocks audio.
+    context
+      .resume()
+      .then(() => {
+        if (context.state !== 'suspended') {
+          removeUnlockListeners();
+        }
+      })
+      .catch((error) => {
         console.warn('audio-adapter: context resume failed', error);
       });
-    }
-    removeUnlockListeners();
   }
 
   function removeUnlockListeners() {
@@ -384,8 +434,19 @@ export function createAudioAdapter(options = {}) {
       return;
     }
     unlockBound = true;
-    windowTarget.addEventListener('pointerdown', unlockContext, { once: true });
-    windowTarget.addEventListener('keydown', unlockContext, { once: true });
+    // Not { once: true }: a single gesture may be rejected by the browser
+    // autoplay policy, so the listeners must survive to retry on the next
+    // gesture. unlockContext() detaches them itself once the context is running.
+    windowTarget.addEventListener('pointerdown', unlockContext);
+    windowTarget.addEventListener('keydown', unlockContext);
+
+    // Race guard: the player may have already pressed Enter / clicked to start
+    // the game before this (async-constructed) adapter bound its listeners. If
+    // the browser still records that activation, unlock now instead of waiting
+    // for another click.
+    if (hasPriorUserActivation(navigatorTarget)) {
+      unlockContext();
+    }
   }
 
   function onVisibilityChange() {
