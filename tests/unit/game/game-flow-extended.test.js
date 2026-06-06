@@ -1,8 +1,16 @@
-import { describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import * as gameStatusModule from '../../../src/ecs/resources/game-status.js';
 import { createGameFlow } from '../../../src/game/game-flow.js';
 
 describe('Game flow extended coverage', () => {
+  let warnSpy;
+  beforeEach(() => {
+    warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+  });
+
+  afterEach(() => {
+    warnSpy.mockRestore();
+  });
   it('throws on missing required resources', () => {
     expect(() => createGameFlow()).toThrow('requires a gameStatus');
     expect(() => createGameFlow({ gameStatus: {} })).toThrow('requires a clock');

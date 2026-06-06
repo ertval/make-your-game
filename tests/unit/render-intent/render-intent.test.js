@@ -147,6 +147,7 @@ describe('appendRenderIntent', () => {
 
   it('silently drops entries when the buffer is full', () => {
     const buf = createRenderIntentBuffer(2);
+    const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
 
     appendRenderIntent(buf, { entityId: 1, kind: RENDERABLE_KIND.PLAYER });
     appendRenderIntent(buf, { entityId: 2, kind: RENDERABLE_KIND.GHOST });
@@ -155,6 +156,7 @@ describe('appendRenderIntent', () => {
     expect(buf._count).toBe(2);
     expect(buf.entityId[0]).toBe(1);
     expect(buf.entityId[1]).toBe(2);
+    warnSpy.mockRestore();
   });
 });
 
