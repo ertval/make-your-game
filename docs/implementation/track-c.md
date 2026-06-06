@@ -369,7 +369,7 @@ C-04 / C-05 / B-03 / C-06 handoff pattern):
 **Blocks**: None
 
 **Deliverables**:
-- `src/adapters/io/storage-adapter.js` — `getAudioSettings`, `setAudioSettings`, `updateAudioSetting`, `normalizeAudioSettings`
+- `src/adapters/io/storage-adapter.js` — `getAudioSettings`, `saveAudioSettings`, `updateAudioSetting` (and module-private `normalizeAudioSettings`)
 - `src/adapters/io/audio-integration.js` — `applyAudioSettings`, `fuseLoopDelay` option in `createAudioCueRunner`
 - `src/adapters/dom/screens-audio-toggle.js` (new) — persistent top-right audio quick-toggle adapter
 - `src/adapters/dom/screens-adapter.js` — Settings overlay (open from Start/Pause, Back navigation, `syncSettingsControls`, `onSettingChange`)
@@ -380,13 +380,12 @@ C-04 / C-05 / B-03 / C-06 handoff pattern):
 **Sub-features**:
 
 **C-11A — Persisted Audio Settings**:
-- [x] `storage-adapter.js` extended with `AUDIO_SETTINGS_STORAGE_KEY`, `DEFAULT_AUDIO_SETTINGS` (`musicEnabled: true, sfxEnabled: true, volumes: 1.0`), `getAudioSettings()`, `setAudioSettings(settings)`, `updateAudioSetting(key, value)`, `normalizeAudioSettings(raw)`.
-- [x] `normalizeAudioSettings` clamps volumes to `[0, 1]`, coerces booleans, falls back to defaults for corrupt/missing values.
-- [x] `applyAudioSettings(audio, settings)` added to `audio-integration.js`; uses only `setMasterVolume` / `setMusicVolume` / `setSfxVolume` / `setUiVolume` — no play/stop calls.
+- [x] `storage-adapter.js` extended with `AUDIO_SETTINGS_STORAGE_KEY`, `DEFAULT_AUDIO_SETTINGS` (`musicEnabled: true, sfxEnabled: true`, volumes `1.0`), `getAudioSettings()`, `saveAudioSettings(settings)`, `updateAudioSetting(key, value)`. Module-private `normalizeAudioSettings` clamps volumes to `[0, 1]`, coerces booleans, falls back to defaults for corrupt/missing values.
+- [x] `applyAudioSettings(audio, settings)` added to `audio-integration.js`; uses only `audio.setVolume(category, value)` — no play/stop calls.
 - [x] Settings restored from `localStorage` before the first frame and re-applied on every change.
 
 **C-11B — Settings Overlay & Audio Quick-Toggle**:
-- [x] `screens-adapter.js` — `showSettings(origin)` / `backFromSettings()` overlay-to-overlay transitions; `syncSettingsControls(settings)` syncs toggle + slider state; `onSettingChange(key, value)` callback for every user action.
+- [x] `screens-adapter.js` — `showSettings(origin)` (public) / internal `backFromSettings()` triggered via `settings-back` action dispatch; `syncSettingsControls(settings)` syncs toggle + slider state; `onSettingChange(key, value)` callback for every user action.
 - [x] `screens-audio-toggle.js` (new) — `createAudioQuickToggle(rootElement, options)` binds `[data-audio-toggle]` buttons, manages `aria-pressed` + emoji icon, calls `options.onToggle(key, enabled)`. Tolerates missing DOM nodes.
 - [x] `index.html` / `styles/` — Settings overlay markup and top-right quick-toggle button markup added.
 - [x] `main.ecs.js` — wires both surfaces to `applyAudioSettings` and the storage layer.

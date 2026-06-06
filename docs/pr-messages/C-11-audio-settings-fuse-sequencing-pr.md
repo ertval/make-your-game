@@ -4,7 +4,7 @@
 
 Ships the C-11 audio-settings layer in three parts:
 
-- **C-11A** — Persisted audio settings: `storage-adapter` extended with `getAudioSettings` / `setAudioSettings` / `updateAudioSetting` backed by `localStorage`, and `applyAudioSettings` added to `audio-integration.js` to push those settings into the adapter's gain graph on load and on every change.
+- **C-11A** — Persisted audio settings: `storage-adapter` extended with `getAudioSettings` / `saveAudioSettings` / `updateAudioSetting` backed by `localStorage`, and `applyAudioSettings` added to `audio-integration.js` to push those settings into the adapter's gain graph on load and on every change.
 - **C-11B** — Settings overlay & persistent audio quick-toggle: `screens-adapter` gains a full Settings overlay (open from Start or Pause, Back navigation, keyboard-only operation, accessible toggle + slider controls); `screens-audio-toggle.js` (new) owns the always-visible top-right music/sfx mute buttons; `main.ecs.js` wires both surfaces to `applyAudioSettings` and the storage layer.
 - **C-11C** — Bomb-place → fuse-loop sequencing: `audio-integration.js` gains a `fuseLoopDelay` option (default 310 ms, matching `bomb-place.mp3` duration) so the fuse loop starts only after the placement one-shot finishes, with no change to when the loop ends.
 
@@ -14,13 +14,13 @@ Ships the C-11 audio-settings layer in three parts:
 
 ### C-11A: Persisted Audio Settings (`storage-adapter`, `audio-integration`)
 
-- `src/adapters/io/storage-adapter.js` — adds `AUDIO_SETTINGS_STORAGE_KEY`, `DEFAULT_AUDIO_SETTINGS`, `getAudioSettings()`, `setAudioSettings(settings)`, `updateAudioSetting(key, value)`, and `normalizeAudioSettings(raw)`. All reads fall back to defaults for missing/corrupt storage. Volume values are clamped to `[0, 1]`; boolean toggles coerce non-boolean values to `true`.
-- `src/adapters/io/audio-integration.js` — adds `applyAudioSettings(audio, settings)`: the only adapter calls used are `setMasterVolume`, `setMusicVolume`, `setSfxVolume`, `setUiVolume` (all idempotent). Music/SFX enabled state is expressed as volume 0 / restored-volume, not as a play/stop toggle, so gain changes survive across pause and level transitions without touching the playback graph.
+- `src/adapters/io/storage-adapter.js` — adds `AUDIO_SETTINGS_STORAGE_KEY`, `DEFAULT_AUDIO_SETTINGS`, `getAudioSettings()`, `saveAudioSettings(settings)`, `updateAudioSetting(key, value)`. A module-private `normalizeAudioSettings` sanitizes every field: volumes clamped to `[0, 1]`, non-finite values rejected, boolean toggles coerced, corrupt/missing storage falls back to defaults.
+- `src/adapters/io/audio-integration.js` — adds `applyAudioSettings(audio, settings)`: the only adapter calls used are `audio.setVolume(category, value)` (idempotent). Music/SFX enabled state is expressed as volume 0 / restored-volume, not as a play/stop toggle, so gain changes survive across pause and level transitions without touching the playback graph.
 - Settings are restored from `localStorage` on app start (before the first frame) and re-applied on every change from the Settings overlay or the quick-toggle.
 
 ### C-11B: Settings Overlay & Audio Quick-Toggle (`screens-adapter`, `screens-audio-toggle`, `main.ecs.js`, `index.html`, styles)
 
-- `src/adapters/dom/screens-adapter.js` — `showSettings(origin)` / `backFromSettings()` manage the Settings overlay as an overlay-to-overlay transition; `syncSettingsControls(settings)` keeps toggle states and slider positions in sync with the live settings object. The adapter fires `onSettingChange(key, value)` for every user action; the host (`main.ecs.js`) persists and applies.
+- `src/adapters/dom/screens-adapter.js` — `showSettings(origin)` (public) opens the Settings overlay as an overlay-to-overlay transition; `backFromSettings()` is an internal function triggered by the `settings-back` DOM action dispatch (not a public method on the returned object); `syncSettingsControls(settings)` keeps toggle states and slider positions in sync with the live settings object. The adapter fires `onSettingChange(key, value)` for every user action; the host (`main.ecs.js`) persists and applies.
 - `src/adapters/dom/screens-audio-toggle.js` (new) — `createAudioQuickToggle(rootElement, options)` binds `[data-audio-toggle]` buttons, manages `aria-pressed` + emoji icon state, and notifies via `options.onToggle(key, enabled)`. Tolerates missing DOM nodes for headless test environments.
 - `index.html` / `styles/base.css` / `styles/grid.css` — Settings overlay markup and quick-toggle button markup added; layout positions the quick-toggle in the top-right corner, clear of the game board.
 - `src/main.ecs.js` — wires `createAudioQuickToggle`, the settings change handler, and `applyAudioSettings` at the app boundary.
@@ -33,7 +33,7 @@ Ships the C-11 audio-settings layer in three parts:
 
 ### Tests
 
-- `tests/integration/adapters/storage-adapter.test.js` — `getAudioSettings` / `setAudioSettings` / `updateAudioSetting` round-trips, defaults, normalization, and corrupt-storage fallback.
+- `tests/integration/adapters/storage-adapter.test.js` — `getAudioSettings` / `saveAudioSettings` / `updateAudioSetting` round-trips, defaults, normalization, and corrupt-storage fallback.
 - `tests/integration/adapters/screens-settings.test.js` — Settings overlay open/close, `syncSettingsControls`, `onSettingChange` dispatch, keyboard navigation, Back navigation from Start and Pause origins.
 - `tests/integration/adapters/audio-integration.test.js` — existing fuse-loop tests updated to use `fuseLoopDelay: 0`; two new tests: delay hold (fuse not emitted before window elapses) and delay reset on `bombActive` falling edge.
 - `tests/integration/gameplay/bomb-explosion-runtime-wiring.test.js` — updated to pass `fuseLoopDelay: 0` to `createBootstrap` so the fuse-loop assertion fires within a single frame.
