@@ -385,12 +385,7 @@ export function createAudioCueRunner(options = {}) {
       fuseLoopAllowedAt = 0;
     }
     const fuseReady = bombWantsLoop && now() >= fuseLoopAllowedAt;
-    fusePlaying = reconcileLoop(
-      context.audio,
-      FUSE_LOOP_CUE,
-      fuseReady,
-      fusePlaying,
-    );
+    fusePlaying = reconcileLoop(context.audio, FUSE_LOOP_CUE, fuseReady, fusePlaying);
     powerPelletLoopPlaying = reconcileLoop(
       context.audio,
       POWER_PELLET_LOOP_CUE,
