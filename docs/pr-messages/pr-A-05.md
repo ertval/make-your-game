@@ -7,13 +7,13 @@
 ## 📝 Description
 
 ### 🔄 What Changed
-- **Replay Utility ([replay.js](file:///home/ertval/code/zone-modules/make-your-game/src/debug/replay.js))**:
+- **Replay Utility ([replay.js](../../src/debug/replay.js))**:
   - Implemented `serializeWorldState(world)` to serialize all active ECS components and logic resources (clock, score, level timer, life, ghost spawns, event queue, RNG state).
   - Implemented `hashWorldState(world)` using a stable DJB2 hashing implementation.
   - Implemented `ReplayInputAdapter`, `ReplayRecorder`, and `runReplay` to record held/pressed inputs and play them back deterministic frame-by-frame.
-- **Pipeline Test ([a-05-integration.test.js](file:///home/ertval/code/zone-modules/make-your-game/tests/integration/gameplay/a-05-integration.test.js))**:
+- **Pipeline Test ([a-05-integration.test.js](../../tests/integration/gameplay/a-05-integration.test.js))**:
   - Added multi-system verification covering the chain: player places bomb -> fuse ticks down -> bomb detonates -> fire collides with ghost -> ghost is defeated -> scoring system awards points.
-- **Determinism Test ([replay-determinism.test.js](file:///home/ertval/code/zone-modules/make-your-game/tests/integration/gameplay/replay-determinism.test.js))**:
+- **Determinism Test ([a-05-replay-determinism.test.js](../../tests/integration/gameplay/a-05-replay-determinism.test.js))**:
   - Added test case checking that replay on the same seed and trace generates identical state hashes.
   - Added test case checking that running the replay on a different seed produces differing state hashes due to divergent PRNG drop chances.
 
@@ -30,7 +30,7 @@
 > *Note: This command includes linting, all test suites (unit, integration, e2e), and policy gate validations.*
 
 ### 📋 Audit Traceability
-- **AUDIT-F-09** | `[Fully Automatable]` | Verification: `replay-determinism.test.js` | Evidence: [replay-determinism.test.js](file:///home/ertval/code/zone-modules/make-your-game/tests/integration/gameplay/replay-determinism.test.js)
+- **AGENTS.md Invariant** | `[Fully Automatable]` | Verification: `a-05-replay-determinism.test.js` | Evidence: [a-05-replay-determinism.test.js](../../tests/integration/gameplay/a-05-replay-determinism.test.js)
 
 ---
 
@@ -41,8 +41,8 @@
 - [x] **Policy Compliance**: Ran `npm run policy` locally; all checks pass.
 - [x] **Ownership**: Verified files remain within declared ticket ownership scope.
 - [x] **Branching**: Branch name follows `<owner>/<TRACK>-<NN>` convention.
-- [x] **Audit Coverage**: Confirmed full coverage for F-01 through F-21 and B-01 through B-06.
-- [x] **Evidence**: Attached Manual-With-Evidence artifacts for F-19, F-20, F-21, and B-06 (if applicable).
+- [x] **Audit Coverage**: Confirmed F-01 through F-21 and B-01 through B-06 coverage where applicable (N/A for A-05).
+- [ ] **Evidence**: Attached Manual-With-Evidence artifacts for F-19, F-20, F-21, and B-06 (N/A for A-05).
 
 ### 🏗️ Architecture & Security
 - [x] **ECS Isolation**: `src/ecs/systems/` has no DOM references (except `render-dom-system.js`).

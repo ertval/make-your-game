@@ -8,10 +8,11 @@
  * - hashWorldState(world)
  * - ReplayInputAdapter
  * - ReplayRecorder
- * - runReplay(bootstrap, trace, options)
+ * - runReplay(bootstrap, trace)
  */
 
 import { COMPONENT_MASK } from '../ecs/components/registry.js';
+import { FIXED_DT_MS } from '../ecs/resources/constants.js';
 
 /**
  * Capture a complete, stable, JSON-serializable snapshot of the ECS world state.
@@ -332,7 +333,7 @@ export function runReplay(bootstrap, trace) {
   const steps = [];
 
   for (let i = 0; i < trace.length; i += 1) {
-    nowMs += 16.666666666666668; // ~60 FPS
+    nowMs += FIXED_DT_MS; // ~60 FPS
     bootstrap.stepFrame(nowMs);
     steps.push({
       frame: bootstrap.world.frame,
