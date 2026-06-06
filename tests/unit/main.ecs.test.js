@@ -276,15 +276,17 @@ describe('main.ecs.js', () => {
   describe('bootstrapApplication - More Errors', () => {
     it('throws if fetch response is not ok', async () => {
       mockWindow.fetch.mockResolvedValue({ ok: false, status: 404 });
+      const logger = { error: vi.fn() };
       await expect(
-        bootstrapApplication({ documentRef: mockDocument, windowRef: mockWindow }),
+        bootstrapApplication({ documentRef: mockDocument, windowRef: mockWindow, logger }),
       ).rejects.toThrow('status: 404');
     });
 
     it('throws if fetch response is missing', async () => {
       mockWindow.fetch.mockResolvedValue(null);
+      const logger = { error: vi.fn() };
       await expect(
-        bootstrapApplication({ documentRef: mockDocument, windowRef: mockWindow }),
+        bootstrapApplication({ documentRef: mockDocument, windowRef: mockWindow, logger }),
       ).rejects.toThrow('status: unknown');
     });
   });
