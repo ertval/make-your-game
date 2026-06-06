@@ -163,10 +163,11 @@ export const POWER_UP_DROP_CHANCES = {
   SPEED: 0.05,
 };
 
-/** Power-up type IDs used for drop-rate configuration (POWER_UP_DROP_CHANCES).
- *  This is distinct from PROP_POWER_UP_TYPE in components/props.js, which is
- *  the gameplay-component-level enum (BOMB_PLUS, FIRE_PLUS, SPEED_BOOST).
- *  Do not conflate the two (DEAD-07). */
+/** Power-up type IDs used for drop-rate configuration (POWER_UP_DROP_CHANCES)
+ *  and for the collision payload's `powerUpType` string. The live power-up
+ *  system in src/ecs/systems/power-up-system.js maps these drop-config IDs
+ *  onto the per-power-up effect handlers, so consumers MUST treat them as
+ *  the canonical source of truth for the drop table (DEAD-07). */
 export const POWER_UP_TYPE = {
   NONE: 0,
   BOMB: 1,

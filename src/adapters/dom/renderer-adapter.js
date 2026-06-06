@@ -30,6 +30,12 @@ const CELL_TYPE_CLASSES = {
   4: 'cell-power-pellet',
   5: 'cell-ghost-house',
   6: 'cell-empty',
+  // 7/8/9 are power-up drops placed by explosion-system on wall destruction.
+  // They render via static `::after` background (see styles/grid.css) so they
+  // share the pellet pattern and need no sprite-pool wiring.
+  7: 'cell-powerup-bomb',
+  8: 'cell-powerup-fire',
+  9: 'cell-powerup-speed',
 };
 
 /**

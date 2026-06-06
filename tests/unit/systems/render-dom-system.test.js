@@ -32,7 +32,6 @@ function createMockSpritePool() {
     BOMB: 'bomb',
     FIRE: 'fire',
     PELLET: 'pellet',
-    POWER_UP: 'powerup',
   };
 
   for (const type of Object.values(SPRITE_TYPE)) {
@@ -351,7 +350,40 @@ describe('render-dom-system', () => {
       });
 
       expect(mockEl.classList.add).toHaveBeenCalledWith('sprite--player');
-      expect(mockEl.classList.add).toHaveBeenCalledWith('sprite--player--speed-boost');
+      // The CSS selector at styles/animations.css:178 is
+      // `.sprite--player.is-speed-boosted`. The class name must match so the
+      // @keyframes speed-trail animation actually applies.
+      expect(mockEl.classList.add).toHaveBeenCalledWith('is-speed-boosted');
+    });
+
+    it('does not add the is-speed-boosted class when the SPEED_BOOST flag is not set', async () => {
+      const { buffer, fillBuffer, spritePool } = createHarness();
+
+      fillBuffer([
+        {
+          entityId: 1,
+          kind: RENDERABLE_KIND.PLAYER,
+          x: 0,
+          y: 0,
+          opacity: 255,
+          classBits: 0,
+        },
+      ]);
+
+      const mockEl = { classList: { add: vi.fn(), remove: vi.fn() }, style: {} };
+      spritePool.acquire.mockReturnValueOnce(mockEl);
+
+      renderDomSystem.update({
+        world: {
+          getResource: (k) => {
+            if (k === 'renderIntent') return buffer;
+            if (k === 'spritePool') return spritePool;
+          },
+        },
+      });
+
+      expect(mockEl.classList.add).toHaveBeenCalledWith('sprite--player');
+      expect(mockEl.classList.add).not.toHaveBeenCalledWith('is-speed-boosted');
     });
 
     it('hides HIDDEN entities via offscreen transform, not display:none (ARCH-01)', async () => {
@@ -408,28 +440,6 @@ describe('render-dom-system', () => {
       });
 
       expect(spritePool.acquire).not.toHaveBeenCalled();
-    });
-
-    it('uses pellet pool for POWER_UP kind', async () => {
-      const { buffer, fillBuffer, spritePool } = createHarness();
-
-      fillBuffer([
-        { entityId: 1, kind: RENDERABLE_KIND.POWER_UP, x: 0, y: 0, opacity: 255, classBits: 0 },
-      ]);
-
-      const mockEl = { classList: { add: vi.fn(), remove: vi.fn() }, style: {} };
-      spritePool.acquire.mockReturnValueOnce(mockEl);
-
-      renderDomSystem.update({
-        world: {
-          getResource: (k) => {
-            if (k === 'renderIntent') return buffer;
-            if (k === 'spritePool') return spritePool;
-          },
-        },
-      });
-
-      expect(spritePool.acquire).toHaveBeenCalledWith('pellet');
     });
   });
 

@@ -37,7 +37,6 @@ export const RENDERABLE_KIND = Object.freeze({
   FIRE: 4,
   PELLET: 5,
   WALL: 6,
-  POWER_UP: 7,
 });
 
 /**

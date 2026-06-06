@@ -33,7 +33,6 @@ describe('visual component stores', () => {
     expect(RENDERABLE_KIND.NONE).toBe(0);
     expect(new Set(kinds).size).toBe(kinds.length);
     expect(RENDERABLE_KIND.PLAYER).toBeGreaterThan(0);
-    expect(RENDERABLE_KIND.POWER_UP).toBeGreaterThan(0);
   });
 
   it('creates and resets a renderable store with inert defaults', () => {

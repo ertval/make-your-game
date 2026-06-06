@@ -6,6 +6,8 @@
 
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { createBoardAdapter } from '../../../src/adapters/dom/renderer-adapter.js';
+import { createBoardSyncSystem } from '../../../src/ecs/systems/board-sync-system.js';
+import { World } from '../../../src/ecs/world/world.js';
 
 function createMockDocument() {
   return {
@@ -258,6 +260,70 @@ describe('board-adapter', () => {
       adapter2.updateCell(0, 0, 999);
 
       expect(cellEl._added.slice(before)).toEqual(['cell-empty']);
+    });
+
+    it('maps power-up cell types 7/8/9 to cell-powerup-bomb/fire/speed', () => {
+      // Mirrors the explosion-system power-up drop flow: a destructible wall
+      // (CELL_TYPE.DESTRUCTIBLE = 2) becomes a power-up cell (7/8/9) when
+      // explosion-system sets the type. updateCell must strip the prior
+      // class and add the new one.
+      const cases = [
+        { type: 7, expectedClass: 'cell-powerup-bomb' },
+        { type: 8, expectedClass: 'cell-powerup-fire' },
+        { type: 9, expectedClass: 'cell-powerup-speed' },
+      ];
+
+      for (const { type, expectedClass } of cases) {
+        const { created, document } = createTrackingDoc();
+        const adapter2 = createBoardAdapter({ document });
+        const container2 = {
+          firstChild: null,
+          appendChild: vi.fn(),
+          removeChild: vi.fn(),
+        };
+        adapter2.generateBoard({ rows: 1, cols: 1, grid: new Uint8Array([2]) }, container2);
+
+        const cellEl = created[1];
+        const before = cellEl._added.length;
+        adapter2.updateCell(0, 0, type);
+
+        // Prior cell-destructible class must be stripped via the class-removal
+        // loop; the new power-up class must be the only one added in this call.
+        expect(cellEl._removed).toEqual(expect.arrayContaining(['cell-destructible']));
+        expect(cellEl._added.slice(before)).toEqual([expectedClass]);
+      }
+    });
+
+    it('end-to-end: explosion-system drop type 7 flows through board-sync to the DOM', () => {
+      // Mirrors the existing destructible → empty transition pattern: a board
+      // is generated, the map grid is mutated to a power-up cell type, and
+      // the real board-sync-system runs against the real renderer-adapter.
+      // The DOM cell must carry the new power-up class (and no longer the
+      // destructible one) without any direct updateCell call from the test.
+      const { created, document } = createTrackingDoc();
+      const boardAdapter = createBoardAdapter({ document });
+      const container2 = {
+        firstChild: null,
+        appendChild: vi.fn(),
+        removeChild: vi.fn(),
+      };
+      const map = { rows: 1, cols: 1, grid: new Uint8Array([2]) };
+      boardAdapter.generateBoard(map, container2);
+
+      const cellEl = created[1];
+
+      // Prime the snapshot so the next frame is a real diff.
+      const world = new World();
+      world.setResource('mapResource', map);
+      const syncSystem = createBoardSyncSystem(boardAdapter);
+      syncSystem.update({ world });
+
+      // Simulate explosion-system writing a power-up drop.
+      map.grid[0] = 7;
+      syncSystem.update({ world });
+
+      expect(cellEl._removed).toEqual(expect.arrayContaining(['cell-destructible']));
+      expect(cellEl._added).toEqual(expect.arrayContaining(['cell-powerup-bomb']));
     });
   });
 

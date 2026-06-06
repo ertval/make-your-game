@@ -31,6 +31,31 @@
   }
 }
 
+/**
+ * Power-up pulsing animation for dropped power-ups (cell types 7/8/9).
+ * Mirrors `pellet-pulse` with a gentler scale + opacity envelope so the
+ * larger 76×76 sprite reads as a steady collectible rather than a flicker.
+ * The translate(-50%, -50%) preserves the static-cell centring offset.
+ */
+@keyframes powerup-pulse {
+  0%,
+  100% {
+    transform: translate(-50%, -50%) scale(1);
+    opacity: 1;
+  }
+  50% {
+    transform: translate(-50%, -50%) scale(1.15);
+    opacity: 0.9;
+  }
+}
+
+/** Apply power-up pulse to all three dropped power-up cell variants. */
+.cell-powerup-bomb::after,
+.cell-powerup-fire::after,
+.cell-powerup-speed::after {
+  animation: powerup-pulse var(--anim-walk-duration) ease-in-out infinite;
+}
+
 /** Walking pulse effect for player sprite (subtle scale pulse). */
 @keyframes walking-pulse {
   0%,
@@ -196,6 +221,16 @@
 @media (prefers-reduced-motion: reduce) {
   /** Pellet pulse: disable pulsing, keep static appearance. */
   .collectible--power-pellet {
+    animation: none;
+  }
+
+  /**
+   * Power-up pulse: disable scale/opacity animation on dropped power-ups.
+   * Keeps the static sprite visible and centred without distracting motion.
+   */
+  .cell-powerup-bomb::after,
+  .cell-powerup-fire::after,
+  .cell-powerup-speed::after {
     animation: none;
   }
 

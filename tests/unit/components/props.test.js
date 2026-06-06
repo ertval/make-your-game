@@ -10,13 +10,10 @@ import {
   createBombStore,
   createFireStore,
   createPelletStore,
-  createPowerUpStore,
-  PROP_POWER_UP_TYPE,
   PROP_STORE_RUNTIME_STATUS,
   resetBomb,
   resetFire,
   resetPellet,
-  resetPowerUp,
 } from '../../../src/ecs/components/props.js';
 import {
   BOMB_FUSE_MS,
@@ -30,7 +27,6 @@ describe('prop component stores', () => {
       bomb: 'active',
       fire: 'active',
       pellet: 'planned',
-      powerUp: 'planned',
     });
     expect(Object.isFrozen(PROP_STORE_RUNTIME_STATUS)).toBe(true);
   });
@@ -102,18 +98,6 @@ describe('prop component stores', () => {
     expect(store.col[entityId]).toBe(0);
     expect(store.sourceBombId[entityId]).toBe(-1);
     expect(store.chainDepth[entityId]).toBe(0);
-  });
-
-  it('creates and resets a power-up store with NONE defaults', () => {
-    const store = createPowerUpStore(2);
-
-    expect(store.type).toBeInstanceOf(Uint8Array);
-    expect(store.type[0]).toBe(PROP_POWER_UP_TYPE.NONE);
-
-    store.type[0] = PROP_POWER_UP_TYPE.SPEED_BOOST;
-    resetPowerUp(store, 0);
-
-    expect(store.type[0]).toBe(PROP_POWER_UP_TYPE.NONE);
   });
 
   it('creates and resets a pellet store with regular-pellet defaults', () => {

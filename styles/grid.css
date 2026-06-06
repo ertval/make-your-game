@@ -114,6 +114,62 @@
   animation: pellet-pulse var(--anim-walk-duration) ease-in-out infinite;
 }
 
+/* --- Power-Up Drops (static cell route, mirrors .cell-pellet) --- */
+
+/**
+ * Power-up drops placed by explosion-system on wall destruction (cell types
+ * 7/8/9). Rendered via `::after` background — same static route as the
+ * pellet/power-pellet collectibles — so the cell needs no sprite-pool wiring.
+ * Size 76×76 overflows the 32px cell intentionally to make the drop readable
+ * from a distance; centred via top/left + translate(-50%, -50%) like the
+ * existing collectibles. Border-radius matches the .cell-powerup- family
+ * for visual consistency across all three power-up drops.
+ */
+.cell-powerup-bomb::after {
+  content: "";
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 76px;
+  height: 76px;
+  background-image: url("../assets/generated/visuals/128px/items/powerup-bomb.webp");
+  background-size: 100% 100%;
+  background-repeat: no-repeat;
+  border-radius: var(--radius-md);
+  z-index: var(--z-items);
+}
+
+.cell-powerup-fire::after {
+  content: "";
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 76px;
+  height: 76px;
+  background-image: url("../assets/generated/visuals/128px/items/powerup-fire.webp");
+  background-size: 100% 100%;
+  background-repeat: no-repeat;
+  border-radius: var(--radius-md);
+  z-index: var(--z-items);
+}
+
+.cell-powerup-speed::after {
+  content: "";
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 76px;
+  height: 76px;
+  background-image: url("../assets/generated/visuals/128px/items/powerup-speed.webp");
+  background-size: 100% 100%;
+  background-repeat: no-repeat;
+  border-radius: var(--radius-md);
+  z-index: var(--z-items);
+}
+
 /* --- Sprite Base Classes --- */
 
 /** Base sprite class for all dynamic game entities. */
@@ -416,33 +472,6 @@
 .sprite--pellet {
   z-index: var(--z-items);
   background-image: url("../assets/generated/visuals/128px/items/pellet.webp");
-  background-size: 100% 100%;
-  background-repeat: no-repeat;
-}
-
-/** Power-up sprite base class — fallback image until spriteId type is wired by Track B/C. */
-.sprite--powerup {
-  z-index: var(--z-items);
-  border-radius: var(--radius-md);
-  background-image: url("../assets/generated/visuals/128px/items/powerup-fire.webp");
-  background-size: 100% 100%;
-  background-repeat: no-repeat;
-}
-
-.sprite--powerup--bomb {
-  background-image: url("../assets/generated/visuals/128px/items/powerup-bomb.webp");
-  background-size: 100% 100%;
-  background-repeat: no-repeat;
-}
-
-.sprite--powerup--fire {
-  background-image: url("../assets/generated/visuals/128px/items/powerup-fire.webp");
-  background-size: 100% 100%;
-  background-repeat: no-repeat;
-}
-
-.sprite--powerup--speed {
-  background-image: url("../assets/generated/visuals/128px/items/powerup-speed.webp");
   background-size: 100% 100%;
   background-repeat: no-repeat;
 }

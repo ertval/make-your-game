@@ -38,10 +38,9 @@ const OFFSCREEN_TRANSFORM = 'translate(-9999px, -9999px)';
 
 /**
  * Map RENDERABLE_KIND to sprite pool type keys.
- * Note: WALL uses 'wall' but the pool doesn't have a wall type - walls are rendered
- * as static grid cells via renderer-adapter, so entities with WALL kind shouldn't
- * normally reach this system. POWER_UP falls back to 'pellet' pool since that's the
- * closest available type.
+ * Note: WALL maps to null — walls are rendered as static grid cells via the
+ * renderer-adapter, so entities with WALL kind shouldn't normally reach this
+ * system. The null sentinel is a deliberate no-op, not dead code.
  */
 const KIND_TO_SPRITE_TYPE = {
   [RENDERABLE_KIND.PLAYER]: 'player',
@@ -49,7 +48,6 @@ const KIND_TO_SPRITE_TYPE = {
   [RENDERABLE_KIND.BOMB]: 'bomb',
   [RENDERABLE_KIND.FIRE]: 'fire',
   [RENDERABLE_KIND.PELLET]: 'pellet',
-  [RENDERABLE_KIND.POWER_UP]: 'pellet', // fallback to pellet pool
   [RENDERABLE_KIND.WALL]: null, // walls are static, not rendered as sprites
 };
 
@@ -62,7 +60,6 @@ const KIND_TO_CLASSES = {
   [RENDERABLE_KIND.BOMB]: ['sprite--bomb'],
   [RENDERABLE_KIND.FIRE]: ['sprite--fire'],
   [RENDERABLE_KIND.PELLET]: ['sprite--pellet'],
-  [RENDERABLE_KIND.POWER_UP]: ['sprite--powerup'],
   [RENDERABLE_KIND.WALL]: ['sprite--wall'],
 };
 
@@ -146,7 +143,12 @@ function applyVisualFlagClasses(el, classBits) {
     el.classList.add('sprite--ghost--dead');
   }
   if ((classBits & VISUAL_FLAGS.SPEED_BOOST) !== 0) {
-    el.classList.add('sprite--player--speed-boost');
+    // The CSS selector at styles/animations.css:178 is
+    // `.sprite--player.is-speed-boosted` — the modifier class must match so the
+    // `@keyframes speed-trail` animation actually applies. Renamed from the
+    // legacy `sprite--player--speed-boost` to align with the player modifier
+    // convention used elsewhere (e.g. `is-invincible`).
+    el.classList.add('is-speed-boosted');
   }
 }
 

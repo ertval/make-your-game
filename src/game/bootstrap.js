@@ -75,6 +75,7 @@ import {
   createPlayerMoveSystem,
   PLAYER_MOVE_REQUIRED_MASK,
 } from '../ecs/systems/player-move-system.js';
+import { createPlayerVisualStateSystem } from '../ecs/systems/player-visual-state-system.js';
 import { createPowerUpSystem } from '../ecs/systems/power-up-system.js';
 import { createRenderCollectSystem } from '../ecs/systems/render-collect-system.js';
 import { createRenderDomSystem } from '../ecs/systems/render-dom-system.js';
@@ -319,6 +320,16 @@ function createDefaultSystemsByPhase(options = {}) {
         eventQueueResourceKey,
         playerEntityResourceKey,
         playerResourceKey,
+      }),
+      // Player visual-state mirror: must run AFTER createPowerUpSystem in the
+      // same logic phase so a freshly-collected speed-boost flag is reflected
+      // into `visualState.classBits` before render-collect reads it on the
+      // current frame (avoids a one-frame lag between collection and the
+      // `.is-speed-boosted` CSS class appearing).
+      createPlayerVisualStateSystem({
+        playerEntityResourceKey,
+        playerResourceKey,
+        visualStateResourceKey: options.visualStateResourceKey || 'visualState',
       }),
       createTimerSystem({ eventQueueResourceKey }),
       createScoringSystem(),
