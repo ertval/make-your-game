@@ -246,6 +246,7 @@ describe('runtime bomb and explosion wiring', () => {
         boardContainerElement: gameBoard,
         loadMapForLevel: () => createRuntimeMapResource(),
         now: 0,
+        fuseLoopDelay: 0,
       });
       const inputAdapter = createRuntimeInputAdapterStub();
       const stepFixedFrames = createFixedStepDriver(bootstrap);

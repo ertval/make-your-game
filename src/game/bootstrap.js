@@ -124,7 +124,9 @@ function createAudioCueSystem(options = {}) {
   const audioResourceKey = options.audioResourceKey || DEFAULT_AUDIO_RESOURCE_KEY;
   const bombAudioActiveResourceKey = options.bombAudioActiveResourceKey || 'bombAudioActive';
   const powerUpStateResourceKey = options.powerUpStateResourceKey || 'powerUpState';
-  const runner = createAudioCueRunner();
+  const runner = createAudioCueRunner(
+    typeof options.fuseLoopDelay === 'number' ? { fuseLoopDelay: options.fuseLoopDelay } : {},
+  );
 
   return {
     name: 'audio-cue-system',
@@ -357,7 +359,10 @@ function createDefaultSystemsByPhase(options = {}) {
       renderDomSystem,
       // Audio is a downstream feedback channel: appended last in `render` so it
       // drains every gameplay event emitted by the logic phase this frame.
-      createAudioCueSystem({ eventQueueResourceKey }),
+      createAudioCueSystem({
+        eventQueueResourceKey,
+        fuseLoopDelay: options.fuseLoopDelay,
+      }),
     ],
     logic: [
       createCollisionSystem({
