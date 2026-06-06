@@ -199,11 +199,13 @@ describe('audio-integration: cue mapping table', () => {
 });
 
 describe('audio-integration: bomb fuse loop', () => {
+  // Use fuseLoopDelay: 0 to bypass the bomb-place sequencing delay in unit
+  // tests — the delay behaviour is covered by the dedicated sequencing suite.
   it('starts the fuse loop while a bomb is active during PLAYING', () => {
     const audio = createAudioAdapterSpy();
     const eventQueue = createEventQueue();
     const gameStatus = createGameStatus(GAME_STATE.PLAYING);
-    const runner = createAudioCueRunner();
+    const runner = createAudioCueRunner({ fuseLoopDelay: 0 });
 
     runner.tick({ audio, eventQueue, gameStatus, bombActive: true });
 
@@ -215,7 +217,7 @@ describe('audio-integration: bomb fuse loop', () => {
     const audio = createAudioAdapterSpy();
     const eventQueue = createEventQueue();
     const gameStatus = createGameStatus(GAME_STATE.PLAYING);
-    const runner = createAudioCueRunner();
+    const runner = createAudioCueRunner({ fuseLoopDelay: 0 });
 
     runner.tick({ audio, eventQueue, gameStatus, bombActive: true });
     runner.tick({ audio, eventQueue, gameStatus, bombActive: false });
@@ -228,7 +230,7 @@ describe('audio-integration: bomb fuse loop', () => {
     const audio = createAudioAdapterSpy();
     const eventQueue = createEventQueue();
     const gameStatus = createGameStatus(GAME_STATE.PAUSED);
-    const runner = createAudioCueRunner();
+    const runner = createAudioCueRunner({ fuseLoopDelay: 0 });
 
     runner.tick({ audio, eventQueue, gameStatus, bombActive: true });
 
@@ -244,13 +246,46 @@ describe('audio-integration: bomb fuse loop', () => {
     };
     const eventQueue = createEventQueue();
     const gameStatus = createGameStatus(GAME_STATE.PLAYING);
-    const runner = createAudioCueRunner();
+    const runner = createAudioCueRunner({ fuseLoopDelay: 0 });
 
     runner.tick({ audio, eventQueue, gameStatus, bombActive: true });
     ready = true;
     runner.tick({ audio, eventQueue, gameStatus, bombActive: true });
 
     expect(audio.calls.playSfxLoop).toEqual(['sfx-bomb-fuse', 'sfx-bomb-fuse']);
+  });
+
+  it('holds the fuse loop for fuseLoopDelay ms after bomb placement', () => {
+    const audio = createAudioAdapterSpy();
+    const eventQueue = createEventQueue();
+    const gameStatus = createGameStatus(GAME_STATE.PLAYING);
+    let fakeNow = 1000;
+    const runner = createAudioCueRunner({ fuseLoopDelay: 500, now: () => fakeNow });
+
+    // Tick at t=1000 — delay window [1000, 1500), fuse should not start yet.
+    runner.tick({ audio, eventQueue, gameStatus, bombActive: true });
+    expect(audio.calls.playSfxLoop).toEqual([]);
+
+    // Advance clock past the delay window.
+    fakeNow = 1500;
+    runner.tick({ audio, eventQueue, gameStatus, bombActive: true });
+
+    expect(audio.calls.playSfxLoop).toEqual(['sfx-bomb-fuse']);
+  });
+
+  it('resets the delay when bombActive drops and rises again', () => {
+    const audio = createAudioAdapterSpy();
+    const eventQueue = createEventQueue();
+    const gameStatus = createGameStatus(GAME_STATE.PLAYING);
+    const runner = createAudioCueRunner({ fuseLoopDelay: 0 });
+
+    runner.tick({ audio, eventQueue, gameStatus, bombActive: true });
+    runner.tick({ audio, eventQueue, gameStatus, bombActive: false });
+    runner.tick({ audio, eventQueue, gameStatus, bombActive: true });
+
+    // playSfxLoop called twice (once per rising edge), stopSfxLoop once.
+    expect(audio.calls.playSfxLoop).toEqual(['sfx-bomb-fuse', 'sfx-bomb-fuse']);
+    expect(audio.calls.stopSfxLoop).toEqual(['sfx-bomb-fuse']);
   });
 });
 
