@@ -215,14 +215,27 @@ function isDev() {
  *   reset: () => void,
  * }}
  */
+// Duration of the bomb-place one-shot SFX (ms). The fuse loop is held off for
+// this long after bomb placement so the two sounds play sequentially rather
+// than simultaneously. Matches the length of assets/generated/sfx/bomb-place.mp3.
+const BOMB_PLACE_SFX_DURATION_MS = 310;
+
 export function createAudioCueRunner(options = {}) {
   const warnUnknownEvents = options.warnUnknownEvents !== false;
+  // How many ms to wait after bomb placement before starting the fuse loop.
+  const fuseLoopDelay =
+    typeof options.fuseLoopDelay === 'number' ? options.fuseLoopDelay : BOMB_PLACE_SFX_DURATION_MS;
+  // Testable clock: defaults to performance.now, injectable via options.now.
+  const now = typeof options.now === 'function' ? options.now : () => performance.now();
   const warnedUnknown = new Set();
   let lastState = null;
   // Whether each looping SFX is currently playing, so we only start/stop on
   // edges instead of re-issuing the call every frame.
   let fusePlaying = false;
   let powerPelletLoopPlaying = false;
+  // Timestamp (performance.now()) after which the fuse loop may start. Set on
+  // the rising edge of bombActive to give bomb-place.mp3 time to finish first.
+  let fuseLoopAllowedAt = 0;
 
   function maybeWarnUnknown(type) {
     if (!warnUnknownEvents || !isDev()) {
@@ -362,10 +375,20 @@ export function createAudioCueRunner(options = {}) {
     consumeEvents(context.audio, context.eventQueue);
     reconcileMusic(context.audio, context.gameStatus);
     // Both loops only sound during live play (silent on pause / overlays / end).
+    const bombWantsLoop = context.bombActive === true && isPlaying;
+    // On the rising edge of bombActive, delay the fuse loop so bomb-place.mp3
+    // finishes before bomb-fuse-loop.mp3 starts (sequential, not simultaneous).
+    if (bombWantsLoop && !fusePlaying && fuseLoopAllowedAt === 0) {
+      fuseLoopAllowedAt = now() + fuseLoopDelay;
+    }
+    if (!bombWantsLoop) {
+      fuseLoopAllowedAt = 0;
+    }
+    const fuseReady = bombWantsLoop && now() >= fuseLoopAllowedAt;
     fusePlaying = reconcileLoop(
       context.audio,
       FUSE_LOOP_CUE,
-      context.bombActive === true && isPlaying,
+      fuseReady,
       fusePlaying,
     );
     powerPelletLoopPlaying = reconcileLoop(
@@ -381,6 +404,7 @@ export function createAudioCueRunner(options = {}) {
     lastState = null;
     fusePlaying = false;
     powerPelletLoopPlaying = false;
+    fuseLoopAllowedAt = 0;
   }
 
   return { tick, reset };
