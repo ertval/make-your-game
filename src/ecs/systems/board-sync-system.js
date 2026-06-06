@@ -60,7 +60,7 @@ export function createBoardSyncSystem(boardAdapter, options = {}) {
     },
     update(context) {
       const mapResource = context.world.getResource(mapResourceKey);
-      if (!mapResource || !mapResource.grid) return;
+      if (!mapResource?.grid) return;
 
       const { rows, cols, grid } = mapResource;
       if (rows <= 0 || cols <= 0) return;

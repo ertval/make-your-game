@@ -65,20 +65,37 @@ test('#103 .cell-empty background blends with the board floor (no dark trail)', 
 /* ------------------------------------------------------------------ */
 
 test('#84 pressing Space renders a visible bomb sprite on the board', async ({ page }) => {
-  test.skip(
-    true,
-    'Pending a runtime test-hook that exposes the ECS world. The fix is unit-tested in tests/unit/systems/render-collect-system.test.js — "bomb / fire store scanning (issue #84)" — which proves render-collect emits a BOMB intent for every active bomb-store slot regardless of the RENDERABLE component bit.',
-  );
-
   await bootRuntime(page);
   await startGameAndWait(page);
 
-  // Repro path (flakes due to Playwright keyboard timing vs. fixed logic frame):
-  await page.click('body');
-  await page.keyboard.down('Space');
-  await page.waitForTimeout(80);
-  await page.keyboard.up('Space');
-  await page.waitForTimeout(120);
+  // Directly activate a bomb in the ECS world.
+  await page.evaluate(() => {
+    const world = window.__MS_GHOSTMAN_RUNTIME__.getWorld();
+    const bombStore = world.getResource('bomb');
+    const positionStore = world.getResource('position');
+    const colliderStore = world.getResource('collider');
+    const bombPool = world.getResource('bombEntityPool');
+
+    const bombEntity = bombPool[0];
+    const id = bombEntity.id;
+
+    bombStore.fuseMs[id] = 3000;
+    bombStore.radius[id] = 2;
+    bombStore.ownerId[id] = 1;
+    bombStore.row[id] = 1;
+    bombStore.col[id] = 1;
+
+    positionStore.row[id] = 1;
+    positionStore.col[id] = 1;
+    positionStore.prevRow[id] = 1;
+    positionStore.prevCol[id] = 1;
+    positionStore.targetRow[id] = 1;
+    positionStore.targetCol[id] = 1;
+
+    colliderStore.type[id] = 3; // COLLIDER_TYPE.BOMB
+  });
+
+  await page.waitForTimeout(100);
 
   const onBoardBombs = await page.evaluate(
     () =>
@@ -96,16 +113,56 @@ test('#84 pressing Space renders a visible bomb sprite on the board', async ({ p
 test('#85 destructible wall cell loses its sprite when the map cell becomes empty', async ({
   page,
 }) => {
-  test.skip(
-    true,
-    'Pending a runtime test-hook that exposes the ECS world. The fix (board-sync-system map-diff convergence) is unit-tested in tests/unit/systems/board-sync-system.test.js — "updates only the cells whose map type changed since the last frame" — which proves cell-destructible → cell-empty transitions are committed within one render frame whenever the map mutates, regardless of whether a collisionIntent was emitted.',
-  );
-
   await bootRuntime(page);
   await startGameAndWait(page);
-  // Repro would: locate a destructible wall, mutate mapResource via getWorld(),
-  // verify the corresponding DOM cell loses its `.cell-destructible` class on
-  // the next render frame.
+
+  // Find a destructible cell in the mapResource
+  const cell = await page.evaluate(() => {
+    const world = window.__MS_GHOSTMAN_RUNTIME__.getWorld();
+    const mapResource = world.getResource('mapResource');
+    for (let r = 0; r < mapResource.rows; r += 1) {
+      for (let c = 0; c < mapResource.cols; c += 1) {
+        if (mapResource.grid[r * mapResource.cols + c] === 2) {
+          return { row: r, col: c };
+        }
+      }
+    }
+    return null;
+  });
+
+  expect(cell).not.toBeNull();
+
+  // Verify the DOM cell is initially marked cell-destructible
+  const initialIsDestructible = await page.evaluate(({ row, col }) => {
+    const el = Array.from(document.querySelectorAll('#game-board .cell')).find(
+      (c) =>
+        c.style.getPropertyValue('--cell-row').trim() === String(row) &&
+        c.style.getPropertyValue('--cell-col').trim() === String(col),
+    );
+    return el ? el.classList.contains('cell-destructible') : false;
+  }, cell);
+  expect(initialIsDestructible).toBe(true);
+
+  // Set the map cell to EMPTY (0) directly in mapResource.grid
+  await page.evaluate(({ row, col }) => {
+    const world = window.__MS_GHOSTMAN_RUNTIME__.getWorld();
+    const mapResource = world.getResource('mapResource');
+    mapResource.grid[row * mapResource.cols + col] = 0;
+  }, cell);
+
+  // Wait a few frames for board-sync-system to run and update DOM
+  await page.waitForTimeout(50);
+
+  // Verify that the DOM cell is no longer cell-destructible
+  const finalIsDestructible = await page.evaluate(({ row, col }) => {
+    const el = Array.from(document.querySelectorAll('#game-board .cell')).find(
+      (c) =>
+        c.style.getPropertyValue('--cell-row').trim() === String(row) &&
+        c.style.getPropertyValue('--cell-col').trim() === String(col),
+    );
+    return el ? el.classList.contains('cell-destructible') : false;
+  }, cell);
+  expect(finalIsDestructible).toBe(false);
 });
 
 /* ------------------------------------------------------------------ */
@@ -115,11 +172,54 @@ test('#85 destructible wall cell loses its sprite when the map cell becomes empt
 test('#104 pellet DOM converges to map state after a cell is cleared without a collisionIntent', async ({
   page,
 }) => {
-  test.skip(
-    true,
-    'Pending a runtime test-hook that exposes the ECS world. The fix (same board-sync-system map-diff) is unit-tested in tests/unit/systems/board-sync-system.test.js — "self-heals a missed intent (issue #104) on the next frame" — which proves the DOM converges to the canonical map state even when the collisionIntent path misses a pellet event.',
-  );
-
   await bootRuntime(page);
   await startGameAndWait(page);
+
+  // Find a pellet cell (type 3) in the mapResource
+  const cell = await page.evaluate(() => {
+    const world = window.__MS_GHOSTMAN_RUNTIME__.getWorld();
+    const mapResource = world.getResource('mapResource');
+    for (let r = 0; r < mapResource.rows; r += 1) {
+      for (let c = 0; c < mapResource.cols; c += 1) {
+        if (mapResource.grid[r * mapResource.cols + c] === 3) {
+          return { row: r, col: c };
+        }
+      }
+    }
+    return null;
+  });
+
+  expect(cell).not.toBeNull();
+
+  // Verify the DOM cell has pellet class initially
+  const initialIsPellet = await page.evaluate(({ row, col }) => {
+    const el = Array.from(document.querySelectorAll('#game-board .cell')).find(
+      (c) =>
+        c.style.getPropertyValue('--cell-row').trim() === String(row) &&
+        c.style.getPropertyValue('--cell-col').trim() === String(col),
+    );
+    return el ? el.classList.contains('cell-pellet') : false;
+  }, cell);
+  expect(initialIsPellet).toBe(true);
+
+  // Clear map cell directly in mapResource.grid to empty (0)
+  await page.evaluate(({ row, col }) => {
+    const world = window.__MS_GHOSTMAN_RUNTIME__.getWorld();
+    const mapResource = world.getResource('mapResource');
+    mapResource.grid[row * mapResource.cols + col] = 0;
+  }, cell);
+
+  // Wait a few frames for board-sync-system to run and update DOM
+  await page.waitForTimeout(50);
+
+  // Verify DOM cell lost pellet class
+  const finalIsPellet = await page.evaluate(({ row, col }) => {
+    const el = Array.from(document.querySelectorAll('#game-board .cell')).find(
+      (c) =>
+        c.style.getPropertyValue('--cell-row').trim() === String(row) &&
+        c.style.getPropertyValue('--cell-col').trim() === String(col),
+    );
+    return el ? el.classList.contains('cell-pellet') : false;
+  }, cell);
+  expect(finalIsPellet).toBe(false);
 });

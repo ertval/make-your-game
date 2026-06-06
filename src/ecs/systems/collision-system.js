@@ -897,6 +897,7 @@ export function createCollisionSystem(options = {}) {
   const fireResourceKey = options.fireResourceKey || 'fire';
   const collisionIntentsResourceKey = options.collisionIntentsResourceKey || 'collisionIntents';
   const eventQueueResourceKey = options.eventQueueResourceKey || 'eventQueue';
+  const bombOccupancyResourceKey = options.bombOccupancyResourceKey || 'bombCellOccupancy';
   const requiredMask = options.requiredMask ?? COLLISION_ENTITY_REQUIRED_MASK;
   const maxGhostsPerCell = options.maxGhostsPerCell ?? DEFAULT_GHOST_SLOTS_PER_CELL;
   let scratch = null;
@@ -906,18 +907,24 @@ export function createCollisionSystem(options = {}) {
   const reusableTravelVector = { rowDelta: 0, colDelta: 0 };
   const reusableCandidateTile = { row: 0, col: 0 };
 
+  const writeCapabilities = [
+    mapResourceKey,
+    positionResourceKey,
+    ghostResourceKey,
+    collisionIntentsResourceKey,
+    eventQueueResourceKey,
+  ];
+  // Declare write capability for bombCellOccupancy so the ECS scheduler can trace it.
+  if (bombOccupancyResourceKey) {
+    writeCapabilities.push(bombOccupancyResourceKey);
+  }
+
   return {
     name: 'collision-system',
     phase: 'logic',
     resourceCapabilities: {
       read: [colliderResourceKey, playerResourceKey, healthResourceKey, fireResourceKey],
-      write: [
-        mapResourceKey,
-        positionResourceKey,
-        ghostResourceKey,
-        collisionIntentsResourceKey,
-        eventQueueResourceKey,
-      ],
+      write: writeCapabilities,
     },
     update(context) {
       const world = context.world;
@@ -963,6 +970,42 @@ export function createCollisionSystem(options = {}) {
         reusableTile,
         reusablePreviousTile,
       );
+
+      // Populate bombCellOccupancy so the ghost-ai-system in the physics phase has access to bomb coordinates.
+      if (bombOccupancyResourceKey) {
+        let bombOccupancy = world.getResource(bombOccupancyResourceKey);
+        // Initialize the resource to a Set if it has not been registered in the world.
+        if (bombOccupancy === undefined || bombOccupancy === null) {
+          bombOccupancy = new Set();
+          world.setResource(bombOccupancyResourceKey, bombOccupancy);
+        }
+        // Support Set, Map, and Array targets dynamically so any system/test setup harness format is parsed.
+        if (bombOccupancy instanceof Set) {
+          bombOccupancy.clear();
+          for (let cellIndex = 0; cellIndex < scratch.cellCount; cellIndex += 1) {
+            if (scratch.bombByCell[cellIndex] !== -1) {
+              bombOccupancy.add(cellIndex);
+            }
+          }
+        } else if (bombOccupancy instanceof Map) {
+          bombOccupancy.clear();
+          for (let cellIndex = 0; cellIndex < scratch.cellCount; cellIndex += 1) {
+            const bombEntityId = scratch.bombByCell[cellIndex];
+            if (bombEntityId !== -1) {
+              bombOccupancy.set(cellIndex, bombEntityId);
+            }
+          }
+        } else if (Array.isArray(bombOccupancy)) {
+          bombOccupancy.length = 0;
+          for (let cellIndex = 0; cellIndex < scratch.cellCount; cellIndex += 1) {
+            if (scratch.bombByCell[cellIndex] !== -1) {
+              const row = Math.floor(cellIndex / mapResource.cols);
+              const col = cellIndex % mapResource.cols;
+              bombOccupancy.push({ row, col, cellIndex });
+            }
+          }
+        }
+      }
       enforceOccupancyConstraints(
         entityIds,
         mapResource,
