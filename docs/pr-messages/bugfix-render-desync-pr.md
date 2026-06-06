@@ -34,7 +34,7 @@ These ship in a follow-up commit on the same branch so the code commit stays dif
 
 ## Tests
 
-- `npm run policy` — 🏁 ALL CLEAR (forbidden scan, code-quality check, schema validation, vitest suite, audit + e2e Playwright).
+- `npm run policy` — green on a typical local run (forbidden scan, code-quality check, schema validation, vitest suite, audit + e2e Playwright). **Known flake**: `tests/e2e/stress/race-condition.spec.js › rapid pause/resume cycles should not advance simTime while paused` can time out under heavy parallel-worker load (the rAF cadence + Playwright's serialized `page.evaluate` queue interact badly when CPU is saturated). The same spec passes solo in ~3.2 s. Not caused by this branch — repros against `main` — but worth a CI retry / per-test timeout budget rather than a code change in this PR.
 - `npm run test:unit` — 1017 tests pass (was 1014 before this branch; +14 new, −11 obsolete intent-based board-sync tests replaced).
 - `npm run test:integration` — all green; `a-05-integration` (bomb chain), `bomb-explosion-runtime-wiring`, `b-09-cross-system-event-hooks` exercise the new render-collect bomb / fire scan path under realistic conditions.
 - `npm run test:e2e` — full Playwright suite green including `tests/e2e/render-desync-bugs.spec.js` (`#103` runs end-to-end, `#84/#85/#104` skip with rationale linking to the unit-level proofs).
@@ -72,6 +72,7 @@ Coverage for `F-01..F-21` and `B-01..B-06` remains intact — no audit IDs orpha
 - Render-collect adds two `O(maxEntities)` loops per frame for bomb / fire scanning. With `maxEntities = 1024` and a single branch per slot, this is negligible (microsecond scale). If `maxEntities` ever grows substantially, a dedicated active-slot index would be a cleaner replacement than the linear scan.
 - The `#84` / `#85` / `#104` Playwright tests are skipped pending a runtime `getWorld()` test hook. The fixes are unit-tested but a future ticket adding the hook would let us promote those skips to live e2e coverage.
 - The hot-path hoist in `renderer-adapter.js` (`CELL_TYPE_CLASS_VALUES`) freezes the order of class removals at module-load time. Any future edit to `CELL_TYPE_CLASSES` must rebuild this constant — covered by re-importing the module each test run, but worth a comment (already added).
+- **Pre-existing CI flake (not introduced here)**: the `race-condition.spec.js › rapid pause/resume cycles` e2e spec can time out when Playwright runs with high worker parallelism and the host CPU is saturated. Solo run passes in ~3.2 s; same flake reproduces on `main`. Track A may want a CI retry policy or a per-test timeout bump rather than a code change in this PR.
 
 ---
 
