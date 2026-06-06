@@ -42,7 +42,7 @@
 - [x] **Ownership**: Verified files remain within declared ticket ownership scope.
 - [x] **Branching**: Branch name follows `<owner>/<TRACK>-<NN>` convention.
 - [x] **Audit Coverage**: Confirmed F-01 through F-21 and B-01 through B-06 coverage where applicable (N/A for A-05).
-- [ ] **Evidence**: Attached Manual-With-Evidence artifacts for F-19, F-20, F-21, and B-06 (N/A for A-05).
+- [x] **Evidence**: Attached Manual-With-Evidence artifacts for F-19, F-20, F-21, and B-06 (N/A for A-05).
 
 ### 🏗️ Architecture & Security
 - [x] **ECS Isolation**: `src/ecs/systems/` has no DOM references (except `render-dom-system.js`).
