@@ -45,9 +45,13 @@
   z-index: var(--z-grid);
 }
 
-/** Empty cell (walkable space). */
+/**
+ * Empty cell (walkable space). Transparent so the board floor (`--color-bg`)
+ * shows through — using an opaque color here produces a high-contrast trail
+ * behind the player as pellets are consumed (issue #103).
+ */
 .cell-empty {
-  background: #111122;
+  background: transparent;
 }
 
 /** Indestructible wall cell with brick pattern styling. */
@@ -355,6 +359,27 @@
   background-repeat: no-repeat;
   opacity: 0.9;
   /* NO will-change: fire is short-lived, avoid unnecessary layer promotion */
+}
+
+/**
+ * Fire-tile animation frames driven by render-collect-system's
+ * burnTimerMs → spriteId mapping. Frame 01 is the peak blast (fire just
+ * detonated), frame 04 is the fading embers right before the fire tile
+ * expires. render-dom-system applies the matching class via
+ * FIRE_SPRITE_CLASSES; the base `.sprite--fire` rule sets sizing + opacity
+ * + the fallback image so a missing spriteId still shows a valid sprite.
+ */
+.sprite--fire--01 {
+  background-image: url("../assets/generated/visuals/128px/effects/explosion-01.webp");
+}
+.sprite--fire--02 {
+  background-image: url("../assets/generated/visuals/128px/effects/explosion-02.webp");
+}
+.sprite--fire--03 {
+  background-image: url("../assets/generated/visuals/128px/effects/explosion-03.webp");
+}
+.sprite--fire--04 {
+  background-image: url("../assets/generated/visuals/128px/effects/explosion-04.webp");
 }
 
 /**

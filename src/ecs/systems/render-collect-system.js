@@ -29,13 +29,26 @@
  */
 
 import { COMPONENT_MASK } from '../components/registry.js';
+import { COLLIDER_TYPE } from '../components/spatial.js';
+import { RENDERABLE_KIND } from '../components/visual.js';
 import { appendRenderIntentDirect } from '../render-intent.js';
-import { VISUAL_FLAGS } from '../resources/constants.js';
+import { FIRE_DURATION_MS, VISUAL_FLAGS } from '../resources/constants.js';
+
+/**
+ * Number of fire-tile animation frames. Matches the count of
+ * `explosion-{01..NN}.webp` assets and the `FIRE_SPRITE_CLASSES` table in
+ * render-dom-system.js. Frame 0 is the brightest peak, frame N-1 is the
+ * dim "embers" tail.
+ */
+const FIRE_ANIMATION_FRAMES = 4;
 
 const DEFAULT_RENDERABLE_RESOURCE_KEY = 'renderable';
 const DEFAULT_VISUAL_STATE_RESOURCE_KEY = 'visualState';
 const DEFAULT_POSITION_RESOURCE_KEY = 'position';
 const DEFAULT_RENDER_INTENT_BUFFER_RESOURCE_KEY = 'renderIntent';
+const DEFAULT_BOMB_RESOURCE_KEY = 'bomb';
+const DEFAULT_FIRE_RESOURCE_KEY = 'fire';
+const DEFAULT_COLLIDER_RESOURCE_KEY = 'collider';
 
 const OPACITY_FULL = 255;
 const OPACITY_INVINCIBLE = 128;
@@ -53,13 +66,23 @@ export function createRenderCollectSystem(options = {}) {
   const positionResourceKey = options.positionResourceKey || DEFAULT_POSITION_RESOURCE_KEY;
   const renderIntentBufferResourceKey =
     options.renderIntentBufferResourceKey || DEFAULT_RENDER_INTENT_BUFFER_RESOURCE_KEY;
+  const bombResourceKey = options.bombResourceKey || DEFAULT_BOMB_RESOURCE_KEY;
+  const fireResourceKey = options.fireResourceKey || DEFAULT_FIRE_RESOURCE_KEY;
+  const colliderResourceKey = options.colliderResourceKey || DEFAULT_COLLIDER_RESOURCE_KEY;
   const requiredMask = options.requiredMask ?? RENDER_COLLECT_REQUIRED_MASK;
 
   return {
     name: 'render-collect-system',
     phase: 'render',
     resourceCapabilities: {
-      read: [renderableResourceKey, visualStateResourceKey, positionResourceKey],
+      read: [
+        renderableResourceKey,
+        visualStateResourceKey,
+        positionResourceKey,
+        bombResourceKey,
+        fireResourceKey,
+        colliderResourceKey,
+      ],
       write: [renderIntentBufferResourceKey],
     },
     update(context) {
@@ -105,6 +128,73 @@ export function createRenderCollectSystem(options = {}) {
           classBits,
           opacity,
         );
+      }
+
+      // Issue #84 — bombs and fires are placed by Track B systems
+      // (bomb-tick-system, explosion-system) that don't set the RENDERABLE
+      // component mask. They DO populate the position store + their own
+      // dedicated stores (bomb / fire), so we scan those stores directly and
+      // emit render intents tile-aligned (no alpha lerp; they don't move).
+      //
+      // CANONICAL ACTIVE MARKER: `colliderStore.type[id]`. The bomb / fire
+      // gameplay systems set the collider type on activation
+      // (COLLIDER_TYPE.BOMB / COLLIDER_TYPE.FIRE) and reset it to
+      // COLLIDER_TYPE.NONE on detonation / expiration — they do NOT reset
+      // `bombStore.ownerId` or `fireStore.sourceBombId`. Using the collider
+      // type as the activity check matches `bomb-tick-system.isActiveBomb()`
+      // and `explosion-system`'s lifecycle markers, so stale slots stop
+      // emitting intents the instant they go inactive (otherwise the bomb /
+      // fire sprite stays stuck on the board and the render-dom cleanup loop
+      // never releases the pooled element).
+      const colliderStore = context.world.getResource(colliderResourceKey);
+      const bombStore = context.world.getResource(bombResourceKey);
+      if (colliderStore && colliderStore.type && bombStore && bombStore.row && bombStore.col) {
+        const slots = colliderStore.type.length;
+        for (let id = 0; id < slots; id += 1) {
+          if (colliderStore.type[id] !== COLLIDER_TYPE.BOMB) continue;
+          const classBits = visualState ? visualState.classBits[id] : 0;
+          appendRenderIntentDirect(
+            buffer,
+            id,
+            RENDERABLE_KIND.BOMB,
+            0,
+            bombStore.col[id],
+            bombStore.row[id],
+            classBits,
+            OPACITY_FULL,
+          );
+        }
+      }
+
+      const fireStore = context.world.getResource(fireResourceKey);
+      if (colliderStore && colliderStore.type && fireStore && fireStore.row && fireStore.col) {
+        const slots = colliderStore.type.length;
+        for (let id = 0; id < slots; id += 1) {
+          if (colliderStore.type[id] !== COLLIDER_TYPE.FIRE) continue;
+          const classBits = visualState ? visualState.classBits[id] : 0;
+
+          // Map remaining burn time to a 0..N-1 frame index. burnTimerMs
+          // counts DOWN from FIRE_DURATION_MS to 0, so progress = 1 - (timer
+          // / duration). Frame 0 is shown at the start (peak), frame N-1 at
+          // the very end (embers). Clamped so any rounding past the bounds
+          // still picks a valid sprite class.
+          const timer = fireStore.burnTimerMs[id];
+          const progress = FIRE_DURATION_MS > 0 ? 1 - timer / FIRE_DURATION_MS : 0;
+          let spriteId = Math.floor(progress * FIRE_ANIMATION_FRAMES);
+          if (spriteId < 0) spriteId = 0;
+          else if (spriteId >= FIRE_ANIMATION_FRAMES) spriteId = FIRE_ANIMATION_FRAMES - 1;
+
+          appendRenderIntentDirect(
+            buffer,
+            id,
+            RENDERABLE_KIND.FIRE,
+            spriteId,
+            fireStore.col[id],
+            fireStore.row[id],
+            classBits,
+            OPACITY_FULL,
+          );
+        }
       }
     },
   };
