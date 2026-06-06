@@ -305,6 +305,124 @@ function isGhostTilePassable(
 }
 
 /**
+ * Test whether a dead ghost (eyes) may occupy a tile while returning home.
+ * Eyes ignore the one-way house gate but still respect walls and bomb cells.
+ *
+ * @param {object} mapResource - Map resource.
+ * @param {number} row - Tile row.
+ * @param {number} col - Tile col.
+ * @param {Set<number> | null} bombCells - Optional bomb-occupied cell set.
+ * @returns {boolean} True when an eye may enter the tile.
+ */
+function isDeadGhostTileEnterable(mapResource, row, col, bombCells) {
+  if (!isPassableForGhost(mapResource, row, col)) {
+    return false;
+  }
+  if (bombCells && typeof mapResource?.cols === 'number') {
+    if (bombCells.has(row * mapResource.cols + col)) {
+      return false;
+    }
+  }
+  return true;
+}
+
+/**
+ * Choose the next step for a dead ghost (eyes) using a breadth-first search to
+ * the ghost spawn point. Greedy distance minimisation can trap eyes in concave
+ * map pockets (local minima) where the Euclidean-closest neighbour is a
+ * dead-end — they then oscillate forever and never reach home. BFS returns the
+ * first step of a true shortest path, so any reachable spawn point is always
+ * reached.
+ *
+ * Neighbours expand in {@link GHOST_AI_DIRECTIONS} order for deterministic
+ * tie-breaking. Bomb cells are avoided when possible; if they fully block the
+ * route, a second pass ignores them so transient explosions never strand eyes.
+ *
+ * @param {{
+ *   mapResource: object,
+ *   ghostTile: { row: number, col: number },
+ *   targetTile: { row: number, col: number },
+ *   bombCells: Set<number> | null,
+ * }} context - Selection context.
+ * @returns {'up' | 'left' | 'down' | 'right' | null} First step toward home, or
+ *   null when the ghost is already home or no path exists.
+ */
+export function selectDeadGhostReturnDirection(context) {
+  const { mapResource, ghostTile, targetTile, bombCells = null } = context;
+  if (
+    !mapResource ||
+    typeof mapResource.rows !== 'number' ||
+    typeof mapResource.cols !== 'number'
+  ) {
+    return null;
+  }
+  if (ghostTile.row === targetTile.row && ghostTile.col === targetTile.col) {
+    return null;
+  }
+
+  const search = (avoidBombs) => {
+    const { rows, cols } = mapResource;
+    const startIndex = ghostTile.row * cols + ghostTile.col;
+    const goalIndex = targetTile.row * cols + targetTile.col;
+    // cameFromDir[index] records the direction taken to reach that tile, so the
+    // path can be unwound back to the start to find the very first step.
+    const cameFromDir = new Map();
+    const queue = [startIndex];
+    cameFromDir.set(startIndex, null);
+    let head = 0;
+
+    while (head < queue.length) {
+      const index = queue[head];
+      head += 1;
+      if (index === goalIndex) {
+        break;
+      }
+      const row = Math.floor(index / cols);
+      const col = index - row * cols;
+      for (const direction of GHOST_AI_DIRECTIONS) {
+        const vector = GHOST_DIRECTION_VECTOR[direction];
+        const nextRow = row + vector.rowDelta;
+        const nextCol = col + vector.colDelta;
+        if (nextRow < 0 || nextRow >= rows || nextCol < 0 || nextCol >= cols) {
+          continue;
+        }
+        const nextIndex = nextRow * cols + nextCol;
+        if (cameFromDir.has(nextIndex)) {
+          continue;
+        }
+        if (
+          !isDeadGhostTileEnterable(mapResource, nextRow, nextCol, avoidBombs ? bombCells : null)
+        ) {
+          continue;
+        }
+        cameFromDir.set(nextIndex, direction);
+        queue.push(nextIndex);
+      }
+    }
+
+    if (!cameFromDir.has(goalIndex)) {
+      return null;
+    }
+    // Unwind from the goal back to the start; the last direction we step over
+    // (the one leaving the start tile) is the move to make this step.
+    let index = goalIndex;
+    let firstDirection = null;
+    while (index !== startIndex) {
+      const direction = cameFromDir.get(index);
+      if (!direction) {
+        break;
+      }
+      firstDirection = direction;
+      const vector = GHOST_DIRECTION_VECTOR[direction];
+      index -= vector.rowDelta * cols + vector.colDelta;
+    }
+    return firstDirection;
+  };
+
+  return search(true) ?? search(false);
+}
+
+/**
  * Pick the next movement direction for a ghost at a tile-center decision point.
  *
  * Normal ghosts pick the direction whose adjacent tile minimizes the squared
@@ -736,15 +854,29 @@ export function createGhostAiSystem(options = {}) {
             });
           }
 
-          const chosenDirection = selectGhostDirection({
-            ghostTile: currentTile,
-            targetTile,
-            state,
-            previousVector,
-            mapResource,
-            bombCells: bombOccupancy,
-            prefersDistance,
-          });
+          // Eyes return home via BFS shortest path; greedy distance selection
+          // can trap them in concave map pockets (local minima). Fall back to
+          // greedy only if BFS finds no path (e.g. fully walled-in by bombs).
+          let chosenDirection = null;
+          if (state === GHOST_STATE.DEAD) {
+            chosenDirection = selectDeadGhostReturnDirection({
+              mapResource,
+              ghostTile: currentTile,
+              targetTile,
+              bombCells: bombOccupancy,
+            });
+          }
+          if (chosenDirection == null) {
+            chosenDirection = selectGhostDirection({
+              ghostTile: currentTile,
+              targetTile,
+              state,
+              previousVector,
+              mapResource,
+              bombCells: bombOccupancy,
+              prefersDistance,
+            });
+          }
 
           if (!chosenDirection) {
             // No legal move: stay put for this step.

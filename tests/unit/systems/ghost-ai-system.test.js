@@ -6,8 +6,9 @@
  * the eyes-return path, and seeded determinism of repeated steps.
  */
 
+import { readFileSync } from 'node:fs';
+import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
-
 import { createGhostStore, createPlayerStore } from '../../../src/ecs/components/actors.js';
 import { COMPONENT_MASK } from '../../../src/ecs/components/registry.js';
 import { createPositionStore, createVelocityStore } from '../../../src/ecs/components/spatial.js';
@@ -32,10 +33,18 @@ import {
   GHOST_DIRECTION_VECTOR,
   resolveGhostSpeed,
   resolveGhostTargetTile,
+  selectDeadGhostReturnDirection,
   selectGhostDirection,
   vectorToDirection,
 } from '../../../src/ecs/systems/ghost-ai-system.js';
 import { World } from '../../../src/ecs/world/world.js';
+
+const LEVEL_1_MAP = JSON.parse(
+  readFileSync(
+    fileURLToPath(new URL('../../../assets/maps/level-1.json', import.meta.url)),
+    'utf8',
+  ),
+);
 
 function createGhostMap() {
   return {
@@ -574,5 +583,110 @@ describe('ghost-ai-system: integration', () => {
   it('exposes a stable iteration order for tie-breaking', () => {
     expect(GHOST_AI_DIRECTIONS).toEqual(['up', 'left', 'down', 'right']);
     expect(GHOST_DIRECTION_VECTOR.up).toEqual({ rowDelta: -1, colDelta: 0 });
+  });
+});
+
+describe('dead ghost return-home pathfinding (BUG: eyes trapped in local minima)', () => {
+  const map = createMapResource(LEVEL_1_MAP);
+  const spawn = { row: map.ghostSpawnRow, col: map.ghostSpawnCol };
+
+  // Step a dead ghost tile-by-tile toward home using only the BFS selector,
+  // mirroring how the AI system advances eyes at each tile center.
+  function walkHome(startRow, startCol, bombCells = null, maxSteps = 200) {
+    let row = startRow;
+    let col = startCol;
+    const visited = [];
+    for (let step = 0; step < maxSteps; step += 1) {
+      if (row === spawn.row && col === spawn.col) {
+        return { reached: true, steps: step, visited };
+      }
+      const direction = selectDeadGhostReturnDirection({
+        mapResource: map,
+        ghostTile: { row, col },
+        targetTile: spawn,
+        bombCells,
+      });
+      if (!direction) {
+        return { reached: false, steps: step, visited, stuckAt: { row, col } };
+      }
+      const vector = GHOST_DIRECTION_VECTOR[direction];
+      row += vector.rowDelta;
+      col += vector.colDelta;
+      visited.push([row, col]);
+    }
+    return { reached: false, steps: maxSteps, visited, stuckAt: { row, col } };
+  }
+
+  it('does not pick the dead-end nub (1,10) that greedy distance prefers', () => {
+    // From the upper-right junction (1,11): the Euclidean-closest neighbour is
+    // the dead-end nub (1,10), which traps greedy eyes. BFS must head down the
+    // real path toward the spawn column instead.
+    const direction = selectDeadGhostReturnDirection({
+      mapResource: map,
+      ghostTile: { row: 1, col: 11 },
+      targetTile: spawn,
+      bombCells: null,
+    });
+    expect(direction).not.toBe('left'); // 'left' = step into the (1,10) nub
+    expect(direction).toBe('down');
+  });
+
+  it('escapes the upper-right nub instead of oscillating forever', () => {
+    const result = walkHome(1, 10);
+    expect(result.reached).toBe(true);
+    expect(result.visited).not.toContainEqual([1, 10]); // never re-enters the nub
+  });
+
+  it('returns home from every passable upper-right tile', () => {
+    for (let row = 1; row <= 3; row += 1) {
+      for (let col = 9; col <= 13; col += 1) {
+        if (map.grid[row * map.cols + col] === 1 || map.grid[row * map.cols + col] === 2) {
+          continue; // skip walls
+        }
+        const result = walkHome(row, col);
+        expect(
+          result.reached,
+          `eyes from (${row},${col}) failed to reach spawn: ${JSON.stringify(result.stuckAt)}`,
+        ).toBe(true);
+      }
+    }
+  });
+
+  it('routes around bomb cells when an alternative path exists', () => {
+    // From (5,9) two routes reach spawn (4,7): up column 9, or left along
+    // row 5. Bomb the column-9 route at (4,9); BFS must take the row-5 detour.
+    const bombCells = new Set([4 * map.cols + 9]);
+    const result = walkHome(5, 9, bombCells);
+    expect(result.reached).toBe(true);
+    expect(result.visited).not.toContainEqual([4, 9]);
+  });
+
+  it('falls back to ignoring transient bombs rather than stranding eyes', () => {
+    // Fully wall off the spawn with bombs on all four sides: the bomb-avoiding
+    // pass finds nothing, so the selector must still return a step (ignore-bomb
+    // pass) toward home rather than null.
+    const bombCells = new Set([
+      (spawn.row - 1) * map.cols + spawn.col,
+      (spawn.row + 1) * map.cols + spawn.col,
+      spawn.row * map.cols + (spawn.col - 1),
+      spawn.row * map.cols + (spawn.col + 1),
+    ]);
+    const direction = selectDeadGhostReturnDirection({
+      mapResource: map,
+      ghostTile: { row: 1, col: 11 },
+      targetTile: spawn,
+      bombCells,
+    });
+    expect(direction).not.toBeNull();
+  });
+
+  it('returns null when the eye is already at the spawn point', () => {
+    const direction = selectDeadGhostReturnDirection({
+      mapResource: map,
+      ghostTile: { row: spawn.row, col: spawn.col },
+      targetTile: spawn,
+      bombCells: null,
+    });
+    expect(direction).toBeNull();
   });
 });
