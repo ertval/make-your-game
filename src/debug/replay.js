@@ -214,13 +214,6 @@ export function serializeWorldState(world) {
       };
     }
 
-    const powerUpStore = world.getResource('powerUp');
-    if (powerUpStore && mask & COMPONENT_MASK.POWER_UP) {
-      entityData.powerUp = {
-        type: powerUpStore.type[entityId],
-      };
-    }
-
     const pelletStore = world.getResource('pellet');
     if (pelletStore && mask & COMPONENT_MASK.PELLET) {
       entityData.pellet = {

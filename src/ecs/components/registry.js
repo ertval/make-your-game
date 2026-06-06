@@ -33,10 +33,13 @@ export const COMPONENT_MASK = Object.freeze({
   GHOST: 1 << 4,
   INPUT_STATE: 1 << 5,
 
-  // Gameplay prop stores cover bombs, fire, collectible power-ups, and pellets.
+  // Gameplay prop stores cover bombs, fire, and pellets. Power-up state is
+  // tracked through the static map's CELL_TYPE.POWER_UP_* values and through
+  // collision-system intents (not an entity-component pair), so no POWER_UP
+  // bit lives in this registry. Bit 8 is intentionally left unassigned to
+  // preserve the historical numbering of subsequent masks.
   BOMB: 1 << 6,
   FIRE: 1 << 7,
-  POWER_UP: 1 << 8,
   PELLET: 1 << 9,
 
   // Stats stores keep scoring, countdown, and life-related state isolated.

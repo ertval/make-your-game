@@ -20,7 +20,6 @@ describe('component registry', () => {
       INPUT_STATE: 1 << 5,
       BOMB: 1 << 6,
       FIRE: 1 << 7,
-      POWER_UP: 1 << 8,
       PELLET: 1 << 9,
       SCORE: 1 << 10,
       TIMER: 1 << 11,
@@ -31,7 +30,7 @@ describe('component registry', () => {
   });
 
   it('assigns every component a unique power-of-two mask', () => {
-    expect(ALL_COMPONENT_MASKS).toHaveLength(15);
+    expect(ALL_COMPONENT_MASKS).toHaveLength(14);
     expect(new Set(ALL_COMPONENT_MASKS).size).toBe(ALL_COMPONENT_MASKS.length);
 
     for (const mask of ALL_COMPONENT_MASKS) {
