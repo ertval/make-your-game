@@ -617,24 +617,30 @@ describe('dead ghost return-home pathfinding (BUG: eyes trapped in local minima)
     return { reached: false, steps: maxSteps, visited, stuckAt: { row, col } };
   }
 
-  it('does not pick the dead-end nub (1,10) that greedy distance prefers', () => {
-    // From the upper-right junction (1,11): the Euclidean-closest neighbour is
-    // the dead-end nub (1,10), which traps greedy eyes. BFS must head down the
-    // real path toward the spawn column instead.
+  it('does not oscillate at the (3,11)/(4,11) tie-break trap greedy falls into', () => {
+    // Greedy return-home traps eyes in column 11: at (4,11) the up neighbour
+    // (3,11) and down neighbour (5,11) are equidistant from spawn (both score
+    // 17), so the up/left/down/right tie-break picks 'up'; at (3,11) the down
+    // neighbour wins again — an endless (3,11)<->(4,11) loop. BFS instead steps
+    // 'down' along the only real route toward the spawn column.
     const direction = selectDeadGhostReturnDirection({
       mapResource: map,
-      ghostTile: { row: 1, col: 11 },
+      ghostTile: { row: 4, col: 11 },
       targetTile: spawn,
       bombCells: null,
     });
-    expect(direction).not.toBe('left'); // 'left' = step into the (1,10) nub
-    expect(direction).toBe('down');
+    expect(direction).toBe('down'); // 'up' is the greedy trap step
   });
 
-  it('escapes the upper-right nub instead of oscillating forever', () => {
-    const result = walkHome(1, 10);
+  it('escapes the upper-right trap and reaches home without revisiting tiles', () => {
+    // Enter from the top-right corridor (1,11), which greedy funnels into the
+    // (3,11)<->(4,11) oscillation.
+    const result = walkHome(1, 11);
     expect(result.reached).toBe(true);
-    expect(result.visited).not.toContainEqual([1, 10]); // never re-enters the nub
+    // A BFS shortest path never revisits a tile; a revisit would signal exactly
+    // the kind of oscillation this fix removes.
+    const unique = new Set(result.visited.map(([r, c]) => `${r},${c}`));
+    expect(unique.size).toBe(result.visited.length);
   });
 
   it('returns home from every passable upper-right tile', () => {

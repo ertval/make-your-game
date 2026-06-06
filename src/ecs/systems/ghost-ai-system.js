@@ -328,11 +328,12 @@ function isDeadGhostTileEnterable(mapResource, row, col, bombCells) {
 
 /**
  * Choose the next step for a dead ghost (eyes) using a breadth-first search to
- * the ghost spawn point. Greedy distance minimisation can trap eyes in concave
- * map pockets (local minima) where the Euclidean-closest neighbour is a
- * dead-end — they then oscillate forever and never reach home. BFS returns the
- * first step of a true shortest path, so any reachable spawn point is always
- * reached.
+ * the ghost spawn point. Greedy distance minimisation can trap eyes in local
+ * minima — e.g. on level-1 column 11, (4,11) and (3,11) each have an
+ * equidistant neighbour the up/left/down/right tie-break keeps re-selecting, so
+ * the eyes oscillate (3,11)<->(4,11) forever and never reach home. BFS returns
+ * the first step of a true shortest path, so any reachable spawn point is
+ * always reached.
  *
  * Neighbours expand in {@link GHOST_AI_DIRECTIONS} order for deterministic
  * tie-breaking. Bomb cells are avoided when possible; if they fully block the
