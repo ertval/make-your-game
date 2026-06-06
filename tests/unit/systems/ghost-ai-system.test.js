@@ -351,6 +351,28 @@ describe('ghost-ai-system: direction selection', () => {
     expect(direction).not.toBe('left');
   });
 
+  it('treats an empty array bomb-occupancy resource as registered-but-empty (no avoidance, no throw)', () => {
+    // Defensive contract: readBombOccupancyCells must return an empty Set
+    // (not null) for an empty array so the AI can distinguish "resource
+    // registered but no bombs" from "resource not registered" (null). Both
+    // branches result in the same AI behavior (no avoidance) but the null
+    // branch silently disables the lookup, which complicates future debugging.
+    const mapResource = createMapResource(createGhostMap());
+    // All four cardinal neighbors of (1,4) are passable: up=wall(0,4), down=(2,4), left=(1,3), right=(1,5).
+    // The bomb array is empty so the AI picks the closest to target.
+    const direction = selectGhostDirection({
+      ghostTile: { row: 1, col: 4 },
+      targetTile: { row: 1, col: 1 },
+      state: GHOST_STATE.NORMAL,
+      previousVector: null,
+      mapResource,
+      bombCells: new Set(), // equivalent post-parse state of an empty array
+      prefersDistance: false,
+    });
+    // With no previous vector and target (1,1), closest non-reverse direction is 'left'.
+    expect(direction).toBe('left');
+  });
+
   it('vectorToDirection inverts cleanly', () => {
     expect(vectorToDirection(-1, 0)).toBe('up');
     expect(vectorToDirection(1, 0)).toBe('down');

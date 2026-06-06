@@ -972,6 +972,13 @@ export function createCollisionSystem(options = {}) {
       );
 
       // Populate bombCellOccupancy so the ghost-ai-system in the physics phase has access to bomb coordinates.
+      // Phase-ordering note: DEFAULT_PHASE_ORDER = ['meta', 'input', 'physics', 'logic', 'render'], so
+      // the physics-phase ghost-ai-system runs BEFORE this logic-phase publication on the same fixed
+      // step. Ghost AI therefore sees frame N-1's occupancy at frame N. This is acceptable because
+      //   1. bombs placed on frame N are visible to ghost AI from frame N+1 onward, which breaks the
+      //      infinite oscillation against a bomb tile that the pre-fix code suffered (bug #107);
+      //   2. same-frame walk-ins are still blocked by `shouldBlockGhostFromBombCell` below
+      //      (lines 466-472 / 541-547), so a ghost never actually sits on a bomb tile.
       if (bombOccupancyResourceKey) {
         let bombOccupancy = world.getResource(bombOccupancyResourceKey);
         // Initialize the resource to a Set if it has not been registered in the world.
