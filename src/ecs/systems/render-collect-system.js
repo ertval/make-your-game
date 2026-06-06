@@ -148,7 +148,7 @@ export function createRenderCollectSystem(options = {}) {
       // never releases the pooled element).
       const colliderStore = context.world.getResource(colliderResourceKey);
       const bombStore = context.world.getResource(bombResourceKey);
-      if (colliderStore && colliderStore.type && bombStore && bombStore.row && bombStore.col) {
+      if (colliderStore?.type && bombStore?.row && bombStore?.col) {
         const slots = colliderStore.type.length;
         for (let id = 0; id < slots; id += 1) {
           if (colliderStore.type[id] !== COLLIDER_TYPE.BOMB) continue;
@@ -167,7 +167,7 @@ export function createRenderCollectSystem(options = {}) {
       }
 
       const fireStore = context.world.getResource(fireResourceKey);
-      if (colliderStore && colliderStore.type && fireStore && fireStore.row && fireStore.col) {
+      if (colliderStore?.type && fireStore?.row && fireStore?.col) {
         const slots = colliderStore.type.length;
         for (let id = 0; id < slots; id += 1) {
           if (colliderStore.type[id] !== COLLIDER_TYPE.FIRE) continue;
