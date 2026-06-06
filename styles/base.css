@@ -203,36 +203,37 @@ body {
 /* C-11B: audio quick-toggle — compact HUD chips aligned with score/lives/etc. */
 .audio-quick-toggle {
   display: inline-flex;
-  align-items: center;
+  align-items: baseline;
   flex: 0 0 auto;
-  gap: var(--space-sm, 8px);
-  margin-left: calc(var(--space-xs, 4px) * -1);
+  gap: calc(var(--space-sm, 8px) + var(--space-xs, 4px));
+  margin-left: var(--space-md, 16px);
+  padding-block: 0;
   white-space: nowrap;
 }
 
 .audio-quick-toggle__button {
   display: inline-flex;
-  align-items: center;
+  align-items: baseline;
   justify-content: center;
-  gap: calc(var(--space-xs, 4px) * 1.5);
-  min-height: 1.45em;
-  padding: 0 var(--space-xs, 4px);
-  font: inherit;
-  font-size: 0.7em;
-  font-weight: 700;
-  letter-spacing: 0.08em;
+  gap: calc(var(--space-xs, 4px) + 3px);
+  min-height: calc(var(--hud-label-font-size, 0.7em) * 1.2 + 2px);
+  padding: 1px var(--space-xs, 4px) 0;
+  font-family: inherit;
+  font-size: var(--hud-label-font-size, 0.7em);
+  font-weight: var(--hud-label-font-weight, 700);
+  letter-spacing: var(--hud-label-letter-spacing, 0.08em);
   text-transform: uppercase;
   line-height: 1.2;
   background: transparent;
   color: var(--color-accent, #ffb703);
-  border: 1px solid color-mix(in srgb, var(--color-accent, #ffb703) 40%, transparent 60%);
+  border: 1px solid color-mix(in srgb, var(--color-accent, #ffb703) 30%, transparent 70%);
   border-radius: var(--radius-sm, 4px);
   cursor: pointer;
   opacity: 0.88;
 }
 
 .audio-quick-toggle__button[aria-pressed="true"] {
-  border-color: color-mix(in srgb, var(--color-accent, #ffb703) 42%, transparent 58%);
+  border-color: color-mix(in srgb, var(--color-accent, #ffb703) 32%, transparent 68%);
 }
 
 .audio-quick-toggle__button[aria-pressed="true"] .audio-quick-toggle__state {
@@ -241,10 +242,15 @@ body {
 
 .audio-quick-toggle__icon {
   flex: 0 0 auto;
-  width: 1.05em;
-  font-size: 0.95em;
+  align-self: baseline;
+  width: 1em;
+  font-size: 1em;
   line-height: 1;
   text-align: center;
+}
+
+.audio-quick-toggle__text {
+  line-height: 1.2;
 }
 
 .audio-quick-toggle__button[aria-pressed="false"] {

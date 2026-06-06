@@ -441,6 +441,9 @@
   font-size: clamp(19px, 1.7vw + 10px, 26px);
   font-weight: 700;
   line-height: 1.2;
+  --hud-label-font-size: 0.7em;
+  --hud-label-font-weight: 700;
+  --hud-label-letter-spacing: 0.08em;
 }
 
 /** Fixed-overlay HUD variant (class-based) for layouts not using the app-shell grid. */
@@ -489,9 +492,9 @@
 .hud__label {
   color: var(--color-accent);
   text-transform: uppercase;
-  font-size: 0.7em;
-  font-weight: 700;
-  letter-spacing: 0.08em;
+  font-size: var(--hud-label-font-size);
+  font-weight: var(--hud-label-font-weight);
+  letter-spacing: var(--hud-label-letter-spacing);
 }
 
 /** HUD metric value styling — primary emphasis, larger and brighter. */
