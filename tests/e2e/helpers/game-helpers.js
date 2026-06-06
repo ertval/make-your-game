@@ -137,3 +137,16 @@ export function expectSimTimeNearZero(simTimeMs, maxExpected = 16.67) {
  * Use this constant in tests to avoid magic numbers.
  */
 export const FIXED_DT_MS = 16.666666666666668;
+
+/**
+ * Start game, wait for PLAYING, then wait N frames for the simulation to stabilize.
+ */
+export async function startGameAndWaitFrames(page, options = {}, frameCount = 30) {
+  await startGameAndWait(page, options);
+  const startFrame = await page.evaluate(() => window.__MS_GHOSTMAN_RUNTIME__.getSnapshot().frame);
+  await page.waitForFunction(
+    (target) => window.__MS_GHOSTMAN_RUNTIME__.getSnapshot().frame > target,
+    startFrame + frameCount,
+    { timeout: 5000 },
+  );
+}

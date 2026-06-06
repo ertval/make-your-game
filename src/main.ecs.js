@@ -298,6 +298,7 @@ export function createGameRuntime({
   }
 
   const controls = {
+    _world: bootstrap.world,
     getSnapshot: () => ({
       frame: bootstrap.world.frame,
       isPaused: bootstrap.clock.isPaused,
