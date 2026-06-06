@@ -152,7 +152,7 @@ Canonical ticket ID ranges used by policy checks:
 - [x] **A-04** P3 - Unit Tests - ECS Core & Resources (Depends on: A-02, A-03, D-01, D-03, A-12; Early pull reason: foundational regression gate landed ahead of phase gate) | Blocks: A-13
 - [x] **A-05** P3 - Integration Tests - Multi-System & Adapter Boundaries (Depends on: A-03, B-03, B-04, B-06, B-09, C-01, C-02, C-04, C-05, D-08, A-12) | Blocks: A-09; A-13
 - [ ] **A-06** P3 - E2E Audit Tests (Playwright) (Depends on: A-03, B-04, B-06, B-07, B-08, B-09, C-01, C-02, C-03, C-04, C-05, A-12) | Blocks: A-09; A-13
-- [ ] **A-08** P3 - Unit Tests - All Gameplay Systems (Depends on: B-01 through B-09, C-01 through C-05, C-07, A-12) | Blocks: A-09; A-13
+- [x] **A-08** P3 - Unit Tests - All Gameplay Systems (Depends on: B-01 through B-09, C-01 through C-05, C-07, A-12) | Blocks: A-09; A-13
 - [ ] **A-13** P3 - Consolidate P3 audits + publish 4 deduplicated track fix reports (Depends on: B-06, B-07, B-08, B-09, C-07, A-04, A-05, A-06, A-08) | Blocks: C-08; C-09; C-10; D-10; D-11; A-09
 
 ### Q4 / P4 Polish + Validation
