@@ -9,6 +9,7 @@
 
 import { describe, expect, it } from 'vitest';
 import { ReplayRecorder, runReplay } from '../../../src/debug/replay.js';
+import { FIXED_DT_MS } from '../../../src/ecs/resources/constants.js';
 import { createMapResource } from '../../../src/ecs/resources/map-resource.js';
 import { createBootstrap } from '../../../src/game/bootstrap.js';
 
@@ -103,10 +104,10 @@ describe('Replay Determinism Integration', () => {
     bootstrapRecord.gameFlow.startGame();
 
     // Player presses 'bomb' on frame 5, ticks past bomb fuse of 3000ms.
-    // Let's run 190 frames at ~60fps (16.6666 ms per frame) to let the bomb explode and resolve.
+    // Let's run 190 frames at ~60fps to let the bomb explode and resolve.
     let timeMs = 0;
     for (let f = 0; f < 190; f += 1) {
-      timeMs += 16.666666666666668;
+      timeMs += FIXED_DT_MS;
 
       // On frame 5, press 'bomb'
       if (f === 5) {
@@ -159,7 +160,7 @@ describe('Replay Determinism Integration', () => {
 
     let timeMs = 0;
     for (let f = 0; f < 190; f += 1) {
-      timeMs += 16.666666666666668;
+      timeMs += FIXED_DT_MS;
       if (f === 5) {
         stub.press('bomb');
       }
@@ -191,5 +192,10 @@ describe('Replay Determinism Integration', () => {
     const finalStepC = stepsC[stepsC.length - 1];
 
     expect(finalStepA.hash).not.toBe(finalStepC.hash);
+
+    // Direct RNG state divergence verification
+    const rngA = bootstrapA.world.getResource('rng');
+    const rngC = bootstrapC.world.getResource('rng');
+    expect(rngA.state).not.toBe(rngC.state);
   });
 });
