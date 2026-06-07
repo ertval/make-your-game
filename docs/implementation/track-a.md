@@ -166,7 +166,9 @@ Source plan: `docs/implementation/implementation-plan.md` (Section 3)
 - `tests/e2e/audit/audit-question-map.js`
 - `tests/e2e/audit/audit.e2e.test.js`
 - Evidence artifact templates for manual audit items
+- Unskip and implement E2E checks for render-desync bugs (#84, #85, #104) using the exposed ECS `getWorld()` runtime test hook (unblocks infrastructure dependency in A-06).
 
+- [ ] Unskip and implement E2E checks for render-desync bugs (#84, #85, #104) using the exposed ECS `getWorld()` runtime test hook.
 - [ ] Implement `tests/e2e/audit/audit-question-map.js` mapping each audit question to a test ID.
 - [ ] **Fully Automatable tests** (Playwright real browser):
   - F-01: Game runs without crashing (60s smoke test with randomized input).
