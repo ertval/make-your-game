@@ -222,6 +222,74 @@ test('AUDIT-F-13 progression contract can reach VICTORY deterministically', asyn
   expect(progression.state).toBe('VICTORY');
 });
 
+test('AUDIT-F-13 ghost-house stagger and release timing conforms to requirements', async ({ page }) => {
+  await bootRuntime(page);
+  // Force transition to MENU so startGame can load level 3
+  await page.evaluate(() => {
+    const runtime = window.__MS_GHOSTMAN_RUNTIME__;
+    runtime.setState('GAME_OVER');
+    runtime.setState('MENU');
+  });
+  // Start level 3 (index 2) which allows max 4 ghosts.
+  await startGameAndWait(page, { levelIndex: 2 });
+  // Manually reset spawnState to clear any carryover from the Level 1 boot
+  await page.evaluate(() => {
+    const world = window.__MS_GHOSTMAN_RUNTIME__.getWorld();
+    world.setResource('ghostSpawnState', {
+      elapsedMs: 0,
+      releasedGhostIds: [],
+      queuedGhostIds: [],
+      respawnQueue: [],
+      activeGhostCap: 4,
+    });
+    world.setResource('deadGhostIds', []);
+    
+    // Also reset all ghost entity masks to 0
+    const handles = world.getResource('ghostEntities');
+    if (Array.isArray(handles)) {
+      for (const handle of handles) {
+        world.setEntityMask(handle, 0);
+      }
+    }
+  });
+
+  const getActiveGhostCount = async () => {
+    return page.evaluate(() => {
+      return Array.from(document.querySelectorAll('.sprite--ghost')).filter(
+        (el) => !el.style.transform.includes('-9999px'),
+      ).length;
+    });
+  };
+
+  const waitForSpawnTime = async (targetMs) => {
+    await page.waitForFunction(
+      (ms) => {
+        const world = window.__MS_GHOSTMAN_RUNTIME__.getWorld();
+        const spawnState = world.getResource('ghostSpawnState');
+        return spawnState && spawnState.elapsedMs >= ms;
+      },
+      targetMs,
+      { timeout: 30000 },
+    );
+  };
+
+  // Ghost 0 releases immediately (0ms delay).
+  await waitForSpawnTime(100);
+  expect(await getActiveGhostCount()).toBe(1);
+
+  // Ghost 1 releases after 5000ms delay.
+  await waitForSpawnTime(5100);
+  expect(await getActiveGhostCount()).toBe(2);
+
+  // Ghost 2 releases after 10000ms delay.
+  await waitForSpawnTime(10100);
+  expect(await getActiveGhostCount()).toBe(3);
+
+  // Ghost 3 releases after 15000ms delay.
+  await waitForSpawnTime(15100);
+  expect(await getActiveGhostCount()).toBe(4);
+});
+
 test('AUDIT-F-17 explicit frame-drop threshold assertions', async ({ page }) => {
   await bootRuntime(page);
 
