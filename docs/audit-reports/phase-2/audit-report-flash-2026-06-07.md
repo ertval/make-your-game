@@ -27,7 +27,7 @@ Each pass was evidence-driven and read-only. Findings include concrete file/line
 | 🔴 Critical | 2 |
 | 🟠 High | 7 |
 | 🟡 Medium | 14 |
-| 🟢 Low / Info | 22 |
+| 🟢 Low / Info | 24 |
 
 **Top risks:**
 1. **A-12 P2 audit consolidation not completed** (CI-01) — Blocks 19 tickets in P3/P4, stalling subsequent feature work.
@@ -677,6 +677,28 @@ function loadLevel(levelIndex, options = {}) {
 
 ---
 
+### DEAD-41: LEVEL_MAX_GHOSTS and LEVEL_GHOST_SPEED exported but never imported ⬆ LOW
+**Origin:** 2. Dead Code & Unused References
+**Files:** Ownership: Track A (Tickets: A-12)
+- `src/ecs/resources/constants.js` (~L121, L124)
+
+**Problem:** Two per-level arrays (`LEVEL_MAX_GHOSTS = [2, 3, 4]` and `LEVEL_GHOST_SPEED = [4.0, 4.5, 5.0]`) are declared and exported, but no source or test file imports them. Compare with `LEVEL_TIMERS` which is consumed by `timer-system.js`.
+**Impact:** Bare exports with no caller are a maintainability hazard — a future reader will assume they are live.
+**Fix:** Either wire into ghost-spawn/AI config (`ghost-ai-system.js`, `spawn-system.js`) or delete. `LEVEL_TIMERS` is the pattern to follow.
+
+---
+
+### DEAD-42: GHOST_INTERSECTION_MIN_EXITS is reserved but never consumed ⬆ LOW
+**Origin:** 2. Dead Code & Unused References
+**Files:** Ownership: Track A (Tickets: A-12)
+- `src/ecs/resources/constants.js` (~L113)
+
+**Problem:** Constant carries JSDoc `'Reserved for the ghost-AI pathfinding system (DEAD-18)'`. No import anywhere; `ghost-ai-system.js` implements pathfinding without intersection-exit thresholds. The reservation has been a dangling TODO since the constants file shipped.
+**Impact:** Dead export that misleads readers into thinking the AI system uses an intersection threshold.
+**Fix:** Either wire into `ghost-ai-system.js` (when intersection-based tie-breaking lands) or delete.
+
+---
+
 ## 3) Architecture, ECS Violations & Guideline Drift
 
 ### ARCH-01: DOM Isolation Violation — `hud-system.js` Writes DOM Directly ⬆ HIGH
@@ -1014,6 +1036,8 @@ function loadLevel(levelIndex, options = {}) {
 | DEAD-38 | DEAD-09 | — | — | — | — | Track A | biome.json excludes drift from .gitignore |
 | DEAD-39 | DEAD-10 | — | — | — | — | Track C | Local isDev() in audio-integration duplicates shared function |
 | DEAD-40 | DEAD-11 | — | — | — | — | Track A | Stale JSDoc comments on active ghost AI constants |
+| DEAD-41 | DEAD-04 | — | — | — | — | Track A | LEVEL_MAX_GHOSTS and LEVEL_GHOST_SPEED exported but never imported |
+| DEAD-42 | DEAD-05 | — | — | — | — | Track A | GHOST_INTERSECTION_MIN_EXITS reserved but never consumed |
 | ARCH-01 | — | — | ARCH-01 | — | — | Track C | `hud-system` DOM isolation breach |
 | ARCH-02 | — | — | ARCH-02 | — | — | Track D | `board-sync` adapter injection breach |
 | ARCH-03 | — | — | ARCH-03 | — | — | Track A | `entity-store` mutable array leak |
@@ -1085,7 +1109,7 @@ function loadLevel(levelIndex, options = {}) {
 
 ### Phase 4 — Low Severity & Info (maintenance)
 35. **BUG-02..08, BUG-11..13, BUG-23**: Fix minor logic bugs, module-level sets, loadLevel callback ordering (Tracks A/B/C/D)
-36. **DEAD-03..05, DEAD-06..32, DEAD-33, DEAD-34, DEAD-35..37, DEAD-39, DEAD-40**: Deduplicate legacy adapter files, remove unused exports, skills-lock.json, generate_reports.py, local `isDev`, stale JSDoc annotations (Tracks A/B/C/D)
+36. **DEAD-03..05, DEAD-06..32, DEAD-33, DEAD-34, DEAD-35..37, DEAD-39..42**: Deduplicate legacy adapter files, remove unused exports, skills-lock.json, generate_reports.py, local `isDev`, stale JSDoc annotations, dead LEVEL_MAX_GHOSTS/LEVEL_GHOST_SPEED/GHOST_INTERSECTION_MIN_EXITS constants (Tracks A/B/C/D)
 37. **SEC-05..08**: Refactor type guards, enable strict schema compiler flags, clean classNames (Tracks A/D)
 38. **CI-08**: Wire test runtime hooks and enable skipped Playwright specs (Track A)
 
