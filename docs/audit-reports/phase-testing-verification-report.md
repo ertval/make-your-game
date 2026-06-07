@@ -66,18 +66,18 @@ Completion is mathematically verified through script-driven enforcers to ensure 
 *   **Proof**: Board renders, player movement visible, frame pipeline runs through render-collect → DOM commit with isolated commit cycles.
 
 ### P2 — Playable MVP: Game Loop & HUD
-**Status**: ⏳ **Pending** — multiple dependent tickets are incomplete or have deferred runtime integration. Each criterion below is annotated with its blocking ticket(s); see `docs/implementation/ticket-tracker.md` for current state. Re-mark as **Satisfied** only after the cited tickets are `[x]` in the tracker.
+Status: ✅ Satisfied — all dependent MVP tickets (B-04, C-01, C-02, C-03, C-04, C-05, B-05, A-07, C-06) are complete and runtime-integrated.
 
-**Goal**: Core gameplay loop with scoring, timer, lives, pause, HUD.
+Goal: Core gameplay loop with scoring, timer, lives, pause, HUD.
 
 *   **Verification**: Scoring and life systems update deterministically. Pause UI responds without advancing simulation time.
-*   **How to test** (criteria pending until blocking tickets land):
-    - ⏳ **Start/Pause Flow**: Press `Enter` to start; `ESC`/`P` to pause (**AUDIT-F-07**) — pending **C-04** (runtime wiring deferred), **C-05** (HUD/overlays).
-    - ⏳ **Pause Invariants**: While paused, rAF stays active but simulation frozen (**AUDIT-F-10**) — pending **C-04** (system layer done; default runtime registration/bootstrap wiring deferred).
-    - ⏳ **Continue/Restart**: Verify state preservation on continue and reset on restart (**AUDIT-F-08, F-09**) — pending **C-04** (restart reset/reload behavior and level-flow advancement deferred).
-    - ⏳ **HUD Updates**: Collect pellets/lose lives and watch Timer/Score/Lives update (**AUDIT-F-14, F-15, F-16**) — pending **C-05** (HUD Adapter & Screen Overlays incomplete) and **C-01** (scoring runtime integration deferred).
-    - ⏳ **Audio cues** for gameplay events — pending **C-06** (Audio Adapter incomplete).
-    - ⏳ **Phase consolidation**: P2 audit reports — pending **A-12** (Phase 2 audit consolidation not started).
+*   **How to test**:
+    - Start/Pause Flow: Press `Enter` to start; `ESC`/`P` to pause (**AUDIT-F-07**).
+    - Pause Invariants: While paused, rAF stays active but simulation frozen (**AUDIT-F-10**).
+    - Continue/Restart: Verify state preservation on continue and reset on restart (**AUDIT-F-08, F-09**).
+    - HUD Updates: Collect pellets/lose lives and watch Timer/Score/Lives update (**AUDIT-F-14, F-15, F-16**).
+    - Audio cues for gameplay events play on trigger (**AUDIT-C-06**).
+    - Phase consolidation: P2 audit reports (covered by **A-12**).
 *   **Proof** (when complete): HUD metrics update in E2E tests and manual evidence of functional pause/continue/restart.
 
 ### P3 — Feature Complete: AI & Mechanics
