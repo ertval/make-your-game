@@ -28,13 +28,17 @@ Each pass was evidence-driven and read-only. Findings include concrete file/line
 | Severity | Count |
 |----------|-------|
 | 🔴 Blocking | 1 |
-| 🔴 Critical | 3 |
-| 🟠 High | 8 |
-| 🟡 Medium | 15 |
-| 🟢 Low / Info | 55 |
-| ✅ PASS | 5 |
-| **Total Findings** | **82** |
-| **Total PASS Confirmations** | **5** |
+| 🔴 Critical | 4 |
+| 🟠 High | 11 |
+| 🟡 Medium | 18 |
+| 🟢 Low / Info | 29 |
+| ✅ PASS | 6 |
+| **Total Findings (sections)** | **63** |
+| **Total Logical Findings** | **89** |
+| **Total PASS Confirmations** | **6** |
+
+> [!NOTE]
+> DEAD-06 through DEAD-32 is consolidated as one section covering 27 individual unused exports. The "89 logical findings" count expands that block.
 
 **Top risks:**
 1. **CI-01 — A-12 P2 audit consolidation not completed** — Blocks 19 tickets in P3/P4, stalling all subsequent feature work.
@@ -988,7 +992,7 @@ Consolidated minor findings — unused exports marked as `@internal` or test-onl
 | ARCH-05 | — | ARCH-05 | ARCH-05 | A | Audit matrix stale status |
 | ARCH-06 | ARCH-D01 | ARCH-06 | — | D | Redundant restart DOM writes |
 | ARCH-07 | — | ARCH-07 | ARCH-07 | A/D | Asset pipeline format deviation |
-| ARCH-08..12 | — | ✅ PASS | ✅ PASS | — | 5 PASS confirmations |
+| ARCH-08..13 | — | ✅ PASS | ✅ PASS | — | 6 PASS confirmations |
 | SEC-01 | — | SEC-01 | SEC-01 | C | Storage schema validation gap |
 | SEC-02 | — | SEC-02 | SEC-02 | A | Map runtime JSON Schema missing |
 | SEC-03 | — | SEC-03 | SEC-03 | A | package.json private: false |
@@ -1080,6 +1084,7 @@ The following architectural invariants were verified as correctly implemented:
 3. **ARCH-10**: Pause Invariants — rAF active, sim frozen, timing reset ✅
 4. **ARCH-11**: DOM Pooling — offscreen transform hiding, not display:none ✅
 5. **ARCH-12**: Structural Deferral — sync point after system dispatch ✅
+6. **ARCH-13**: Render-Intent Contract — classBits Bitmask Correctly Encoded ✅
 
 ---
 
