@@ -741,7 +741,13 @@ Consolidated minor findings — unused exports marked as `@internal` or test-onl
 
 ---
 
+### ARCH-13: Render-Intent Contract — classBits Bitmask Correctly Encoded ✅ PASS
+**Verified:** `render-intent.js` pre-allocates buffer with `new Array(MAX_RENDER_INTENTS)` once; `classBits` is integer bitmask (not string array); `MAX_RENDER_INTENTS` accommodates `MAX_ENTITIES` from `constants.js`.
+
+---
+
 ## 4) Code Quality & Security
+
 
 ### SEC-01: Storage Adapter `safeRead()` Schema Parameter Unused 🟠 HIGH
 **Files:** Ownership: Track C (Tickets: C-05)
