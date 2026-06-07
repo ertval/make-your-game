@@ -96,6 +96,19 @@ const FIRE_SPRITE_CLASSES = [
 ];
 
 /**
+ * Bomb spriteId → CSS fuse-frame class. Render-collect-system writes spriteId
+ * 0..N-1 based on `fuseMs` progress (0 = just placed / idle, N-1 = fuse burnt
+ * to the wick just before detonation). The base `.sprite--bomb` class supplies
+ * sizing + the idle fallback so a missing spriteId still shows a valid sprite.
+ */
+const BOMB_SPRITE_CLASSES = [
+  'sprite--bomb--idle', // 0 — freshly placed
+  'sprite--bomb--fuse-01', // 1 — fuse lit
+  'sprite--bomb--fuse-02', // 2 — fuse burning down
+  'sprite--bomb--fuse-03', // 3 — about to detonate
+];
+
+/**
  * Ghost type enum → CSS suffix used for the per-personality base sprite. The
  * matching `.sprite--ghost--{type}` classes live in `styles/grid.css` and
  * supply each ghost's idle background-image.
@@ -179,7 +192,14 @@ export function createRenderDomSystem(options = {}) {
         return;
       }
 
-      if (context.world.renderFrame === 0) {
+      // Read the live frame counter from the render context, NOT from
+      // `context.world`. The per-system `world` is the frozen worldView
+      // (see World#createSystemWorldView) which exposes only capability
+      // methods and has no `renderFrame` property — `context.world.renderFrame`
+      // is always `undefined`, so `=== 0` would never match and this restart
+      // cleanup would be dead. The world's render commit puts the live counter
+      // on `context.renderFrame` (baseContext) instead.
+      if (context.renderFrame === 0) {
         // Restart / level transition: the bootstrap layer flips renderFrame
         // back to 0 so frame counters start clean. Without releasing the
         // pool elements first, any sprite tracked from the previous run
@@ -187,6 +207,9 @@ export function createRenderDomSystem(options = {}) {
         // because its mask is 0 while it waits in the spawn house) stays
         // stuck at its last on-board transform — a `Map.clear()` only
         // forgets the entries, it does not return the elements to the pool.
+        // Skipping this also desyncs the pool's active set from the element
+        // map (render-dom reuses a stale map entry without re-acquiring), and
+        // the orphaned element then escapes the next `spritePool.reset()`.
         for (const info of entityElementMap.values()) {
           spritePool.release(info.type, info.element);
         }
@@ -246,6 +269,10 @@ export function createRenderDomSystem(options = {}) {
         } else if (kind === RENDERABLE_KIND.FIRE) {
           const spriteId = buffer.spriteId[i];
           const frameClass = FIRE_SPRITE_CLASSES[spriteId];
+          if (frameClass) el.classList.add(frameClass);
+        } else if (kind === RENDERABLE_KIND.BOMB) {
+          const spriteId = buffer.spriteId[i];
+          const frameClass = BOMB_SPRITE_CLASSES[spriteId];
           if (frameClass) el.classList.add(frameClass);
         } else if (kind === RENDERABLE_KIND.GHOST && ghostStore) {
           const ghostType = ghostStore.type[entityId];
