@@ -37,8 +37,6 @@ Each pass was evidence-driven and read-only. Findings include concrete file/line
 | **Total Logical Findings** | **89** |
 | **Total PASS Confirmations** | **6** |
 
-> [!NOTE]
-> DEAD-06 through DEAD-32 is consolidated as one section covering 27 individual unused exports. The "89 logical findings" count expands that block.
 
 **Top risks:**
 1. **CI-01 — A-12 P2 audit consolidation not completed** — Blocks 19 tickets in P3/P4, stalling all subsequent feature work.
