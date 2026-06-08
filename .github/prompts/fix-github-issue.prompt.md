@@ -51,7 +51,7 @@ You must strictly follow the bug-fix and implementation workflow from [AGENTS.md
 4. **Iterate**: Repeat this cycle for each of the 3 issues until all of them are resolved and all tests pass.
 
 ### Step 4: Local PR Audit
-Before creating a PR, you must run the PR audit workflow to ensure compliance:
+Before creating a PR, you must run the PR audit workflow to ensure compliance. THIS IS A MUST:
 1. Run the `/pr-audit` workflow (located at `.github/prompts/pr-audit.prompt.md` or `.agents/workflows/pr-audit.md`) in your terminal or trigger the subagent if applicable.
 2. Inspect the audit report generated at `docs/audit-reports/pr-audit-<branch-name>.md`.
 3. If any checks or requirements fail, fix them on your branch and rerun the audit. Do not proceed until the PR audit passes.
