@@ -12,14 +12,14 @@ Your objective is to identify assigned issues, group them in batches of three sm
 
 ---
 
-## Step-by-Step Instructions
+## Step-by-Step Instructions/
 
 ### Step 1: Issue Discovery and Scoping
 1. Use the GitHub CLI (`gh`) to retrieve all open issues assigned to `ertval`:
    ```bash
    gh issue list --assignee ertval --json number,title,body,labels,state
    ```
-2. Filter the retrieved issues to identify those belonging to **Track A (ertval) — Ertval Karameta**.
+2. Filter the retrieved issues to identify those belonging to **Track A (ertval) — Ertval Karameta** AND there are no open PRs to resolve them! IF THERE ARE open PRs for these issues skip them and select others!
 3. Group exactly **3 small/related issues** into a single batch. If fewer than 3 issues remain, group the remaining ones together.
 4. For the selected batch of issues:
    - Read their descriptions, requirements, and comments in detail.
