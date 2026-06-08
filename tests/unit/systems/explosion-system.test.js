@@ -253,6 +253,38 @@ function findActiveFireAtTile(fireSlots, colliderStore, positionStore, row, col)
 }
 
 /**
+ * Read active fire tiles with their source/chain metadata in row/column order.
+ *
+ * Used by the BUG-05 regression to prove the pooled per-tile scratch context is
+ * repopulated correctly for every tile and detonation, with no leaked
+ * source/chain state across the cross-pattern hot loop.
+ *
+ * @param {Array<{ id: number }>} fireSlots - Pooled fire handles.
+ * @param {ColliderStore} colliderStore - Collider component store.
+ * @param {PositionStore} positionStore - Position component store.
+ * @param {FireStore} fireStore - Fire component store.
+ * @returns {Array<{ chainDepth: number, col: number, row: number, sourceBombId: number }>} Active fire metadata.
+ */
+function readActiveFireMetadata(fireSlots, colliderStore, positionStore, fireStore) {
+  const tiles = [];
+
+  for (const fire of fireSlots) {
+    if (colliderStore.type[fire.id] !== COLLIDER_TYPE.FIRE) {
+      continue;
+    }
+
+    tiles.push({
+      chainDepth: fireStore.chainDepth[fire.id],
+      col: Math.round(positionStore.col[fire.id]),
+      row: Math.round(positionStore.row[fire.id]),
+      sourceBombId: fireStore.sourceBombId[fire.id],
+    });
+  }
+
+  return tiles.sort((a, b) => a.row - b.row || a.col - b.col);
+}
+
+/**
  * Queue one bomb detonation request using the B6 chain metadata shape.
  *
  * @param {Array<object>} queue - Mutable bomb detonation queue resource.
@@ -641,5 +673,107 @@ describe('explosion-system chain reactions', () => {
         type: GAMEPLAY_EVENT_TYPE.BOMB_DETONATED,
       },
     ]);
+  });
+});
+
+describe('explosion-system per-tile allocation regression (BUG-05)', () => {
+  // BUG-05 replaced the per-tile 16-field object literal in resolveExplosionTile
+  // (allocated for the center plus every arm tile of every detonation, ~28
+  // objects/bomb plus chain reactions) with a single scratch context pooled in
+  // the system closure and repopulated per detonation; only row/col are mutated
+  // per tile. The risk this introduces is leaked per-tile state across the reused
+  // context, so these tests lock in that a heavy chain reaction resolves every
+  // tile with the correct source/chain metadata, and that re-running on the same
+  // system instance does not carry stale state from the previous pass.
+
+  // A(3,1) -> fire reaches B(3,3) -> fire reaches C(3,5): a depth 1/2/3 cascade.
+  // The default harness map is all pass-through cells, so no map mutation or RNG
+  // drop occurs and results are fully deterministic across repeated passes.
+  function addCascadeBombs(world, positionStore, colliderStore, bombStore) {
+    return {
+      rootBomb: addActiveBomb(world, positionStore, colliderStore, bombStore, 3, 1, 2),
+      secondBomb: addActiveBomb(world, positionStore, colliderStore, bombStore, 3, 3, 2),
+      thirdBomb: addActiveBomb(world, positionStore, colliderStore, bombStore, 3, 5, 2),
+    };
+  }
+
+  it('resolves a multi-bomb chain reaction through one pooled tile context', () => {
+    const {
+      bombDetonationQueue,
+      bombStore,
+      colliderStore,
+      eventQueue,
+      fireSlots,
+      fireStore,
+      positionStore,
+      system,
+      world,
+    } = createExplosionHarness();
+    const { rootBomb, secondBomb, thirdBomb } = addCascadeBombs(
+      world,
+      positionStore,
+      colliderStore,
+      bombStore,
+    );
+
+    queueDetonation(bombDetonationQueue, rootBomb, bombStore);
+    system.update({ dtMs: 0, frame: 0, world });
+
+    // Every bomb detonates exactly once at an increasing depth.
+    expect(colliderStore.type[rootBomb.id]).toBe(COLLIDER_TYPE.NONE);
+    expect(colliderStore.type[secondBomb.id]).toBe(COLLIDER_TYPE.NONE);
+    expect(colliderStore.type[thirdBomb.id]).toBe(COLLIDER_TYPE.NONE);
+    expect(drain(eventQueue).map((event) => event.payload.chainDepth)).toEqual([1, 2, 3]);
+
+    // Each tile keeps the metadata of the first detonation that claimed it,
+    // proving the pooled context carried the right row/col/source/depth into
+    // every tile across all three reused-context detonations.
+    expect(readActiveFireMetadata(fireSlots, colliderStore, positionStore, fireStore)).toEqual([
+      { chainDepth: 1, col: 1, row: 1, sourceBombId: rootBomb.id },
+      { chainDepth: 2, col: 3, row: 1, sourceBombId: secondBomb.id },
+      { chainDepth: 3, col: 5, row: 1, sourceBombId: thirdBomb.id },
+      { chainDepth: 1, col: 1, row: 2, sourceBombId: rootBomb.id },
+      { chainDepth: 2, col: 3, row: 2, sourceBombId: secondBomb.id },
+      { chainDepth: 3, col: 5, row: 2, sourceBombId: thirdBomb.id },
+      { chainDepth: 1, col: 1, row: 3, sourceBombId: rootBomb.id },
+      { chainDepth: 1, col: 2, row: 3, sourceBombId: rootBomb.id },
+      { chainDepth: 1, col: 3, row: 3, sourceBombId: rootBomb.id },
+      { chainDepth: 2, col: 4, row: 3, sourceBombId: secondBomb.id },
+      { chainDepth: 2, col: 5, row: 3, sourceBombId: secondBomb.id },
+      { chainDepth: 1, col: 1, row: 4, sourceBombId: rootBomb.id },
+      { chainDepth: 2, col: 3, row: 4, sourceBombId: secondBomb.id },
+      { chainDepth: 3, col: 5, row: 4, sourceBombId: thirdBomb.id },
+      { chainDepth: 1, col: 1, row: 5, sourceBombId: rootBomb.id },
+      { chainDepth: 2, col: 3, row: 5, sourceBombId: secondBomb.id },
+      { chainDepth: 3, col: 5, row: 5, sourceBombId: thirdBomb.id },
+    ]);
+  });
+
+  it('reuses the pooled context across passes without leaking prior-pass state', () => {
+    const {
+      bombDetonationQueue,
+      bombStore,
+      colliderStore,
+      fireSlots,
+      positionStore,
+      system,
+      world,
+    } = createExplosionHarness();
+
+    const firstPass = addCascadeBombs(world, positionStore, colliderStore, bombStore);
+    queueDetonation(bombDetonationQueue, firstPass.rootBomb, bombStore);
+    system.update({ dtMs: 0, frame: 0, world });
+    const firstPassTiles = readActiveFireTiles(fireSlots, colliderStore, positionStore);
+
+    // Expire the first pass so the next detonation starts from a clean board.
+    system.update({ dtMs: FIRE_DURATION_MS, frame: 1, world });
+    expect(readActiveFireTiles(fireSlots, colliderStore, positionStore)).toHaveLength(0);
+
+    // The same system instance reuses its single pooled context for this pass.
+    const secondPass = addCascadeBombs(world, positionStore, colliderStore, bombStore);
+    queueDetonation(bombDetonationQueue, secondPass.rootBomb, bombStore);
+    system.update({ dtMs: 0, frame: 2, world });
+
+    expect(readActiveFireTiles(fireSlots, colliderStore, positionStore)).toEqual(firstPassTiles);
   });
 });
