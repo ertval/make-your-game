@@ -2,7 +2,7 @@
   "name": "make-your-game",
   "version": "0.1.0",
   "license": "GPL-3.0",
-  "private": false,
+  "private": true,
   "description": "Ms. Ghostman game development project.",
   "type": "module",
   "engines": {
@@ -25,7 +25,6 @@
     "test:audit:vitest": "vitest run tests/e2e/audit",
     "test:audit:e2e": "playwright test tests/e2e/audit --pass-with-no-tests",
     "test:coverage": "vitest run --coverage",
-    "coverage": "npm run test:coverage",
     "ci": "npm run check && npm run test:coverage && npm run test:e2e && npm run validate:schema && npm run sbom",
     "validate:schema": "node scripts/validate-schema.mjs",
     "policy": "node scripts/policy-gate/run-all.mjs --mode=local --scope=all",
