@@ -1,6 +1,9 @@
 # 🚀 fix(A-12): resolve ARCH-03 entity store reference, DEAD-38 biome exclusions, and ARCH-05 traceability status
 > **Summary**: Fixes three issues assigned to Track A: EntityStore getActiveIds() mutability protection, biome.json exclusions mismatch with gitignore, and audit traceability matrix synchronization.
-> **Closes**: #155, #148, #157
+
+Closes #155
+Closes #148
+Closes #157
 
 ---
 
