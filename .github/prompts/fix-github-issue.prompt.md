@@ -56,24 +56,7 @@ Before creating a PR, you must run the PR audit workflow to ensure compliance:
 2. Inspect the audit report generated at `docs/audit-reports/pr-audit-<branch-name>.md`.
 3. If any checks or requirements fail, fix them on your branch and rerun the audit. Do not proceed until the PR audit passes.
 
-### Step 5: Pull Request Creation
-Once local checks and the PR audit pass:
-1. Format a conventional commit message:
-   ```bash
-   git commit -a -m "feat(Track A): resolve issues #X, #Y, #Z"
-   ```
-2. Push the branch to the remote repository:
-   ```bash
-   git push origin <branch-name>
-   ```
-3. Generate a PR description that strictly follows the template at [.github/pull_request_template.md]. Save it to the [pr message folder](../../docs/pr-messages).
-   - Clearly state the component changes, rationale, and list/link all 3 issue numbers using GitHub closing keywords (e.g. `Closes #X, Closes #Y, Closes #Z`).
-4. Create the PR using the GitHub CLI:
-   ```bash
-   gh pr create --title "Track A: Resolve issues #X, #Y, #Z" --body-file <path-to-pr-body-markdown> --head <branch-name> --base main
-   ```
-
-### Step 6: Post-PR Validation and CI Verification Loop
+### Step 5: Post-PR Validation and CI Verification Loop
 The task is not complete until both local policies and remote GitHub CI gates pass.
 1. **Run Validation in a New Context**:
    - If possible, spawn a new tool-use context or subagent to perform clean, isolated checks.
@@ -96,6 +79,24 @@ The task is not complete until both local policies and remote GitHub CI gates pa
      - Commit and push the updates.
      - Restart this verification loop.
    - Loop this step until all local checks and remote CI checks pass completely.
+
+### Step 6: Pull Request Creation
+Once local checks and the PR audit pass:
+1. Format a conventional commit message:
+   ```bash
+   git commit -a -m "feat(Track A): resolve issues #X, #Y, #Z"
+   ```
+2. Push the branch to the remote repository:
+   ```bash
+   git push origin <branch-name>
+   ```
+3. Generate a PR description that strictly follows the template at [.github/pull_request_template.md]. Save it to the [pr message folder](../../docs/pr-messages).
+   - Clearly state the component changes, rationale, and list/link all 3 issue numbers using GitHub closing keywords (e.g. `Closes #X, Closes #Y, Closes #Z`).
+4. Create the PR using the GitHub CLI:
+   ```bash
+   gh pr create --title "Track A: Resolve issues #X, #Y, #Z" --body-file <path-to-pr-body-markdown> --head <branch-name> --base main
+   ```
+
 
 ---
 
