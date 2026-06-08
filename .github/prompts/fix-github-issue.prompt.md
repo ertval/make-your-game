@@ -97,7 +97,6 @@ Once local checks and the PR audit pass:
    gh pr create --title "Track A: Resolve issues #X, #Y, #Z" --body-file <path-to-pr-body-markdown> --head <branch-name> --base main
    ```
 
-
 ---
 
 ## Definition of Done
