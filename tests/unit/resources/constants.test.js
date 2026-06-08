@@ -14,7 +14,6 @@ import {
   DEFAULT_FIRE_RADIUS,
   FIRE_DURATION_MS,
   FIXED_DT_MS,
-  GHOST_INTERSECTION_MIN_EXITS,
   GHOST_RESPAWN_MS,
   GHOST_SPAWN_DELAYS,
   GHOST_STATE,
@@ -22,8 +21,6 @@ import {
   GHOST_TYPE,
   INKY_REFERENCE_OFFSET,
   INVINCIBILITY_MS,
-  LEVEL_GHOST_SPEED,
-  LEVEL_MAX_GHOSTS,
   LEVEL_TIMERS,
   MAX_CHAIN_DEPTH,
   MAX_FIRE_RADIUS,
@@ -89,13 +86,10 @@ describe('constants', () => {
     expect(CLYDE_DISTANCE_THRESHOLD).toBe(8);
     expect(PINKY_TARGET_OFFSET).toBe(4);
     expect(INKY_REFERENCE_OFFSET).toBe(2);
-    expect(GHOST_INTERSECTION_MIN_EXITS).toBe(3);
   });
 
   it('defines correct level progression constants', () => {
     expect(LEVEL_TIMERS).toEqual([120, 180, 240]);
-    expect(LEVEL_MAX_GHOSTS).toEqual([2, 3, 4]);
-    expect(LEVEL_GHOST_SPEED).toEqual([4.0, 4.5, 5.0]);
     expect(TOTAL_LEVELS).toBe(3);
   });
 
@@ -155,7 +149,7 @@ describe('constants', () => {
   });
 
   it('defines POOL_GHOSTS matching max level ghost count', () => {
-    expect(POOL_GHOSTS).toBe(LEVEL_MAX_GHOSTS[LEVEL_MAX_GHOSTS.length - 1]);
+    expect(POOL_GHOSTS).toBe(4);
   });
 
   it('defines POOL_PELLETS as upper bound for a 15x11 map', () => {
