@@ -97,31 +97,21 @@ export const GHOST_STATE = {
 };
 
 /** Clyde distance threshold for target switching (tiles).
- *  @internal Reserved for the ghost-AI system (DEAD-06). */
+ *  Used by ghost-ai-system.js ClydeScatterTarget. */
 export const CLYDE_DISTANCE_THRESHOLD = 8;
 
 /** Pinky target offset ahead of player (tiles).
- *  @internal Reserved for the ghost-AI system (DEAD-06). */
+ *  Used by ghost-ai-system.js PinkyAmbushTarget. */
 export const PINKY_TARGET_OFFSET = 4;
 
 /** Inky reference offset ahead of player (tiles).
- *  @internal Reserved for the ghost-AI system (DEAD-06). */
+ *  Used by ghost-ai-system.js InkyPincerTarget. */
 export const INKY_REFERENCE_OFFSET = 2;
-
-/** Minimum valid exits at an intersection for ghost pathfinding.
- *  @internal Reserved for the ghost-AI pathfinding system (DEAD-18). */
-export const GHOST_INTERSECTION_MIN_EXITS = 3;
 
 // --- Level ---
 
 /** Per-level timer durations in seconds. */
 export const LEVEL_TIMERS = [120, 180, 240];
-
-/** Per-level maximum active ghosts. */
-export const LEVEL_MAX_GHOSTS = [2, 3, 4];
-
-/** Per-level ghost normal speed in tiles per second. */
-export const LEVEL_GHOST_SPEED = [4.0, 4.5, 5.0];
 
 /** Stunned ghost speed (constant across all levels). */
 export const GHOST_STUNNED_SPEED = 2.0;
