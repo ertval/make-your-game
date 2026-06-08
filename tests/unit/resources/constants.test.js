@@ -40,13 +40,6 @@ import {
   POOL_PELLETS,
   POWER_UP_DROP_CHANCES,
   POWER_UP_TYPE,
-  SCORE_GHOST_KILL,
-  SCORE_LEVEL_CLEAR,
-  SCORE_PELLET,
-  SCORE_POWER_PELLET,
-  SCORE_POWER_UP,
-  SCORE_STUNNED_GHOST_KILL,
-  SCORE_TIME_BONUS_MULTIPLIER,
   SIMULATION_HZ,
   SPEED_BOOST_MS,
   SPEED_BOOST_MULTIPLIER,
@@ -106,15 +99,8 @@ describe('constants', () => {
     expect(TOTAL_LEVELS).toBe(3);
   });
 
-  it('defines correct scoring constants', () => {
-    expect(SCORE_PELLET).toBe(10);
-    expect(SCORE_POWER_PELLET).toBe(50);
-    expect(SCORE_GHOST_KILL).toBe(200);
-    expect(SCORE_STUNNED_GHOST_KILL).toBe(400);
-    expect(SCORE_POWER_UP).toBe(100);
-    expect(SCORE_LEVEL_CLEAR).toBe(1000);
-    expect(SCORE_TIME_BONUS_MULTIPLIER).toBe(10);
-  });
+  // Scoring constants moved to scoring-system.js (DEAD-02, single source of
+  // truth). Their values are asserted in tests/unit/systems/scoring-system.test.js.
 
   it('defines power-up drop chances that sum to 1.0', () => {
     const total =

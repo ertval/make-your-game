@@ -130,27 +130,11 @@ export const GHOST_STUNNED_SPEED = 2.0;
 export const TOTAL_LEVELS = 3;
 
 // --- Scoring ---
-
-/** Points for eating a regular pellet. */
-export const SCORE_PELLET = 10;
-
-/** Points for eating a power pellet. */
-export const SCORE_POWER_PELLET = 50;
-
-/** Points for killing a normal-state ghost with a bomb. */
-export const SCORE_GHOST_KILL = 200;
-
-/** Points for killing a stunned ghost with a bomb (skill bonus). */
-export const SCORE_STUNNED_GHOST_KILL = 400;
-
-/** Points for collecting a power-up. */
-export const SCORE_POWER_UP = 100;
-
-/** Base points for clearing a level. */
-export const SCORE_LEVEL_CLEAR = 1000;
-
-/** Multiplier for remaining seconds converted to bonus points. */
-export const SCORE_TIME_BONUS_MULTIPLIER = 10;
+// Canonical scoring point values live in `src/ecs/systems/scoring-system.js`
+// (the single source of truth consumed by the scoring runtime). They were
+// previously duplicated here with identical values but never imported from
+// this module; the duplicates were removed (DEAD-02). Import `SCORE_*` from
+// the scoring system if a non-scoring module ever needs a point value.
 
 // --- Power-Up Drop Rates ---
 
