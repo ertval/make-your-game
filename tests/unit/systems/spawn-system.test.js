@@ -424,6 +424,69 @@ describe('spawn-system', () => {
     });
   });
 
+  // BUG-09 regression: when a ghost's respawn becomes ready on the same tick
+  // that `pruneRespawningGhostsFromReleasedIds` runs (i.e. another ghost is
+  // still respawning while a released ghost is on the board), the respawning
+  // membership snapshot used to re-queue ready ghosts must reflect the queue
+  // *after* `processRespawns` drains it. The old code reused the pre-prune
+  // snapshot, which still listed the just-readied ghost as "respawning", so it
+  // was filtered out of the re-queue and silently lost forever.
+  it('re-queues a ghost whose respawn completes while another ghost is still respawning', () => {
+    const respawnDelay = getRespawnDelayMs();
+    // ghostIds deliberately omits ghost 1 and 2 from the initial release order
+    // so the only path that can bring a readied ghost back is the respawn
+    // re-queue. (If they were in `ghostIds`, `enqueueNewlyEligibleInitialGhosts`
+    // would mask the bug by re-adding them independently.) This mirrors a
+    // respawned ghost id that is not part of the current initial spawn order.
+    const { spawnSystem, world } = createSpawnHarness({
+      maxGhosts: 4,
+      ghostIds: [0],
+      spawnState: {
+        elapsedMs: 20000,
+        // Ghost 0 is alive on the board; this is what makes prune fire (both
+        // releasedGhostIds and respawnQueue are non-empty at tick start).
+        releasedGhostIds: [0],
+        queuedGhostIds: [],
+        // Ghost 1 is ready exactly this tick; ghost 2 is still penalized.
+        respawnQueue: [
+          { ghostId: 1, readyAtMs: 20000 },
+          { ghostId: 2, readyAtMs: 20000 + respawnDelay },
+        ],
+        activeGhostCap: 4,
+      },
+    });
+
+    updateSpawn(spawnSystem, world, 0);
+
+    const state = getSpawnState(world);
+
+    // Ghost 1 must come back: queued then released (cap has room). It must NOT
+    // be dropped. Ghost 2 stays in the respawn queue.
+    expect(state.releasedGhostIds).toContain(1);
+    expect(state.respawnQueue).toEqual([{ ghostId: 2, readyAtMs: 20000 + respawnDelay }]);
+    // And ghost 1 is no longer anywhere in the respawn queue.
+    expect(state.respawnQueue.some((entry) => entry.ghostId === 1)).toBe(false);
+  });
+
+  // BUG-11 regression: scratch membership state must be owned per system
+  // instance, not by module globals. Two worlds sharing a module-level Set
+  // would corrupt each other's spawn bookkeeping when interleaved.
+  it('keeps spawn scratch state isolated between concurrent worlds', () => {
+    const harnessA = createSpawnHarness({ maxGhosts: 4, ghostIds: [0, 1, 2, 3] });
+    const harnessB = createSpawnHarness({ maxGhosts: 4, ghostIds: [0, 1, 2, 3] });
+
+    // Interleave updates so any shared module-level scratch set would leak from
+    // one world's pass into the other's mid-computation.
+    advanceSpawnTime(harnessA.spawnSystem, harnessA.world, 5000);
+    advanceSpawnTime(harnessB.spawnSystem, harnessB.world, 15000);
+    updateSpawn(harnessA.spawnSystem, harnessA.world, 0);
+
+    // World A only reached 5000ms => ghosts 0 and 1 released.
+    expect(getSpawnState(harnessA.world).releasedGhostIds).toEqual([0, 1]);
+    // World B reached 15000ms independently => all four released.
+    expect(getSpawnState(harnessB.world).releasedGhostIds).toEqual([0, 1, 2, 3]);
+  });
+
   it('sanitizes and deterministically sorts respawn queue entries', () => {
     expect(
       sanitizeSpawnState({
