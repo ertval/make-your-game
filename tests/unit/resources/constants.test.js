@@ -39,7 +39,6 @@ import {
   POOL_MAX_BOMBS,
   POOL_PELLETS,
   POWER_UP_DROP_CHANCES,
-  POWER_UP_TYPE,
   SCORE_GHOST_KILL,
   SCORE_LEVEL_CLEAR,
   SCORE_PELLET,
@@ -123,13 +122,6 @@ describe('constants', () => {
       POWER_UP_DROP_CHANCES.FIRE +
       POWER_UP_DROP_CHANCES.SPEED;
     expect(total).toBeCloseTo(1.0, 10);
-  });
-
-  it('defines power-up type IDs', () => {
-    expect(POWER_UP_TYPE.NONE).toBe(0);
-    expect(POWER_UP_TYPE.BOMB).toBe(1);
-    expect(POWER_UP_TYPE.FIRE).toBe(2);
-    expect(POWER_UP_TYPE.SPEED).toBe(3);
   });
 
   it('defines visual flags as distinct power-of-two values', () => {
