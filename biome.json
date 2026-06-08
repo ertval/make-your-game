@@ -30,7 +30,10 @@
       "!**/sbom.json",
       "!**/.policy-pr-meta.json",
       "!**/changed-files.txt",
-      "!**/.claude"
+      "!**/.claude",
+      "!**/.audit-logs",
+      "!**/.policy-runtime",
+      "!**/.tmp"
     ]
   }
 }

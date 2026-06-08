@@ -78,7 +78,7 @@ export class EntityStore {
       }
     }
 
-    return activeIds;
+    return Object.freeze(activeIds);
   }
 
   destroyAll() {
