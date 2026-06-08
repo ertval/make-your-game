@@ -566,7 +566,11 @@ function readBombOccupancyCells(resource, mapResource) {
         cells.add(Math.floor(entry.row) * mapResource.cols + Math.floor(entry.col));
       }
     }
-    return cells.size > 0 ? cells : null;
+    // Always return the (possibly empty) Set so the caller can distinguish
+    // "resource registered but empty" from "resource not registered" (null).
+    // `bombCells.has(idx)` on an empty Set is always false, so the AI behavior
+    // is unchanged for the empty case, but the defensive contract is clearer.
+    return cells;
   }
 
   return null;

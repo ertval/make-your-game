@@ -229,6 +229,7 @@ describe('collision-system contract', () => {
       'ghost',
       'collisionIntents',
       'eventQueue',
+      'bombCellOccupancy',
     ]);
   });
 });
@@ -1634,5 +1635,25 @@ describe('collision-system update shell', () => {
 
     expect(positionStore.row[ghost.id]).toBe(1);
     expect(positionStore.col[ghost.id]).toBe(2);
+  });
+
+  it('populates bombCellOccupancy Set with flat cell indices of active bombs', () => {
+    const { colliderStore, positionStore, system, world } = createCollisionHarness();
+    const bombCellOccupancy = new Set();
+    world.setResource('bombCellOccupancy', bombCellOccupancy);
+
+    // Place a bomb at (1, 2)
+    addCollisionEntity(world, positionStore, colliderStore, COLLIDER_TYPE.BOMB, 1, 2);
+
+    system.update({
+      dtMs: 16.6667,
+      frame: 0,
+      world,
+    });
+
+    const mapResource = world.getResource('mapResource');
+    const expectedCellIndex = 1 * mapResource.cols + 2;
+    expect(bombCellOccupancy.has(expectedCellIndex)).toBe(true);
+    expect(bombCellOccupancy.size).toBe(1);
   });
 });

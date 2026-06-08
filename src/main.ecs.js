@@ -305,6 +305,7 @@ export function createGameRuntime({
       state: bootstrap.gameStatus.currentState,
     }),
     getLevelIndex: () => bootstrap.levelLoader.getCurrentLevelIndex(),
+    getWorld: () => bootstrap.world,
     pause: () => bootstrap.gameFlow.pauseGame(),
     restart: () => {
       return bootstrap.gameFlow.restartLevel();

@@ -338,7 +338,7 @@ describe('render-collect-system', () => {
     it('stops emitting BOMB intents once the collider type is reset to NONE', () => {
       // Regression for the stuck-bomb screenshot: bombStore.ownerId stays set
       // after detonation, but colliderStore.type drops back to NONE.
-      const { buffer, run, world } = createHarness();
+      const { run, world } = createHarness();
       const colliders = makeColliderStore(4);
       const bombs = makeBombStore(4);
       colliders.type[1] = COLLIDER_BOMB;
@@ -393,7 +393,7 @@ describe('render-collect-system', () => {
     it('stops emitting FIRE intents once the collider type is reset to NONE', () => {
       // Regression for stuck-fire-tiles: fireStore.sourceBombId is not reset
       // after the burn timer expires; only colliderStore.type drops to NONE.
-      const { buffer, run, world } = createHarness();
+      const { run, world } = createHarness();
       const colliders = makeColliderStore(4);
       const fires = makeFireStore(4);
       colliders.type[2] = COLLIDER_FIRE;
@@ -413,7 +413,7 @@ describe('render-collect-system', () => {
     });
 
     it('coexists with the existing POSITION+RENDERABLE entity query', () => {
-      const { addRenderableEntity, buffer, run, world } = createHarness();
+      const { addRenderableEntity, run, world } = createHarness();
       addRenderableEntity({ kind: RENDERABLE_KIND.PLAYER, row: 1, col: 1 });
       const colliders = makeColliderStore(4);
       const bombs = makeBombStore(4);
