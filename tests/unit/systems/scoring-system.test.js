@@ -16,6 +16,13 @@ import {
   createDefaultScoreState,
   createScoringSystem,
   ensureScoreState,
+  SCORE_GHOST_KILL,
+  SCORE_LEVEL_CLEAR,
+  SCORE_PELLET,
+  SCORE_POWER_PELLET,
+  SCORE_POWER_UP,
+  SCORE_STUNNED_GHOST_KILL,
+  SCORE_TIME_BONUS_MULTIPLIER,
 } from '../../../src/ecs/systems/scoring-system.js';
 import { World } from '../../../src/ecs/world/world.js';
 
@@ -24,6 +31,19 @@ function updateScore(scoringSystem, world, frame = 0) {
 }
 
 describe('scoring-system', () => {
+  // Canonical scoring point values (DEAD-02 single source of truth). Coverage
+  // moved here from constants.test.js when the duplicate definitions were
+  // removed from constants.js.
+  it('defines correct canonical scoring constants', () => {
+    expect(SCORE_PELLET).toBe(10);
+    expect(SCORE_POWER_PELLET).toBe(50);
+    expect(SCORE_POWER_UP).toBe(100);
+    expect(SCORE_GHOST_KILL).toBe(200);
+    expect(SCORE_STUNNED_GHOST_KILL).toBe(400);
+    expect(SCORE_LEVEL_CLEAR).toBe(1000);
+    expect(SCORE_TIME_BONUS_MULTIPLIER).toBe(10);
+  });
+
   it('creates a canonical default score state', () => {
     expect(createDefaultScoreState()).toEqual({
       totalPoints: 0,
