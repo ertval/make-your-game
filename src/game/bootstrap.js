@@ -64,7 +64,8 @@ import { createBoardSyncSystem } from '../ecs/systems/board-sync-system.js';
 import { createCollisionSystem } from '../ecs/systems/collision-system.js';
 import { createGhostAiSystem, GHOST_AI_REQUIRED_MASK } from '../ecs/systems/ghost-ai-system.js';
 import { createGhostAnimationSystem } from '../ecs/systems/ghost-animation-system.js';
-import { createHudSystem } from '../ecs/systems/hud-system.js';
+import { createHudRenderSystem } from '../ecs/systems/hud-render-system.js';
+import { createHudState, createHudSystem } from '../ecs/systems/hud-system.js';
 import { createInputSystem } from '../ecs/systems/input-system.js';
 import { createLevelProgressSystem } from '../ecs/systems/level-progress-system.js';
 import { createLifeSystem } from '../ecs/systems/life-system.js';
@@ -300,7 +301,9 @@ function createDefaultSystemsByPhase(options = {}) {
     meta: [inputSystem, createPauseInputSystem(), createPauseSystem()],
     physics: [playerMoveSystem, createGhostAiSystem()],
     render: [
-      createHudSystem({ hudElementsResourceKey: options.hudElementsResourceKey }),
+      // ARCH-01: hud-render-system is the only HUD→DOM boundary; it reads the
+      // data-only hudState buffer produced by hud-system in the logic phase.
+      createHudRenderSystem({ hudAdapterResourceKey: options.hudAdapterResourceKey }),
       screensSystem,
       renderCollectSystem,
       renderDomSystem,
@@ -348,6 +351,9 @@ function createDefaultSystemsByPhase(options = {}) {
         playerResourceKey,
         positionResourceKey,
       }),
+      // ARCH-01: hud-system runs last in logic so the hudState buffer captures
+      // this frame's scoring/life/timer/power-up results before the render phase.
+      createHudSystem({ hudStateResourceKey: options.hudStateResourceKey }),
     ],
   };
 }
@@ -899,7 +905,7 @@ export function createBootstrap(options = {}) {
   world.setResource('pauseIntent', { toggle: false });
   world.setResource('deadGhostIds', []);
   world.setResource('bombCellOccupancy', new Set());
-  world.setResource(options.hudElementsResourceKey || 'hudElements', options.hudElements || null);
+  world.setResource(options.hudStateResourceKey || 'hudState', createHudState());
 
   registerSystemsByPhase(
     world,

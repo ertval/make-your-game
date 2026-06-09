@@ -390,6 +390,9 @@ describe('bootstrap bomb and explosion runtime wiring', () => {
       'ghost-animation-system',
       'bomb-tick-system',
       'explosion-system',
+      // ARCH-01: hud-system produces the hudState buffer in the logic phase;
+      // the render-phase hud-render-system consumes it.
+      'hud-system',
       'player-animation-system',
     ]);
   });
