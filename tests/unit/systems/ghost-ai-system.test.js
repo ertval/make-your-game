@@ -748,6 +748,52 @@ describe('ghost-ai-system: integration', () => {
     // With an empty released set, the ghost must stay DEAD.
     expect(ghostStore.state[ghostId]).toBe(GHOST_STATE.DEAD);
   });
+
+  it('does not allocate a Set per frame in the update hot path (BUG-10)', () => {
+    // Explicit allocation guard for the scratch-set fix. The module-level scratch
+    // Set is constructed once at import time (before this spy is installed), so any
+    // `new Set()` counted here would come from the per-frame update path itself —
+    // exactly the allocation BUG-10 removed. The harness registers no bomb-occupancy
+    // resource, so readBombOccupancyCells short-circuits without allocating either.
+    const { world, ghostStore, positionStore, mapResource, ghostHandles } = createGhostHarness({
+      ghostCount: 1,
+    });
+    const ghostId = ghostHandles[0].id;
+    placeGhost(positionStore, ghostId, mapResource.ghostSpawnRow, mapResource.ghostSpawnCol);
+    ghostStore.type[ghostId] = GHOST_TYPE.BLINKY;
+    ghostStore.state[ghostId] = GHOST_STATE.NORMAL;
+    ghostStore.speed[ghostId] = 4.0;
+    world.setResource('ghostSpawnState', {
+      elapsedMs: 0,
+      releasedGhostIds: [ghostId],
+      queuedGhostIds: [],
+      respawnQueue: [],
+      activeGhostCap: 4,
+    });
+
+    const system = createGhostAiSystem();
+
+    // Count Set constructions across many stepped frames. The reused scratch keeps
+    // this at zero regardless of frame count; the old `new Set(...)` would scale 1:1.
+    const RealSet = globalThis.Set;
+    let setConstructions = 0;
+    class CountingSet extends RealSet {
+      constructor(...args) {
+        super(...args);
+        setConstructions += 1;
+      }
+    }
+    globalThis.Set = CountingSet;
+    try {
+      for (let frame = 0; frame < 30; frame += 1) {
+        runUpdate(system, world, { dtMs: FIXED_DT_MS, frame });
+      }
+    } finally {
+      globalThis.Set = RealSet;
+    }
+
+    expect(setConstructions).toBe(0);
+  });
 });
 
 describe('dead ghost return-home pathfinding (BUG: eyes trapped in local minima)', () => {
