@@ -17,7 +17,6 @@ import { createPauseSystem } from '../../../src/ecs/systems/pause-system.js';
 import { World } from '../../../src/ecs/world/world.js';
 
 const CLEARED_PAUSE_INTENT = {
-  restart: false,
   toggle: false,
 };
 
@@ -55,7 +54,6 @@ function expectPauseIntentCleared(world) {
 describe('pause-system', () => {
   it('transitions PLAYING + toggle to PAUSED and clears intent', () => {
     const harness = createHarness(GAME_STATE.PLAYING, {
-      restart: false,
       toggle: true,
     });
     const previousClock = harness.world.getResource('clock');
@@ -75,7 +73,6 @@ describe('pause-system', () => {
     const harness = createHarness(
       GAME_STATE.PAUSED,
       {
-        restart: false,
         toggle: true,
       },
       {
@@ -98,7 +95,10 @@ describe('pause-system', () => {
     expectPauseIntentCleared(harness.world);
   });
 
-  it('transitions PAUSED + restart to PLAYING in place, sets pendingRestart, and clears intent', () => {
+  it('ignores a stray restart field on the pause intent (BUG-12: no levelFlow write)', () => {
+    // BUG-12: the pause system no longer has a restart branch — level restart
+    // is owned by game-flow's restartLevel() path. A `restart` field on the
+    // intent must therefore be inert and must never write to levelFlow.
     const harness = createHarness(GAME_STATE.PAUSED, {
       restart: true,
       toggle: false,
@@ -108,12 +108,9 @@ describe('pause-system', () => {
     updatePauseSystem(harness);
 
     const gameStatus = harness.world.getResource('gameStatus');
-    expect(gameStatus.currentState).toBe(GAME_STATE.PLAYING);
-    expect(gameStatus.previousState).toBeNull();
+    expect(gameStatus.currentState).toBe(GAME_STATE.PAUSED);
     expect(gameStatus).toBe(previousGameStatus);
-    expect(harness.world.getResource('levelFlow')).toEqual({
-      pendingRestart: true,
-    });
+    expect(harness.world.getResource('levelFlow')).toBeUndefined();
     expectPauseIntentCleared(harness.world);
   });
 
@@ -122,10 +119,9 @@ describe('pause-system', () => {
     GAME_STATE.LEVEL_COMPLETE,
     GAME_STATE.GAME_OVER,
     GAME_STATE.VICTORY,
-  ])('ignores pause and restart intent in %s and only clears intent', (gameState) => {
+  ])('ignores pause intent in %s and only clears intent', (gameState) => {
     const harness = createHarness(gameState, {
-      restart: true,
-      toggle: false,
+      toggle: true,
     });
 
     updatePauseSystem(harness);
@@ -149,7 +145,6 @@ describe('pause-system', () => {
 
   it('clears pauseIntent and returns when gameStatus is missing', () => {
     const harness = createHarness(null, {
-      restart: true,
       toggle: true,
     });
 
@@ -184,7 +179,6 @@ describe('pause-system', () => {
     const harness = createHarness(
       GAME_STATE.PLAYING,
       {
-        restart: false,
         toggle: true,
       },
       { clock: undefined },
@@ -198,52 +192,7 @@ describe('pause-system', () => {
     expectPauseIntentCleared(harness.world);
   });
 
-  it('clears pauseIntent after publishing restart intent', () => {
-    const harness = createHarness(GAME_STATE.PAUSED, {
-      restart: true,
-      toggle: false,
-    });
-
-    updatePauseSystem(harness);
-
-    expect(harness.world.getResource('levelFlow')).toEqual({
-      pendingRestart: true,
-    });
-    expectPauseIntentCleared(harness.world);
-  });
-
-  it('merges pendingRestart into existing levelFlow object', () => {
-    const harness = createHarness(GAME_STATE.PAUSED, {
-      restart: true,
-      toggle: false,
-    });
-    harness.world.setResource('levelFlow', { existing: true });
-
-    updatePauseSystem(harness);
-
-    expect(harness.world.getResource('levelFlow')).toEqual({
-      existing: true,
-      pendingRestart: true,
-    });
-    expectPauseIntentCleared(harness.world);
-  });
-
-  it('creates new levelFlow when existing one is invalid', () => {
-    const harness = createHarness(GAME_STATE.PAUSED, {
-      restart: true,
-      toggle: false,
-    });
-    harness.world.setResource('levelFlow', null);
-
-    updatePauseSystem(harness);
-
-    expect(harness.world.getResource('levelFlow')).toEqual({
-      pendingRestart: true,
-    });
-    expectPauseIntentCleared(harness.world);
-  });
-
-  it('does not publish restart intent when restart is requested outside PAUSED', () => {
+  it('never writes to levelFlow regardless of a stray restart field outside PAUSED', () => {
     const harness = createHarness(GAME_STATE.PLAYING, {
       restart: true,
       toggle: false,
@@ -263,7 +212,6 @@ describe('pause-system', () => {
     const harness = createHarness(
       GAME_STATE.PAUSED,
       {
-        restart: false,
         toggle: true,
       },
       {
@@ -290,7 +238,6 @@ describe('pause-system', () => {
 
   it('strictly converts non-boolean truthy values to false in pauseIntent', () => {
     const harness = createHarness(GAME_STATE.PLAYING, {
-      restart: 1,
       toggle: 'true',
     });
     updatePauseSystem(harness);
@@ -298,11 +245,7 @@ describe('pause-system', () => {
   });
 
   it('safely returns when the clock resource is not an object', () => {
-    const harness = createHarness(
-      GAME_STATE.PLAYING,
-      { restart: false, toggle: true },
-      { clock: 'not-an-object' },
-    );
+    const harness = createHarness(GAME_STATE.PLAYING, { toggle: true }, { clock: 'not-an-object' });
     expect(() => updatePauseSystem(harness)).not.toThrow();
   });
 });
