@@ -26,6 +26,8 @@
  * - preloadWithIndicator(params): C-09 — orchestrate critical-SFX preload with a
  *   flicker-free loading indicator (DOM-free; indicator + adapter are injected).
  * - AUDIO_PRELOAD_INDICATOR_THRESHOLD_MS: slow-preload threshold (200ms).
+ * - applyAudioSettings(audio, settings): push persisted C-11A settings into the
+ *   adapter using only `audio.setVolume(category, value)`.
  *
  * Asset provenance:
  *   The cue ids in `AUDIO_CUE_MAPPING` and the track ids in
@@ -186,6 +188,50 @@ export function resolveMusicForState(gameState) {
     return null;
   }
   return Object.hasOwn(MUSIC_STATE_MAPPING, gameState) ? MUSIC_STATE_MAPPING[gameState] : null;
+}
+
+/**
+ * Apply persisted C-11A audio settings to the adapter.
+ *
+ * Per the C-11A contract, the ONLY adapter call used here is
+ * `audio.setVolume(category, value)` — there is no enable/mute method on the
+ * adapter, so a disabled category is expressed as a volume of `0`. The effective
+ * per-category volume is therefore `enabled ? volume : 0` for music and sfx; the
+ * UI category has no enable flag and uses `uiVolume` directly. Values are passed
+ * through to the adapter, which clamps them to the [0, 1] gain range.
+ *
+ * Settings are normalized by the storage adapter before they reach here, but
+ * this helper still tolerates a null/partial object so it never throws at the
+ * app edge.
+ *
+ * @param {{ setVolume?: Function } | null | undefined} audio - Audio adapter.
+ * @param {{ musicEnabled?: boolean, sfxEnabled?: boolean, musicVolume?: number, sfxVolume?: number, uiVolume?: number } | null | undefined} settings - Persisted audio settings.
+ * @returns {boolean} True when settings were applied, false when the adapter was unusable.
+ */
+export function applyAudioSettings(audio, settings) {
+  if (!audio || typeof audio.setVolume !== 'function') {
+    return false;
+  }
+  const s = settings && typeof settings === 'object' ? settings : {};
+  const musicVolume = s.musicEnabled === false ? 0 : numberOrZero(s.musicVolume);
+  const sfxVolume = s.sfxEnabled === false ? 0 : numberOrZero(s.sfxVolume);
+  const uiVolume = numberOrZero(s.uiVolume);
+
+  audio.setVolume('music', musicVolume);
+  audio.setVolume('sfx', sfxVolume);
+  audio.setVolume('ui', uiVolume);
+  return true;
+}
+
+/**
+ * Coerce a settings volume to a finite number, defaulting to 0. The adapter
+ * clamps the final value, so we only need to strip non-numbers here.
+ *
+ * @param {unknown} value - Candidate volume.
+ * @returns {number} A finite number (0 when invalid).
+ */
+function numberOrZero(value) {
+  return typeof value === 'number' && Number.isFinite(value) ? value : 0;
 }
 
 /**
