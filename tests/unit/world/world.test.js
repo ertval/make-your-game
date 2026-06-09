@@ -425,4 +425,38 @@ describe('World', () => {
 
     consoleErrorSpy.mockRestore();
   });
+
+  it('runRenderCommit flushes deferred mutations', () => {
+    const world = new World();
+    const handle = world.createEntity(0b0001);
+
+    world.registerSystem({
+      phase: 'render',
+      name: 'render-defer-destroy',
+      update: (context) => {
+        context.world.deferDestroyEntity(handle);
+        expect(context.world.getEntityCount()).toBe(1);
+      },
+    });
+
+    world.runRenderCommit();
+    expect(world.getEntityCount()).toBe(0);
+  });
+
+  it('runMeta flushes deferred mutations', () => {
+    const world = new World();
+    const handle = world.createEntity(0b0001);
+
+    world.registerSystem({
+      phase: 'meta',
+      name: 'meta-defer-destroy',
+      update: (context) => {
+        context.world.deferDestroyEntity(handle);
+        expect(context.world.getEntityCount()).toBe(1);
+      },
+    });
+
+    world.runMeta();
+    expect(world.getEntityCount()).toBe(0);
+  });
 });

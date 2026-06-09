@@ -447,6 +447,7 @@ export class World {
       this.#isDispatching = false;
     }
 
+    this.applyDeferredMutations();
     this.renderFrame += 1;
   }
 
@@ -485,5 +486,7 @@ export class World {
     } finally {
       this.#isDispatching = false;
     }
+
+    this.applyDeferredMutations();
   }
 }

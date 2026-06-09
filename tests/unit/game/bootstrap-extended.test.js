@@ -144,6 +144,70 @@ describe('Bootstrap extended coverage', () => {
     expect(world.renderFrame).toBe(0);
   });
 
+  it('resets spawn state and bomb occupancy across level transitions', () => {
+    const mockMap = {
+      level: 1,
+      metadata: {
+        name: 'Test Level',
+        timerSeconds: 60,
+        maxGhosts: 4,
+        ghostSpeed: 1,
+        activeGhostTypes: ['red', 'pink', 'cyan', 'orange'],
+      },
+      dimensions: { rows: 5, columns: 5 },
+      grid: [
+        [1, 1, 1, 1, 1],
+        [1, 0, 3, 0, 1],
+        [1, 0, 5, 0, 1],
+        [1, 0, 0, 0, 1],
+        [1, 1, 1, 1, 1],
+      ],
+      spawn: {
+        player: { row: 1, col: 1 },
+        ghostHouse: { topRow: 2, bottomRow: 2, leftCol: 2, rightCol: 2 },
+        ghostSpawnPoint: { row: 2, col: 2 },
+      },
+    };
+    let currentTime = 0;
+    const bootstrap = createBootstrap({
+      now: 0,
+      nowProvider: () => currentTime,
+      loadMapForLevel: () => mockMap,
+    });
+    const world = bootstrap.world;
+    const gameFlow = world.getResource('gameFlow');
+
+    gameFlow.startGame();
+
+    // Simulate some ticks to release ghosts and advance time
+    currentTime = 6000;
+    bootstrap.stepFrame(currentTime);
+
+    const spawnState = world.getResource('ghostSpawnState');
+    console.log(
+      'SPAWN STATE:',
+      JSON.stringify(spawnState),
+      'GAME STATUS:',
+      world.getResource('gameStatus')?.currentState,
+    );
+    expect(spawnState.elapsedMs).toBeGreaterThan(0);
+    expect(spawnState.releasedGhostIds.length).toBeGreaterThan(0);
+
+    // Set some non-default states
+    world.setResource('deadGhostIds', [1, 2]);
+    world.getResource('bombCellOccupancy').add(12);
+
+    // Transition to next level
+    gameFlow.setState(GAME_STATE.LEVEL_COMPLETE);
+    gameFlow.startGame();
+
+    const newSpawnState = world.getResource('ghostSpawnState');
+    expect(newSpawnState.elapsedMs).toBe(0);
+    expect(newSpawnState.releasedGhostIds).toEqual([]);
+    expect(world.getResource('deadGhostIds')).toEqual([]);
+    expect(world.getResource('bombCellOccupancy').size).toBe(0);
+  });
+
   it('covers system registration edge cases', () => {
     expect(() => {
       createBootstrap({
