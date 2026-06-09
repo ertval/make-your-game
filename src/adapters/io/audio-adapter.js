@@ -26,6 +26,9 @@
  *
  * Adapter methods:
  * - loadClips(manifest): fetch + decodeAudioData each clip in the manifest.
+ * - preloadAudioAssets(cueIds, options): C-09 — async pre-decode gameplay-critical
+ *   SFX into the buffer cache (parallel, deduplicated, failure-tolerant; music/
+ *   ambience excluded).
  * - playSfx(cueId): play a one-shot SFX cue (overlapping playback supported).
  * - playSfxLoop(cueId) / stopSfxLoop(cueId): start/stop a looping SFX cue (e.g. bomb fuse).
  * - playMusic(trackId, options): play a music track, replacing any previous one.
@@ -336,6 +339,16 @@ export function createAudioAdapter(options = {}) {
   const musicBuffers = new Map();
   /** @type {Map<string, { category: string, buffers: Map<string, AudioBuffer> }>} */
   const clipIndex = new Map();
+  // C-09: cue id -> { category, url }. Populated by loadClips and used by
+  // preloadAudioAssets to resolve a fetch URL for a cue id without re-passing
+  // the manifest. Music/ambience entries are recorded but never preloaded.
+  /** @type {Map<string, { category: string, url: string }>} */
+  const urlIndex = new Map();
+  // C-09: in-flight decode promises keyed by cue id so a second preload request
+  // for the same cue reuses the pending decode instead of issuing a duplicate
+  // fetch/decode. Cleared once the decode settles.
+  /** @type {Map<string, Promise<boolean>>} */
+  const inFlightDecodes = new Map();
   const volumes = { ...DEFAULT_VOLUMES };
   const warnedMissing = new Set();
   /** @type {AudioBufferSourceNode | null} */
@@ -522,6 +535,9 @@ export function createAudioAdapter(options = {}) {
       }
       for (const [cueId, url] of Object.entries(section)) {
         entries.push({ category, cueId, url });
+        // C-09: remember where each cue id lives so preloadAudioAssets can
+        // resolve a URL by cue id alone after the manifest is registered.
+        urlIndex.set(cueId, { category, url });
       }
     }
 
@@ -535,6 +551,120 @@ export function createAudioAdapter(options = {}) {
           report.loaded.push(cueId);
         } catch (error) {
           console.warn(`audio-adapter: failed to load clip "${cueId}" from ${url}`, error);
+          report.failed.push(cueId);
+        }
+      }),
+    );
+
+    return report;
+  }
+
+  /**
+   * Resolve the fetch URL for a single cue id from the registered url index or
+   * an explicit override map.
+   *
+   * @param {string} cueId - Cue id to resolve.
+   * @param {Record<string, string> | null | undefined} urls - Optional explicit
+   *   cue id -> url overrides (takes precedence over the registered manifest).
+   * @returns {{ category: string, url: string } | null} Resolved entry, or null.
+   */
+  function resolvePreloadTarget(cueId, urls) {
+    if (urls && typeof urls === 'object' && typeof urls[cueId] === 'string') {
+      const indexed = urlIndex.get(cueId);
+      return { category: indexed?.category || 'sfx', url: urls[cueId] };
+    }
+    return urlIndex.get(cueId) || null;
+  }
+
+  /**
+   * C-09: Pre-decode gameplay-critical SFX into the existing buffer cache.
+   *
+   * Decoding runs asynchronously (`fetch → arrayBuffer → decodeAudioData`) and
+   * in parallel across cues; nothing here is synchronous and no call blocks the
+   * game loop. Already-decoded buffers are reused (skipped), concurrent requests
+   * for the same cue share one in-flight decode (deduplicated), and a failed
+   * decode logs a warning without rejecting so startup never crashes.
+   *
+   * Only `sfx`-category cues are eligible — music and ambience are intentionally
+   * excluded in this phase (they are lazy-loaded by later work). Cues whose URL
+   * cannot be resolved (unknown id, no manifest registered) are skipped with a
+   * warning.
+   *
+   * @param {string[]} cueIds - Gameplay-critical SFX cue ids to preload.
+   * @param {{ urls?: Record<string, string> }} [preloadOptions={}] - Optional
+   *   explicit cue id -> url overrides when no manifest has been registered.
+   * @returns {Promise<{ preloaded: string[], cached: string[], skipped: string[], failed: string[] }>}
+   *   Report of which cues were decoded, already cached, skipped, or failed.
+   */
+  async function preloadAudioAssets(cueIds, preloadOptions = {}) {
+    const report = { preloaded: [], cached: [], skipped: [], failed: [] };
+    if (!Array.isArray(cueIds) || cueIds.length === 0) {
+      return report;
+    }
+
+    const urls = preloadOptions && typeof preloadOptions === 'object' ? preloadOptions.urls : null;
+
+    // De-duplicate the incoming list so the same id passed twice in one call is
+    // only processed once.
+    const uniqueCueIds = [
+      ...new Set(cueIds.filter((id) => typeof id === 'string' && id.length > 0)),
+    ];
+
+    const context = ensureContext();
+    if (!context) {
+      console.warn('audio-adapter: cannot preload audio without an AudioContext');
+      for (const cueId of uniqueCueIds) {
+        report.skipped.push(cueId);
+      }
+      return report;
+    }
+
+    await Promise.all(
+      uniqueCueIds.map(async (cueId) => {
+        const target = resolvePreloadTarget(cueId, urls);
+
+        // Music/ambience are out of scope for this phase; only gameplay-critical
+        // SFX are preload candidates.
+        if (!target || target.category !== 'sfx') {
+          console.warn(`audio-adapter: skipping non-preloadable cue "${cueId}"`);
+          report.skipped.push(cueId);
+          return;
+        }
+
+        // Reuse already-decoded buffers.
+        if (sfxBuffers.has(cueId)) {
+          report.cached.push(cueId);
+          return;
+        }
+
+        // Prevent duplicate preload requests: share any in-flight decode.
+        let decodePromise = inFlightDecodes.get(cueId);
+        if (!decodePromise) {
+          decodePromise = (async () => {
+            const buffer = await decodeClip(context, target.url);
+            sfxBuffers.set(cueId, buffer);
+            clipIndex.set(cueId, { category: 'sfx', buffers: sfxBuffers });
+            return true;
+          })().finally(() => {
+            inFlightDecodes.delete(cueId);
+          });
+          inFlightDecodes.set(cueId, decodePromise);
+          try {
+            await decodePromise;
+            report.preloaded.push(cueId);
+          } catch (error) {
+            console.warn(`audio-adapter: failed to preload cue "${cueId}"`, error);
+            report.failed.push(cueId);
+          }
+          return;
+        }
+
+        // A decode for this cue is already running (started by an earlier item in
+        // this same batch or a concurrent preload call); await its result.
+        try {
+          await decodePromise;
+          report.cached.push(cueId);
+        } catch {
           report.failed.push(cueId);
         }
       }),
@@ -908,6 +1038,7 @@ export function createAudioAdapter(options = {}) {
 
   return {
     loadClips,
+    preloadAudioAssets,
     playSfx,
     playSfxLoop,
     stopSfxLoop,
