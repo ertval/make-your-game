@@ -60,6 +60,7 @@
 
 import { drain } from '../../ecs/resources/event-queue.js';
 import { GAME_STATE } from '../../ecs/resources/game-status.js';
+import { isDevelopment } from '../../shared/env.js';
 
 /**
  * Canonical event type → SFX cue id table.
@@ -136,16 +137,6 @@ export function resolveMusicForState(gameState) {
   return Object.hasOwn(MUSIC_STATE_MAPPING, gameState) ? MUSIC_STATE_MAPPING[gameState] : null;
 }
 
-function isDev() {
-  // Detect Node / Vitest dev-mode without crashing in browser bundles where
-  // `process` is undefined.
-  try {
-    return typeof process !== 'undefined' && process.env && process.env.NODE_ENV !== 'production';
-  } catch {
-    return false;
-  }
-}
-
 /**
  * Create the C-07 audio cue runner.
  *
@@ -173,7 +164,7 @@ export function createAudioCueRunner(options = {}) {
   let lastState = null;
 
   function maybeWarnUnknown(type) {
-    if (!warnUnknownEvents || !isDev()) {
+    if (!warnUnknownEvents || !isDevelopment()) {
       return;
     }
     if (warnedUnknown.has(type)) {

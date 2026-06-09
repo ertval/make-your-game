@@ -25,11 +25,17 @@
 export const ARIA_LIVE_THROTTLE_MS = 1000;
 
 function getNow() {
+  // ARIA throttling must compare timestamps from a single monotonic time base.
+  // Mixing performance.now() with Date.now() yields meaningless intervals (the
+  // two clocks have unrelated origins), so we standardize on performance.now()
+  // and never fall back to Date.now(). When performance.now() is unavailable we
+  // return null so the caller skips throttling and always announces — favouring
+  // accessibility over throttling on hosts that lack a high-resolution clock.
   if (typeof performance !== 'undefined' && typeof performance.now === 'function') {
     return performance.now();
   }
 
-  return Date.now();
+  return null;
 }
 
 function setTextContentIfChanged(element, value) {
@@ -142,12 +148,15 @@ export function createHudAdapter(rootElement) {
 
     const statusMessage = buildStatusMessage(previousState, lives, score, timer, level);
     const now = getNow();
+    // A null clock (no performance.now) means we cannot throttle reliably, so
+    // announce every change rather than mixing in an unrelated time base.
+    const throttleWindowElapsed = now === null || now - lastAnnouncedAt >= ARIA_LIVE_THROTTLE_MS;
 
     if (
       elements.status &&
       statusMessage &&
       statusMessage !== lastAnnouncement &&
-      now - lastAnnouncedAt >= ARIA_LIVE_THROTTLE_MS
+      throttleWindowElapsed
     ) {
       setTextContentIfChanged(elements.status, statusMessage);
       lastAnnouncement = statusMessage;
