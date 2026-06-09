@@ -754,6 +754,9 @@ export function createBootstrap(options = {}) {
     options.playerEntityResourceKey || DEFAULT_PLAYER_ENTITY_RESOURCE_KEY;
   const clock = createClock(nowMs);
   const gameStatus = createGameStatus();
+  // BUG-16: Resolve the event queue resource key early so it can be accessed
+  // by gameFlow's onRestart closure during synchronous browser startup.
+  const eventQueueResourceKey = options.eventQueueResourceKey || DEFAULT_EVENT_QUEUE_RESOURCE_KEY;
 
   // Resolve a single now-source for restart resyncs. Tests wire a synthetic
   // `nowProvider` so the restart path stays deterministic; production falls
@@ -804,6 +807,13 @@ export function createBootstrap(options = {}) {
       updateBoardCss(mapResource);
       syncPlayerEntityFromMap(world, mapResource, options);
       syncGhostEntitiesFromMap(world, mapResource, options);
+      // Reset spawn state so level-2 ghosts are released on the documented
+      // 0/5/10/15 s stagger, not whatever timing the previous level reached.
+      world.setResource('ghostSpawnState', createInitialSpawnState());
+      world.setResource('deadGhostIds', []);
+      // bomb-cell occupancy is also per-map; clear so a stale level-1 cell
+      // index never blocks a level-2 ghost.
+      world.setResource('bombCellOccupancy', new Set());
       // BUG-01: level transition must reset frame counters so fixed-step
       // progression restarts cleanly for the new level.
       world.frame = 0;
@@ -847,6 +857,11 @@ export function createBootstrap(options = {}) {
       world.setResource('pauseIntent', { toggle: false });
       world.setResource('bombCellOccupancy', new Set());
 
+      // BUG-16: Reset the event queue so stale events from the previous run
+      // (e.g., BombDetonated, GhostDefeated, LevelCleared) are not replayed
+      // by the audio cue runner on the first post-restart tick.
+      world.setResource(eventQueueResourceKey, createEventQueue());
+
       // D-09: Reset sprite pool so old sprites are returned to idle state.
       // This combined with render-dom-system's frame-0 map clear ensures
       // that sprites are correctly re-acquired for new entities.
@@ -868,7 +883,6 @@ export function createBootstrap(options = {}) {
   // B-05: Register the canonical event queue resource so Track B simulation
   // systems can emit deterministic cross-system events without importing
   // bootstrap or adapter modules. Systems access this only via world.getResource.
-  const eventQueueResourceKey = options.eventQueueResourceKey || DEFAULT_EVENT_QUEUE_RESOURCE_KEY;
   ensureWorldResource(world, eventQueueResourceKey, createEventQueue);
   world.setResource('gameFlow', gameFlow);
   world.setResource('gameStatus', gameStatus);

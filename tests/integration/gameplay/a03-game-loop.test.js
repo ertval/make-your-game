@@ -78,7 +78,7 @@ function createDocumentStub() {
  *
  * @returns {{ addEventListener: Function, dispatch: Function, removeEventListener: Function }}
  */
-function createWindowStub() {
+function createWindowStub(scheduledFrames = null) {
   const listenerTarget = createListenerTarget();
 
   return {
@@ -91,6 +91,13 @@ function createWindowStub() {
     removeEventListener: vi.fn((eventName, handler) => {
       listenerTarget.remove(eventName, handler);
     }),
+    setTimeout: vi.fn((callback, _delay) => {
+      if (scheduledFrames) {
+        scheduledFrames.push((...args) => callback(...args));
+      }
+      return 1;
+    }),
+    clearTimeout: vi.fn(),
   };
 }
 
@@ -291,8 +298,8 @@ describe('game loop and runtime', () => {
       now: 0,
     });
     const documentStub = createDocumentStub();
-    const windowStub = createWindowStub();
     const scheduledFrames = [];
+    const windowStub = createWindowStub(scheduledFrames);
     const logger = {
       error: vi.fn(),
     };

@@ -42,6 +42,7 @@ import { createInputAdapter } from './adapters/io/input-adapter.js';
 import { getHighScore, saveHighScore } from './adapters/io/storage-adapter.js';
 import { percentileFromSorted, toSortedNumericArray } from './debug/frame-stats.js';
 import { FIXED_DT_MS, MAX_STEPS_PER_FRAME, TOTAL_LEVELS } from './ecs/resources/constants.js';
+import { drain } from './ecs/resources/event-queue.js';
 import { createMapResource } from './ecs/resources/map-resource.js';
 import { createBootstrap } from './game/bootstrap.js';
 import { createSyncMapLoader } from './game/level-loader.js';
@@ -122,9 +123,14 @@ function createFrameProbe(
     };
   }
 
+  function reset() {
+    lastTimestamp = 0;
+  }
+
   return {
     getStats,
     recordFrame,
+    reset,
   };
 }
 
@@ -255,6 +261,19 @@ export function createGameRuntime({
   const cancelScheduledFrame =
     cancelFrame || targetWindow?.cancelAnimationFrame?.bind(targetWindow);
   const getNow = nowProvider || (() => targetWindow?.performance?.now?.() ?? Date.now());
+  const setTimeoutImpl = (fn, delay) => {
+    if (targetWindow && typeof targetWindow.setTimeout === 'function') {
+      return targetWindow.setTimeout(fn, delay);
+    }
+    return setTimeout(fn, delay);
+  };
+  const clearTimeoutImpl = (handle) => {
+    if (targetWindow && typeof targetWindow.clearTimeout === 'function') {
+      targetWindow.clearTimeout(handle);
+      return;
+    }
+    clearTimeout(handle);
+  };
   const frameProbe = createFrameProbe(DEFAULT_FRAME_SAMPLE_SIZE, frameProbeWarmupFrames);
 
   if (!bootstrap) {
@@ -334,17 +353,34 @@ export function createGameRuntime({
 
     const safeNowMs = normalizeNow(frameNowMs);
 
+    if (quarantinedUntilMs > safeNowMs) {
+      frameHandle = setTimeoutImpl((time) => {
+        if (isRunning) {
+          onAnimationFrame(normalizeNow(time ?? getNow()));
+        }
+      }, 50);
+      return;
+    }
+
     try {
       frameProbe.recordFrame(safeNowMs);
-
-      if (quarantinedUntilMs > safeNowMs) {
-        return;
-      }
 
       bootstrap.stepFrame(safeNowMs, {
         fixedDtMs: FIXED_DT_MS,
         maxStepsPerFrame: MAX_STEPS_PER_FRAME,
       });
+
+      // BUG-01: Drain the event queue each frame so events emitted by
+      // simulation systems do not accumulate unboundedly. The queue is
+      // consumed here in the rAF loop (not in bootstrap.stepFrame) so
+      // integration tests that inspect drained events can still call
+      // stepFrame directly without the automatic clearing.
+      if (bootstrap.world && bootstrap.eventQueueResourceKey) {
+        const eventQueue = bootstrap.world.getResource(bootstrap.eventQueueResourceKey);
+        if (eventQueue) {
+          drain(eventQueue);
+        }
+      }
     } catch (error) {
       // Catch unexpected errors outside the system-dispatch boundary
       // (e.g., tickClock, applyDeferredMutations) so the loop survives.
@@ -355,13 +391,21 @@ export function createGameRuntime({
       if (runtimeFaultTimestamps.length >= boundedRuntimeFaultBudget) {
         quarantinedUntilMs = safeNowMs + boundedRuntimeFaultCooldownMs;
         runtimeFaultTimestamps.length = 0;
+        frameProbe.reset();
         logger.error(
           `Game runtime fault budget exceeded. Quarantining simulation updates for ${boundedRuntimeFaultCooldownMs}ms.`,
         );
       }
     } finally {
-      // Always schedule the next frame, even if this one threw.
-      frameHandle = scheduleFrame(onAnimationFrame);
+      if (quarantinedUntilMs > safeNowMs) {
+        frameHandle = setTimeoutImpl((time) => {
+          if (isRunning) {
+            onAnimationFrame(normalizeNow(time ?? getNow()));
+          }
+        }, 50);
+      } else {
+        frameHandle = scheduleFrame(onAnimationFrame);
+      }
     }
   }
 
@@ -410,6 +454,7 @@ export function createGameRuntime({
     if (typeof cancelScheduledFrame === 'function') {
       cancelScheduledFrame(frameHandle);
     }
+    clearTimeoutImpl(frameHandle);
 
     // Prefer the explicit bootstrap API so the resource slot is cleared and any
     // previously-registered adapter is destroyed through one code path.
