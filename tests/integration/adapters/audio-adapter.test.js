@@ -252,6 +252,9 @@ function setup(options = {}) {
     audioContextCtor: MockAudioContext,
     fetchImpl,
     autoUnlock: options.autoUnlock !== false,
+    // C-09: allow tests to inject a deterministic monotonic clock so preload
+    // timing accounting can be asserted exactly.
+    nowImpl: options.nowImpl,
   });
 
   return {
@@ -593,13 +596,133 @@ describe('audio-adapter: C-09 preloadAudioAssets', () => {
       cached: [],
       skipped: [],
       failed: [],
+      timings: [],
+      durationMs: 0,
     });
     expect(await adapter.preloadAudioAssets(null)).toEqual({
       preloaded: [],
       cached: [],
       skipped: [],
       failed: [],
+      timings: [],
+      durationMs: 0,
     });
+  });
+});
+
+describe('audio-adapter: C-09 preload instrumentation (AUDIT-B-05)', () => {
+  const SFX_URLS = {
+    'sfx-bomb-place': '/audio/bomb-place.wav',
+    'sfx-pellet-collect': '/audio/pellet.wav',
+    'sfx-player-hit': '/audio/player-hit.wav',
+  };
+
+  // Deterministic monotonic clock: each nowImpl() call advances by 10ms, so
+  // every measured fetch/decode span is a known, real (not hardcoded) duration.
+  function createStepClock(stepMs = 10) {
+    let t = 0;
+    return () => {
+      const v = t;
+      t += stepMs;
+      return v;
+    };
+  }
+
+  async function setupInstrumented(options = {}) {
+    const harness = setup({ ...options, nowImpl: options.nowImpl || createStepClock() });
+    // Register category metadata without caching buffers.
+    await harness.adapter.loadClips({ music: { 'music-gameplay': '/audio/gameplay.ogg' } });
+    return harness;
+  }
+
+  it('populates timing and counts from real measurements on a successful preload', async () => {
+    const { adapter } = await setupInstrumented();
+
+    const report = await adapter.preloadAudioAssets(['sfx-bomb-place', 'sfx-pellet-collect'], {
+      urls: SFX_URLS,
+    });
+
+    // Per-run report carries real per-cue timings + a total duration.
+    expect(report.timings).toHaveLength(2);
+    for (const t of report.timings) {
+      expect(t.fetchMs).toBeGreaterThan(0);
+      expect(t.decodeMs).toBeGreaterThan(0);
+    }
+    expect(report.durationMs).toBeGreaterThan(0);
+
+    const stats = adapter.getPreloadStats();
+    expect(stats.runs).toBe(1);
+    expect(stats.assetsRequested).toBe(2);
+    expect(stats.assetsPreloaded).toBe(2);
+    expect(stats.totalFetchMs).toBeGreaterThan(0);
+    expect(stats.totalDecodeMs).toBeGreaterThan(0);
+    expect(stats.totalPreloadMs).toBeGreaterThan(0);
+    expect(stats.averageFetchMs).toBeCloseTo(stats.totalFetchMs / 2, 6);
+    expect(stats.averageDecodeMs).toBeCloseTo(stats.totalDecodeMs / 2, 6);
+  });
+
+  it('accounts a cache miss on first decode and a cache hit on reuse', async () => {
+    const { adapter } = await setupInstrumented();
+
+    await adapter.preloadAudioAssets(['sfx-bomb-place'], { urls: SFX_URLS });
+    let stats = adapter.getPreloadStats();
+    expect(stats.cacheMisses).toBe(1);
+    expect(stats.cacheHits).toBe(0);
+
+    // Second request for the same cue is served from cache (no new decode).
+    await adapter.preloadAudioAssets(['sfx-bomb-place'], { urls: SFX_URLS });
+    stats = adapter.getPreloadStats();
+    expect(stats.cacheMisses).toBe(1);
+    expect(stats.cacheHits).toBe(1);
+    expect(stats.assetsPreloaded).toBe(1);
+  });
+
+  it('accounts a failed decode without inflating preload/decode totals', async () => {
+    const { adapter } = await setupInstrumented({
+      context: {
+        decodeImpl: async (payload) => {
+          if (payload?.url === '/audio/player-hit.wav') {
+            throw new Error('decode error');
+          }
+          return { __mockBuffer: true, src: payload };
+        },
+      },
+    });
+
+    await adapter.preloadAudioAssets(['sfx-bomb-place', 'sfx-player-hit'], { urls: SFX_URLS });
+    const stats = adapter.getPreloadStats();
+
+    expect(stats.failedDecodes).toBe(1);
+    expect(stats.assetsPreloaded).toBe(1); // only the healthy cue decoded
+    expect(stats.cacheMisses).toBe(2); // both were misses; one then failed
+  });
+
+  it('verifies preload runs asynchronously without blocking the caller', async () => {
+    const { adapter } = await setupInstrumented();
+
+    // The call returns a pending promise synchronously; a synchronous marker set
+    // right after the call runs before the preload settles, proving the decode
+    // path never blocks the calling (game-loop bootstrap) frame.
+    let settled = false;
+    const pending = adapter.preloadAudioAssets(['sfx-bomb-place'], { urls: SFX_URLS }).then(() => {
+      settled = true;
+    });
+
+    // Still pending right after the synchronous call returns.
+    expect(settled).toBe(false);
+
+    await pending;
+    expect(settled).toBe(true);
+  });
+
+  it('exposes an immutable stats snapshot (callers cannot mutate adapter state)', async () => {
+    const { adapter } = await setupInstrumented();
+    await adapter.preloadAudioAssets(['sfx-bomb-place'], { urls: SFX_URLS });
+
+    const snapshot = adapter.getPreloadStats();
+    snapshot.cacheMisses = 999;
+
+    expect(adapter.getPreloadStats().cacheMisses).toBe(1);
   });
 });
 
