@@ -846,6 +846,7 @@ export function createBootstrap(options = {}) {
       world.setResource('deadGhostIds', []);
       world.setResource('pauseIntent', { restart: false, toggle: false });
       world.setResource('levelFlow', {});
+      world.setResource('bombCellOccupancy', new Set());
 
       // D-09: Reset sprite pool so old sprites are returned to idle state.
       // This combined with render-dom-system's frame-0 map clear ensures
@@ -885,6 +886,7 @@ export function createBootstrap(options = {}) {
   world.setResource('pauseIntent', { restart: false, toggle: false });
   world.setResource('deadGhostIds', []);
   world.setResource('levelFlow', {});
+  world.setResource('bombCellOccupancy', new Set());
   world.setResource(options.hudElementsResourceKey || 'hudElements', options.hudElements || null);
 
   registerSystemsByPhase(

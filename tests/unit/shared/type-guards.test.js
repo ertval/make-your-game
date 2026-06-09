@@ -11,9 +11,9 @@ import { describe, expect, it } from 'vitest';
 import { isRecord } from '../../../src/shared/type-guards.js';
 
 describe('type-guards', () => {
-  it('returns true for plain objects and arrays', () => {
+  it('returns true for plain objects, false for arrays', () => {
     expect(isRecord({})).toBe(true);
-    expect(isRecord([])).toBe(true);
+    expect(isRecord([])).toBe(false);
   });
 
   it('returns false for null and primitives', () => {

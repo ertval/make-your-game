@@ -334,9 +334,9 @@
  * `.sprite--bomb` to swap the background-image per fuse tick. Mirrors the
  * `.sprite--player--walk-*` per-frame pattern from D-10.
  *
- * Awaiting wiring: a bomb-animation-system + render-dom-system update is
- * required to apply these classes; today the base `.sprite--bomb` class
- * shows only the idle frame.
+ * Wired by render-collect-system (computes the frame index from
+ * `bombStore.fuseMs`) + render-dom-system's `BOMB_SPRITE_CLASSES` table, which
+ * applies the matching class as the fuse counts down toward detonation.
  */
 .sprite--bomb--idle {
   background-image: url("../assets/generated/visuals/128px/items/bomb-idle.webp");
