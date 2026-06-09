@@ -289,4 +289,19 @@ describe('security gate contracts', () => {
     expect(result.status).toBe(0);
     expect((result.stdout || '').trim()).toBe('');
   });
+
+  it('test:integration script does not use --passWithNoTests (DEAD-04)', () => {
+    const pkg = JSON.parse(fs.readFileSync(path.join(repoRoot, 'package.json'), 'utf8'));
+    expect(pkg.scripts['test:integration']).not.toContain('--passWithNoTests');
+  });
+
+  it('no .gitkeep placeholder files remain under src/ (DEAD-34)', () => {
+    const result = spawnSync('find', ['src', '-name', '.gitkeep'], {
+      cwd: repoRoot,
+      encoding: 'utf8',
+    });
+
+    expect(result.status).toBe(0);
+    expect((result.stdout || '').trim()).toBe('');
+  });
 });

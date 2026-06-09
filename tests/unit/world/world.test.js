@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 
-import { World } from '../../../src/ecs/world/world.js';
+import { DEFAULT_PHASE_ORDER, World } from '../../../src/ecs/world/world.js';
 
 describe('World', () => {
   it('runs simulation phases in deterministic registration order and render in explicit commit order', () => {
@@ -8,7 +8,11 @@ describe('World', () => {
     const order = [];
 
     world.registerSystem({ phase: 'logic', name: 'logic-1', update: () => order.push('logic-1') });
-    world.registerSystem({ phase: 'input', name: 'input-1', update: () => order.push('input-1') });
+    world.registerSystem({
+      phase: 'physics',
+      name: 'physics-1',
+      update: () => order.push('physics-1'),
+    });
     world.registerSystem({ phase: 'logic', name: 'logic-2', update: () => order.push('logic-2') });
     world.registerSystem({
       phase: 'render',
@@ -19,7 +23,7 @@ describe('World', () => {
     world.runFixedStep();
     world.runRenderCommit();
 
-    expect(order).toEqual(['input-1', 'logic-1', 'logic-2', 'render-1']);
+    expect(order).toEqual(['physics-1', 'logic-1', 'logic-2', 'render-1']);
   });
 
   it('does not execute render systems during fixed-step simulation dispatch', () => {
@@ -360,7 +364,7 @@ describe('World', () => {
     const world = new World();
 
     // 232: getPhaseOrder
-    expect(world.getPhaseOrder()).toEqual(['meta', 'input', 'physics', 'logic', 'render']);
+    expect(world.getPhaseOrder()).toEqual(['meta', 'physics', 'logic', 'render']);
 
     // 406-407: runRenderCommit with no systems
     world.runRenderCommit();
@@ -401,6 +405,10 @@ describe('World', () => {
     consoleErrorSpy.mockRestore();
   });
 
+  it('does not include unused input phase in DEFAULT_PHASE_ORDER', () => {
+    expect(DEFAULT_PHASE_ORDER).not.toContain('input');
+  });
+
   it('quarantines failing render systems when fault budget is exceeded', () => {
     const world = new World({ systemFailureBudget: 1 });
     const consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
@@ -424,5 +432,39 @@ describe('World', () => {
     expect(runCount).toBe(1);
 
     consoleErrorSpy.mockRestore();
+  });
+
+  it('runRenderCommit flushes deferred mutations', () => {
+    const world = new World();
+    const handle = world.createEntity(0b0001);
+
+    world.registerSystem({
+      phase: 'render',
+      name: 'render-defer-destroy',
+      update: (context) => {
+        context.world.deferDestroyEntity(handle);
+        expect(context.world.getEntityCount()).toBe(1);
+      },
+    });
+
+    world.runRenderCommit();
+    expect(world.getEntityCount()).toBe(0);
+  });
+
+  it('runMeta flushes deferred mutations', () => {
+    const world = new World();
+    const handle = world.createEntity(0b0001);
+
+    world.registerSystem({
+      phase: 'meta',
+      name: 'meta-defer-destroy',
+      update: (context) => {
+        context.world.deferDestroyEntity(handle);
+        expect(context.world.getEntityCount()).toBe(1);
+      },
+    });
+
+    world.runMeta();
+    expect(world.getEntityCount()).toBe(0);
   });
 });

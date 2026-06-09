@@ -805,9 +805,10 @@ function resolveDynamicCellCollisions(
       });
 
       // B-09: publish the cross-system GhostDefeated fact so the scoring combo
-      // multiplier (C-01) and audio/visual consumers observe the same ordered
-      // event. chainDepth defaults to the root explosion depth when the fire
-      // store does not expose chain metadata (older/partial harnesses).
+      // multiplier (C-01), the C-07/C-08 audio cue runner (→ sfx-ghost-kill),
+      // and visual consumers observe the same ordered event. chainDepth defaults
+      // to the root explosion depth when the fire store does not expose chain
+      // metadata (older/partial harnesses).
       emitGameplayEvent(
         eventContext?.eventQueue,
         GAMEPLAY_EVENT_TYPE.GHOST_DEFEATED,

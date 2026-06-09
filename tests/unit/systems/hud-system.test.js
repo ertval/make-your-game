@@ -1,16 +1,16 @@
 /**
- * Unit tests for the D-08 HUD rendering system.
+ * Unit tests for the D-08 / ARCH-01 HUD data system.
  *
- * These checks lock the bugfix where the HUD must surface the player's live
- * power-up stats (`maxBombs` / `fireRadius`) through the HUD adapter instead of
- * the previously hardcoded zeros, so that bomb/fire power-up pickups visibly
- * increment the `Bombs:` / `Fire:` counters.
+ * The HUD system is a logic-phase, DOM-free producer: it reads the gameplay
+ * resources and writes a plain snapshot into the `hudState` buffer. These checks
+ * lock the power-up stat surfacing (`maxBombs` / `fireRadius`) and assert the
+ * system performs no DOM access — only buffer writes.
  */
 
-import { describe, expect, it, vi } from 'vitest';
+import { describe, expect, it } from 'vitest';
 
 import { createPlayerStore } from '../../../src/ecs/components/actors.js';
-import { createHudSystem } from '../../../src/ecs/systems/hud-system.js';
+import { createHudState, createHudSystem } from '../../../src/ecs/systems/hud-system.js';
 import { World } from '../../../src/ecs/world/world.js';
 
 function setupWorld({ playerEntity = { id: 0, generation: 0 }, configurePlayer } = {}) {
@@ -26,27 +26,24 @@ function setupWorld({ playerEntity = { id: 0, generation: 0 }, configurePlayer }
   world.setResource('scoreState', { totalPoints: 0 });
   world.setResource('levelTimer', { remainingSeconds: 0 });
   world.setResource('playerLife', { lives: 3 });
+  world.setResource('hudState', createHudState());
 
-  const updateSpy = vi.fn();
-  world.setResource('hudAdapter', { update: updateSpy });
-
-  return { world, playerStore, updateSpy };
+  return { world, playerStore };
 }
 
 describe('hud-system', () => {
-  it('forwards the player canonical starting power-up stats to the adapter', () => {
-    const { world, updateSpy } = setupWorld();
+  it('writes the player canonical starting power-up stats into the hudState buffer', () => {
+    const { world } = setupWorld();
     const hudSystem = createHudSystem();
 
     hudSystem.update({ world });
 
     // PLAYER_START_MAX_BOMBS = 1, DEFAULT_FIRE_RADIUS = 2.
-    expect(updateSpy).toHaveBeenCalledTimes(1);
-    expect(updateSpy.mock.calls[0][0]).toMatchObject({ bombs: 1, fire: 2 });
+    expect(world.getResource('hudState')).toMatchObject({ bombs: 1, fire: 2, lives: 3 });
   });
 
-  it('reflects collected bomb and fire power-ups in the HUD payload', () => {
-    const { world, playerStore, updateSpy } = setupWorld({
+  it('reflects collected bomb and fire power-ups in the hudState buffer', () => {
+    const { world, playerStore } = setupWorld({
       configurePlayer(store) {
         // Simulate two bomb pickups and one fire pickup applied by power-up-system.
         store.maxBombs[0] += 2;
@@ -59,15 +56,45 @@ describe('hud-system', () => {
 
     expect(playerStore.maxBombs[0]).toBe(3);
     expect(playerStore.fireRadius[0]).toBe(3);
-    expect(updateSpy.mock.calls[0][0]).toMatchObject({ bombs: 3, fire: 3 });
+    expect(world.getResource('hudState')).toMatchObject({ bombs: 3, fire: 3 });
   });
 
   it('falls back to zero stats when no live player entity is registered', () => {
-    const { world, updateSpy } = setupWorld({ playerEntity: null });
+    const { world } = setupWorld({ playerEntity: null });
     const hudSystem = createHudSystem();
 
     hudSystem.update({ world });
 
-    expect(updateSpy.mock.calls[0][0]).toMatchObject({ bombs: 0, fire: 0 });
+    expect(world.getResource('hudState')).toMatchObject({ bombs: 0, fire: 0 });
+  });
+
+  it('lazily creates a hudState buffer when one is not pre-registered', () => {
+    const { world } = setupWorld();
+    world.setResource('hudState', undefined);
+    const hudSystem = createHudSystem();
+
+    hudSystem.update({ world });
+
+    expect(world.getResource('hudState')).toMatchObject({ lives: 3, bombs: 1, fire: 2 });
+  });
+
+  it('reuses the existing hudState object reference across frames', () => {
+    const { world } = setupWorld();
+    const hudSystem = createHudSystem();
+
+    hudSystem.update({ world });
+    const firstBuffer = world.getResource('hudState');
+    hudSystem.update({ world });
+
+    expect(world.getResource('hudState')).toBe(firstBuffer);
+  });
+
+  it('declares no DOM resources and is a logic-phase system', () => {
+    const hudSystem = createHudSystem();
+
+    expect(hudSystem.phase).toBe('logic');
+    expect(hudSystem.resourceCapabilities.write).toEqual(['hudState']);
+    expect(hudSystem.resourceCapabilities.read).not.toContain('hudAdapter');
+    expect(hudSystem.resourceCapabilities.read).not.toContain('hudElements');
   });
 });

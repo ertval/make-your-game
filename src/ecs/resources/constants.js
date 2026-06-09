@@ -97,31 +97,21 @@ export const GHOST_STATE = {
 };
 
 /** Clyde distance threshold for target switching (tiles).
- *  @internal Reserved for the ghost-AI system (DEAD-06). */
+ *  Used by ghost-ai-system.js ClydeScatterTarget. */
 export const CLYDE_DISTANCE_THRESHOLD = 8;
 
 /** Pinky target offset ahead of player (tiles).
- *  @internal Reserved for the ghost-AI system (DEAD-06). */
+ *  Used by ghost-ai-system.js PinkyAmbushTarget. */
 export const PINKY_TARGET_OFFSET = 4;
 
 /** Inky reference offset ahead of player (tiles).
- *  @internal Reserved for the ghost-AI system (DEAD-06). */
+ *  Used by ghost-ai-system.js InkyPincerTarget. */
 export const INKY_REFERENCE_OFFSET = 2;
-
-/** Minimum valid exits at an intersection for ghost pathfinding.
- *  @internal Reserved for the ghost-AI pathfinding system (DEAD-18). */
-export const GHOST_INTERSECTION_MIN_EXITS = 3;
 
 // --- Level ---
 
 /** Per-level timer durations in seconds. */
 export const LEVEL_TIMERS = [120, 180, 240];
-
-/** Per-level maximum active ghosts. */
-export const LEVEL_MAX_GHOSTS = [2, 3, 4];
-
-/** Per-level ghost normal speed in tiles per second. */
-export const LEVEL_GHOST_SPEED = [4.0, 4.5, 5.0];
 
 /** Stunned ghost speed (constant across all levels). */
 export const GHOST_STUNNED_SPEED = 2.0;
@@ -130,27 +120,11 @@ export const GHOST_STUNNED_SPEED = 2.0;
 export const TOTAL_LEVELS = 3;
 
 // --- Scoring ---
-
-/** Points for eating a regular pellet. */
-export const SCORE_PELLET = 10;
-
-/** Points for eating a power pellet. */
-export const SCORE_POWER_PELLET = 50;
-
-/** Points for killing a normal-state ghost with a bomb. */
-export const SCORE_GHOST_KILL = 200;
-
-/** Points for killing a stunned ghost with a bomb (skill bonus). */
-export const SCORE_STUNNED_GHOST_KILL = 400;
-
-/** Points for collecting a power-up. */
-export const SCORE_POWER_UP = 100;
-
-/** Base points for clearing a level. */
-export const SCORE_LEVEL_CLEAR = 1000;
-
-/** Multiplier for remaining seconds converted to bonus points. */
-export const SCORE_TIME_BONUS_MULTIPLIER = 10;
+// Canonical scoring point values live in `src/ecs/systems/scoring-system.js`
+// (the single source of truth consumed by the scoring runtime). They were
+// previously duplicated here with identical values but never imported from
+// this module; the duplicates were removed (DEAD-02). Import `SCORE_*` from
+// the scoring system if a non-scoring module ever needs a point value.
 
 // --- Power-Up Drop Rates ---
 

@@ -111,7 +111,11 @@ function createMockBufferSource() {
  * Build a mock AudioContext class whose decode resolution and state can be
  * controlled per test. Returned object also tracks every node and call.
  */
-function buildMockAudioContextCtor({ decodeImpl, initialState = 'running' } = {}) {
+function buildMockAudioContextCtor({
+  decodeImpl,
+  initialState = 'running',
+  resumeRejectCount = 0,
+} = {}) {
   const records = {
     instances: [],
     createdGainNodes: [],
@@ -126,6 +130,7 @@ function buildMockAudioContextCtor({ decodeImpl, initialState = 'running' } = {}
       this.createdBufferSources = [];
       this.suspendCalls = 0;
       this.resumeCalls = 0;
+      this.resumeRejectsRemaining = resumeRejectCount;
       this.closeCalls = 0;
       this.decodeCalls = [];
       records.instances.push(this);
@@ -145,6 +150,20 @@ function buildMockAudioContextCtor({ decodeImpl, initialState = 'running' } = {}
       return source;
     }
 
+    // Real AudioContexts expose createBuffer; the adapter uses it to pre-render
+    // the crossfaded seamless-loop buffer. The mock returns a minimal buffer
+    // backed by Float32Array channels so the crossfade math runs for real.
+    createBuffer(channels, length, sampleRate) {
+      const data = Array.from({ length: channels }, () => new Float32Array(length));
+      return {
+        numberOfChannels: channels,
+        length,
+        sampleRate,
+        duration: length / sampleRate,
+        getChannelData: (channel) => data[channel],
+      };
+    }
+
     async decodeAudioData(arrayBuffer) {
       this.decodeCalls.push(arrayBuffer);
       if (typeof decodeImpl === 'function') {
@@ -162,6 +181,13 @@ function buildMockAudioContextCtor({ decodeImpl, initialState = 'running' } = {}
 
     async resume() {
       this.resumeCalls += 1;
+      // Simulate a browser rejecting resume() for a gesture it does not accept
+      // as audio activation (e.g. Firefox + arrow keys): stay suspended and
+      // throw until the configured number of attempts is exhausted.
+      if (this.resumeRejectsRemaining > 0) {
+        this.resumeRejectsRemaining -= 1;
+        throw new Error('resume rejected: gesture not accepted');
+      }
       this.state = 'running';
     }
 
@@ -212,9 +238,17 @@ function setup(options = {}) {
   const fetchImpl = options.fetchImpl || buildFetchStub(options.fetch || {});
   const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
 
+  // Mirror the browser UserActivation API so tests can simulate a gesture that
+  // already happened before the adapter was constructed (hasBeenActive === true).
+  const navigatorTarget =
+    options.navigatorTarget !== undefined
+      ? options.navigatorTarget
+      : { userActivation: { hasBeenActive: false } };
+
   const adapter = createAudioAdapter({
     windowTarget,
     documentTarget,
+    navigatorTarget,
     audioContextCtor: MockAudioContext,
     fetchImpl,
     autoUnlock: options.autoUnlock !== false,
@@ -224,6 +258,7 @@ function setup(options = {}) {
     adapter,
     windowTarget,
     documentTarget,
+    navigatorTarget,
     MockAudioContext,
     records,
     fetchImpl,
@@ -255,6 +290,60 @@ describe('audio-adapter: AudioContext lifecycle', () => {
     await Promise.resolve();
     expect(context.resumeCalls).toBeGreaterThanOrEqual(1);
     expect(adapter.getAudioContext()).toBe(context);
+  });
+
+  it('unlocks on construction when the player already interacted (start-gesture race)', async () => {
+    // The adapter is built asynchronously (after the map load), but input is
+    // live earlier — so the player may press Enter / click to start the game
+    // before the unlock listeners exist. navigator.userActivation.hasBeenActive
+    // still reports that gesture, so the context must resume on construction.
+    const { adapter, records } = setup({
+      context: { initialState: 'suspended' },
+      navigatorTarget: { userActivation: { hasBeenActive: true } },
+    });
+
+    await Promise.resolve();
+    expect(records.instances.length).toBe(1);
+    expect(records.instances[0].resumeCalls).toBeGreaterThanOrEqual(1);
+    expect(adapter.getAudioContext()).toBe(records.instances[0]);
+  });
+
+  it('does not eagerly create the context when the player has not interacted', async () => {
+    const { adapter, records } = setup({
+      context: { initialState: 'suspended' },
+      navigatorTarget: { userActivation: { hasBeenActive: false } },
+    });
+
+    await Promise.resolve();
+    expect(records.instances.length).toBe(0);
+    expect(adapter.getAudioContext()).toBe(null);
+  });
+
+  it('keeps retrying unlock when an earlier gesture is rejected by the autoplay policy', async () => {
+    // Models Firefox rejecting resume() for an arrow key (not an accepted audio
+    // gesture) while accepting the next one (Space/Enter/click). A one-shot
+    // listener would be consumed by the rejected arrow and never retry — these
+    // listeners must stay bound until the context is actually running.
+    const { windowTarget, records } = setup({
+      context: { initialState: 'suspended', resumeRejectCount: 1 },
+    });
+
+    windowTarget.dispatch('keydown', { code: 'ArrowRight' });
+    await Promise.resolve();
+    await Promise.resolve();
+    const context = records.instances[0];
+    expect(context.resumeCalls).toBe(1);
+    expect(context.state).toBe('suspended');
+    expect(windowTarget.listenerCount('keydown')).toBe(1);
+    expect(windowTarget.listenerCount('pointerdown')).toBe(1);
+
+    windowTarget.dispatch('keydown', { code: 'Space' });
+    await Promise.resolve();
+    await Promise.resolve();
+    expect(context.resumeCalls).toBe(2);
+    expect(context.state).toBe('running');
+    expect(windowTarget.listenerCount('keydown')).toBe(0);
+    expect(windowTarget.listenerCount('pointerdown')).toBe(0);
   });
 
   it('wires category gain nodes master -> destination and music/sfx/ui -> master', async () => {
@@ -446,6 +535,98 @@ describe('audio-adapter: playSfx', () => {
     expect(adapter.playSfx('')).toBeNull();
     expect(adapter.playSfx(null)).toBeNull();
     expect(adapter.playSfx(undefined)).toBeNull();
+  });
+});
+
+describe('audio-adapter: looping SFX', () => {
+  it('renders a crossfaded loop buffer over the trimmed region so wraps are seamless', async () => {
+    const sampleRate = 1000;
+    const length = 100;
+    const data = new Float32Array(length); // silent edges (encoder padding)
+    for (let i = 20; i < 80; i += 1) {
+      data[i] = 0.5; // audible body: samples 20..79 -> region [20, 80), len 60
+    }
+    const decodedBuffer = {
+      duration: length / sampleRate,
+      length,
+      sampleRate,
+      numberOfChannels: 1,
+      getChannelData: () => data,
+    };
+    const { adapter } = setup({ context: { decodeImpl: async () => decodedBuffer } });
+    await adapter.loadClips({ sfx: { 'sfx-loop': '/audio/loop.mp3' } });
+
+    const source = adapter.playSfxLoop('sfx-loop');
+
+    expect(source).not.toBeNull();
+    expect(source.loop).toBe(true);
+    // The crossfade path loops a freshly rendered buffer from its start, so the
+    // raw source loopStart/loopEnd splice is no longer used.
+    expect(source.startedAt).toBe(0);
+    expect(source.loopStart).toBeUndefined();
+    expect(source.loopEnd).toBeUndefined();
+    // Rendered length = trimmed region (~60) minus the fade folded back into the
+    // head. fade = min(round(0.03*1000)=30, floor(60/2)=30) = 30, so the loop
+    // body is ~30 samples (zero-snap may shift an edge by one).
+    expect(source.buffer).not.toBe(decodedBuffer);
+    expect(source.buffer.length).toBeGreaterThanOrEqual(28);
+    expect(source.buffer.length).toBeLessThanOrEqual(31);
+    expect(source.buffer.sampleRate).toBe(sampleRate);
+  });
+
+  it('equal-power crossfades the loop tail into its head for a continuous wrap', async () => {
+    // Region body is a constant 0.5 except a 0.9 spike at the very first and a
+    // 0.1 dip at the very last sample. After folding tail->head the boundary
+    // samples become a blend, proving the crossfade ran (not a raw copy).
+    // Region is 200 samples so it comfortably exceeds the 30-sample fade window,
+    // leaving an untouched body to assert against.
+    const sampleRate = 1000;
+    const length = 300;
+    const data = new Float32Array(length);
+    for (let i = 50; i < 250; i += 1) {
+      data[i] = 0.5; // region [50, 250), length 200
+    }
+    data[50] = 0.9; // head edge of region
+    data[249] = 0.1; // tail edge of region
+    const decodedBuffer = {
+      duration: length / sampleRate,
+      length,
+      sampleRate,
+      numberOfChannels: 1,
+      getChannelData: () => data,
+    };
+    const { adapter } = setup({ context: { decodeImpl: async () => decodedBuffer } });
+    await adapter.loadClips({ sfx: { 'sfx-loop': '/audio/loop.mp3' } });
+
+    const source = adapter.playSfxLoop('sfx-loop');
+    const rendered = source.buffer.getChannelData(0);
+
+    // Rendered length = trimmed region minus the 30-sample fade folded into the
+    // head. Zero-snap may nudge an edge by a sample, so assert the relationship
+    // rather than an exact count: ~170, and strictly less than the full region.
+    expect(rendered.length).toBeGreaterThanOrEqual(168);
+    expect(rendered.length).toBeLessThan(200);
+    // First sample = head*sin(t~0) + tail*cos(t~0); fade-in≈0, fade-out≈1, so it
+    // is dominated by the faded-out tail (~0.5 body) rather than the 0.9 head
+    // spike — proving the tail was mixed in.
+    expect(rendered[0]).toBeLessThan(0.9);
+    // Mid-buffer (index 50, past the 30-sample fade) is the untouched body level.
+    expect(rendered[50]).toBeCloseTo(0.5, 5);
+    // Every rendered sample stays within the source's amplitude envelope (no
+    // crossfade overshoot/clipping).
+    for (let i = 0; i < rendered.length; i += 1) {
+      expect(Math.abs(rendered[i])).toBeLessThanOrEqual(0.9 + 1e-6);
+    }
+  });
+
+  it('idempotently returns the existing loop source without restarting it', async () => {
+    const { adapter } = setup();
+    await adapter.loadClips({ sfx: { 'sfx-loop': '/audio/loop.mp3' } });
+
+    const first = adapter.playSfxLoop('sfx-loop');
+    const second = adapter.playSfxLoop('sfx-loop');
+
+    expect(second).toBe(first);
   });
 });
 

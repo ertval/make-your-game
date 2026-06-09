@@ -19,7 +19,7 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "test:unit": "vitest run tests/unit",
-    "test:integration": "vitest run tests/integration --passWithNoTests",
+    "test:integration": "vitest run tests/integration",
     "test:e2e": "playwright test tests/e2e --pass-with-no-tests",
     "test:audit": "npm run test:audit:vitest && npm run test:audit:e2e",
     "test:audit:vitest": "vitest run tests/e2e/audit",
@@ -50,5 +50,8 @@
     "husky": "^9.1.7",
     "vite": "^8.0.3",
     "vitest": "^4.1.2"
+  },
+  "overrides": {
+    "@emnapi/wasi-threads": "1.2.2"
   }
 }

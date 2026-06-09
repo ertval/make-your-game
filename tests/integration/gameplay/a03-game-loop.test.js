@@ -78,7 +78,7 @@ function createDocumentStub() {
  *
  * @returns {{ addEventListener: Function, dispatch: Function, removeEventListener: Function }}
  */
-function createWindowStub() {
+function createWindowStub(scheduledFrames = null) {
   const listenerTarget = createListenerTarget();
 
   return {
@@ -91,6 +91,13 @@ function createWindowStub() {
     removeEventListener: vi.fn((eventName, handler) => {
       listenerTarget.remove(eventName, handler);
     }),
+    setTimeout: vi.fn((callback, _delay) => {
+      if (scheduledFrames) {
+        scheduledFrames.push((...args) => callback(...args));
+      }
+      return 1;
+    }),
+    clearTimeout: vi.fn(),
   };
 }
 
@@ -291,8 +298,8 @@ describe('game loop and runtime', () => {
       now: 0,
     });
     const documentStub = createDocumentStub();
-    const windowStub = createWindowStub();
     const scheduledFrames = [];
+    const windowStub = createWindowStub(scheduledFrames);
     const logger = {
       error: vi.fn(),
     };
@@ -804,15 +811,19 @@ describe('game loop and runtime', () => {
       documentRef: documentStub,
       logger: {
         error: vi.fn(),
+        warn: vi.fn(),
       },
       windowRef: windowStub,
     });
 
     expect(runtime).not.toBeNull();
+    // The three level maps are preloaded first, then the audio adapter fetches
+    // the audio manifest to build its clip list (C-06/C-07 runtime wiring).
     expect(requestedUrls).toEqual([
       '/assets/maps/level-1.json',
       '/assets/maps/level-2.json',
       '/assets/maps/level-3.json',
+      '/assets/manifests/audio-manifest.json',
     ]);
     expect(windowStub.addEventListener).toHaveBeenCalledWith('keydown', expect.any(Function));
     expect(windowStub.addEventListener).toHaveBeenCalledWith('keyup', expect.any(Function));

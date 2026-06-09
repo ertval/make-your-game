@@ -13,9 +13,9 @@
  * - The system never mutates the map or any entities. It derives completion
  *   solely from the current map resource through the canonical pellet helpers.
  * - FSM writes are always guarded by canTransition() before transitionTo().
- * - Level advancement/loading is handled elsewhere. This system only publishes
- *   `levelFlow.pendingLevelAdvance = true` for non-final completion, leaving
- *   actual loading to the loader system.
+ * - Level advancement/loading is handled elsewhere (levelLoader.advanceLevel()).
+ *   On non-final completion this system simply leaves the FSM in LEVEL_COMPLETE
+ *   and performs no level-flow writes of its own.
  * - Scoring is intentionally out of scope here. Score integration is handled
  *   by a later ticket so this system stays focused on progression flow only.
  */
@@ -30,7 +30,6 @@ import {
 
 const DEFAULT_EVENT_QUEUE_RESOURCE_KEY = 'eventQueue';
 const DEFAULT_GAME_STATUS_RESOURCE_KEY = 'gameStatus';
-const DEFAULT_LEVEL_FLOW_RESOURCE_KEY = 'levelFlow';
 const DEFAULT_MAP_RESOURCE_KEY = 'mapResource';
 const DEFAULT_TOTAL_LEVELS = 3;
 
@@ -74,23 +73,9 @@ function resolveLevelNumber(mapResource) {
   return Number.isInteger(levelNumber) && levelNumber > 0 ? levelNumber : 1;
 }
 
-function publishPendingLevelAdvance(world, levelFlowResourceKey) {
-  const levelFlow = world.getResource(levelFlowResourceKey);
-  const nextLevelFlow =
-    levelFlow && typeof levelFlow === 'object'
-      ? {
-          ...levelFlow,
-          pendingLevelAdvance: true,
-        }
-      : { pendingLevelAdvance: true };
-
-  world.setResource(levelFlowResourceKey, nextLevelFlow);
-}
-
 export function createLevelProgressSystem(options = {}) {
   const eventQueueResourceKey = options.eventQueueResourceKey || DEFAULT_EVENT_QUEUE_RESOURCE_KEY;
   const gameStatusResourceKey = options.gameStatusResourceKey || DEFAULT_GAME_STATUS_RESOURCE_KEY;
-  const levelFlowResourceKey = options.levelFlowResourceKey || DEFAULT_LEVEL_FLOW_RESOURCE_KEY;
   const mapResourceKey = options.mapResourceKey || DEFAULT_MAP_RESOURCE_KEY;
   const totalLevels = Number.isFinite(options.totalLevels)
     ? Math.max(1, Math.floor(options.totalLevels))
@@ -104,8 +89,8 @@ export function createLevelProgressSystem(options = {}) {
     name: 'level-progress-system',
     phase: 'logic',
     resourceCapabilities: {
-      read: [gameStatusResourceKey, levelFlowResourceKey, mapResourceKey],
-      write: [eventQueueResourceKey, gameStatusResourceKey, levelFlowResourceKey],
+      read: [gameStatusResourceKey, mapResourceKey],
+      write: [eventQueueResourceKey, gameStatusResourceKey],
     },
     update(context) {
       const world = context.world;
@@ -133,7 +118,8 @@ export function createLevelProgressSystem(options = {}) {
           return;
         }
 
-        publishPendingLevelAdvance(world, levelFlowResourceKey);
+        // Non-final completion: stay in LEVEL_COMPLETE and let
+        // levelLoader.advanceLevel() drive the actual level transition.
         return;
       }
 
@@ -148,7 +134,9 @@ export function createLevelProgressSystem(options = {}) {
       // LevelCleared fires on the PLAYING → LEVEL_COMPLETE transition for every
       // level (including the final one, which then advances to Victory next
       // tick), so consumers observe the canonical "LevelCleared → Victory"
-      // ordering on the last level.
+      // ordering on the last level. The C-07/C-08 audio cue runner maps this same
+      // 'LevelCleared' event to sfx-level-complete, so it fires exactly once per
+      // cleared level off the one-shot transition edge.
       if (tryTransition(gameStatus, GAME_STATE.LEVEL_COMPLETE)) {
         emitGameplayEvent(
           eventQueue,
