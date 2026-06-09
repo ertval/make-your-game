@@ -32,7 +32,7 @@ import { COMPONENT_MASK } from '../components/registry.js';
 import { COLLIDER_TYPE } from '../components/spatial.js';
 import { RENDERABLE_KIND } from '../components/visual.js';
 import { appendRenderIntentDirect } from '../render-intent.js';
-import { FIRE_DURATION_MS, VISUAL_FLAGS } from '../resources/constants.js';
+import { BOMB_FUSE_MS, FIRE_DURATION_MS, VISUAL_FLAGS } from '../resources/constants.js';
 
 /**
  * Number of fire-tile animation frames. Matches the count of
@@ -41,6 +41,14 @@ import { FIRE_DURATION_MS, VISUAL_FLAGS } from '../resources/constants.js';
  * dim "embers" tail.
  */
 const FIRE_ANIMATION_FRAMES = 4;
+
+/**
+ * Number of bomb fuse-animation frames. Matches the `BOMB_SPRITE_CLASSES`
+ * table in render-dom-system.js (bomb-idle, bomb-fuse-01..03). Frame 0 is the
+ * freshly-placed idle bomb; frame N-1 is the fuse burnt down to the wick just
+ * before detonation.
+ */
+const BOMB_ANIMATION_FRAMES = 4;
 
 const DEFAULT_RENDERABLE_RESOURCE_KEY = 'renderable';
 const DEFAULT_VISUAL_STATE_RESOURCE_KEY = 'visualState';
@@ -148,16 +156,28 @@ export function createRenderCollectSystem(options = {}) {
       // never releases the pooled element).
       const colliderStore = context.world.getResource(colliderResourceKey);
       const bombStore = context.world.getResource(bombResourceKey);
-      if (colliderStore && colliderStore.type && bombStore && bombStore.row && bombStore.col) {
+      if (colliderStore?.type && bombStore?.row && bombStore?.col) {
         const slots = colliderStore.type.length;
         for (let id = 0; id < slots; id += 1) {
           if (colliderStore.type[id] !== COLLIDER_TYPE.BOMB) continue;
           const classBits = visualState ? visualState.classBits[id] : 0;
+
+          // Map remaining fuse time to a 0..N-1 frame index. fuseMs counts
+          // DOWN from BOMB_FUSE_MS to 0, so progress = 1 - (fuse / duration).
+          // Frame 0 (idle) shows just after placement; frame N-1 (fuse burnt
+          // to the wick) shows right before detonation. Clamped so rounding
+          // past the bounds still resolves to a valid sprite class.
+          const fuse = bombStore.fuseMs[id];
+          const progress = BOMB_FUSE_MS > 0 ? 1 - fuse / BOMB_FUSE_MS : 0;
+          let spriteId = Math.floor(progress * BOMB_ANIMATION_FRAMES);
+          if (spriteId < 0) spriteId = 0;
+          else if (spriteId >= BOMB_ANIMATION_FRAMES) spriteId = BOMB_ANIMATION_FRAMES - 1;
+
           appendRenderIntentDirect(
             buffer,
             id,
             RENDERABLE_KIND.BOMB,
-            0,
+            spriteId,
             bombStore.col[id],
             bombStore.row[id],
             classBits,
@@ -167,7 +187,7 @@ export function createRenderCollectSystem(options = {}) {
       }
 
       const fireStore = context.world.getResource(fireResourceKey);
-      if (colliderStore && colliderStore.type && fireStore && fireStore.row && fireStore.col) {
+      if (colliderStore?.type && fireStore?.row && fireStore?.col) {
         const slots = colliderStore.type.length;
         for (let id = 0; id < slots; id += 1) {
           if (colliderStore.type[id] !== COLLIDER_TYPE.FIRE) continue;

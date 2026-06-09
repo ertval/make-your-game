@@ -13,7 +13,7 @@
 import { EntityStore } from './entity-store.js';
 import { QueryIndex } from './query.js';
 
-export const DEFAULT_PHASE_ORDER = ['meta', 'input', 'physics', 'logic', 'render'];
+export const DEFAULT_PHASE_ORDER = ['meta', 'physics', 'logic', 'render'];
 
 const FULL_RESOURCE_ACCESS = '*';
 const RENDER_PHASE = 'render';
