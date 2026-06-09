@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 import { FIXED_DT_MS } from '../../../src/ecs/resources/constants.js';
+import { enqueue } from '../../../src/ecs/resources/event-queue.js';
 import { GAME_STATE } from '../../../src/ecs/resources/game-status.js';
 import { createBootstrap } from '../../../src/game/bootstrap.js';
 
@@ -198,5 +199,30 @@ describe('Bootstrap extended coverage', () => {
     bootstrap.world.setResource('spritePool', invalidSpritePool);
     bootstrap.gameFlow.setState(GAME_STATE.PLAYING);
     expect(() => bootstrap.gameFlow.restartLevel()).not.toThrow();
+  });
+
+  it('clears eventQueue on restart (BUG-16)', () => {
+    const bootstrap = createBootstrap({ now: 0 });
+    const world = bootstrap.world;
+    const eventQueue = world.getResource(bootstrap.eventQueueResourceKey);
+
+    enqueue(eventQueue, 'TestEvent', { value: 42 }, 0);
+    enqueue(eventQueue, 'AnotherEvent', { value: 99 }, 0);
+
+    expect(eventQueue.events.length).toBe(2);
+
+    bootstrap.gameFlow.setState(GAME_STATE.PLAYING);
+    bootstrap.gameFlow.restartLevel();
+
+    const freshQueue = world.getResource(bootstrap.eventQueueResourceKey);
+    expect(freshQueue.events.length).toBe(0);
+  });
+
+  it('exports eventQueueResourceKey for runtime drain (BUG-01)', () => {
+    const bootstrap = createBootstrap({ now: 0 });
+
+    expect(typeof bootstrap.eventQueueResourceKey).toBe('string');
+    expect(bootstrap.eventQueueResourceKey.length).toBeGreaterThan(0);
+    expect(bootstrap.world.hasResource(bootstrap.eventQueueResourceKey)).toBe(true);
   });
 });

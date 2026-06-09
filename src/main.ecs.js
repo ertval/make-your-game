@@ -42,6 +42,7 @@ import { createInputAdapter } from './adapters/io/input-adapter.js';
 import { getHighScore, saveHighScore } from './adapters/io/storage-adapter.js';
 import { percentileFromSorted, toSortedNumericArray } from './debug/frame-stats.js';
 import { FIXED_DT_MS, MAX_STEPS_PER_FRAME, TOTAL_LEVELS } from './ecs/resources/constants.js';
+import { drain } from './ecs/resources/event-queue.js';
 import { createMapResource } from './ecs/resources/map-resource.js';
 import { createBootstrap } from './game/bootstrap.js';
 import { createSyncMapLoader } from './game/level-loader.js';
@@ -345,6 +346,16 @@ export function createGameRuntime({
         fixedDtMs: FIXED_DT_MS,
         maxStepsPerFrame: MAX_STEPS_PER_FRAME,
       });
+
+      // BUG-01: Drain the event queue each frame so events emitted by
+      // simulation systems do not accumulate unboundedly. The queue is
+      // consumed here in the rAF loop (not in bootstrap.stepFrame) so
+      // integration tests that inspect drained events can still call
+      // stepFrame directly without the automatic clearing.
+      const eventQueue = bootstrap.world.getResource(bootstrap.eventQueueResourceKey);
+      if (eventQueue) {
+        drain(eventQueue);
+      }
     } catch (error) {
       // Catch unexpected errors outside the system-dispatch boundary
       // (e.g., tickClock, applyDeferredMutations) so the loop survives.
