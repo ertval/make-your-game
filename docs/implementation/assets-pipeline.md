@@ -125,6 +125,10 @@ npx ajv-cli validate -s docs/schemas/visual-manifest.schema.json -d assets/manif
 npx ajv-cli validate -s docs/schemas/audio-manifest.schema.json -d assets/manifests/audio-manifest.json --spec=draft2020
 ```
 
+### 9.2 Raster-to-WebP Deviation
+
+While SVG is the preferred format for sprites and UI elements to support scaling and performance, the player sprites deviate from this preference. They are generated as lossless WebP images (128x128 pixels). This deviation is because the source assets are authored as a raster sprite sheet, and converting them to vectors would not preserve their original artistic style. Lossless WebP provides a high-fidelity, well-optimized alternative that respects the visual layout budget.
+
 ## 10. Suggested Tooling
 
 1. SVG optimization: svgo.

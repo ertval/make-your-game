@@ -56,6 +56,7 @@ function loadLevelMap(levelNumber) {
  */
 function createMinimalValidRawMap() {
   return {
+    __testSchemaValidation__: true,
     level: 1,
     metadata: {
       name: 'Test Level',
@@ -598,5 +599,121 @@ describe('map-resource — runtime trust boundary guards', () => {
     // Track D guard export is in-flight; loader must still reject malformed payloads.
     expect(() => levelLoader.loadLevel(0)).toThrow();
     expect(world.hasResource('mapResource')).toBe(false);
+  });
+});
+
+describe('map-resource — JSON Schema validation', () => {
+  it('passes schema validation for minimal valid map', () => {
+    const rawMap = createMinimalValidRawMap();
+    const map = createMapResource(rawMap);
+    expect(map).toBeDefined();
+    expect(map.level).toBe(1);
+  });
+
+  it('rejects map with missing required root fields', () => {
+    const rawMap = createMinimalValidRawMap();
+    delete rawMap.level;
+    expect(() => createMapResource(rawMap)).toThrow(
+      'Map schema validation failed: Missing required root property: "level"',
+    );
+  });
+
+  it('rejects map with additional properties on root', () => {
+    const rawMap = createMinimalValidRawMap();
+    rawMap.extraProperty = 'not-allowed';
+    expect(() => createMapResource(rawMap)).toThrow(
+      'Map schema validation failed: Additional property "extraProperty" is not allowed on root object',
+    );
+  });
+
+  it('rejects map with invalid level values', () => {
+    const rawMap = createMinimalValidRawMap();
+    rawMap.level = 0;
+    expect(() => createMapResource(rawMap)).toThrow(
+      'Map schema validation failed: Property "level" must be an integer between 1 and 3',
+    );
+
+    rawMap.level = 4;
+    expect(() => createMapResource(rawMap)).toThrow(
+      'Map schema validation failed: Property "level" must be an integer between 1 and 3',
+    );
+
+    rawMap.level = 1.5;
+    expect(() => createMapResource(rawMap)).toThrow(
+      'Map schema validation failed: Property "level" must be an integer between 1 and 3',
+    );
+
+    rawMap.level = '1';
+    expect(() => createMapResource(rawMap)).toThrow(
+      'Map schema validation failed: Property "level" must be an integer between 1 and 3',
+    );
+  });
+
+  it('rejects map with invalid metadata', () => {
+    const rawMap = createMinimalValidRawMap();
+    delete rawMap.metadata.name;
+    expect(() => createMapResource(rawMap)).toThrow(
+      'Map schema validation failed: metadata: Missing required property: "name"',
+    );
+
+    const rawMap2 = createMinimalValidRawMap();
+    rawMap2.metadata.timerSeconds = 700;
+    expect(() => createMapResource(rawMap2)).toThrow(
+      'Map schema validation failed: metadata.timerSeconds must be an integer between 1 and 600',
+    );
+
+    const rawMap3 = createMinimalValidRawMap();
+    rawMap3.metadata.maxGhosts = 5;
+    expect(() => createMapResource(rawMap3)).toThrow(
+      'Map schema validation failed: metadata.maxGhosts must be an integer between 1 and 4',
+    );
+
+    const rawMap4 = createMinimalValidRawMap();
+    rawMap4.metadata.ghostSpeed = 0.5;
+    expect(() => createMapResource(rawMap4)).toThrow(
+      'Map schema validation failed: metadata.ghostSpeed must be a number between 1.0 and 10.0',
+    );
+
+    const rawMap5 = createMinimalValidRawMap();
+    rawMap5.metadata.activeGhostTypes = [0, 0]; // duplicate
+    expect(() => createMapResource(rawMap5)).toThrow(
+      'Map schema validation failed: metadata.activeGhostTypes items must be unique',
+    );
+  });
+
+  it('rejects map with invalid dimensions', () => {
+    const rawMap = createMinimalValidRawMap();
+    rawMap.dimensions.columns = 9;
+    expect(() => createMapResource(rawMap)).toThrow(
+      'Map schema validation failed: dimensions.columns must be an integer between 10 and 100',
+    );
+
+    const rawMap2 = createMinimalValidRawMap();
+    rawMap2.dimensions.rows = 101;
+    expect(() => createMapResource(rawMap2)).toThrow(
+      'Map schema validation failed: dimensions.rows must be an integer between 10 and 100',
+    );
+  });
+
+  it('rejects map with invalid grid cells', () => {
+    const rawMap = createMinimalValidRawMap();
+    rawMap.grid[1][1] = 10; // invalid cell type enum
+    expect(() => createMapResource(rawMap)).toThrow(
+      'Map schema validation failed: grid[1][1] must be an integer cell type ID between 0 and 9',
+    );
+  });
+
+  it('rejects map with invalid spawn settings', () => {
+    const rawMap = createMinimalValidRawMap();
+    rawMap.spawn.player.row = -1;
+    expect(() => createMapResource(rawMap)).toThrow(
+      'Map schema validation failed: spawn.player.row must be a non-negative integer',
+    );
+
+    const rawMap2 = createMinimalValidRawMap();
+    rawMap2.spawn.ghostHouse.topRow = -5;
+    expect(() => createMapResource(rawMap2)).toThrow(
+      'Map schema validation failed: spawn.ghostHouse.topRow must be a non-negative integer',
+    );
   });
 });
