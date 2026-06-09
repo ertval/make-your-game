@@ -28,7 +28,9 @@
  * - loadClips(manifest): fetch + decodeAudioData each clip in the manifest.
  * - preloadAudioAssets(cueIds, options): C-09 — async pre-decode gameplay-critical
  *   SFX into the buffer cache (parallel, deduplicated, failure-tolerant; music/
- *   ambience excluded).
+ *   ambience excluded). Records real performance.now() fetch/decode timings.
+ * - getPreloadStats(): C-09 — snapshot of cumulative preload instrumentation
+ *   (fetch/decode/total durations + cache-hit/miss/fail counts) for AUDIT-B-05.
  * - playSfx(cueId): play a one-shot SFX cue (overlapping playback supported).
  * - playSfxLoop(cueId) / stopSfxLoop(cueId): start/stop a looping SFX cue (e.g. bomb fuse).
  * - playMusic(trackId, options): play a music track, replacing any previous one.
@@ -328,6 +330,18 @@ export function createAudioAdapter(options = {}) {
   const AudioContextCtor = resolveAudioContextCtor(windowTarget, options.audioContextCtor);
   const fetchImpl = resolveFetch(windowTarget, options.fetchImpl);
   const autoUnlock = options.autoUnlock !== false;
+  // C-09: monotonic clock for preload instrumentation. Defaults to
+  // performance.now() (high-resolution, monotonic); injectable for tests so the
+  // accounting can be asserted deterministically. Never falls back to Date.now
+  // for measured durations to avoid mixing unrelated clock origins.
+  const nowImpl =
+    typeof options.nowImpl === 'function'
+      ? options.nowImpl
+      : windowTarget?.performance?.now
+        ? () => windowTarget.performance.now()
+        : typeof performance !== 'undefined' && typeof performance.now === 'function'
+          ? () => performance.now()
+          : () => 0;
 
   /** @type {AudioContext | null} */
   let audioContext = null;
@@ -349,6 +363,23 @@ export function createAudioAdapter(options = {}) {
   // fetch/decode. Cleared once the decode settles.
   /** @type {Map<string, Promise<boolean>>} */
   const inFlightDecodes = new Map();
+  // C-09 deliverable #3: real-runtime preload instrumentation. Every value here
+  // is accumulated from performance.now() measurements taken during the actual
+  // fetch/decode — no synthetic or hardcoded timings. Exposed via
+  // getPreloadStats() so the app boundary can emit an AUDIT-B-05 evidence
+  // artifact without ECS systems ever touching browser timing APIs.
+  const preloadStats = {
+    runs: 0,
+    assetsRequested: 0,
+    assetsPreloaded: 0,
+    cacheHits: 0,
+    cacheMisses: 0,
+    failedDecodes: 0,
+    totalFetchMs: 0,
+    totalDecodeMs: 0,
+    totalPreloadMs: 0,
+    lastRunMs: 0,
+  };
   const volumes = { ...DEFAULT_VOLUMES };
   const warnedMissing = new Set();
   /** @type {AudioBufferSourceNode | null} */
@@ -504,6 +535,35 @@ export function createAudioAdapter(options = {}) {
   }
 
   /**
+   * C-09: timed variant of decodeClip — measures real fetch and decode
+   * durations with the injected monotonic clock (no synthetic timings). The
+   * fetch span covers `fetch` + `arrayBuffer()`; the decode span is
+   * `decodeAudioData` alone.
+   *
+   * @param {AudioContext} context
+   * @param {string} url
+   * @returns {Promise<{ buffer: AudioBuffer, fetchMs: number, decodeMs: number }>}
+   */
+  async function decodeClipTimed(context, url) {
+    if (!fetchImpl) {
+      throw new Error('no fetch implementation available');
+    }
+    const fetchStart = nowImpl();
+    const response = await fetchImpl(url);
+    if (!response || (typeof response.ok === 'boolean' && !response.ok)) {
+      throw new Error(`failed to fetch ${url}`);
+    }
+    const arrayBuffer = await response.arrayBuffer();
+    const fetchMs = nowImpl() - fetchStart;
+
+    const decodeStart = nowImpl();
+    const buffer = await context.decodeAudioData(arrayBuffer);
+    const decodeMs = nowImpl() - decodeStart;
+
+    return { buffer, fetchMs, decodeMs };
+  }
+
+  /**
    * Pre-decode every clip described by the manifest and index it by cue id.
    *
    * The manifest is shaped as:
@@ -590,14 +650,28 @@ export function createAudioAdapter(options = {}) {
    * cannot be resolved (unknown id, no manifest registered) are skipped with a
    * warning.
    *
+   * Instrumentation (C-09 deliverable #3): every decoded cue records real
+   * `performance.now()` fetch and decode durations; per-run and lifetime totals,
+   * plus cache-hit / cache-miss / failed-decode counts, are accumulated into the
+   * adapter's preload stats (see `getPreloadStats`). The returned report also
+   * carries a `timings` array and a `durationMs` for this run.
+   *
    * @param {string[]} cueIds - Gameplay-critical SFX cue ids to preload.
    * @param {{ urls?: Record<string, string> }} [preloadOptions={}] - Optional
    *   explicit cue id -> url overrides when no manifest has been registered.
-   * @returns {Promise<{ preloaded: string[], cached: string[], skipped: string[], failed: string[] }>}
-   *   Report of which cues were decoded, already cached, skipped, or failed.
+   * @returns {Promise<{ preloaded: string[], cached: string[], skipped: string[], failed: string[], timings: Array<{ cueId: string, fetchMs: number, decodeMs: number }>, durationMs: number }>}
+   *   Report of which cues were decoded, already cached, skipped, or failed,
+   *   plus per-cue timings and the total wall-clock duration of this run.
    */
   async function preloadAudioAssets(cueIds, preloadOptions = {}) {
-    const report = { preloaded: [], cached: [], skipped: [], failed: [] };
+    const report = {
+      preloaded: [],
+      cached: [],
+      skipped: [],
+      failed: [],
+      timings: [],
+      durationMs: 0,
+    };
     if (!Array.isArray(cueIds) || cueIds.length === 0) {
       return report;
     }
@@ -610,12 +684,19 @@ export function createAudioAdapter(options = {}) {
       ...new Set(cueIds.filter((id) => typeof id === 'string' && id.length > 0)),
     ];
 
+    const runStart = nowImpl();
+    preloadStats.runs += 1;
+    preloadStats.assetsRequested += uniqueCueIds.length;
+
     const context = ensureContext();
     if (!context) {
       console.warn('audio-adapter: cannot preload audio without an AudioContext');
       for (const cueId of uniqueCueIds) {
         report.skipped.push(cueId);
       }
+      report.durationMs = nowImpl() - runStart;
+      preloadStats.lastRunMs = report.durationMs;
+      preloadStats.totalPreloadMs += report.durationMs;
       return report;
     }
 
@@ -631,36 +712,46 @@ export function createAudioAdapter(options = {}) {
           return;
         }
 
-        // Reuse already-decoded buffers.
+        // Reuse already-decoded buffers (cache hit — no fetch/decode).
         if (sfxBuffers.has(cueId)) {
           report.cached.push(cueId);
+          preloadStats.cacheHits += 1;
           return;
         }
 
         // Prevent duplicate preload requests: share any in-flight decode.
         let decodePromise = inFlightDecodes.get(cueId);
         if (!decodePromise) {
+          // Cache miss: this cue is decoded for real now.
+          preloadStats.cacheMisses += 1;
           decodePromise = (async () => {
-            const buffer = await decodeClip(context, target.url);
+            const { buffer, fetchMs, decodeMs } = await decodeClipTimed(context, target.url);
             sfxBuffers.set(cueId, buffer);
             clipIndex.set(cueId, { category: 'sfx', buffers: sfxBuffers });
-            return true;
+            return { fetchMs, decodeMs };
           })().finally(() => {
             inFlightDecodes.delete(cueId);
           });
           inFlightDecodes.set(cueId, decodePromise);
           try {
-            await decodePromise;
+            const { fetchMs, decodeMs } = await decodePromise;
             report.preloaded.push(cueId);
+            report.timings.push({ cueId, fetchMs, decodeMs });
+            preloadStats.assetsPreloaded += 1;
+            preloadStats.totalFetchMs += fetchMs;
+            preloadStats.totalDecodeMs += decodeMs;
           } catch (error) {
             console.warn(`audio-adapter: failed to preload cue "${cueId}"`, error);
             report.failed.push(cueId);
+            preloadStats.failedDecodes += 1;
           }
           return;
         }
 
         // A decode for this cue is already running (started by an earlier item in
-        // this same batch or a concurrent preload call); await its result.
+        // this same batch or a concurrent preload call); await its result. This
+        // is a cache hit on the in-flight decode — no extra fetch/decode work.
+        preloadStats.cacheHits += 1;
         try {
           await decodePromise;
           report.cached.push(cueId);
@@ -670,7 +761,32 @@ export function createAudioAdapter(options = {}) {
       }),
     );
 
+    report.durationMs = nowImpl() - runStart;
+    preloadStats.lastRunMs = report.durationMs;
+    preloadStats.totalPreloadMs += report.durationMs;
     return report;
+  }
+
+  /**
+   * C-09: snapshot of the cumulative preload instrumentation. All durations are
+   * real performance.now() measurements; counts are exact. Returns a plain
+   * object copy (callers cannot mutate adapter state) suitable for building the
+   * AUDIT-B-05 evidence artifact. Derived averages are included for convenience.
+   *
+   * @returns {{
+   *   runs: number, assetsRequested: number, assetsPreloaded: number,
+   *   cacheHits: number, cacheMisses: number, failedDecodes: number,
+   *   totalFetchMs: number, totalDecodeMs: number, totalPreloadMs: number,
+   *   lastRunMs: number, averageFetchMs: number, averageDecodeMs: number
+   * }}
+   */
+  function getPreloadStats() {
+    const decoded = preloadStats.assetsPreloaded;
+    return {
+      ...preloadStats,
+      averageFetchMs: decoded > 0 ? preloadStats.totalFetchMs / decoded : 0,
+      averageDecodeMs: decoded > 0 ? preloadStats.totalDecodeMs / decoded : 0,
+    };
   }
 
   function lookupBuffer(cueId, expectedCategory) {
@@ -1039,6 +1155,7 @@ export function createAudioAdapter(options = {}) {
   return {
     loadClips,
     preloadAudioAssets,
+    getPreloadStats,
     playSfx,
     playSfxLoop,
     stopSfxLoop,

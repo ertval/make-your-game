@@ -775,9 +775,18 @@ export async function bootstrapApplication({
           indicator: audioLoadingIndicator,
           cueIds,
           preloadOptions: { urls: criticalSfx },
-        }).catch((error) => {
-          logger.warn('Critical SFX preload failed.', error);
-        });
+        })
+          .then(() => {
+            // C-09: surface the real preload timing/cache instrumentation so it
+            // can be captured for the AUDIT-B-05 evidence artifact. This is a
+            // diagnostic log only; it never blocks the game loop.
+            if (typeof audioAdapter.getPreloadStats === 'function') {
+              logger.info?.('[C-09] audio preload stats', audioAdapter.getPreloadStats());
+            }
+          })
+          .catch((error) => {
+            logger.warn('Critical SFX preload failed.', error);
+          });
       });
     } catch (error) {
       logger.warn('Audio initialization failed; continuing without sound.', error);
