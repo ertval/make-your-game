@@ -129,23 +129,12 @@ export const TOTAL_LEVELS = 3;
 // --- Power-Up Drop Rates ---
 
 /** Probability map for power-up drops when a destructible wall is destroyed.
- *  Values sum to 1.0. Index aligns with POWER_UP_TYPE enum. */
+ *  Values sum to 1.0. */
 export const POWER_UP_DROP_CHANCES = {
   NONE: 0.85,
   BOMB: 0.05,
   FIRE: 0.05,
   SPEED: 0.05,
-};
-
-/** Power-up type IDs used for drop-rate configuration (POWER_UP_DROP_CHANCES).
- *  This is distinct from PROP_POWER_UP_TYPE in components/props.js, which is
- *  the gameplay-component-level enum (BOMB_PLUS, FIRE_PLUS, SPEED_BOOST).
- *  Do not conflate the two (DEAD-07). */
-export const POWER_UP_TYPE = {
-  NONE: 0,
-  BOMB: 1,
-  FIRE: 2,
-  SPEED: 3,
 };
 
 // --- Map Cell Types ---
