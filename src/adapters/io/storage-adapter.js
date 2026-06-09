@@ -1,9 +1,10 @@
 /**
  * Storage adapter for local persistence behind a guarded JSON boundary.
- * Public API: safeRead(key, schema, defaultValue), safeWrite(key, value),
+ * Public API: safeRead(key, validate, defaultValue), safeWrite(key, value),
  * saveHighScore(score), getHighScore().
- * Notes: This module avoids DOM usage, treats storage as untrusted input, and
- * leaves JSON Schema 2020-12 validation as a follow-up integration step.
+ * Notes: This module avoids DOM usage and treats storage as untrusted input.
+ * Callers pass a `validate(value) => boolean` predicate so the adapter rejects
+ * any payload that parses to an object but fails the caller's shape contract.
  */
 export const HIGH_SCORE_STORAGE_KEY = 'ms-ghostman.highScore';
 
@@ -15,7 +16,19 @@ function getStorage() {
   return localStorage;
 }
 
-export function safeRead(key, _schema, defaultValue) {
+/**
+ * Read and parse a JSON value from storage, treating its contents as untrusted.
+ *
+ * @param {string} key Storage key to read.
+ * @param {((value: unknown) => boolean) | null} validate Optional predicate
+ *   that returns `true` when the parsed value satisfies the caller's shape
+ *   contract. When omitted (`null`/`undefined`) only the base object-shape
+ *   guard is applied.
+ * @param {*} defaultValue Value returned when the key is absent, unreadable, or
+ *   fails validation.
+ * @returns {*} The validated parsed value, or `defaultValue`.
+ */
+export function safeRead(key, validate, defaultValue) {
   try {
     const storage = getStorage();
     const rawValue = storage?.getItem(key) ?? null;
@@ -31,7 +44,10 @@ export function safeRead(key, _schema, defaultValue) {
       return defaultValue;
     }
 
-    // TODO: Validate parsedValue against schema using JSON Schema 2020-12.
+    if (typeof validate === 'function' && !validate(parsedValue)) {
+      console.warn(`[storage] Value for key "${key}" failed validation.`);
+      return defaultValue;
+    }
 
     return parsedValue;
   } catch (error) {
@@ -68,13 +84,12 @@ export function saveHighScore(score) {
   }
 }
 
-export function getHighScore() {
-  const parsedValue = safeRead(HIGH_SCORE_STORAGE_KEY, null, { score: 0 });
+function isHighScorePayload(value) {
+  return typeof value.score === 'number' && Number.isFinite(value.score);
+}
 
-  if (typeof parsedValue.score !== 'number' || !Number.isFinite(parsedValue.score)) {
-    console.warn(`[storage] Invalid high score payload for key "${HIGH_SCORE_STORAGE_KEY}".`);
-    return 0;
-  }
+export function getHighScore() {
+  const parsedValue = safeRead(HIGH_SCORE_STORAGE_KEY, isHighScorePayload, { score: 0 });
 
   return Math.max(0, Math.floor(parsedValue.score));
 }
