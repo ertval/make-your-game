@@ -232,7 +232,9 @@ test('AUDIT-F-13 progression contract can reach VICTORY deterministically', asyn
   expect(progression.releasedCountL2).toBe(0);
 });
 
-test('AUDIT-F-13 ghost-house stagger and release timing conforms to requirements', async ({ page }) => {
+test('AUDIT-F-13 ghost-house stagger and release timing conforms to requirements', async ({
+  page,
+}) => {
   await bootRuntime(page);
   // Force transition to MENU so startGame can load level 3
   await page.evaluate(() => {
@@ -253,7 +255,7 @@ test('AUDIT-F-13 ghost-house stagger and release timing conforms to requirements
       activeGhostCap: 4,
     });
     world.setResource('deadGhostIds', []);
-    
+
     // Also reset all ghost entity masks to 0
     const handles = world.getResource('ghostEntities');
     if (Array.isArray(handles)) {
