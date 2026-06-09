@@ -133,7 +133,9 @@ describe('level-progress-system', () => {
     expect(world.getResource('levelFlow')).toBeUndefined();
   });
 
-  it('does not re-trigger progression work while already LEVEL_COMPLETE', () => {
+  it('stays in LEVEL_COMPLETE without writing levelFlow on a non-final level (BUG-20)', () => {
+    // BUG-20: level advancement is driven by levelLoader.advanceLevel(); the
+    // progress system must not write the dead `pendingLevelAdvance` flag.
     const world = new World();
     const system = createLevelProgressSystem();
     const gameStatus = createGameStatus(GAME_STATE.LEVEL_COMPLETE);
@@ -147,12 +149,11 @@ describe('level-progress-system', () => {
     updateSystem(system, world);
 
     expect(gameStatus.currentState).toBe(GAME_STATE.LEVEL_COMPLETE);
-    expect(world.getResource('levelFlow')).toEqual({
-      pendingLevelAdvance: true,
-    });
+    expect(gameStatus.previousState).toBeNull();
+    expect(world.getResource('levelFlow')).toBeUndefined();
   });
 
-  it('sets pendingLevelAdvance when LEVEL_COMPLETE is reached on a non-final level', () => {
+  it('does not write levelFlow when LEVEL_COMPLETE is reached on a non-final level', () => {
     const world = new World();
     const system = createLevelProgressSystem({ totalLevels: 3 });
     const gameStatus = createGameStatus(GAME_STATE.LEVEL_COMPLETE);
@@ -164,13 +165,10 @@ describe('level-progress-system', () => {
     updateSystem(system, world);
 
     expect(gameStatus.currentState).toBe(GAME_STATE.LEVEL_COMPLETE);
-    expect(gameStatus.previousState).toBeNull();
-    expect(world.getResource('levelFlow')).toEqual({
-      pendingLevelAdvance: true,
-    });
+    expect(world.getResource('levelFlow')).toBeUndefined();
   });
 
-  it('treats invalid level as non-final level', () => {
+  it('does not write levelFlow when the level is invalid (treated as non-final)', () => {
     const world = new World();
     const system = createLevelProgressSystem({ totalLevels: 3 });
     const gameStatus = createGameStatus(GAME_STATE.LEVEL_COMPLETE);
@@ -182,12 +180,11 @@ describe('level-progress-system', () => {
 
     updateSystem(system, world);
 
-    expect(world.getResource('levelFlow')).toEqual({
-      pendingLevelAdvance: true,
-    });
+    expect(gameStatus.currentState).toBe(GAME_STATE.LEVEL_COMPLETE);
+    expect(world.getResource('levelFlow')).toBeUndefined();
   });
 
-  it('merges pendingLevelAdvance into existing levelFlow object', () => {
+  it('leaves a pre-existing levelFlow resource untouched on non-final completion', () => {
     const world = new World();
     const system = createLevelProgressSystem({ totalLevels: 3 });
     const gameStatus = createGameStatus(GAME_STATE.LEVEL_COMPLETE);
@@ -199,27 +196,7 @@ describe('level-progress-system', () => {
 
     updateSystem(system, world);
 
-    expect(world.getResource('levelFlow')).toEqual({
-      existing: true,
-      pendingLevelAdvance: true,
-    });
-  });
-
-  it('creates new levelFlow when existing one is invalid', () => {
-    const world = new World();
-    const system = createLevelProgressSystem({ totalLevels: 3 });
-    const gameStatus = createGameStatus(GAME_STATE.LEVEL_COMPLETE);
-    const mapResource = createTestMapResource(1);
-
-    world.setResource('gameStatus', gameStatus);
-    world.setResource('mapResource', mapResource);
-    world.setResource('levelFlow', null);
-
-    updateSystem(system, world);
-
-    expect(world.getResource('levelFlow')).toEqual({
-      pendingLevelAdvance: true,
-    });
+    expect(world.getResource('levelFlow')).toEqual({ existing: true });
   });
 
   it('transitions to VICTORY when LEVEL_COMPLETE is reached on the final level', () => {
