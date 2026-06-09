@@ -844,8 +844,7 @@ export function createBootstrap(options = {}) {
       world.setResource('ghostSpawnState', createInitialSpawnState());
       world.setResource('collisionIntents', []);
       world.setResource('deadGhostIds', []);
-      world.setResource('pauseIntent', { restart: false, toggle: false });
-      world.setResource('levelFlow', {});
+      world.setResource('pauseIntent', { toggle: false });
       world.setResource('bombCellOccupancy', new Set());
 
       // D-09: Reset sprite pool so old sprites are returned to idle state.
@@ -883,9 +882,8 @@ export function createBootstrap(options = {}) {
   world.setResource('playerLife', { lives: 3, isInvincible: false, invincibilityRemainingMs: 0 });
   world.setResource('ghostSpawnState', createInitialSpawnState());
   world.setResource('collisionIntents', []); // B-04 requirement
-  world.setResource('pauseIntent', { restart: false, toggle: false });
+  world.setResource('pauseIntent', { toggle: false });
   world.setResource('deadGhostIds', []);
-  world.setResource('levelFlow', {});
   world.setResource('bombCellOccupancy', new Set());
   world.setResource(options.hudElementsResourceKey || 'hudElements', options.hudElements || null);
 

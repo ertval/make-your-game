@@ -42,7 +42,6 @@ describe('pause-input-system', () => {
     updatePauseInput(harness);
 
     expect(harness.world.getResource('pauseIntent')).toEqual({
-      restart: false,
       toggle: true,
     });
     expect(harness.world.getResource('gameStatus').currentState).toBe(GAME_STATE.PLAYING);
@@ -54,19 +53,16 @@ describe('pause-input-system', () => {
     harness.inputState.pause[harness.player.id] = 1;
     updatePauseInput(harness);
     expect(harness.world.getResource('pauseIntent')).toEqual({
-      restart: false,
       toggle: true,
     });
 
     harness.world.setResource('pauseIntent', {
-      restart: false,
       toggle: false,
     });
     harness.inputState.pause[harness.player.id] = 0;
     updatePauseInput(harness);
 
     expect(harness.world.getResource('pauseIntent')).toEqual({
-      restart: false,
       toggle: false,
     });
   });
@@ -78,23 +74,18 @@ describe('pause-input-system', () => {
     updatePauseInput(harness);
 
     expect(harness.world.getResource('pauseIntent')).toEqual({
-      restart: false,
       toggle: true,
     });
   });
 
-  it('preserves optional restart intent from other resource producers', () => {
+  it('publishes a toggle-only intent with no dead restart field (BUG-12)', () => {
     const harness = createHarness(GAME_STATE.PAUSED);
 
-    harness.world.setResource('pauseIntent', {
-      restart: true,
-      toggle: false,
-    });
+    harness.inputState.pause[harness.player.id] = 1;
     updatePauseInput(harness);
 
-    expect(harness.world.getResource('pauseIntent')).toEqual({
-      restart: true,
-      toggle: false,
-    });
+    const intent = harness.world.getResource('pauseIntent');
+    expect(intent).toEqual({ toggle: true });
+    expect('restart' in intent).toBe(false);
   });
 });

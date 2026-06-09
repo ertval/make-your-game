@@ -126,12 +126,12 @@ describe('Game Restart Flow Integration', () => {
     // Fill intents
     bootstrap.world.setResource('collisionIntents', [{ type: 'player-death' }]);
     bootstrap.world.setResource('deadGhostIds', [0, 1]);
-    bootstrap.world.setResource('pauseIntent', { restart: true, toggle: false });
+    bootstrap.world.setResource('pauseIntent', { toggle: true });
 
     bootstrap.gameFlow.restartLevel();
 
     expect(bootstrap.world.getResource('collisionIntents')).toHaveLength(0);
     expect(bootstrap.world.getResource('deadGhostIds')).toHaveLength(0);
-    expect(bootstrap.world.getResource('pauseIntent').restart).toBe(false);
+    expect(bootstrap.world.getResource('pauseIntent')).toEqual({ toggle: false });
   });
 });
