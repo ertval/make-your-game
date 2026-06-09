@@ -3,10 +3,9 @@
  *
  * This module implements pure ECS logic for pause-related FSM transitions.
  * It consumes a dedicated pause-intent resource, synchronizes the clock
- * resource with pause/resume transitions through World resource access,
- * publishes restart intent through a dedicated level-flow resource, and always
- * clears the one-step intent payload after processing so pause actions are
- * edge-triggered and deterministic.
+ * resource with pause/resume transitions through World resource access, and
+ * always clears the one-step intent payload after processing so pause actions
+ * are edge-triggered and deterministic.
  *
  * Public API:
  * - createPauseSystem(options)
@@ -16,11 +15,8 @@
  *   not import clock helpers so ECS boundaries stay explicit.
  * - Clock and game-status updates preserve resource object identity so
  *   bootstrap/runtime closures observing those resources stay synchronized.
- * - Restart handling only publishes `levelFlow.pendingRestart = true` as a
- *   pending orchestration signal; actual level reload/reset is owned by a
- *   later integration path outside this system.
- * - The pause intent resource is normalized to a plain `{ restart, toggle }`
- *   object so transitions remain readable and deterministic.
+ * - Level restart is owned by game-flow's restartLevel() path, not this system,
+ *   so the pause intent only carries a single `{ toggle }` action.
  */
 
 import { canTransition, GAME_STATE, transitionTo } from '../resources/game-status.js';
@@ -28,11 +24,9 @@ import { canTransition, GAME_STATE, transitionTo } from '../resources/game-statu
 const DEFAULT_GAME_STATUS_RESOURCE_KEY = 'gameStatus';
 const DEFAULT_PAUSE_INTENT_RESOURCE_KEY = 'pauseIntent';
 const DEFAULT_CLOCK_RESOURCE_KEY = 'clock';
-const DEFAULT_LEVEL_FLOW_RESOURCE_KEY = 'levelFlow';
 
 function createDefaultPauseIntent() {
   return {
-    restart: false,
     toggle: false,
   };
 }
@@ -43,7 +37,6 @@ function ensurePauseIntent(pauseIntent) {
   }
 
   return {
-    restart: pauseIntent.restart === true,
     toggle: pauseIntent.toggle === true,
   };
 }
@@ -66,23 +59,9 @@ function syncClockPauseState(world, clockResourceKey, paused) {
   clock.isPaused = paused;
 }
 
-function publishPendingRestart(world, levelFlowResourceKey) {
-  const levelFlow = world.getResource(levelFlowResourceKey);
-  const nextLevelFlow =
-    levelFlow && typeof levelFlow === 'object'
-      ? {
-          ...levelFlow,
-          pendingRestart: true,
-        }
-      : { pendingRestart: true };
-
-  world.setResource(levelFlowResourceKey, nextLevelFlow);
-}
-
 export function createPauseSystem(options = {}) {
   const clockResourceKey = options.clockResourceKey || DEFAULT_CLOCK_RESOURCE_KEY;
   const gameStatusResourceKey = options.gameStatusResourceKey || DEFAULT_GAME_STATUS_RESOURCE_KEY;
-  const levelFlowResourceKey = options.levelFlowResourceKey || DEFAULT_LEVEL_FLOW_RESOURCE_KEY;
   const pauseIntentResourceKey =
     options.pauseIntentResourceKey || DEFAULT_PAUSE_INTENT_RESOURCE_KEY;
 
@@ -90,13 +69,8 @@ export function createPauseSystem(options = {}) {
     name: 'pause-system',
     phase: 'meta',
     resourceCapabilities: {
-      read: [clockResourceKey, gameStatusResourceKey, levelFlowResourceKey, pauseIntentResourceKey],
-      write: [
-        clockResourceKey,
-        gameStatusResourceKey,
-        levelFlowResourceKey,
-        pauseIntentResourceKey,
-      ],
+      read: [clockResourceKey, gameStatusResourceKey, pauseIntentResourceKey],
+      write: [clockResourceKey, gameStatusResourceKey, pauseIntentResourceKey],
     },
     update(context) {
       const world = context.world;
@@ -110,14 +84,7 @@ export function createPauseSystem(options = {}) {
       }
 
       if (gameStatus.currentState === GAME_STATE.PAUSED) {
-        if (pauseIntent.restart) {
-          // Preserve identity because bootstrap and game-flow hold canonical
-          // references to the shared game-status resource object.
-          gameStatus.previousState = null;
-          gameStatus.currentState = GAME_STATE.PLAYING;
-          syncClockPauseState(world, clockResourceKey, false);
-          publishPendingRestart(world, levelFlowResourceKey);
-        } else if (pauseIntent.toggle) {
+        if (pauseIntent.toggle) {
           const transitioned = tryTransition(gameStatus, GAME_STATE.PLAYING);
           if (transitioned) {
             syncClockPauseState(world, clockResourceKey, false);
