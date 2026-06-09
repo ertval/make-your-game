@@ -347,11 +347,12 @@ describe('hud-adapter', () => {
     expect(level.element.textContent).toBe('Level: 1');
   });
 
-  it('falls back to Date.now when performance.now is unavailable', () => {
+  it('always announces (never throttles via Date.now) when performance.now is unavailable', () => {
+    // SEC-07: the adapter must not mix performance.now() with Date.now(); when
+    // the high-resolution clock is missing, getNow() returns 0 so every status
+    // change is announced rather than throttled against an unrelated time base.
     const originalPerformance = globalThis.performance;
     const dateNowSpy = vi.spyOn(Date, 'now');
-    dateNowSpy.mockReturnValueOnce(2500);
-    dateNowSpy.mockReturnValueOnce(4000);
     Object.defineProperty(globalThis, 'performance', {
       configurable: true,
       value: undefined,
@@ -364,6 +365,8 @@ describe('hud-adapter', () => {
     adapter.update({ lives: 0, score: 0, timer: 9, bombs: 0, fire: 0, level: 1 });
 
     expect(entries.status.element.textContent).toContain('Lives 0');
+    // Date.now() must never be consulted for ARIA throttling.
+    expect(dateNowSpy).not.toHaveBeenCalled();
 
     Object.defineProperty(globalThis, 'performance', {
       configurable: true,
