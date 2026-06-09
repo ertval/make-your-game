@@ -754,6 +754,9 @@ export function createBootstrap(options = {}) {
     options.playerEntityResourceKey || DEFAULT_PLAYER_ENTITY_RESOURCE_KEY;
   const clock = createClock(nowMs);
   const gameStatus = createGameStatus();
+  // BUG-16: Resolve the event queue resource key early so it can be accessed
+  // by gameFlow's onRestart closure during synchronous browser startup.
+  const eventQueueResourceKey = options.eventQueueResourceKey || DEFAULT_EVENT_QUEUE_RESOURCE_KEY;
 
   // Resolve a single now-source for restart resyncs. Tests wire a synthetic
   // `nowProvider` so the restart path stays deterministic; production falls
@@ -874,7 +877,6 @@ export function createBootstrap(options = {}) {
   // B-05: Register the canonical event queue resource so Track B simulation
   // systems can emit deterministic cross-system events without importing
   // bootstrap or adapter modules. Systems access this only via world.getResource.
-  const eventQueueResourceKey = options.eventQueueResourceKey || DEFAULT_EVENT_QUEUE_RESOURCE_KEY;
   ensureWorldResource(world, eventQueueResourceKey, createEventQueue);
   world.setResource('gameFlow', gameFlow);
   world.setResource('gameStatus', gameStatus);
