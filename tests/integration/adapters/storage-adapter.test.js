@@ -96,6 +96,27 @@ describe('storage-adapter', () => {
     expect(console.warn).toHaveBeenCalled();
   });
 
+  it('returns the default value and warns when the validate predicate rejects the value', () => {
+    localStorage.setItem('typed', JSON.stringify({ score: 10 }));
+
+    const validate = vi.fn(() => false);
+    const result = safeRead('typed', validate, { score: 0 });
+
+    expect(result).toEqual({ score: 0 });
+    expect(validate).toHaveBeenCalledWith({ score: 10 });
+    expect(console.warn).toHaveBeenCalled();
+  });
+
+  it('returns the parsed value when the validate predicate accepts it', () => {
+    localStorage.setItem('typed', JSON.stringify({ score: 10 }));
+
+    const validate = vi.fn(() => true);
+    const result = safeRead('typed', validate, { score: 0 });
+
+    expect(result).toEqual({ score: 10 });
+    expect(validate).toHaveBeenCalledWith({ score: 10 });
+  });
+
   it('stores a JSON string during safeWrite', () => {
     safeWrite('test', { score: 5 });
 

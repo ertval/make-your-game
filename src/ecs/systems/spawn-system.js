@@ -9,11 +9,9 @@
  * Public API:
  * - DEFAULT_SPAWN_RESOURCE_KEY
  * - DEFAULT_DEAD_GHOST_IDS_RESOURCE_KEY
- * - DEFAULT_GHOST_IDS_RESOURCE_KEY
  * - getGhostReleaseDelayMs(index)
  * - getRespawnDelayMs()
  * - scheduleRespawn(spawnState, ghostId)
- * - resolveActiveGhostCap(mapResource)
  * - resolveDeterministicGhostOrder(ghostIds, activeGhostCap)
  * - createInitialSpawnState()
  * - sanitizeSpawnState(value)
@@ -39,15 +37,34 @@ import { GAME_STATE } from '../resources/game-status.js';
 const FALLBACK_GHOST_SPAWN_DELAYS = Object.freeze([0, 5000, 10000, 15000]);
 const FALLBACK_GHOST_RESPAWN_MS = 5000;
 const MAX_DELTA_MS = 1000;
-const QUEUED_SCRATCH_SET = new Set();
-const RELEASED_SCRATCH_SET = new Set();
-const RESPAWNING_SCRATCH_SET = new Set();
 
-export const DEFAULT_GAME_STATUS_RESOURCE_KEY = 'gameStatus';
-export const DEFAULT_MAP_RESOURCE_KEY = 'mapResource';
-export const DEFAULT_GHOST_IDS_RESOURCE_KEY = 'ghostIds';
+// Resource-key defaults. These are consumed only inside this module
+// (`createSpawnSystem` falls back to them), so they are intentionally not
+// exported — every other system declares its own local copy. (DEAD-33)
+const DEFAULT_GAME_STATUS_RESOURCE_KEY = 'gameStatus';
+const DEFAULT_MAP_RESOURCE_KEY = 'mapResource';
+const DEFAULT_GHOST_IDS_RESOURCE_KEY = 'ghostIds';
 export const DEFAULT_DEAD_GHOST_IDS_RESOURCE_KEY = 'deadGhostIds';
 export const DEFAULT_SPAWN_RESOURCE_KEY = 'ghostSpawnState';
+
+/**
+ * Allocate the per-system scratch membership sets.
+ *
+ * These sets are reused frame-to-frame as scratch space for membership tests
+ * (queued / released / respawning ghost ids). They MUST be owned by each
+ * `createSpawnSystem()` instance rather than living at module scope: module
+ * globals are shared by every World, so two Worlds running concurrently (e.g.
+ * parallel test runners) would corrupt each other's spawn bookkeeping. (BUG-11)
+ *
+ * @returns {{ queued: Set<number>, released: Set<number>, respawning: Set<number> }}
+ */
+function createSpawnScratch() {
+  return {
+    queued: new Set(),
+    released: new Set(),
+    respawning: new Set(),
+  };
+}
 
 function toFiniteNonNegativeInteger(value, fallback = 0) {
   if (!Number.isFinite(value)) {
@@ -168,7 +185,8 @@ export function scheduleRespawn(spawnState, ghostId) {
   return true;
 }
 
-export function resolveActiveGhostCap(mapResource) {
+// Internal-only: consumed solely by `createSpawnSystem`'s update loop. (DEAD-33)
+function resolveActiveGhostCap(mapResource) {
   const cap = Number(mapResource?.maxGhosts);
   if (!Number.isFinite(cap) || cap <= 0) {
     return 0;
@@ -236,30 +254,42 @@ function refillMembershipSet(targetSet, ids) {
   return targetSet;
 }
 
-function pruneRespawningGhostsFromReleasedIds(spawnState) {
+/**
+ * Refill `targetSet` with the ghost ids currently in the respawn queue.
+ *
+ * Centralizing this keeps every caller reading the membership snapshot from the
+ * live `respawnQueue`, which is what guards BUG-09: once `processRespawns` has
+ * removed ready ghosts from the queue, a refreshed set no longer reports them as
+ * "still respawning", so they are re-queued instead of being silently dropped.
+ *
+ * @param {Set<number>} targetSet - Scratch set to refill in place.
+ * @param {{ respawnQueue: Array<{ ghostId: number }> }} spawnState - Spawn state.
+ * @returns {Set<number>} The refilled set (same reference as `targetSet`).
+ */
+function refillRespawningSet(targetSet, spawnState) {
+  targetSet.clear();
+
+  for (const entry of spawnState.respawnQueue) {
+    targetSet.add(entry.ghostId);
+  }
+
+  return targetSet;
+}
+
+function pruneRespawningGhostsFromReleasedIds(spawnState, scratch) {
   if (spawnState.respawnQueue.length === 0 || spawnState.releasedGhostIds.length === 0) {
     return;
   }
 
-  const respawningGhostIds = RESPAWNING_SCRATCH_SET;
-  respawningGhostIds.clear();
-
-  for (const entry of spawnState.respawnQueue) {
-    respawningGhostIds.add(entry.ghostId);
-  }
+  const respawningGhostIds = refillRespawningSet(scratch.respawning, spawnState);
 
   spawnState.releasedGhostIds = spawnState.releasedGhostIds.filter(
     (ghostId) => !respawningGhostIds.has(ghostId),
   );
 }
 
-function countActiveReleasedGhosts(spawnState) {
-  const respawningGhostIds = RESPAWNING_SCRATCH_SET;
-  respawningGhostIds.clear();
-
-  for (const entry of spawnState.respawnQueue) {
-    respawningGhostIds.add(entry.ghostId);
-  }
+function countActiveReleasedGhosts(spawnState, scratch) {
+  const respawningGhostIds = refillRespawningSet(scratch.respawning, spawnState);
 
   let activeCount = 0;
 
@@ -272,8 +302,14 @@ function countActiveReleasedGhosts(spawnState) {
   return activeCount;
 }
 
-function enqueueUniqueGhostIds(targetQueue, ghostIds, releasedSet, respawningGhostIds) {
-  const queuedSet = refillMembershipSet(QUEUED_SCRATCH_SET, targetQueue);
+function enqueueUniqueGhostIds(
+  targetQueue,
+  ghostIds,
+  releasedSet,
+  respawningGhostIds,
+  queuedScratch,
+) {
+  const queuedSet = refillMembershipSet(queuedScratch, targetQueue);
 
   for (const ghostId of ghostIds) {
     if (queuedSet.has(ghostId) || releasedSet.has(ghostId) || respawningGhostIds.has(ghostId)) {
@@ -302,16 +338,11 @@ function processRespawns(spawnState) {
   return readyGhostIds;
 }
 
-function releaseEligibleGhosts(spawnState) {
-  const releasedSet = refillMembershipSet(RELEASED_SCRATCH_SET, spawnState.releasedGhostIds);
-  const respawningGhostIds = RESPAWNING_SCRATCH_SET;
-  respawningGhostIds.clear();
+function releaseEligibleGhosts(spawnState, scratch) {
+  const releasedSet = refillMembershipSet(scratch.released, spawnState.releasedGhostIds);
+  const respawningGhostIds = refillRespawningSet(scratch.respawning, spawnState);
 
-  for (const entry of spawnState.respawnQueue) {
-    respawningGhostIds.add(entry.ghostId);
-  }
-
-  let activeGhostCount = countActiveReleasedGhosts(spawnState);
+  let activeGhostCount = countActiveReleasedGhosts(spawnState, scratch);
   const activeGhostCap = toFiniteNonNegativeInteger(spawnState.activeGhostCap, 0);
   const remainingQueue = [];
 
@@ -335,14 +366,9 @@ function releaseEligibleGhosts(spawnState) {
   spawnState.queuedGhostIds = remainingQueue;
 }
 
-function enqueueNewlyEligibleInitialGhosts(spawnState, ghostOrder) {
-  const releasedSet = refillMembershipSet(RELEASED_SCRATCH_SET, spawnState.releasedGhostIds);
-  const respawningGhostIds = RESPAWNING_SCRATCH_SET;
-  respawningGhostIds.clear();
-
-  for (const entry of spawnState.respawnQueue) {
-    respawningGhostIds.add(entry.ghostId);
-  }
+function enqueueNewlyEligibleInitialGhosts(spawnState, ghostOrder, scratch) {
+  const releasedSet = refillMembershipSet(scratch.released, spawnState.releasedGhostIds);
+  const respawningGhostIds = refillRespawningSet(scratch.respawning, spawnState);
 
   const eligibleGhostIds = [];
 
@@ -360,6 +386,7 @@ function enqueueNewlyEligibleInitialGhosts(spawnState, ghostOrder) {
     eligibleGhostIds,
     releasedSet,
     respawningGhostIds,
+    scratch.queued,
   );
 }
 
@@ -380,6 +407,10 @@ export function createSpawnSystem(options = {}) {
     options.deadGhostIdsResourceKey || DEFAULT_DEAD_GHOST_IDS_RESOURCE_KEY;
   const mapResourceKey = options.mapResourceKey || DEFAULT_MAP_RESOURCE_KEY;
   const spawnResourceKey = options.spawnResourceKey || DEFAULT_SPAWN_RESOURCE_KEY;
+
+  // World-local scratch space. Owned by this system instance so concurrent
+  // Worlds never share membership state through a module global. (BUG-11)
+  const scratch = createSpawnScratch();
 
   return {
     name: 'spawn-system',
@@ -423,20 +454,26 @@ export function createSpawnSystem(options = {}) {
 
       // Ghosts waiting out the dead-return penalty are not currently active and
       // must leave the released list so they can be re-queued deterministically.
-      pruneRespawningGhostsFromReleasedIds(spawnState);
+      pruneRespawningGhostsFromReleasedIds(spawnState, scratch);
 
       const respawnReadyIds = processRespawns(spawnState);
       if (respawnReadyIds.length > 0) {
+        // BUG-09: `processRespawns` has just removed the ready ghosts from
+        // `respawnQueue`, so the respawning membership set must be rebuilt from
+        // the *current* queue. Reusing the pre-prune snapshot would still list
+        // the just-readied ghosts as "respawning" and `enqueueUniqueGhostIds`
+        // would skip them — silently dropping them from the spawn flow forever.
         enqueueUniqueGhostIds(
           spawnState.queuedGhostIds,
           respawnReadyIds,
-          refillMembershipSet(RELEASED_SCRATCH_SET, spawnState.releasedGhostIds),
-          RESPAWNING_SCRATCH_SET,
+          refillMembershipSet(scratch.released, spawnState.releasedGhostIds),
+          refillRespawningSet(scratch.respawning, spawnState),
+          scratch.queued,
         );
       }
 
-      enqueueNewlyEligibleInitialGhosts(spawnState, ghostOrder);
-      releaseEligibleGhosts(spawnState);
+      enqueueNewlyEligibleInitialGhosts(spawnState, ghostOrder, scratch);
+      releaseEligibleGhosts(spawnState, scratch);
 
       world.setResource(spawnResourceKey, spawnState);
     },

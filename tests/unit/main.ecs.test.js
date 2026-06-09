@@ -1,4 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { enqueue } from '../../src/ecs/resources/event-queue.js';
+import { GAME_STATE } from '../../src/ecs/resources/game-status.js';
+import { createBootstrap } from '../../src/game/bootstrap.js';
 import {
   bootstrapApplication,
   createGameRuntime,
@@ -271,20 +274,51 @@ describe('main.ecs.js', () => {
 
       runtime.stop();
     });
+
+    it('drains event queue each frame through game runtime (BUG-01)', () => {
+      const scheduledFrames = [];
+      const requestFrame = vi.fn((cb) => {
+        scheduledFrames.push(cb);
+        return scheduledFrames.length;
+      });
+
+      const bootstrap = createBootstrap({ now: 0 });
+      const eventQueue = bootstrap.world.getResource(bootstrap.eventQueueResourceKey);
+
+      bootstrap.gameFlow.setState(GAME_STATE.PLAYING);
+      enqueue(eventQueue, 'TestEvent', { value: 1 }, 0);
+
+      const runtime = createGameRuntime({
+        bootstrap,
+        nowProvider: () => 0,
+        requestFrame,
+        cancelFrame: vi.fn(),
+      });
+
+      runtime.start();
+
+      scheduledFrames.shift()(16);
+
+      expect(eventQueue.events.length).toBe(0);
+
+      runtime.stop();
+    });
   });
 
   describe('bootstrapApplication - More Errors', () => {
     it('throws if fetch response is not ok', async () => {
       mockWindow.fetch.mockResolvedValue({ ok: false, status: 404 });
+      const logger = { error: vi.fn() };
       await expect(
-        bootstrapApplication({ documentRef: mockDocument, windowRef: mockWindow }),
+        bootstrapApplication({ documentRef: mockDocument, windowRef: mockWindow, logger }),
       ).rejects.toThrow('status: 404');
     });
 
     it('throws if fetch response is missing', async () => {
       mockWindow.fetch.mockResolvedValue(null);
+      const logger = { error: vi.fn() };
       await expect(
-        bootstrapApplication({ documentRef: mockDocument, windowRef: mockWindow }),
+        bootstrapApplication({ documentRef: mockDocument, windowRef: mockWindow, logger }),
       ).rejects.toThrow('status: unknown');
     });
   });

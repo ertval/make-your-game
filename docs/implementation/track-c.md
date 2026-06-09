@@ -87,8 +87,13 @@ C-04 is runtime-integrated. The ECS systems (`pause-input-system`, `pause-system
 **C-04 Status**
 - Scope: ECS system layer + default runtime registration
 - Pause: in-place resource mutation, dispatched once per rAF in the `meta` phase
-- Restart: `levelFlow.pendingRestart` is consumed by the bootstrap restart path, which fully resets gameplay resources, the sprite pool, and intent buffers
-- Level progression: `levelFlow.pendingLevelAdvance` is consumed by the runtime level loader to advance levels and trigger overlays
+- Restart: driven by the screens adapter (`onRestart` → `gameFlow.restartLevel()`), which fully resets gameplay resources, the sprite pool, and intent buffers via the bootstrap restart path
+- Level progression: driven by the runtime level loader (`levelLoader.advanceLevel()`) to advance levels and trigger overlays
+
+> BUG-12/BUG-20 (C-04): the previously documented `levelFlow.pendingRestart` /
+> `levelFlow.pendingLevelAdvance` hand-off flags were dead — written by the ECS
+> systems but read by nobody. The writes were removed; the live restart and
+> level-advance paths above are the actual mechanisms.
 
 **Deliverables**:
 - `src/ecs/systems/pause-system.js` — FSM-only pause, continue, and paused-restart transitions

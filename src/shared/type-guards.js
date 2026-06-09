@@ -6,5 +6,5 @@
  */
 
 export function isRecord(value) {
-  return Boolean(value) && typeof value === 'object';
+  return Boolean(value) && typeof value === 'object' && !Array.isArray(value);
 }
