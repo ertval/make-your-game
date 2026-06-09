@@ -194,7 +194,9 @@ test('AUDIT-F-10 pause freezes simulation while rAF keeps sampling frames', asyn
   expect(laterSampleCount).toBeGreaterThanOrEqual(pausedSampleCount);
 });
 
-test('AUDIT-F-13 progression contract can reach VICTORY deterministically', async ({ page }) => {
+test('AUDIT-F-13 [Progression] progression contract can reach VICTORY deterministically', async ({
+  page,
+}) => {
   await bootRuntime(page);
 
   const progression = await page.evaluate(() => {
@@ -232,7 +234,7 @@ test('AUDIT-F-13 progression contract can reach VICTORY deterministically', asyn
   expect(progression.releasedCountL2).toBe(0);
 });
 
-test('AUDIT-F-13 ghost-house stagger and release timing conforms to requirements', async ({
+test('AUDIT-F-13 [Ghost Stagger] ghost-house stagger and release timing conforms to requirements', async ({
   page,
 }) => {
   await bootRuntime(page);

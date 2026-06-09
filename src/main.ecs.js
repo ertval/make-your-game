@@ -336,7 +336,6 @@ export function createGameRuntime({
       }
       return resumed;
     },
-    getWorld: () => bootstrap.world,
     setState: (nextState) => bootstrap.gameFlow.setState(nextState),
     startGame: (options = {}) => {
       const started = bootstrap.gameFlow.startGame(options);
