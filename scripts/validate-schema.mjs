@@ -203,7 +203,7 @@ const pairs = [
   ...mapPairs.pairs,
 ].sort((left, right) => left.data.localeCompare(right.data));
 
-const ajv = new Ajv2020({ allErrors: true, strict: false });
+const ajv = new Ajv2020({ allErrors: true, strict: true });
 addFormats(ajv);
 
 let hasFailure = false;
