@@ -25,6 +25,9 @@
  * - createAudioCueRunner(options): factory returning the runtime driver.
  * - applyAudioSettings(audio, settings): push persisted C-11A settings into the
  *   adapter using only `audio.setVolume(category, value)`.
+ * - preloadWithIndicator(params): C-09 — orchestrate critical-SFX preload with a
+ *   flicker-free loading indicator (DOM-free; indicator + adapter are injected).
+ * - AUDIO_PRELOAD_INDICATOR_THRESHOLD_MS: slow-preload threshold (200ms).
  *
  * Asset provenance:
  *   The cue ids in `AUDIO_CUE_MAPPING` and the track ids in
@@ -440,4 +443,97 @@ export function createAudioCueRunner(options = {}) {
   }
 
   return { tick, reset };
+}
+
+/**
+ * C-09: default slow-preload threshold. The audio-loading indicator only
+ * appears when preloading the gameplay-critical SFX exceeds this many ms, so
+ * fast loads never flash a spinner.
+ */
+export const AUDIO_PRELOAD_INDICATOR_THRESHOLD_MS = 200;
+
+/**
+ * C-09: orchestrate gameplay-critical SFX preloading with a flicker-free
+ * loading indicator.
+ *
+ * Runs `audio.preloadAudioAssets(cueIds, ...)` and, *only if* the preload is
+ * still running after `thresholdMs`, shows the injected indicator — then hides
+ * it the instant the preload settles. A fast preload (≤ threshold) clears the
+ * timer before it fires, so the indicator is never shown and there is no
+ * show→immediately-hide flicker.
+ *
+ * This helper is DOM-free and framework-free: the indicator is injected (it is
+ * the Track C `audio-loading-indicator` adapter at the app boundary), and the
+ * audio adapter is injected too — nothing here imports DOM or the adapter
+ * module. Startup is never blocked: callers fire-and-forget the returned
+ * promise; the game loop keeps running while the decode proceeds.
+ *
+ * Preload failures are swallowed (the underlying adapter already warns per
+ * cue), so a bad clip never rejects startup. The indicator is always hidden in
+ * a `finally`, even if preloading throws.
+ *
+ * @param {{
+ *   audio: { preloadAudioAssets?: Function } | null | undefined,
+ *   indicator?: { show?: Function, hide?: Function } | null,
+ *   cueIds: string[],
+ *   preloadOptions?: object,
+ *   thresholdMs?: number,
+ *   setTimeoutImpl?: typeof setTimeout,
+ *   clearTimeoutImpl?: typeof clearTimeout,
+ *   now?: () => number,
+ * }} params
+ * @returns {Promise<{ shown: boolean, durationMs: number, report: object | null }>}
+ *   Resolves after preload settles and the indicator is hidden.
+ */
+export async function preloadWithIndicator({
+  audio,
+  indicator = null,
+  cueIds,
+  preloadOptions = {},
+  thresholdMs = AUDIO_PRELOAD_INDICATOR_THRESHOLD_MS,
+  setTimeoutImpl = typeof setTimeout === 'function' ? setTimeout : null,
+  clearTimeoutImpl = typeof clearTimeout === 'function' ? clearTimeout : null,
+  now = () =>
+    typeof performance !== 'undefined' && typeof performance.now === 'function'
+      ? performance.now()
+      : Date.now(),
+}) {
+  const result = { shown: false, durationMs: 0, report: null };
+
+  if (!audio || typeof audio.preloadAudioAssets !== 'function') {
+    return result;
+  }
+  if (!Array.isArray(cueIds) || cueIds.length === 0) {
+    return result;
+  }
+
+  const startedAt = now();
+  let timerHandle = null;
+
+  // Arm a deferred show: it fires only if the preload is still in flight when
+  // the threshold elapses. A fast preload clears it first → never shown.
+  if (setTimeoutImpl && indicator && typeof indicator.show === 'function') {
+    timerHandle = setTimeoutImpl(() => {
+      result.shown = true;
+      indicator.show();
+    }, thresholdMs);
+  }
+
+  try {
+    result.report = await audio.preloadAudioAssets(cueIds, preloadOptions);
+  } catch {
+    // preloadAudioAssets already warns per cue; never reject startup.
+    result.report = null;
+  } finally {
+    if (timerHandle !== null && clearTimeoutImpl) {
+      clearTimeoutImpl(timerHandle);
+    }
+    // Hide immediately on completion; safe to call even if never shown.
+    if (indicator && typeof indicator.hide === 'function') {
+      indicator.hide();
+    }
+    result.durationMs = now() - startedAt;
+  }
+
+  return result;
 }
