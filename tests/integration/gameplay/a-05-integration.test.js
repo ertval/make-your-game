@@ -17,7 +17,11 @@ import {
   createPositionStore,
 } from '../../../src/ecs/components/spatial.js';
 import { createHealthStore } from '../../../src/ecs/components/stats.js';
-import { DEFAULT_FIRE_RADIUS, FIXED_DT_MS } from '../../../src/ecs/resources/constants.js';
+import {
+  DEFAULT_FIRE_RADIUS,
+  FIXED_DT_MS,
+  GHOST_STATE,
+} from '../../../src/ecs/resources/constants.js';
 import { createEventQueue, drain } from '../../../src/ecs/resources/event-queue.js';
 import { createGameStatus, GAME_STATE } from '../../../src/ecs/resources/game-status.js';
 import { createMapResource } from '../../../src/ecs/resources/map-resource.js';
@@ -437,5 +441,80 @@ describe('A-05 event ordering integration', () => {
 
     const eventTypes = events.map((evt) => evt.type);
     expect(eventTypes).toContain(GAMEPLAY_EVENT_TYPE.PLAYER_GHOST_CONTACT);
+  });
+
+  it('executes a full multi-system pipeline: place bomb -> fuse -> detonate -> collision -> score & events', () => {
+    const { gameBoard, restore: restoreDocument } = installRuntimeDocumentStub();
+
+    try {
+      const bootstrap = createBootstrap({
+        boardContainerElement: gameBoard,
+        loadMapForLevel: () => {
+          const map = createRuntimeMapResource();
+          map.ghostSpeed = 0;
+          return map;
+        },
+        now: 0,
+      });
+      const inputAdapter = createRuntimeInputAdapterStub();
+      const stepFixedFrames = createFixedStepDriver(bootstrap);
+
+      bootstrap.setInputAdapter(inputAdapter);
+      expect(bootstrap.gameFlow.startGame()).toBe(true);
+
+      const world = bootstrap.world;
+
+      const ghostEntities = world.getResource('ghostEntities');
+      expect(ghostEntities.length).toBeGreaterThan(0);
+      const ghostHandle = ghostEntities[0];
+
+      const GHOST_RUNTIME_MASK =
+        COMPONENT_MASK.GHOST |
+        COMPONENT_MASK.POSITION |
+        COMPONENT_MASK.VELOCITY |
+        COMPONENT_MASK.RENDERABLE |
+        COMPONENT_MASK.COLLIDER;
+      world.setEntityMask(ghostHandle, GHOST_RUNTIME_MASK);
+
+      const ghostStore = world.getResource('ghost');
+      const positionStore = world.getResource('position');
+      const colliderStore = world.getResource('collider');
+
+      ghostStore.state[ghostHandle.id] = GHOST_STATE.NORMAL;
+      placeEntity(positionStore, ghostHandle.id, 3, 4);
+      colliderStore.type[ghostHandle.id] = COLLIDER_TYPE.GHOST;
+
+      inputAdapter.press('bomb');
+      stepFixedFrames(1);
+
+      const bombRequiredMask =
+        COMPONENT_MASK.BOMB | COMPONENT_MASK.POSITION | COMPONENT_MASK.COLLIDER;
+      const activeBombs = findActiveColliderIds(
+        world,
+        colliderStore,
+        bombRequiredMask,
+        COLLIDER_TYPE.BOMB,
+      );
+      expect(activeBombs).toHaveLength(1);
+
+      const eventQueue = world.getResource('eventQueue');
+      drain(eventQueue);
+
+      let nowMs = 0;
+      for (let step = 1; step <= 190; step++) {
+        nowMs += FIXED_DT_MS;
+        bootstrap.stepFrame(nowMs);
+      }
+
+      const scoreState = world.getResource('scoreState');
+      expect(scoreState.totalPoints).toBe(200);
+
+      const events = drain(eventQueue);
+      expect(events.map((e) => e.type)).toContain('GhostDefeated');
+
+      expect(ghostStore.state[ghostHandle.id]).toBe(GHOST_STATE.DEAD);
+    } finally {
+      restoreDocument();
+    }
   });
 });

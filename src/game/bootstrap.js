@@ -65,7 +65,8 @@ import { createBoardSyncSystem } from '../ecs/systems/board-sync-system.js';
 import { createCollisionSystem } from '../ecs/systems/collision-system.js';
 import { createGhostAiSystem, GHOST_AI_REQUIRED_MASK } from '../ecs/systems/ghost-ai-system.js';
 import { createGhostAnimationSystem } from '../ecs/systems/ghost-animation-system.js';
-import { createHudSystem } from '../ecs/systems/hud-system.js';
+import { createHudRenderSystem } from '../ecs/systems/hud-render-system.js';
+import { createHudState, createHudSystem } from '../ecs/systems/hud-system.js';
 import { createInputSystem } from '../ecs/systems/input-system.js';
 import { createLevelProgressSystem } from '../ecs/systems/level-progress-system.js';
 import { createLifeSystem } from '../ecs/systems/life-system.js';
@@ -353,7 +354,9 @@ function createDefaultSystemsByPhase(options = {}) {
     meta: [inputSystem, createPauseInputSystem(), createPauseSystem()],
     physics: [playerMoveSystem, createGhostAiSystem()],
     render: [
-      createHudSystem({ hudElementsResourceKey: options.hudElementsResourceKey }),
+      // ARCH-01: hud-render-system is the only HUD→DOM boundary; it reads the
+      // data-only hudState buffer produced by hud-system in the logic phase.
+      createHudRenderSystem({ hudAdapterResourceKey: options.hudAdapterResourceKey }),
       screensSystem,
       renderCollectSystem,
       renderDomSystem,
@@ -407,6 +410,9 @@ function createDefaultSystemsByPhase(options = {}) {
         playerResourceKey,
         positionResourceKey,
       }),
+      // ARCH-01: hud-system runs last in logic so the hudState buffer captures
+      // this frame's scoring/life/timer/power-up results before the render phase.
+      createHudSystem({ hudStateResourceKey: options.hudStateResourceKey }),
     ],
   };
 }
@@ -813,6 +819,9 @@ export function createBootstrap(options = {}) {
     options.playerEntityResourceKey || DEFAULT_PLAYER_ENTITY_RESOURCE_KEY;
   const clock = createClock(nowMs);
   const gameStatus = createGameStatus();
+  // BUG-16: Resolve the event queue resource key early so it can be accessed
+  // by gameFlow's onRestart closure during synchronous browser startup.
+  const eventQueueResourceKey = options.eventQueueResourceKey || DEFAULT_EVENT_QUEUE_RESOURCE_KEY;
 
   // Resolve a single now-source for restart resyncs. Tests wire a synthetic
   // `nowProvider` so the restart path stays deterministic; production falls
@@ -863,6 +872,13 @@ export function createBootstrap(options = {}) {
       updateBoardCss(mapResource);
       syncPlayerEntityFromMap(world, mapResource, options);
       syncGhostEntitiesFromMap(world, mapResource, options);
+      // Reset spawn state so level-2 ghosts are released on the documented
+      // 0/5/10/15 s stagger, not whatever timing the previous level reached.
+      world.setResource('ghostSpawnState', createInitialSpawnState());
+      world.setResource('deadGhostIds', []);
+      // bomb-cell occupancy is also per-map; clear so a stale level-1 cell
+      // index never blocks a level-2 ghost.
+      world.setResource('bombCellOccupancy', new Set());
       // BUG-01: level transition must reset frame counters so fixed-step
       // progression restarts cleanly for the new level.
       world.frame = 0;
@@ -903,8 +919,13 @@ export function createBootstrap(options = {}) {
       world.setResource('ghostSpawnState', createInitialSpawnState());
       world.setResource('collisionIntents', []);
       world.setResource('deadGhostIds', []);
-      world.setResource('pauseIntent', { restart: false, toggle: false });
-      world.setResource('levelFlow', {});
+      world.setResource('pauseIntent', { toggle: false });
+      world.setResource('bombCellOccupancy', new Set());
+
+      // BUG-16: Reset the event queue so stale events from the previous run
+      // (e.g., BombDetonated, GhostDefeated, LevelCleared) are not replayed
+      // by the audio cue runner on the first post-restart tick.
+      world.setResource(eventQueueResourceKey, createEventQueue());
 
       // D-09: Reset sprite pool so old sprites are returned to idle state.
       // This combined with render-dom-system's frame-0 map clear ensures
@@ -927,7 +948,6 @@ export function createBootstrap(options = {}) {
   // B-05: Register the canonical event queue resource so Track B simulation
   // systems can emit deterministic cross-system events without importing
   // bootstrap or adapter modules. Systems access this only via world.getResource.
-  const eventQueueResourceKey = options.eventQueueResourceKey || DEFAULT_EVENT_QUEUE_RESOURCE_KEY;
   ensureWorldResource(world, eventQueueResourceKey, createEventQueue);
   world.setResource('gameFlow', gameFlow);
   world.setResource('gameStatus', gameStatus);
@@ -941,16 +961,16 @@ export function createBootstrap(options = {}) {
   world.setResource('playerLife', { lives: 3, isInvincible: false, invincibilityRemainingMs: 0 });
   world.setResource('ghostSpawnState', createInitialSpawnState());
   world.setResource('collisionIntents', []); // B-04 requirement
-  world.setResource('pauseIntent', { restart: false, toggle: false });
+  world.setResource('pauseIntent', { toggle: false });
   world.setResource('deadGhostIds', []);
-  world.setResource('levelFlow', {});
+  world.setResource('bombCellOccupancy', new Set());
+  world.setResource(options.hudStateResourceKey || 'hudState', createHudState());
   // Bomb-tick writes this each frame; the audio cue system reads it to loop/stop
   // the fuse SFX. Pre-registered so the reader never sees an undefined slot.
   world.setResource('bombAudioActive', false);
   // Pre-register the audio adapter slot as null so the cue system can read it
   // safely before the app boundary constructs and injects the real adapter.
   world.setResource(options.audioAdapterResourceKey || DEFAULT_AUDIO_RESOURCE_KEY, null);
-  world.setResource(options.hudElementsResourceKey || 'hudElements', options.hudElements || null);
 
   registerSystemsByPhase(
     world,

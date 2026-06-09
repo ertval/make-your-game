@@ -24,7 +24,7 @@
           },
           "path": {
             "type": "string",
-            "pattern": "^(assets/)?generated/(sprites|ui|tiles|effects)/[a-z0-9][a-z0-9-]*\\.(svg|png|webp)$"
+            "pattern": "^(assets/)?generated/(?:(?:sprites|ui|tiles|effects)|visuals/(?:128px|256px|512px)/(?:characters|enemies|environment|items|effects|ui))/[a-z0-9][a-z0-9-]*\\.(svg|png|webp)$"
           },
           "kind": {
             "type": "string",

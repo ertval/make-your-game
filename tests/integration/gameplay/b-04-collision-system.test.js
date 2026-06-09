@@ -578,4 +578,20 @@ describe('B-04 collision system integration', () => {
     expect(positionStore.targetCol[ghost.id]).toBe(3);
     expect(collisionIntents).toEqual([]);
   });
+
+  it('updates the bombCellOccupancy resource with active bomb cells through fixed step dispatch', () => {
+    const { colliderStore, positionStore, world } = createCollisionIntegrationWorld();
+    const bombCellOccupancy = new Set();
+    world.setResource('bombCellOccupancy', bombCellOccupancy);
+
+    // Drop a bomb at (1, 3)
+    addCollisionEntity(world, positionStore, colliderStore, COLLIDER_TYPE.BOMB, 1, 3);
+
+    world.runFixedStep({ dtMs: 16.6667 });
+
+    const mapResource = world.getResource('mapResource');
+    const expectedCellIndex = 1 * mapResource.cols + 3;
+    expect(bombCellOccupancy.has(expectedCellIndex)).toBe(true);
+    expect(bombCellOccupancy.size).toBe(1);
+  });
 });

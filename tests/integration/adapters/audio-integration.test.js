@@ -76,6 +76,7 @@ beforeEach(() => {
 
 afterEach(() => {
   consoleWarnSpy.mockRestore();
+  vi.unstubAllGlobals();
 });
 
 describe('audio-integration: cue mapping table', () => {
@@ -358,6 +359,12 @@ describe('audio-integration: cue runner — event consumption', () => {
   });
 
   it('drops unknown event types without throwing and warns once per type in dev', () => {
+    // The unknown-event warning is gated behind the shared isDevelopment()
+    // probe, which is true only when NODE_ENV is explicitly 'development'.
+    // Stub it here so the test asserts dev-only warning behavior regardless of
+    // the ambient NODE_ENV the runner happens to execute under.
+    vi.stubGlobal('process', { env: { NODE_ENV: 'development' } });
+
     const audio = createAudioAdapterSpy();
     const eventQueue = createEventQueue();
     const gameStatus = createGameStatus(GAME_STATE.PLAYING);
