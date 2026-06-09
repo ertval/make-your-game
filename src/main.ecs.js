@@ -572,7 +572,6 @@ export async function bootstrapApplication({
       // Thread the resolved now-source through so onRestart resyncs stay on
       // the same clock as the rAF loop (deterministic for tests).
       nowProvider: getNow,
-      hudElements,
     });
     // Register through the explicit bootstrap API so the adapter contract is
     // validated at injection time and teardown on stop is symmetric.

@@ -1,9 +1,13 @@
 /**
- * D-08: HUD Rendering System
+ * D-08 / ARCH-01: HUD data system.
  *
- * Syncs the data-only gameplay resources (timer, score, lives) to the DOM HUD elements.
- * When a hudAdapter world resource is registered, it delegates formatting and DOM updates
- * to the adapter. Otherwise it falls back to direct textContent writes on bare DOM refs.
+ * Reads the data-only gameplay resources (timer, score, lives, power-up stats,
+ * level) and writes a plain HUD snapshot into the `hudState` resource buffer.
+ *
+ * This system performs NO DOM access and holds no adapter reference: per the
+ * DOM-isolation rule (AGENTS.md § DOM Isolation), simulation/logic systems must
+ * not call DOM APIs. The render-phase `hud-render-system` reads the `hudState`
+ * buffer and delegates DOM writes to the HUD adapter.
  *
  * Public API:
  * - createHudSystem(options)
@@ -14,9 +18,8 @@ const DEFAULT_SCORE_RESOURCE_KEY = 'scoreState';
 const DEFAULT_PLAYER_LIFE_RESOURCE_KEY = 'playerLife';
 const DEFAULT_PLAYER_RESOURCE_KEY = 'player';
 const DEFAULT_PLAYER_ENTITY_RESOURCE_KEY = 'playerEntity';
-const DEFAULT_HUD_ELEMENTS_RESOURCE_KEY = 'hudElements';
-const DEFAULT_HUD_ADAPTER_RESOURCE_KEY = 'hudAdapter';
 const DEFAULT_LEVEL_LOADER_RESOURCE_KEY = 'levelLoader';
+const DEFAULT_HUD_STATE_RESOURCE_KEY = 'hudState';
 
 /**
  * Resolve one player power-up stat (max bombs / fire radius) from the player
@@ -34,6 +37,22 @@ function readPlayerStat(playerEntity, statArray) {
   return statArray[playerEntity.id] ?? 0;
 }
 
+/**
+ * Create a fresh, data-only HUD snapshot object.
+ *
+ * @returns {{ lives: number, score: number, timer: number, bombs: number, fire: number, level: number }}
+ */
+export function createHudState() {
+  return {
+    lives: 0,
+    score: 0,
+    timer: 0,
+    bombs: 0,
+    fire: 0,
+    level: 1,
+  };
+}
+
 export function createHudSystem(options = {}) {
   const timerResourceKey = options.timerResourceKey || DEFAULT_TIMER_RESOURCE_KEY;
   const scoreResourceKey = options.scoreResourceKey || DEFAULT_SCORE_RESOURCE_KEY;
@@ -41,15 +60,13 @@ export function createHudSystem(options = {}) {
   const playerResourceKey = options.playerResourceKey || DEFAULT_PLAYER_RESOURCE_KEY;
   const playerEntityResourceKey =
     options.playerEntityResourceKey || DEFAULT_PLAYER_ENTITY_RESOURCE_KEY;
-  const hudElementsResourceKey =
-    options.hudElementsResourceKey || DEFAULT_HUD_ELEMENTS_RESOURCE_KEY;
-  const hudAdapterResourceKey = options.hudAdapterResourceKey || DEFAULT_HUD_ADAPTER_RESOURCE_KEY;
   const levelLoaderResourceKey =
     options.levelLoaderResourceKey || DEFAULT_LEVEL_LOADER_RESOURCE_KEY;
+  const hudStateResourceKey = options.hudStateResourceKey || DEFAULT_HUD_STATE_RESOURCE_KEY;
 
   return {
     name: 'hud-system',
-    phase: 'render',
+    phase: 'logic',
     resourceCapabilities: {
       read: [
         timerResourceKey,
@@ -57,52 +74,32 @@ export function createHudSystem(options = {}) {
         playerLifeResourceKey,
         playerResourceKey,
         playerEntityResourceKey,
-        hudElementsResourceKey,
-        hudAdapterResourceKey,
         levelLoaderResourceKey,
       ],
+      write: [hudStateResourceKey],
     },
     update(context) {
-      const hudAdapter = context.world.getResource(hudAdapterResourceKey);
+      const world = context.world;
+      const timerState = world.getResource(timerResourceKey);
+      const scoreState = world.getResource(scoreResourceKey);
+      const playerLife = world.getResource(playerLifeResourceKey);
+      const playerStore = world.getResource(playerResourceKey);
+      const playerEntity = world.getResource(playerEntityResourceKey);
+      const levelLoader = world.getResource(levelLoaderResourceKey);
+      const levelIndex = levelLoader?.getCurrentLevelIndex?.() ?? 0;
 
-      if (hudAdapter && typeof hudAdapter.update === 'function') {
-        const timerState = context.world.getResource(timerResourceKey);
-        const scoreState = context.world.getResource(scoreResourceKey);
-        const playerLife = context.world.getResource(playerLifeResourceKey);
-        const playerStore = context.world.getResource(playerResourceKey);
-        const playerEntity = context.world.getResource(playerEntityResourceKey);
-        const levelLoader = context.world.getResource(levelLoaderResourceKey);
-        const levelIndex = levelLoader?.getCurrentLevelIndex?.() ?? 0;
+      // Reuse the existing buffer object so downstream consumers and tests can
+      // hold a stable reference across frames; create one lazily otherwise.
+      const hudState = world.getResource(hudStateResourceKey) || createHudState();
 
-        hudAdapter.update({
-          lives: playerLife?.lives ?? 0,
-          score: scoreState?.totalPoints ?? 0,
-          timer: Math.ceil(timerState?.remainingSeconds ?? 0),
-          bombs: readPlayerStat(playerEntity, playerStore?.maxBombs),
-          fire: readPlayerStat(playerEntity, playerStore?.fireRadius),
-          level: levelIndex + 1,
-        });
-        return;
-      }
+      hudState.lives = playerLife?.lives ?? 0;
+      hudState.score = scoreState?.totalPoints ?? 0;
+      hudState.timer = Math.ceil(timerState?.remainingSeconds ?? 0);
+      hudState.bombs = readPlayerStat(playerEntity, playerStore?.maxBombs);
+      hudState.fire = readPlayerStat(playerEntity, playerStore?.fireRadius);
+      hudState.level = levelIndex + 1;
 
-      const hud = context.world.getResource(hudElementsResourceKey);
-      if (!hud) return;
-
-      const timerState = context.world.getResource(timerResourceKey);
-      if (timerState && hud.timer) {
-        const seconds = Math.ceil(timerState.remainingSeconds || 0);
-        hud.timer.textContent = `Timer: ${seconds}`;
-      }
-
-      const scoreState = context.world.getResource(scoreResourceKey);
-      if (scoreState && hud.score) {
-        hud.score.textContent = `Score: ${scoreState.totalPoints || 0}`;
-      }
-
-      const playerLife = context.world.getResource(playerLifeResourceKey);
-      if (playerLife && hud.lives) {
-        hud.lives.textContent = `Lives: ${playerLife.lives ?? 0}`;
-      }
+      world.setResource(hudStateResourceKey, hudState);
     },
   };
 }
