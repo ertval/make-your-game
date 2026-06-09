@@ -135,4 +135,21 @@ describe('Audit executable verification contract (non-browser checks)', () => {
 
     expect(hasSvgAssets).toBe(true);
   });
+
+  it('enforces package.json private flag to prevent accidental publish (SEC-03)', () => {
+    const packageJson = readJson(path.resolve(PROJECT_ROOT, 'package.json'));
+    expect(packageJson.private).toBe(true);
+  });
+
+  it('enforces no duplicate aliased scripts in package.json (DEAD-05)', () => {
+    const packageJson = readJson(path.resolve(PROJECT_ROOT, 'package.json'));
+    const scriptKeys = Object.keys(packageJson.scripts);
+    const values = Object.values(packageJson.scripts);
+    for (const key of scriptKeys) {
+      const aliasCount = values.filter(
+        (v) => v === `npm run ${key}` || v === packageJson.scripts[key],
+      ).length;
+      expect(aliasCount).toBe(1);
+    }
+  });
 });
