@@ -25,6 +25,7 @@ import {
   createAudioCueRunner,
   MUSIC_STATE_MAPPING,
   resolveCueForEvent,
+  resolveCuesForEvent,
   resolveMusicForState,
 } from '../../../src/adapters/io/audio-integration.js';
 import { createEventQueue, enqueue } from '../../../src/ecs/resources/event-queue.js';
@@ -33,6 +34,8 @@ import { createGameStatus, GAME_STATE } from '../../../src/ecs/resources/game-st
 function createAudioAdapterSpy() {
   const calls = {
     playSfx: [],
+    playSfxLoop: [],
+    stopSfxLoop: [],
     playMusic: [],
     stopMusic: 0,
   };
@@ -42,6 +45,13 @@ function createAudioAdapterSpy() {
     playSfx(cueId) {
       calls.playSfx.push(cueId);
       return { __spy: true, cueId };
+    },
+    playSfxLoop(cueId) {
+      calls.playSfxLoop.push(cueId);
+      return { __spy: true, cueId, loop: true };
+    },
+    stopSfxLoop(cueId) {
+      calls.stopSfxLoop.push(cueId);
     },
     playMusic(trackId, options = {}) {
       calls.playMusic.push({ trackId, options });
@@ -102,6 +112,154 @@ describe('audio-integration: cue mapping table', () => {
     expect(resolveCueForEvent(undefined)).toBeNull();
     expect(resolveCueForEvent(123)).toBeNull();
   });
+
+  it('resolveCuesForEvent normalizes single-cue mappings to a one-element array', () => {
+    expect(resolveCuesForEvent('BombPlaced')).toEqual(['sfx-bomb-place']);
+    expect(resolveCuesForEvent('PowerPelletCollected')).toEqual(['sfx-power-pellet-collect']);
+    expect(resolveCuesForEvent('NotARealEvent')).toEqual([]);
+  });
+});
+
+describe('audio-integration: bomb fuse loop', () => {
+  // Use fuseLoopDelay: 0 to bypass the bomb-place sequencing delay in unit
+  // tests — the delay behaviour is covered by the dedicated sequencing suite.
+  it('starts the fuse loop while a bomb is active during PLAYING', () => {
+    const audio = createAudioAdapterSpy();
+    const eventQueue = createEventQueue();
+    const gameStatus = createGameStatus(GAME_STATE.PLAYING);
+    const runner = createAudioCueRunner({ fuseLoopDelay: 0 });
+
+    runner.tick({ audio, eventQueue, gameStatus, bombActive: true });
+
+    expect(audio.calls.playSfxLoop).toEqual(['sfx-bomb-fuse']);
+    expect(audio.calls.stopSfxLoop).toEqual([]);
+  });
+
+  it('stops the fuse loop once no bomb is active', () => {
+    const audio = createAudioAdapterSpy();
+    const eventQueue = createEventQueue();
+    const gameStatus = createGameStatus(GAME_STATE.PLAYING);
+    const runner = createAudioCueRunner({ fuseLoopDelay: 0 });
+
+    runner.tick({ audio, eventQueue, gameStatus, bombActive: true });
+    runner.tick({ audio, eventQueue, gameStatus, bombActive: false });
+
+    expect(audio.calls.playSfxLoop).toEqual(['sfx-bomb-fuse']);
+    expect(audio.calls.stopSfxLoop).toEqual(['sfx-bomb-fuse']);
+  });
+
+  it('does not loop the fuse outside PLAYING even with an active bomb', () => {
+    const audio = createAudioAdapterSpy();
+    const eventQueue = createEventQueue();
+    const gameStatus = createGameStatus(GAME_STATE.PAUSED);
+    const runner = createAudioCueRunner({ fuseLoopDelay: 0 });
+
+    runner.tick({ audio, eventQueue, gameStatus, bombActive: true });
+
+    expect(audio.calls.playSfxLoop).toEqual([]);
+  });
+
+  it('retries starting the fuse loop until the clip is ready', () => {
+    const audio = createAudioAdapterSpy();
+    let ready = false;
+    audio.playSfxLoop = (cueId) => {
+      audio.calls.playSfxLoop.push(cueId);
+      return ready ? { __spy: true, cueId } : null;
+    };
+    const eventQueue = createEventQueue();
+    const gameStatus = createGameStatus(GAME_STATE.PLAYING);
+    const runner = createAudioCueRunner({ fuseLoopDelay: 0 });
+
+    runner.tick({ audio, eventQueue, gameStatus, bombActive: true });
+    ready = true;
+    runner.tick({ audio, eventQueue, gameStatus, bombActive: true });
+
+    expect(audio.calls.playSfxLoop).toEqual(['sfx-bomb-fuse', 'sfx-bomb-fuse']);
+  });
+
+  it('holds the fuse loop for fuseLoopDelay ms after bomb placement', () => {
+    const audio = createAudioAdapterSpy();
+    const eventQueue = createEventQueue();
+    const gameStatus = createGameStatus(GAME_STATE.PLAYING);
+    let fakeNow = 1000;
+    const runner = createAudioCueRunner({ fuseLoopDelay: 500, now: () => fakeNow });
+
+    // Tick at t=1000 — delay window [1000, 1500), fuse should not start yet.
+    runner.tick({ audio, eventQueue, gameStatus, bombActive: true });
+    expect(audio.calls.playSfxLoop).toEqual([]);
+
+    // Advance clock past the delay window.
+    fakeNow = 1500;
+    runner.tick({ audio, eventQueue, gameStatus, bombActive: true });
+
+    expect(audio.calls.playSfxLoop).toEqual(['sfx-bomb-fuse']);
+  });
+
+  it('resets the delay when bombActive drops and rises again', () => {
+    const audio = createAudioAdapterSpy();
+    const eventQueue = createEventQueue();
+    const gameStatus = createGameStatus(GAME_STATE.PLAYING);
+    const runner = createAudioCueRunner({ fuseLoopDelay: 0 });
+
+    runner.tick({ audio, eventQueue, gameStatus, bombActive: true });
+    runner.tick({ audio, eventQueue, gameStatus, bombActive: false });
+    runner.tick({ audio, eventQueue, gameStatus, bombActive: true });
+
+    // playSfxLoop called twice (once per rising edge), stopSfxLoop once.
+    expect(audio.calls.playSfxLoop).toEqual(['sfx-bomb-fuse', 'sfx-bomb-fuse']);
+    expect(audio.calls.stopSfxLoop).toEqual(['sfx-bomb-fuse']);
+  });
+});
+
+describe('audio-integration: power-pellet frenzy loop', () => {
+  it('plays only the pickup blip on PowerPelletCollected (frenzy SFX is not a one-shot)', () => {
+    const audio = createAudioAdapterSpy();
+    const eventQueue = createEventQueue();
+    const gameStatus = createGameStatus(GAME_STATE.PLAYING);
+    const runner = createAudioCueRunner();
+
+    enqueue(eventQueue, 'PowerPelletCollected', {}, 0);
+    runner.tick({ audio, eventQueue, gameStatus });
+
+    expect(audio.calls.playSfx).toEqual(['sfx-power-pellet-collect']);
+    expect(audio.calls.playSfx).not.toContain('sfx-speed-boost-on');
+  });
+
+  it('loops the frenzy SFX while the power pellet is active during PLAYING', () => {
+    const audio = createAudioAdapterSpy();
+    const eventQueue = createEventQueue();
+    const gameStatus = createGameStatus(GAME_STATE.PLAYING);
+    const runner = createAudioCueRunner();
+
+    runner.tick({ audio, eventQueue, gameStatus, powerPelletActive: true });
+
+    expect(audio.calls.playSfxLoop).toEqual(['sfx-speed-boost-on']);
+    expect(audio.calls.stopSfxLoop).toEqual([]);
+  });
+
+  it('stops the frenzy loop once the power pellet window ends', () => {
+    const audio = createAudioAdapterSpy();
+    const eventQueue = createEventQueue();
+    const gameStatus = createGameStatus(GAME_STATE.PLAYING);
+    const runner = createAudioCueRunner();
+
+    runner.tick({ audio, eventQueue, gameStatus, powerPelletActive: true });
+    runner.tick({ audio, eventQueue, gameStatus, powerPelletActive: false });
+
+    expect(audio.calls.playSfxLoop).toEqual(['sfx-speed-boost-on']);
+    expect(audio.calls.stopSfxLoop).toEqual(['sfx-speed-boost-on']);
+  });
+
+  it('does not loop the frenzy SFX outside PLAYING even when active', () => {
+    const audio = createAudioAdapterSpy();
+    const eventQueue = createEventQueue();
+    const gameStatus = createGameStatus(GAME_STATE.PAUSED);
+    const runner = createAudioCueRunner();
+
+    runner.tick({ audio, eventQueue, gameStatus, powerPelletActive: true });
+
+    expect(audio.calls.playSfxLoop).toEqual([]);
+  });
 });
 
 describe('audio-integration: music state mapping', () => {
@@ -135,7 +293,9 @@ describe('audio-integration: cue runner — event consumption', () => {
 
     runner.tick({ audio, eventQueue, gameStatus });
 
-    const expectedCues = mappedEvents.map((type) => AUDIO_CUE_MAPPING[type]);
+    // Multi-cue events (e.g. PowerPelletCollected) expand to several playSfx
+    // calls, so flatten the mapping to the normalized cue list.
+    const expectedCues = mappedEvents.flatMap((type) => resolveCuesForEvent(type));
     expect(audio.calls.playSfx).toEqual(expectedCues);
   });
 

@@ -464,7 +464,12 @@ export function createBombTickSystem(options = {}) {
   const bombDetonationQueueResourceKey =
     options.bombDetonationQueueResourceKey || 'bombDetonationQueue';
   // B-09: thread the event queue so placement publishes the BombPlaced fact.
+  // The C-07/C-08 audio cue runner consumes the same 'BombPlaced' event type
+  // (→ sfx-bomb-place), so no separate audio-only enqueue is needed.
   const eventQueueResourceKey = options.eventQueueResourceKey || 'eventQueue';
+  // Boolean flag the audio cue runner reads to drive the looping fuse SFX: true
+  // while at least one bomb is active this frame. Resource-only, no audio import.
+  const bombAudioActiveResourceKey = options.bombAudioActiveResourceKey || 'bombAudioActive';
   const playerRequiredMask = options.playerRequiredMask ?? BOMB_TICK_PLAYER_REQUIRED_MASK;
   const bombRequiredMask = options.bombRequiredMask ?? BOMB_TICK_BOMB_REQUIRED_MASK;
   const reusableTile = { row: 0, col: 0 };
@@ -480,6 +485,7 @@ export function createBombTickSystem(options = {}) {
         bombResourceKey,
         bombDetonationQueueResourceKey,
         eventQueueResourceKey,
+        bombAudioActiveResourceKey,
       ],
     },
     update(context) {
@@ -530,9 +536,23 @@ export function createBombTickSystem(options = {}) {
         });
 
         if (placedBombId >= 0) {
+          // Canonical B-09 placement event. Emits the 'BombPlaced' type that the
+          // C-07/C-08 audio cue runner maps to sfx-bomb-place, so one emission
+          // serves both gameplay-event consumers and audio.
           emitBombPlacedEvent(eventQueue, bombStore, placedBombId, context.frame);
         }
       }
+
+      // Publish whether any bomb is currently active so the audio runner can
+      // loop/stop the fuse SFX from real state (leak-proof vs counting events).
+      let anyBombActive = false;
+      for (const bombEntityId of bombEntityIds) {
+        if (isActiveBomb(colliderStore, bombEntityId)) {
+          anyBombActive = true;
+          break;
+        }
+      }
+      world.setResource(bombAudioActiveResourceKey, anyBombActive);
     },
   };
 }

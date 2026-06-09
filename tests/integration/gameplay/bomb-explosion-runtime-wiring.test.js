@@ -238,6 +238,55 @@ describe('runtime bomb and explosion wiring', () => {
     }
   });
 
+  it('loops the bomb fuse SFX while a bomb is active and stops it after detonation', () => {
+    const { gameBoard, restore: restoreDocument } = installRuntimeDocumentStub();
+
+    try {
+      const bootstrap = createBootstrap({
+        boardContainerElement: gameBoard,
+        loadMapForLevel: () => createRuntimeMapResource(),
+        now: 0,
+        fuseLoopDelay: 0,
+      });
+      const inputAdapter = createRuntimeInputAdapterStub();
+      const stepFixedFrames = createFixedStepDriver(bootstrap);
+
+      const audioCalls = { playSfx: [], playSfxLoop: [], stopSfxLoop: [] };
+      const audioStub = {
+        playSfx: (cueId) => audioCalls.playSfx.push(cueId),
+        playSfxLoop: (cueId) => {
+          audioCalls.playSfxLoop.push(cueId);
+          return { __stub: true, cueId };
+        },
+        stopSfxLoop: (cueId) => audioCalls.stopSfxLoop.push(cueId),
+        playMusic: () => ({ __stub: true }),
+        stopMusic: () => {},
+        getActiveMusicId: () => null,
+      };
+
+      bootstrap.setInputAdapter(inputAdapter);
+      bootstrap.setAudioAdapter(audioStub);
+      expect(bootstrap.gameFlow.startGame()).toBe(true);
+
+      inputAdapter.press('bomb');
+      stepFixedFrames(1);
+
+      // The placed bomb flips the audio flag and the render-phase cue system
+      // starts the looping fuse SFX.
+      expect(bootstrap.world.getResource('bombAudioActive')).toBe(true);
+      expect(audioCalls.playSfxLoop).toContain('sfx-bomb-fuse');
+      expect(audioCalls.stopSfxLoop).not.toContain('sfx-bomb-fuse');
+
+      // After the fuse expires the bomb detonates: flag clears, fuse stops.
+      stepFixedFrames(fixedFramesAfterDuration(BOMB_FUSE_MS));
+
+      expect(bootstrap.world.getResource('bombAudioActive')).toBe(false);
+      expect(audioCalls.stopSfxLoop).toContain('sfx-bomb-fuse');
+    } finally {
+      restoreDocument();
+    }
+  });
+
   it('rebuilds bomb and fire pools so runtime placement still works after restart', () => {
     const { gameBoard, restore: restoreDocument } = installRuntimeDocumentStub();
 

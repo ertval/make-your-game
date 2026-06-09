@@ -106,6 +106,8 @@ graph TB
 
 > **Audio cue runtime integration**: the C-07 driver at `src/adapters/io/audio-integration.js` exports `AUDIO_CUE_MAPPING` (event type → SFX cue id), `MUSIC_STATE_MAPPING` (game state → music track id), and `createAudioCueRunner({ warnUnknownEvents })`. The runner drains the D-01 event queue each tick and dispatches mapped cues plus music transitions across `MENU / PLAYING / PAUSED / LEVEL_COMPLETE / GAME_OVER / VICTORY`. Track A registers the runner via a thin system wrapper that resolves world resources and forwards to `runner.tick({ audio, eventQueue, gameStatus })`.
 
+> **Audio asset production (C-08, draft)**: the cue ids referenced by C-07 are backed by candidate `.mp3` assets under `assets/generated/{sfx,music}/`, registered in `assets/manifests/audio-manifest.json` and validated by the C-10 schema gate (`npm run validate:schema`). The full pipeline (C-06 adapter → C-07 runner → C-08 assets) is integration-validated end-to-end on `chbaikas/integration-C-08`. Remaining SFX, loudness normalization, and the `A-13` gate are pending before C-08 closure.
+
 ### Core Architectural Boundaries
 
 1. **World Layer**

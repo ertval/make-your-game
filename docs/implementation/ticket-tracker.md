@@ -75,7 +75,7 @@ All P0 tickets complete. Audit reports published and remediation verified.
 **Status:** Not Started — Blocks on P3 completion (A-13).
 
 - **Audit reports published:** _Pending A-14 completion_
-- **Remediation status:** C-08 ⏳, C-09 ⏳, C-10 ⏳, D-10 ⏳, D-11 ⏳, A-09 ⏳, A-14 ⏳
+- **Remediation status:** C-08 ⏳ (draft: candidate assets shipped + pipeline integration-validated), C-09 ⏳, C-10 ⏳, D-10 ⏳, D-11 ⏳, A-09 ⏳, A-14 ⏳
 
 ## 🛣️ Prototype-First Claim Queue (Global)
 
@@ -157,7 +157,7 @@ Canonical ticket ID ranges used by policy checks:
 
 ### Q4 / P4 Polish + Validation
 
-- [ ] **C-08** P4 - Sound Effects & Music Production (Depends on: C-06, A-13) | Blocks: C-09; C-10; A-14
+- [ ] **C-08** P4 - Sound Effects & Music Production — Draft / integration-validated on `chbaikas/integration-C-08`. 11 SFX + 1 loop-safe music track shipped under `assets/generated/{sfx,music}/` and registered in `assets/manifests/audio-manifest.json`; full audio pipeline (C-06 adapter → C-07 cue runner → C-08 assets) exercised end-to-end in the bootstrap loop and `npm run validate:schema` passes. NOT yet closed: remaining SFX set (chain-reaction, power-up-collect, speed-boost-off, ghost-stun/return, player-respawn, menu-navigate, cancel, pause open/close, game-over sting, victory fanfare), loudness-normalization sign-off, optional `.ogg`, and the `A-13` P3 gate. PR message: `docs/pr-messages/C-08-sound-effects-music-production-pr.md` (Depends on: C-06, A-13) | Blocks: C-09; C-10; A-14
 - [ ] **C-09** P4 - Audio Preloading & Performance (Depends on: C-06, C-08, A-13) | Blocks: A-09; A-14
 - [ ] **C-10** P4 - Audio Manifest Schema & Validation (Depends on: C-08, A-07, A-13) | Blocks: A-14
 - [x] **D-10** P4 - Visual Asset Production - Gameplay Sprites (Depends on: D-06, D-08, A-13) | Blocks: D-11; A-14

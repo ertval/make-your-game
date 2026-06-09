@@ -309,6 +309,19 @@ C-04 / C-05 / B-03 / C-06 handoff pattern):
 - [ ] Keep SFX short (<1s for most, except fuse tick loop).
 - [ ] Verification gate: all SFX/music listed in manifest with correct metadata.
 
+> **Draft status — `chbaikas/integration-C-08`** (production candidates, not final):
+> - ✅ Shipped & registered in `assets/manifests/audio-manifest.json` (12 clips): 11 SFX
+>   (`bomb-place`, `bomb-fuse-loop` [loop], `bomb-explode`, `wall-destroy`, `pellet-collect`,
+>   `power-pellet`, `speed-boost-on`, `ghost-kill`, `player-death`, `level-complete`, `ui-confirm`)
+>   + 1 loop-safe music track (`gameplay-loop`).
+> - ✅ Full pipeline validated end-to-end (C-06 adapter → C-07 runner → C-08 assets) in the
+>   bootstrap loop; `npm run validate:schema` passes for the manifest.
+> - ⏳ Pending before closure: remaining SFX set (chain-reaction, power-up-collect, speed-boost-off,
+>   ghost-stun, ghost-return, player-respawn, menu-navigate, cancel, pause open/close, game-over
+>   sting, victory fanfare), loudness-normalization sign-off, optional `.ogg` exports, and the
+>   `A-13` P3 audit gate.
+> - 📄 See `docs/pr-messages/C-08-sound-effects-music-production-pr.md`.
+
 ---
 
 #### C-09: Audio Preloading & Performance

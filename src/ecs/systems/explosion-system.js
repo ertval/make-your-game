@@ -29,6 +29,7 @@ import {
   MAX_CHAIN_DEPTH,
   POWER_UP_DROP_CHANCES,
 } from '../resources/constants.js';
+import { enqueue } from '../resources/event-queue.js';
 import { getCell, setCell } from '../resources/map-resource.js';
 import { nextChance } from '../resources/rng.js';
 import {
@@ -394,7 +395,7 @@ function resolveMapHit(mapResource, rng, row, col) {
 
   if (cellType === CELL_TYPE.DESTRUCTIBLE) {
     setCell(mapResource, row, col, resolvePowerUpDropCellType(readDropChance(rng)));
-    return { createFire: true, continuePropagation: false };
+    return { createFire: true, continuePropagation: false, destroyedWall: true };
   }
 
   if (
@@ -526,8 +527,10 @@ function resolveExplosionTile(context) {
     chainDepth,
     col,
     colliderStore,
+    eventQueue,
     fireEntityIds,
     fireStore,
+    frame,
     mapResource,
     positionStore,
     rng,
@@ -535,6 +538,18 @@ function resolveExplosionTile(context) {
     sourceBombId,
   } = context;
   const result = resolveMapHit(mapResource, rng, row, col);
+
+  if (result.destroyedWall) {
+    // Audio-only event for the C-07 cue runner (→ sfx-wall-destroy). Enqueued
+    // after the bomb's BombDetonated event (emitted upstream in the same
+    // detonation), so the wall-break cue layers on top of the explosion.
+    enqueue(
+      eventQueue,
+      'WallDestroyed',
+      { sourceSystem: 'explosion-system', tile: { row, col } },
+      frame,
+    );
+  }
 
   if (result.createFire) {
     ensureFireAtTile(
@@ -581,6 +596,7 @@ function resolveDetonationGeometry({
   chainDepth,
   colliderStore,
   detonation,
+  eventQueue,
   fireEntityIds,
   fireStore,
   mapResource,
@@ -600,6 +616,7 @@ function resolveDetonationGeometry({
   tileContext.bombStore = bombStore;
   tileContext.chainDepth = chainDepth;
   tileContext.colliderStore = colliderStore;
+  tileContext.eventQueue = eventQueue;
   tileContext.fireEntityIds = fireEntityIds;
   tileContext.fireStore = fireStore;
   tileContext.frame = detonation.frame;
@@ -710,6 +727,7 @@ function processDetonationWorkQueue({
       chainDepth,
       colliderStore,
       detonation,
+      eventQueue,
       fireEntityIds,
       fireStore,
       mapResource,

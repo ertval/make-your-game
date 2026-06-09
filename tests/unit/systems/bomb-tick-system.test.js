@@ -199,7 +199,15 @@ describe('bomb-tick-system contract', () => {
     expect(system.phase).toBe('logic');
     expect(system.resourceCapabilities).toEqual({
       read: ['mapResource', 'player', 'inputState'],
-      write: ['position', 'collider', 'bomb', 'bombDetonationQueue', 'eventQueue'],
+      write: [
+        'position',
+        'collider',
+        'bomb',
+        'bombDetonationQueue',
+        // B-09 'BombPlaced' events + the C-08 looping-fuse active flag.
+        'eventQueue',
+        'bombAudioActive',
+      ],
     });
   });
 });
