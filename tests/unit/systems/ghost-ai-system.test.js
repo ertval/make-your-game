@@ -15,6 +15,7 @@ import { createPositionStore, createVelocityStore } from '../../../src/ecs/compo
 import {
   CLYDE_DISTANCE_THRESHOLD,
   FIXED_DT_MS,
+  GHOST_DEFAULT_SPEED,
   GHOST_STATE,
   GHOST_STUNNED_SPEED,
   GHOST_TYPE,
@@ -28,6 +29,7 @@ import {
   computeInkyTarget,
   computePinkyTarget,
   createGhostAiSystem,
+  findBlinkyTile,
   GHOST_AI_DIRECTIONS,
   GHOST_AI_REQUIRED_MASK,
   GHOST_DIRECTION_VECTOR,
@@ -399,6 +401,63 @@ describe('ghost-ai-system: speed resolution', () => {
     ghostStore.speed[0] = 0;
     expect(resolveGhostSpeed(ghostStore, 0, { ghostSpeed: 4.0 })).toBe(4.0);
   });
+
+  it('fallback speed keeps ghost moving when stored and map speed are missing/non-positive (BUG-17)', () => {
+    // Terminal fallback: when neither the per-entity speed nor the map ghost
+    // speed yields a positive number, resolveGhostSpeed must return the safety
+    // default so the movement guard (speed > 0) never freezes the ghost.
+    const ghostStore = createGhostStore(4);
+    ghostStore.state[0] = GHOST_STATE.NORMAL;
+    ghostStore.speed[0] = 0; // no per-entity speed configured
+
+    expect(resolveGhostSpeed(ghostStore, 0, {})).toBe(GHOST_DEFAULT_SPEED);
+    expect(resolveGhostSpeed(ghostStore, 0, { ghostSpeed: 0 })).toBe(GHOST_DEFAULT_SPEED);
+    expect(resolveGhostSpeed(ghostStore, 0, { ghostSpeed: -1 })).toBe(GHOST_DEFAULT_SPEED);
+    expect(resolveGhostSpeed(ghostStore, 0, { ghostSpeed: Number.NaN })).toBe(GHOST_DEFAULT_SPEED);
+    // A null map resource (resource not registered) must also fall back safely.
+    expect(resolveGhostSpeed(ghostStore, 0, null)).toBe(GHOST_DEFAULT_SPEED);
+  });
+
+  it('stunned ghosts still use stunned speed even when no positive speed is configured', () => {
+    // The terminal default must NOT override the stunned-speed precedence.
+    const ghostStore = createGhostStore(4);
+    ghostStore.state[0] = GHOST_STATE.STUNNED;
+    ghostStore.speed[0] = 0;
+    expect(resolveGhostSpeed(ghostStore, 0, {})).toBe(GHOST_STUNNED_SPEED);
+  });
+});
+
+describe('ghost-ai-system: findBlinkyTile (BUG-22)', () => {
+  it('returns the BLINKY tile when a BLINKY ghost is present', () => {
+    const ghostStore = createGhostStore(4);
+    const positionStore = createPositionStore(4);
+    // Two ghosts: id 0 is Pinky, id 1 is Blinky at (3, 7).
+    ghostStore.type[0] = GHOST_TYPE.PINKY;
+    ghostStore.type[1] = GHOST_TYPE.BLINKY;
+    positionStore.row[1] = 3;
+    positionStore.col[1] = 7;
+    positionStore.targetRow[1] = 3;
+    positionStore.targetCol[1] = 7;
+
+    const reusable = { row: 0, col: 0 };
+    expect(findBlinkyTile(ghostStore, positionStore, [0, 1], reusable)).toEqual({ row: 3, col: 7 });
+  });
+
+  it('returns null when no BLINKY entity is present', () => {
+    const ghostStore = createGhostStore(4);
+    const positionStore = createPositionStore(4);
+    // Only non-Blinky ghosts are active.
+    ghostStore.type[0] = GHOST_TYPE.PINKY;
+    ghostStore.type[1] = GHOST_TYPE.INKY;
+
+    const reusable = { row: 0, col: 0 };
+    expect(findBlinkyTile(ghostStore, positionStore, [0, 1], reusable)).toBeNull();
+  });
+
+  it('returns null when the ghost store is missing', () => {
+    const positionStore = createPositionStore(4);
+    expect(findBlinkyTile(null, positionStore, [0], { row: 0, col: 0 })).toBeNull();
+  });
 });
 
 describe('ghost-ai-system: integration', () => {
@@ -605,6 +664,89 @@ describe('ghost-ai-system: integration', () => {
   it('exposes a stable iteration order for tie-breaking', () => {
     expect(GHOST_AI_DIRECTIONS).toEqual(['up', 'left', 'down', 'right']);
     expect(GHOST_DIRECTION_VECTOR.up).toEqual({ rowDelta: -1, colDelta: 0 });
+  });
+
+  it('released-set scratch reuse does not leak state across consecutive frames (BUG-10)', () => {
+    // The released-ghost lookup uses a module-level scratch Set that is cleared
+    // and refilled each frame. Two consecutive frames with the SAME released set
+    // must produce identical results, proving the scratch reuse never retains a
+    // stale membership across frames.
+    const buildScenario = () => {
+      const harness = createGhostHarness({ ghostCount: 1 });
+      const ghostId = harness.ghostHandles[0].id;
+      placeGhost(
+        harness.positionStore,
+        ghostId,
+        harness.mapResource.ghostSpawnRow,
+        harness.mapResource.ghostSpawnCol,
+      );
+      harness.ghostStore.type[ghostId] = GHOST_TYPE.BLINKY;
+      harness.ghostStore.state[ghostId] = GHOST_STATE.DEAD;
+      harness.ghostStore.speed[ghostId] = 4.0;
+      harness.world.setResource('ghostSpawnState', {
+        elapsedMs: 0,
+        releasedGhostIds: [ghostId],
+        queuedGhostIds: [],
+        respawnQueue: [],
+        activeGhostCap: 4,
+      });
+      return { harness, ghostId };
+    };
+
+    // Run the SAME released set twice on two independent worlds; the first tick
+    // of each must revive the DEAD ghost to NORMAL identically.
+    const a = buildScenario();
+    const systemA = createGhostAiSystem();
+    runUpdate(systemA, a.harness.world, { dtMs: FIXED_DT_MS, frame: 0 });
+    runUpdate(systemA, a.harness.world, { dtMs: FIXED_DT_MS, frame: 1 });
+
+    const b = buildScenario();
+    const systemB = createGhostAiSystem();
+    runUpdate(systemB, b.harness.world, { dtMs: FIXED_DT_MS, frame: 0 });
+    runUpdate(systemB, b.harness.world, { dtMs: FIXED_DT_MS, frame: 1 });
+
+    expect(a.harness.ghostStore.state[a.ghostId]).toBe(b.harness.ghostStore.state[b.ghostId]);
+    expect(a.harness.ghostStore.state[a.ghostId]).toBe(GHOST_STATE.NORMAL);
+  });
+
+  it('an empty released set on a later frame does not revive ghosts from a prior frame (BUG-10)', () => {
+    // Regression guard for the scratch-set fix: frame 1 supplies a released set
+    // containing the ghost (revives it), frame 2 supplies an EMPTY released set.
+    // If the scratch set leaked frame-1 membership into frame 2, a freshly-DEAD
+    // ghost at spawn would be wrongly revived. We assert the cleared scratch is
+    // honored each frame.
+    const { world, ghostStore, positionStore, mapResource, ghostHandles } = createGhostHarness({
+      ghostCount: 1,
+    });
+    const ghostId = ghostHandles[0].id;
+    placeGhost(positionStore, ghostId, mapResource.ghostSpawnRow, mapResource.ghostSpawnCol);
+    ghostStore.type[ghostId] = GHOST_TYPE.BLINKY;
+    ghostStore.state[ghostId] = GHOST_STATE.DEAD;
+    ghostStore.speed[ghostId] = 4.0;
+
+    const spawnState = {
+      elapsedMs: 0,
+      releasedGhostIds: [ghostId],
+      queuedGhostIds: [],
+      respawnQueue: [],
+      activeGhostCap: 4,
+    };
+    world.setResource('ghostSpawnState', spawnState);
+
+    const system = createGhostAiSystem();
+    // Frame 0: ghost is released → revived to NORMAL.
+    runUpdate(system, world, { dtMs: FIXED_DT_MS, frame: 0 });
+    expect(ghostStore.state[ghostId]).toBe(GHOST_STATE.NORMAL);
+
+    // Kill it again at spawn and clear the released set for frame 1.
+    ghostStore.state[ghostId] = GHOST_STATE.DEAD;
+    positionStore.row[ghostId] = mapResource.ghostSpawnRow;
+    positionStore.col[ghostId] = mapResource.ghostSpawnCol;
+    spawnState.releasedGhostIds = [];
+
+    runUpdate(system, world, { dtMs: FIXED_DT_MS, frame: 1 });
+    // With an empty released set, the ghost must stay DEAD.
+    expect(ghostStore.state[ghostId]).toBe(GHOST_STATE.DEAD);
   });
 });
 

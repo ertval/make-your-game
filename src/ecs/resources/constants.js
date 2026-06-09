@@ -116,6 +116,13 @@ export const LEVEL_TIMERS = [120, 180, 240];
 /** Stunned ghost speed (constant across all levels). */
 export const GHOST_STUNNED_SPEED = 2.0;
 
+/** Safety fallback ghost speed (tiles/sec) used by ghost-ai-system.js when
+ *  neither the per-entity speed nor the map's `ghostSpeed` resolves to a
+ *  positive number. Mirrors the PLAYER_BASE_SPEED fallback in
+ *  player-move-system.js so a missing/non-positive map speed can never freeze a
+ *  ghost on its tile (BUG-17). */
+export const GHOST_DEFAULT_SPEED = 4.5;
+
 /** Total number of levels in the game. */
 export const TOTAL_LEVELS = 3;
 
