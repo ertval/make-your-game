@@ -22,6 +22,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import {
   AUDIO_CUE_MAPPING,
+  applyAudioSettings,
   createAudioCueRunner,
   MUSIC_STATE_MAPPING,
   resolveCueForEvent,
@@ -38,10 +39,14 @@ function createAudioAdapterSpy() {
     stopSfxLoop: [],
     playMusic: [],
     stopMusic: 0,
+    setVolume: [],
   };
   let activeMusicId = null;
   return {
     calls,
+    setVolume(category, value) {
+      calls.setVolume.push({ category, value });
+    },
     playSfx(cueId) {
       calls.playSfx.push(cueId);
       return { __spy: true, cueId };
@@ -77,6 +82,80 @@ beforeEach(() => {
 afterEach(() => {
   consoleWarnSpy.mockRestore();
   vi.unstubAllGlobals();
+});
+
+describe('audio-integration: applyAudioSettings (C-11A)', () => {
+  function volumeFor(audio, category) {
+    const entry = audio.calls.setVolume.find((c) => c.category === category);
+    return entry ? entry.value : undefined;
+  }
+
+  it('applies enabled categories at their stored volume via setVolume only', () => {
+    const audio = createAudioAdapterSpy();
+
+    const applied = applyAudioSettings(audio, {
+      musicEnabled: true,
+      sfxEnabled: true,
+      musicVolume: 0.4,
+      sfxVolume: 0.7,
+      uiVolume: 0.6,
+    });
+
+    expect(applied).toBe(true);
+    // Only setVolume is used (no other adapter method called).
+    expect(audio.calls.playSfx).toEqual([]);
+    expect(audio.calls.playMusic).toEqual([]);
+    expect(volumeFor(audio, 'music')).toBe(0.4);
+    expect(volumeFor(audio, 'sfx')).toBe(0.7);
+    expect(volumeFor(audio, 'ui')).toBe(0.6);
+  });
+
+  it('maps a disabled category to volume 0 (no mute method on the adapter)', () => {
+    const audio = createAudioAdapterSpy();
+
+    applyAudioSettings(audio, {
+      musicEnabled: false,
+      sfxEnabled: false,
+      musicVolume: 0.9,
+      sfxVolume: 0.9,
+      uiVolume: 0.5,
+    });
+
+    expect(volumeFor(audio, 'music')).toBe(0);
+    expect(volumeFor(audio, 'sfx')).toBe(0);
+    // ui has no enable flag and is applied directly.
+    expect(volumeFor(audio, 'ui')).toBe(0.5);
+  });
+
+  it('sets all three categories exactly once', () => {
+    const audio = createAudioAdapterSpy();
+
+    applyAudioSettings(audio, {
+      musicEnabled: true,
+      sfxEnabled: true,
+      musicVolume: 1,
+      sfxVolume: 1,
+      uiVolume: 1,
+    });
+
+    const categories = audio.calls.setVolume.map((c) => c.category);
+    expect(categories.sort()).toEqual(['music', 'sfx', 'ui']);
+  });
+
+  it('returns false and does not throw when the adapter is missing or unusable', () => {
+    expect(applyAudioSettings(null, { musicVolume: 1 })).toBe(false);
+    expect(applyAudioSettings({}, { musicVolume: 1 })).toBe(false);
+  });
+
+  it('tolerates a null/partial settings object without throwing', () => {
+    const audio = createAudioAdapterSpy();
+
+    expect(applyAudioSettings(audio, null)).toBe(true);
+    // Missing fields coerce to 0 rather than crashing.
+    expect(volumeFor(audio, 'music')).toBe(0);
+    expect(volumeFor(audio, 'sfx')).toBe(0);
+    expect(volumeFor(audio, 'ui')).toBe(0);
+  });
 });
 
 describe('audio-integration: cue mapping table', () => {
