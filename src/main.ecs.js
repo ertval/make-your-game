@@ -36,9 +36,11 @@
  * - startBrowserApplication(options)
  */
 
+import { createAudioLoadingIndicator } from './adapters/dom/audio-loading-indicator.js';
 import { createHudAdapter } from './adapters/dom/hud-adapter.js';
 import { createScreensAdapter } from './adapters/dom/screens-adapter.js';
 import { createAudioAdapter } from './adapters/io/audio-adapter.js';
+import { preloadWithIndicator } from './adapters/io/audio-integration.js';
 import { createInputAdapter } from './adapters/io/input-adapter.js';
 import { getHighScore, saveHighScore } from './adapters/io/storage-adapter.js';
 import { percentileFromSorted, toSortedNumericArray } from './debug/frame-stats.js';
@@ -217,14 +219,19 @@ async function loadDefaultMaps({ fetchImpl } = {}) {
  */
 async function loadAudioClipManifest({ fetchImpl, logger = console } = {}) {
   const grouped = { sfx: {}, music: {}, ui: {} };
+  // C-09: gameplay-critical SFX cue id -> url, derived from the same single
+  // manifest fetch. Only sfx-category assets flagged `critical: true` qualify;
+  // music/ambience are excluded from preload in this phase.
+  const criticalSfx = {};
+  const result = { grouped, criticalSfx };
   if (typeof fetchImpl !== 'function') {
-    return grouped;
+    return result;
   }
 
   try {
     const response = await fetchImpl('/assets/manifests/audio-manifest.json');
     if (!response || response.ok !== true) {
-      return grouped;
+      return result;
     }
 
     const manifest = await response.json();
@@ -233,19 +240,23 @@ async function loadAudioClipManifest({ fetchImpl, logger = console } = {}) {
       if (!asset || typeof asset.id !== 'string' || typeof asset.path !== 'string') {
         continue;
       }
+      const url = asset.path.startsWith('/') ? asset.path : `/${asset.path}`;
       const bucket =
         asset.category === 'music' || asset.category === 'ambience'
           ? grouped.music
           : asset.category === 'ui'
             ? grouped.ui
             : grouped.sfx;
-      bucket[asset.id] = asset.path.startsWith('/') ? asset.path : `/${asset.path}`;
+      bucket[asset.id] = url;
+      if (asset.category === 'sfx' && asset.critical === true) {
+        criticalSfx[asset.id] = url;
+      }
     }
   } catch (error) {
     logger.warn('Audio manifest load failed; continuing without preloaded clips.', error);
   }
 
-  return grouped;
+  return result;
 }
 
 export function renderCriticalError(overlayRoot, error) {
@@ -705,10 +716,27 @@ export async function bootstrapApplication({
       audioAdapter.setVolume('sfx', 0.7);
       audioAdapter.setVolume('ui', 0.6);
       bootstrap.setAudioAdapter(audioAdapter);
-      // Fire-and-forget decode so startup is never blocked on audio (C-09 intent).
-      loadAudioClipManifest({ fetchImpl: audioFetch, logger }).then((clipManifest) => {
-        audioAdapter.loadClips(clipManifest).catch((error) => {
+      // C-09: a Track C DOM adapter (no ECS→DOM coupling) wired here at the app
+      // boundary. Only appears if the critical-SFX decode crosses the 200ms
+      // threshold and is hidden the instant it completes.
+      const audioLoadingIndicator = overlayRoot ? createAudioLoadingIndicator(overlayRoot) : null;
+      // Single manifest fetch feeds both the full clip load and the C-09
+      // critical-SFX preload. Fire-and-forget so startup is never blocked.
+      loadAudioClipManifest({ fetchImpl: audioFetch, logger }).then(({ grouped, criticalSfx }) => {
+        audioAdapter.loadClips(grouped).catch((error) => {
           logger.warn('Audio clip preload failed.', error);
+        });
+        const cueIds = Object.keys(criticalSfx);
+        if (cueIds.length === 0) {
+          return;
+        }
+        preloadWithIndicator({
+          audio: audioAdapter,
+          indicator: audioLoadingIndicator,
+          cueIds,
+          preloadOptions: { urls: criticalSfx },
+        }).catch((error) => {
+          logger.warn('Critical SFX preload failed.', error);
         });
       });
     } catch (error) {
