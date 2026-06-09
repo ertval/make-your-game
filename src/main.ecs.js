@@ -352,9 +352,11 @@ export function createGameRuntime({
       // consumed here in the rAF loop (not in bootstrap.stepFrame) so
       // integration tests that inspect drained events can still call
       // stepFrame directly without the automatic clearing.
-      const eventQueue = bootstrap.world.getResource(bootstrap.eventQueueResourceKey);
-      if (eventQueue) {
-        drain(eventQueue);
+      if (bootstrap.world && bootstrap.eventQueueResourceKey) {
+        const eventQueue = bootstrap.world.getResource(bootstrap.eventQueueResourceKey);
+        if (eventQueue) {
+          drain(eventQueue);
+        }
       }
     } catch (error) {
       // Catch unexpected errors outside the system-dispatch boundary
