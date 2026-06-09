@@ -847,6 +847,11 @@ export function createBootstrap(options = {}) {
       world.setResource('pauseIntent', { toggle: false });
       world.setResource('bombCellOccupancy', new Set());
 
+      // BUG-16: Reset the event queue so stale events from the previous run
+      // (e.g., BombDetonated, GhostDefeated, LevelCleared) are not replayed
+      // by the audio cue runner on the first post-restart tick.
+      world.setResource(eventQueueResourceKey, createEventQueue());
+
       // D-09: Reset sprite pool so old sprites are returned to idle state.
       // This combined with render-dom-system's frame-0 map clear ensures
       // that sprites are correctly re-acquired for new entities.
