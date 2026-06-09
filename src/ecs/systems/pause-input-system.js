@@ -12,10 +12,9 @@
  * Implementation notes:
  * - The input-system already drains one-shot keyboard edges into inputState,
  *   so this system can treat inputState.pause as a per-step edge.
- * - Pause commands are published through the shared `{ restart, toggle }`
- *   intent record so downstream transition logic can stay deterministic.
- * - Restart intent remains an optional future integration path produced by
- *   another resource writer; this system does not synthesize restart commands.
+ * - Pause commands are published through the shared `{ toggle }` intent record
+ *   so downstream transition logic can stay deterministic. Level restart is
+ *   owned by game-flow's restartLevel() path, not the pause intent (BUG-12).
  */
 
 import { COMPONENT_MASK } from '../components/registry.js';
@@ -28,7 +27,6 @@ const DEFAULT_REQUIRED_MASK = COMPONENT_MASK.PLAYER | COMPONENT_MASK.INPUT_STATE
 
 function createDefaultPauseIntent() {
   return {
-    restart: false,
     toggle: false,
   };
 }
@@ -39,7 +37,6 @@ function normalizePauseIntent(pauseIntent) {
   }
 
   return {
-    restart: pauseIntent.restart === true,
     toggle: pauseIntent.toggle === true,
   };
 }
@@ -98,7 +95,6 @@ export function createPauseInputSystem(options = {}) {
       }
 
       world.setResource(pauseIntentResourceKey, {
-        restart: currentIntent.restart,
         toggle: true,
       });
     },
