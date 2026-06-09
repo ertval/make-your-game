@@ -207,6 +207,12 @@ test('AUDIT-F-13 progression contract can reach VICTORY deterministically', asyn
 
     runtime.setState('LEVEL_COMPLETE');
     runtime.startGame();
+
+    // Check spawnState immediately after level 2 transition
+    const spawnStateL2 = runtime.getWorld().getResource('ghostSpawnState');
+    const elapsedMsL2 = spawnStateL2 ? spawnStateL2.elapsedMs : -1;
+    const releasedCountL2 = spawnStateL2 ? spawnStateL2.releasedGhostIds.length : -1;
+
     runtime.setState('LEVEL_COMPLETE');
     runtime.startGame();
     runtime.setState('LEVEL_COMPLETE');
@@ -215,11 +221,15 @@ test('AUDIT-F-13 progression contract can reach VICTORY deterministically', asyn
     return {
       levelIndex: runtime.getLevelIndex(),
       state: runtime.getSnapshot().state,
+      elapsedMsL2,
+      releasedCountL2,
     };
   });
 
   expect(progression.levelIndex).toBe(2);
   expect(progression.state).toBe('VICTORY');
+  expect(progression.elapsedMsL2).toBe(0);
+  expect(progression.releasedCountL2).toBe(0);
 });
 
 test('AUDIT-F-13 ghost-house stagger and release timing conforms to requirements', async ({

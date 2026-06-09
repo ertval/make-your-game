@@ -807,6 +807,13 @@ export function createBootstrap(options = {}) {
       updateBoardCss(mapResource);
       syncPlayerEntityFromMap(world, mapResource, options);
       syncGhostEntitiesFromMap(world, mapResource, options);
+      // Reset spawn state so level-2 ghosts are released on the documented
+      // 0/5/10/15 s stagger, not whatever timing the previous level reached.
+      world.setResource('ghostSpawnState', createInitialSpawnState());
+      world.setResource('deadGhostIds', []);
+      // bomb-cell occupancy is also per-map; clear so a stale level-1 cell
+      // index never blocks a level-2 ghost.
+      world.setResource('bombCellOccupancy', new Set());
       // BUG-01: level transition must reset frame counters so fixed-step
       // progression restarts cleanly for the new level.
       world.frame = 0;
