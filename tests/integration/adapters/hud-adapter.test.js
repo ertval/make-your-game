@@ -349,7 +349,7 @@ describe('hud-adapter', () => {
 
   it('always announces (never throttles via Date.now) when performance.now is unavailable', () => {
     // SEC-07: the adapter must not mix performance.now() with Date.now(); when
-    // the high-resolution clock is missing, getNow() returns 0 so every status
+    // the high-resolution clock is missing, getNow() returns null so every status
     // change is announced rather than throttled against an unrelated time base.
     const originalPerformance = globalThis.performance;
     const dateNowSpy = vi.spyOn(Date, 'now');
