@@ -87,8 +87,13 @@ C-04 is runtime-integrated. The ECS systems (`pause-input-system`, `pause-system
 **C-04 Status**
 - Scope: ECS system layer + default runtime registration
 - Pause: in-place resource mutation, dispatched once per rAF in the `meta` phase
-- Restart: `levelFlow.pendingRestart` is consumed by the bootstrap restart path, which fully resets gameplay resources, the sprite pool, and intent buffers
-- Level progression: `levelFlow.pendingLevelAdvance` is consumed by the runtime level loader to advance levels and trigger overlays
+- Restart: driven by the screens adapter (`onRestart` → `gameFlow.restartLevel()`), which fully resets gameplay resources, the sprite pool, and intent buffers via the bootstrap restart path
+- Level progression: driven by the runtime level loader (`levelLoader.advanceLevel()`) to advance levels and trigger overlays
+
+> BUG-12/BUG-20 (C-04): the previously documented `levelFlow.pendingRestart` /
+> `levelFlow.pendingLevelAdvance` hand-off flags were dead — written by the ECS
+> systems but read by nobody. The writes were removed; the live restart and
+> level-advance paths above are the actual mechanisms.
 
 **Deliverables**:
 - `src/ecs/systems/pause-system.js` — FSM-only pause, continue, and paused-restart transitions
@@ -303,6 +308,19 @@ C-04 / C-05 / B-03 / C-06 handoff pattern):
 - [ ] Export in `.mp3` (primary) and `.ogg` (optional).
 - [ ] Keep SFX short (<1s for most, except fuse tick loop).
 - [ ] Verification gate: all SFX/music listed in manifest with correct metadata.
+
+> **Draft status — `chbaikas/integration-C-08`** (production candidates, not final):
+> - ✅ Shipped & registered in `assets/manifests/audio-manifest.json` (12 clips): 11 SFX
+>   (`bomb-place`, `bomb-fuse-loop` [loop], `bomb-explode`, `wall-destroy`, `pellet-collect`,
+>   `power-pellet`, `speed-boost-on`, `ghost-kill`, `player-death`, `level-complete`, `ui-confirm`)
+>   + 1 loop-safe music track (`gameplay-loop`).
+> - ✅ Full pipeline validated end-to-end (C-06 adapter → C-07 runner → C-08 assets) in the
+>   bootstrap loop; `npm run validate:schema` passes for the manifest.
+> - ⏳ Pending before closure: remaining SFX set (chain-reaction, power-up-collect, speed-boost-off,
+>   ghost-stun, ghost-return, player-respawn, menu-navigate, cancel, pause open/close, game-over
+>   sting, victory fanfare), loudness-normalization sign-off, optional `.ogg` exports, and the
+>   `A-13` P3 audit gate.
+> - 📄 See `docs/pr-messages/C-08-sound-effects-music-production-pr.md`.
 
 ---
 
