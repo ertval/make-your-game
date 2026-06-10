@@ -124,6 +124,34 @@ describe('map-resource — valid map parsing', () => {
     expect(map.cols).toBe(15);
   });
 
+  it.each([
+    1, 2, 3,
+  ])('level-%i.json has an all-indestructible outer border (BUG-02 / #115)', (levelNumber) => {
+    const map = loadLevelMap(levelNumber);
+    const lastRow = map.rows - 1;
+    const lastCol = map.cols - 1;
+    const offenders = [];
+
+    for (let c = 0; c < map.cols; c += 1) {
+      if (getCell(map, 0, c) !== CELL_TYPE.INDESTRUCTIBLE) {
+        offenders.push(`[0][${c}]`);
+      }
+      if (getCell(map, lastRow, c) !== CELL_TYPE.INDESTRUCTIBLE) {
+        offenders.push(`[${lastRow}][${c}]`);
+      }
+    }
+    for (let r = 0; r < map.rows; r += 1) {
+      if (getCell(map, r, 0) !== CELL_TYPE.INDESTRUCTIBLE) {
+        offenders.push(`[${r}][0]`);
+      }
+      if (getCell(map, r, lastCol) !== CELL_TYPE.INDESTRUCTIBLE) {
+        offenders.push(`[${r}][${lastCol}]`);
+      }
+    }
+
+    expect(offenders).toEqual([]);
+  });
+
   it('extracts level metadata correctly', () => {
     const map = loadLevelMap(1);
     expect(map.name).toBe('Level 1');
@@ -210,6 +238,25 @@ describe('map-resource — cell access helpers', () => {
     setCell(map, 1, 6, CELL_TYPE.EMPTY);
     expect(getCell(map, 1, 6)).toBe(CELL_TYPE.EMPTY);
     expect(map.grid2D[1][6]).toBe(CELL_TYPE.EMPTY);
+  });
+
+  it('keeps flat grid and 2D mirror in lockstep after a destroy (BUG-03 / #116)', () => {
+    const map = loadLevelMap(1);
+    setCell(map, 1, 6, CELL_TYPE.EMPTY);
+    // Both representations must agree for the mutated cell.
+    expect(map.grid2D[1][6]).toBe(map.grid[1 * map.cols + 6]);
+    expect(map.grid2D[1][6]).toBe(getCell(map, 1, 6));
+  });
+
+  it('surfaces 2D mirror corruption instead of silently masking a half-write (BUG-03 / #116)', () => {
+    const map = loadLevelMap(1);
+    // Simulate a corrupted mirror where a row reference went missing. The old
+    // guarded path (`if (map.grid2D[row])`) silently skipped the mirror write
+    // while still mutating the flat grid, diverging the two representations
+    // with no signal. setCell must instead surface the corruption rather than
+    // committing a silent half-write.
+    map.grid2D[1] = undefined;
+    expect(() => setCell(map, 1, 6, CELL_TYPE.EMPTY)).toThrow();
   });
 
   it('isWall returns true for indestructible and destructible walls', () => {
@@ -320,6 +367,18 @@ describe('map-resource — semantic validation (invalid rejection)', () => {
   it('rejects map with broken border (right column not a wall)', () => {
     const rawMap = createMinimalValidRawMap();
     rawMap.grid[4][9] = CELL_TYPE.EMPTY;
+    const result = validateMapSemantic(rawMap);
+    expect(result.ok).toBe(false);
+    expect(result.errors.some((e) => e.includes('border'))).toBe(true);
+  });
+
+  it('rejects map with a DESTRUCTIBLE cell on the outer border (BUG-02 / #115)', () => {
+    // A destructible perimeter cell can be blown open by an explosion, leaving
+    // a visual hole while movement stays blocked (getCell clamps OOB to
+    // INDESTRUCTIBLE) — a visual/gameplay desync. The border must be
+    // indestructible-only.
+    const rawMap = createMinimalValidRawMap();
+    rawMap.grid[5][0] = CELL_TYPE.DESTRUCTIBLE;
     const result = validateMapSemantic(rawMap);
     expect(result.ok).toBe(false);
     expect(result.errors.some((e) => e.includes('border'))).toBe(true);
