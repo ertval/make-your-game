@@ -42,6 +42,29 @@ describe('hud-system', () => {
     expect(world.getResource('hudState')).toMatchObject({ bombs: 1, fire: 2, lives: 3 });
   });
 
+  it('writes ALL six HUD fields every update — never a partial snapshot (BUG-21 / #134)', () => {
+    // REQ-17: the HUD snapshot must always carry lives, score, timer, bombs,
+    // fire AND level together. A prior fallback path dropped bombs/fire/level;
+    // this guard locks in that the data system emits the complete set in one
+    // pass regardless of which downstream consumer (adapter or none) reads it.
+    const { world } = setupWorld();
+    world.setResource('scoreState', { totalPoints: 1500 });
+    world.setResource('levelTimer', { remainingSeconds: 87.2 });
+    world.setResource('levelLoader', { getCurrentLevelIndex: () => 2 });
+    const hudSystem = createHudSystem();
+
+    hudSystem.update({ world });
+
+    expect(world.getResource('hudState')).toEqual({
+      lives: 3,
+      score: 1500,
+      timer: 88, // Math.ceil(87.2)
+      bombs: 1,
+      fire: 2,
+      level: 3, // levelIndex 2 + 1
+    });
+  });
+
   it('reflects collected bomb and fire power-ups in the hudState buffer', () => {
     const { world, playerStore } = setupWorld({
       configurePlayer(store) {
