@@ -22,7 +22,8 @@
 /** Fixed simulation updates per second.
  *  Used to derive FIXED_DT_MS below. Exported for tests/devtools that need
  *  to reference the canonical tick rate; the runtime itself reads FIXED_DT_MS
- *  (DEAD-16). */
+ *  (DEAD-16).
+ *  @internal */
 export const SIMULATION_HZ = 60;
 
 /** Fixed timestep in milliseconds (= 1000 / SIMULATION_HZ ≈ 16.6667ms). */
