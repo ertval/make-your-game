@@ -137,7 +137,34 @@ export function createCollisionScratch(cellCount, maxGhostsPerCell = DEFAULT_GHO
     // Ghosts need a compact fan-out lane because multiple ghosts can share one tile.
     ghostCounts: new Uint8Array(cellCount),
     ghostIds: new Int32Array(cellCount * maxGhostsPerCell).fill(-1),
+    // BUG-06: dirty-cell tracking so resetCollisionScratch restores only the
+    // cells touched last step instead of re-filling all six lanes every step.
+    // dirtyCells is a preallocated stack of touched cell indices; dirtyCount is
+    // its length; dirtySeen dedupes so each cell is pushed at most once. All are
+    // reused in place across steps to avoid hot-path allocation (AGENTS.md).
+    dirtyCells: new Int32Array(cellCount),
+    dirtyCount: 0,
+    dirtySeen: new Uint8Array(cellCount),
   };
+}
+
+/**
+ * Record that a cell lane was written this step so reset can restore just it.
+ *
+ * Deduping through dirtySeen keeps the dirty stack bounded by cellCount even
+ * when several lanes of the same cell are written (e.g. fire + ghost + player).
+ *
+ * @param {CollisionScratch} scratch - Reusable occupancy scratch buffer.
+ * @param {number} cellIndex - Flat cell index that was just written.
+ */
+function markCollisionCellDirty(scratch, cellIndex) {
+  if (scratch.dirtySeen[cellIndex] === 1) {
+    return;
+  }
+
+  scratch.dirtySeen[cellIndex] = 1;
+  scratch.dirtyCells[scratch.dirtyCount] = cellIndex;
+  scratch.dirtyCount += 1;
 }
 
 /**
@@ -147,12 +174,26 @@ export function createCollisionScratch(cellCount, maxGhostsPerCell = DEFAULT_GHO
  * @returns {CollisionScratch} The same scratch object for call chaining.
  */
 export function resetCollisionScratch(scratch) {
-  scratch.playerByCell.fill(-1);
-  scratch.bombByCell.fill(-1);
-  scratch.droppedBombByCell.fill(-1);
-  scratch.fireByCell.fill(-1);
-  scratch.ghostCounts.fill(0);
-  scratch.ghostIds.fill(-1);
+  const { dirtyCells, dirtyCount, maxGhostsPerCell } = scratch;
+  // Restore only the cells that were written last step. Every touched cell is
+  // returned to the exact sentinel a full fill would leave (-1 for the Int32
+  // lanes, 0 for ghostCounts), so determinism is preserved while skipping the
+  // O(cellCount) blanket fill on untouched cells.
+  for (let i = 0; i < dirtyCount; i += 1) {
+    const cellIndex = dirtyCells[i];
+    scratch.playerByCell[cellIndex] = -1;
+    scratch.bombByCell[cellIndex] = -1;
+    scratch.droppedBombByCell[cellIndex] = -1;
+    scratch.fireByCell[cellIndex] = -1;
+    scratch.ghostCounts[cellIndex] = 0;
+    const ghostBase = cellIndex * maxGhostsPerCell;
+    for (let k = 0; k < maxGhostsPerCell; k += 1) {
+      scratch.ghostIds[ghostBase + k] = -1;
+    }
+    // Clear the dedupe flag so this cell can be marked dirty again next step.
+    scratch.dirtySeen[cellIndex] = 0;
+  }
+  scratch.dirtyCount = 0;
   return scratch;
 }
 
@@ -242,6 +283,8 @@ function pushGhostOccupancy(scratch, cellIndex, entityId) {
 
   scratch.ghostIds[cellIndex * scratch.maxGhostsPerCell + ghostCount] = entityId;
   scratch.ghostCounts[cellIndex] = ghostCount + 1;
+  // Record the touched cell so reset restores its ghost lanes and count.
+  markCollisionCellDirty(scratch, cellIndex);
 }
 
 /**
@@ -329,11 +372,15 @@ function buildHazardOccupancy(
     const colliderType = colliderStore.type[entityId];
     if (colliderType === COLLIDER_TYPE.FIRE) {
       scratch.fireByCell[cellIndex] = entityId;
+      // Record the touched cell so reset restores its fire lane.
+      markCollisionCellDirty(scratch, cellIndex);
       continue;
     }
 
     if (colliderType === COLLIDER_TYPE.BOMB) {
       scratch.bombByCell[cellIndex] = entityId;
+      // Record the touched cell so reset restores its bomb lanes.
+      markCollisionCellDirty(scratch, cellIndex);
       const previousTile = readPreviousEntityTile(positionStore, entityId, reusablePreviousTile);
       if (hasTileChanged(currentTile, previousTile)) {
         scratch.droppedBombByCell[cellIndex] = entityId;
@@ -698,6 +745,8 @@ function buildActorOccupancy(
     const colliderType = colliderStore.type[entityId];
     if (colliderType === COLLIDER_TYPE.PLAYER) {
       scratch.playerByCell[cellIndex] = entityId;
+      // Record the touched cell so reset restores its player lane.
+      markCollisionCellDirty(scratch, cellIndex);
       continue;
     }
 
@@ -827,6 +876,12 @@ function resolveDynamicCellCollisions(
       // tile from emitting duplicate death intents on subsequent fixed steps.
       if (ghostStore?.state) {
         ghostStore.state[ghostId] = GHOST_STATE.DEAD;
+        // BUG-18: a STUNNED ghost carries a non-zero timerMs; clear it here so the
+        // leftover stun timer cannot leak across the DEAD → respawn transition and
+        // prematurely flip the ghost back to a normal state after revival.
+        if (ghostStore.timerMs) {
+          ghostStore.timerMs[ghostId] = 0;
+        }
       }
     }
 
