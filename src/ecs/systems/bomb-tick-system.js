@@ -20,11 +20,17 @@
  *   newly placed bomb starts with the full canonical fuse on its first frame.
  * - Expired bombs are deactivated immediately after queueing a detonation so
  *   they cannot enqueue duplicate detonation requests on later fixed steps.
+ * - The shared `bombDetonationQueue` is bounded at MAX_DETONATION_QUEUE entries
+ *   (BUG-07). A system cannot observe its own quarantine status, so the bound is
+ *   enforced here at push time: when the explosion system is quarantined and the
+ *   queue is full, the detonation request is dropped (drain-to-waste) rather than
+ *   letting the array grow unbounded. The expired bomb is still deactivated even
+ *   when its request is dropped, so it cannot re-enqueue on every later step.
  */
 
 import { COMPONENT_MASK } from '../components/registry.js';
 import { COLLIDER_TYPE } from '../components/spatial.js';
-import { BOMB_FUSE_MS, DEFAULT_FIRE_RADIUS } from '../resources/constants.js';
+import { BOMB_FUSE_MS, DEFAULT_FIRE_RADIUS, MAX_DETONATION_QUEUE } from '../resources/constants.js';
 import { readEntityTile } from '../shared/tile-utils.js';
 import {
   emitGameplayEvent,
@@ -433,7 +439,13 @@ function tickActiveBombs(
       continue;
     }
 
-    bombDetonationQueue.push(createBombDetonationRequest(bombStore, bombEntityId, frame));
+    // BUG-07: bound the shared queue at push time. If the explosion system is
+    // quarantined it cannot drain the queue, so without this cap the array would
+    // grow unbounded. Drop the request (drain-to-waste) once the queue is full;
+    // the bomb is still deactivated below so it cannot re-enqueue every step.
+    if (bombDetonationQueue.length < MAX_DETONATION_QUEUE) {
+      bombDetonationQueue.push(createBombDetonationRequest(bombStore, bombEntityId, frame));
+    }
     deactivateQueuedBomb(colliderStore, bombEntityId);
   }
 }

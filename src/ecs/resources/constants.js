@@ -71,6 +71,31 @@ export const FIRE_DURATION_MS = 500;
  *  Phase 1). Do not remove (DEAD-17). */
 export const MAX_CHAIN_DEPTH = 10;
 
+/** Maximum bomb detonations the explosion system seeds from the shared
+ *  `bombDetonationQueue` per tick (BUG-07).
+ *  Bounds the post-quarantine drain so a backlog that accumulated while the
+ *  explosion system was quarantined cannot all fire in a single tick (a burst
+ *  that could starve the fire pool or spike a frame). Any remainder stays in
+ *  the shared queue for subsequent ticks. Sized to POOL_MAX_BOMBS (5) so normal
+ *  play — at most POOL_MAX_BOMBS bombs expiring on one tick — is never throttled
+ *  and stays byte-for-byte identical. Chain-reaction detonations are appended to
+ *  the explosion system's local work queue (bounded by MAX_CHAIN_DEPTH), not the
+ *  shared queue, so this cap does not apply to or break chain reactions.
+ *  (Literal 5; cannot reference POOL_MAX_BOMBS here as it is defined later.) */
+export const MAX_DETONATIONS_PER_TICK = 5;
+
+/** Hard upper bound on the shared `bombDetonationQueue` length (BUG-07).
+ *  A system cannot observe its own quarantine status through the world-view
+ *  API, so bomb-tick enforces this bound at push time: once the queue is full,
+ *  further fuse-expiry requests are dropped (drain-to-waste) instead of letting
+ *  the array grow without limit while the explosion system is quarantined. Set
+ *  to a small multiple (4×) of POOL_MAX_BOMBS (= 20) so a few ticks of backlog
+ *  can buffer during a brief quarantine without unbounded growth; the expired
+ *  bomb is still deactivated even when its request is dropped so it cannot
+ *  re-enqueue every frame.
+ *  (Literal 20; cannot reference POOL_MAX_BOMBS here as it is defined later.) */
+export const MAX_DETONATION_QUEUE = 20;
+
 // --- Ghost ---
 
 /** Stunned duration after eating a power pellet (ms). */

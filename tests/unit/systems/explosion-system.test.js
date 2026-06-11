@@ -21,6 +21,7 @@ import {
   DEFAULT_FIRE_RADIUS,
   FIRE_DURATION_MS,
   MAX_CHAIN_DEPTH,
+  MAX_DETONATIONS_PER_TICK,
   POWER_UP_DROP_CHANCES,
 } from '../../../src/ecs/resources/constants.js';
 import { createEventQueue, drain } from '../../../src/ecs/resources/event-queue.js';
@@ -717,6 +718,70 @@ describe('explosion-system chain reactions', () => {
         type: GAMEPLAY_EVENT_TYPE.BOMB_DETONATED,
       },
     ]);
+  });
+});
+
+describe('explosion-system per-tick detonation cap (BUG-07)', () => {
+  // Seed N independent root bombs on separate, mutually non-overlapping tiles so
+  // each detonation is its own root (chainDepth 1) and none chains into another.
+  // This isolates the per-tick seed-drain cap from chain-reaction behavior.
+  function seedIndependentDetonations(harness, count) {
+    for (let index = 0; index < count; index += 1) {
+      const row = 1 + index;
+      const bomb = addActiveBomb(
+        harness.world,
+        harness.positionStore,
+        harness.colliderStore,
+        harness.bombStore,
+        row,
+        1,
+        0,
+      );
+
+      queueDetonation(harness.bombDetonationQueue, bomb, harness.bombStore);
+    }
+  }
+
+  it('processes at most MAX_DETONATIONS_PER_TICK seed detonations per tick', () => {
+    const harness = createExplosionHarness();
+    const backlog = MAX_DETONATIONS_PER_TICK + 3;
+
+    seedIndependentDetonations(harness, backlog);
+    harness.system.update({ dtMs: 0, frame: 0, world: harness.world });
+
+    // Exactly the cap was drained this tick; the remainder is carried over.
+    expect(drain(harness.eventQueue)).toHaveLength(MAX_DETONATIONS_PER_TICK);
+    expect(harness.bombDetonationQueue).toHaveLength(backlog - MAX_DETONATIONS_PER_TICK);
+  });
+
+  it('carries the remaining detonations to subsequent ticks in order', () => {
+    const harness = createExplosionHarness();
+    const backlog = MAX_DETONATIONS_PER_TICK + 2;
+
+    seedIndependentDetonations(harness, backlog);
+    const orderedBombIds = harness.bombDetonationQueue.map((request) => request.bombEntityId);
+
+    harness.system.update({ dtMs: 0, frame: 0, world: harness.world });
+    const firstTickIds = drain(harness.eventQueue).map((event) => event.payload.entityId);
+
+    harness.system.update({ dtMs: 0, frame: 1, world: harness.world });
+    const secondTickIds = drain(harness.eventQueue).map((event) => event.payload.entityId);
+
+    // FIFO drain: first MAX_DETONATIONS_PER_TICK on tick 0, then the remainder.
+    expect(firstTickIds).toEqual(orderedBombIds.slice(0, MAX_DETONATIONS_PER_TICK));
+    expect(secondTickIds).toEqual(orderedBombIds.slice(MAX_DETONATIONS_PER_TICK));
+    expect(harness.bombDetonationQueue).toHaveLength(0);
+  });
+
+  it('keeps normal-load detonations (<= cap) unchanged in a single tick', () => {
+    const harness = createExplosionHarness();
+
+    seedIndependentDetonations(harness, MAX_DETONATIONS_PER_TICK);
+    harness.system.update({ dtMs: 0, frame: 0, world: harness.world });
+
+    // A full-but-not-overflowing batch drains entirely with nothing carried.
+    expect(drain(harness.eventQueue)).toHaveLength(MAX_DETONATIONS_PER_TICK);
+    expect(harness.bombDetonationQueue).toHaveLength(0);
   });
 });
 
