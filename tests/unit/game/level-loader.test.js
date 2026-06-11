@@ -75,6 +75,42 @@ describe('level-loader', () => {
     expect(world.getResource('mapResource')).toBe(loadedMap);
   });
 
+  it('exposes the freshly committed index and map resource inside onLevelLoaded (BUG-23 / #136)', () => {
+    const world = new World();
+    const firstMap = createMapResourceFixture(1);
+    const secondMap = createMapResourceFixture(2);
+    const maps = [firstMap, secondMap];
+
+    const observed = [];
+    const levelLoader = createLevelLoader({
+      loadMapForLevel: (levelIndex) => maps[levelIndex] ?? null,
+      onLevelLoaded: (mapResource, meta) => {
+        // The callback must see post-commit state: the world resource and the
+        // loader index already reflect the map being loaded, not the prior one.
+        observed.push({
+          levelIndex: meta.levelIndex,
+          currentLevelIndex: levelLoader.getCurrentLevelIndex(),
+          resource: world.getResource('mapResource'),
+          resourceLevel: world.getResource('mapResource')?.level,
+        });
+      },
+      totalLevels: maps.length,
+      world,
+    });
+
+    const loadedFirst = levelLoader.loadLevel(0, { reason: 'start-game' });
+    expect(observed).toHaveLength(1);
+    expect(observed[0].currentLevelIndex).toBe(0);
+    expect(observed[0].resource).toBe(loadedFirst);
+    expect(observed[0].resourceLevel).toBe(1);
+
+    const loadedSecond = levelLoader.loadLevel(1, { reason: 'advance' });
+    expect(observed).toHaveLength(2);
+    expect(observed[1].currentLevelIndex).toBe(1);
+    expect(observed[1].resource).toBe(loadedSecond);
+    expect(observed[1].resourceLevel).toBe(2);
+  });
+
   it('keeps current level commit intact when advance target fails to resolve', () => {
     const world = new World();
     const firstMap = createMapResourceFixture(1);
