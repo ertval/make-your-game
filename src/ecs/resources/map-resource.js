@@ -23,13 +23,16 @@
  *   - getCell(map, row, col) — O(1) cell type lookup
  *   - setCell(map, row, col, type) — mutate a cell (runtime destruction)
  *   - isWall(map, row, col) — convenience check for impassable cells
- *   - isPassable(map, row, col, isGhost) — check if a cell can be entered
- *   - isGhostHouseCell(map, row, col) — check if cell is inside ghost house
- *   - isInGhostHouse(map, row, col) — check if coords are within ghost house
+ *   - isPassable(map, row, col) — check if a cell can be entered by the player
+ *   - isPassableForGhost(map, row, col) — check if a cell can be entered by ghosts
+ *   - isGhostHouseCell(map, row, col) — check if cell is inside ghost house and is a ghost house tile
+ *   - isInGhostHouse(map, row, col) — check if coords are within ghost house bounds
  *   - countPellets(map) — count remaining pellets on the map
  *   - countPowerPellets(map) — count remaining power pellets on the map
  *   - cloneMap(map) — deep clone for level restart determinism
  *   - validateMapSemantic(rawMap) — semantic validation without parsing
+ *   - validateMapSchema(rawMap) — structural schema validation mirror of map.schema.json
+ *   - assertValidMapResource(map) — runtime resource contract validation
  *
  * Implementation notes:
  *   - The grid is stored as a flat Uint8Array for cache-friendly access.
@@ -308,6 +311,11 @@ export function validateMapSemantic(rawMap) {
 
 /**
  * Validate that a raw map matches the JSON Schema specifications.
+ *
+ * NOTE: This function is a hand-maintained mirror of docs/schemas/map.schema.json.
+ * It is implemented in vanilla JavaScript to avoid runtime dependencies (like Ajv)
+ * and compile/eval overhead in the browser. It acts as a second source of truth
+ * that must be manually synchronized if docs/schemas/map.schema.json changes.
  *
  * @param {object} rawMap - Raw map JSON object.
  * @returns {{ ok: boolean, errors: string[] }}
