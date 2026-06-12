@@ -1,4 +1,32 @@
+import fs from 'node:fs';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { defineConfig } from 'vite';
+
+// Custom build plugin to copy static assets to the dist output directory.
+// Because Vite does not bundle dynamically fetched assets (like level JSONs
+// and audio manifests), we copy them post-build so they are available in production.
+function createCopyStaticAssetsPlugin() {
+  return {
+    name: 'copy-static-assets',
+    closeBundle() {
+      const __dirname = path.dirname(fileURLToPath(import.meta.url));
+      const srcDir = path.resolve(__dirname, 'assets');
+      const destDir = path.resolve(__dirname, 'dist/assets');
+      const foldersToCopy = ['maps', 'manifests', 'generated'];
+
+      for (const folder of foldersToCopy) {
+        const src = path.join(srcDir, folder);
+        const dest = path.join(destDir, folder);
+
+        if (fs.existsSync(src)) {
+          // Recursive copy preserving directories and nested assets
+          fs.cpSync(src, dest, { recursive: true });
+        }
+      }
+    },
+  };
+}
 
 const PRODUCTION_CSP = [
   "default-src 'self'",
@@ -75,7 +103,8 @@ export default defineConfig(({ command }) => {
   const csp = isProductionBuild ? PRODUCTION_CSP : DEVELOPMENT_CSP;
 
   return {
-    plugins: [createCspMetaPlugin(csp)],
+    base: './',
+    plugins: [createCspMetaPlugin(csp), createCopyStaticAssetsPlugin()],
     server: {
       host: true,
       port: 5173,
