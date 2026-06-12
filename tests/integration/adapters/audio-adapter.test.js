@@ -685,6 +685,21 @@ describe('audio-adapter: playMusic', () => {
     expect(result).toBeNull();
     expect(warnSpy).toHaveBeenCalledWith(expect.stringContaining('missing sfx clip "theme"'));
   });
+
+  it('returns null and does not start music when the AudioContext is suspended (pre user-gesture)', async () => {
+    const { adapter } = setup({
+      context: { initialState: 'suspended' },
+    });
+
+    await adapter.loadClips({
+      music: { theme: '/audio/theme.ogg' },
+    });
+
+    const result = adapter.playMusic('theme');
+
+    expect(result).toBeNull();
+    expect(adapter.getActiveMusicId()).toBeNull();
+  });
 });
 
 describe('audio-adapter: setVolume', () => {

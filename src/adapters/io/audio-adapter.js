@@ -737,6 +737,16 @@ export function createAudioAdapter(options = {}) {
     if (!context) {
       return null;
     }
+    // Pre user-gesture the context is still suspended: starting a source here
+    // would schedule silent playback yet return a truthy node, which leads the
+    // music reconciler (audio-integration.js) to advance lastState and never
+    // retry. Return null so the documented contract holds — the reconciler keeps
+    // retrying each tick and music starts on the first accepted gesture (the
+    // unlock listeners resume the context) without a pause/unpause cycle. We do
+    // NOT resume here: autoplay unlock stays owned by the gesture listeners.
+    if (context.state === 'suspended') {
+      return null;
+    }
     const buffer = lookupBuffer(trackId, 'music') || musicBuffers.get(trackId) || null;
     if (!buffer) {
       warnMissing(trackId, 'music');
