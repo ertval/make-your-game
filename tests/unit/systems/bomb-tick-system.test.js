@@ -23,13 +23,13 @@ import {
   FIXED_DT_MS,
 } from '../../../src/ecs/resources/constants.js';
 import { createMapResource } from '../../../src/ecs/resources/map-resource.js';
-import { readEntityTile } from '../../../src/ecs/shared/tile-utils.js';
 import {
   BOMB_TICK_BOMB_REQUIRED_MASK,
   BOMB_TICK_PLAYER_REQUIRED_MASK,
   createBombTickSystem,
 } from '../../../src/ecs/systems/bomb-tick-system.js';
 import { World } from '../../../src/ecs/world/world.js';
+import { readEntityTile } from '../../../src/shared/tile-utils.js';
 
 /**
  * Build a compact valid map for bomb ticking and placement tests.

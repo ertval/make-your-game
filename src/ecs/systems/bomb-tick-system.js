@@ -22,10 +22,10 @@
  *   they cannot enqueue duplicate detonation requests on later fixed steps.
  */
 
+import { readEntityTile } from '../../shared/tile-utils.js';
 import { COMPONENT_MASK } from '../components/registry.js';
 import { COLLIDER_TYPE } from '../components/spatial.js';
 import { BOMB_FUSE_MS, DEFAULT_FIRE_RADIUS } from '../resources/constants.js';
-import { readEntityTile } from '../shared/tile-utils.js';
 import {
   emitGameplayEvent,
   GAMEPLAY_EVENT_SOURCE,

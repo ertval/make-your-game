@@ -35,6 +35,7 @@
  *   in B-05.
  */
 
+import { readEntityTile } from '../../shared/tile-utils.js';
 import { COMPONENT_MASK } from '../components/registry.js';
 import { COLLIDER_TYPE } from '../components/spatial.js';
 import { CELL_TYPE, GHOST_STATE } from '../resources/constants.js';
@@ -44,7 +45,6 @@ import {
   isPassableForGhost,
   setCell,
 } from '../resources/map-resource.js';
-import { readEntityTile } from '../shared/tile-utils.js';
 import {
   emitGameplayEvent,
   GAMEPLAY_EVENT_SOURCE,
