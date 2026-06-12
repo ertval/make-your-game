@@ -18,6 +18,8 @@
  * - computePinkyTarget(playerTile, playerVector): four tiles ahead of player.
  * - computeInkyTarget(playerTile, playerVector, blinkyTile): doubled-vector flank.
  * - computeClydeTarget(playerTile, ghostTile, mapResource): chase/retreat toggle.
+ * - findBlinkyTile(ghostStore, positionStore, ghostEntityIds, reusableTile):
+ *   Blinky's tile, or null when no BLINKY ghost is active.
  * - resolveGhostTargetTile(ghostType, context): canonical target for a ghost type.
  * - selectGhostDirection(context): pick a passable direction this step.
  * - resolveGhostSpeed(ghostStore, ghostId, mapResource): effective speed.
@@ -48,6 +50,7 @@
 import { COMPONENT_MASK } from '../components/registry.js';
 import {
   CLYDE_DISTANCE_THRESHOLD,
+  GHOST_DEFAULT_SPEED,
   GHOST_STATE,
   GHOST_STUNNED_SPEED,
   GHOST_TYPE,
@@ -70,6 +73,18 @@ const DEFAULT_RNG_RESOURCE_KEY = 'rng';
 
 const MAX_DELTA_MS = 1000;
 const MOVEMENT_EPSILON = 1e-9;
+
+/**
+ * Module-level scratch set for the released-ghost lookup. Reused (cleared +
+ * refilled) every frame instead of allocating `new Set(...)` per tick, which
+ * created steady GC pressure in the hot simulation loop (BUG-10). It is safe as
+ * a module singleton even if multiple ghost-ai systems exist in one world: each
+ * system's `update` runs synchronously start-to-finish, refilling the set from
+ * its own spawn state and consuming it within the same tick before any other
+ * system can touch it. It is never retained across frames or read after the
+ * loop, so determinism is unchanged.
+ */
+const releasedGhostScratch = new Set();
 
 /**
  * Canonical component query for ghost AI.
@@ -249,7 +264,10 @@ export function resolveGhostSpeed(ghostStore, ghostId, mapResource) {
     return mapSpeed;
   }
 
-  return 0;
+  // Terminal fallback: a missing/non-positive stored AND map speed must never
+  // resolve to 0, or the movement guard (speed > 0) would freeze the ghost on
+  // its tile permanently (BUG-17). Mirrors the PLAYER_BASE_SPEED safety net.
+  return GHOST_DEFAULT_SPEED;
 }
 
 /**
@@ -585,19 +603,35 @@ function readPlayerVector(velocityStore, playerEntityId) {
   return { rowDelta, colDelta };
 }
 
-function findBlinkyTile(ghostStore, positionStore, ghostEntityIds, reusableTile) {
+/**
+ * Find the current tile of the BLINKY ghost, if one is active.
+ *
+ * Returns `null` when no BLINKY entity is present (BUG-22). Callers MUST treat a
+ * null result as "Blinky absent" and route Inky through a direct chase instead
+ * of the doubled-vector flank — a previous `{ row: 0, col: 0 }` fallback made
+ * Inky silently flank off the map origin.
+ *
+ * @param {{ type?: Uint8Array } | null} ghostStore - Ghost component store.
+ * @param {object | null} positionStore - Position component store.
+ * @param {Iterable<number>} ghostEntityIds - Active ghost entity slots.
+ * @param {{ row: number, col: number }} reusableTile - Scratch tile reused to
+ *   avoid per-call allocation while reading the position store.
+ * @returns {{ row: number, col: number } | null} Blinky's tile, or null when no
+ *   BLINKY entity is active.
+ */
+export function findBlinkyTile(ghostStore, positionStore, ghostEntityIds, reusableTile) {
   if (!ghostStore || !positionStore) {
-    return { row: 0, col: 0 };
+    return null;
   }
 
   for (const ghostId of ghostEntityIds) {
     if (ghostStore.type?.[ghostId] === GHOST_TYPE.BLINKY) {
       const tile = readEntityTile(positionStore, ghostId, reusableTile);
-      return tile ? { row: tile.row, col: tile.col } : { row: 0, col: 0 };
+      return tile ? { row: tile.row, col: tile.col } : null;
     }
   }
 
-  return { row: 0, col: 0 };
+  return null;
 }
 
 function snapGhostToTarget(positionStore, velocityStore, ghostId) {
@@ -758,9 +792,18 @@ export function createGhostAiSystem(options = {}) {
         ? readBombOccupancyCells(world.getResource(bombOccupancyResourceKey), mapResource)
         : null;
       const spawnState = spawnResourceKey ? world.getResource(spawnResourceKey) : null;
-      const releasedGhostSet = spawnState?.releasedGhostIds
-        ? new Set(spawnState.releasedGhostIds)
-        : null;
+      // Reuse the module-level scratch set to avoid a per-frame `new Set()`
+      // allocation in this hot loop (BUG-10). Keep the original null-vs-empty
+      // semantics: a missing `releasedGhostIds` yields a null set (revive branch
+      // disabled), while a present-but-empty list yields a cleared scratch set.
+      let releasedGhostSet = null;
+      if (spawnState?.releasedGhostIds) {
+        releasedGhostScratch.clear();
+        for (const releasedId of spawnState.releasedGhostIds) {
+          releasedGhostScratch.add(releasedId);
+        }
+        releasedGhostSet = releasedGhostScratch;
+      }
 
       const playerEntityId =
         playerEntity && Number.isInteger(playerEntity.id) && playerEntity.id >= 0
@@ -778,10 +821,15 @@ export function createGhostAiSystem(options = {}) {
       const ghostEntityIds = typeof world.query === 'function' ? world.query(requiredMask) : [];
 
       // Resolve Blinky's tile once per step so Inky's targeting stays
-      // deterministic across the iteration order.
+      // deterministic across the iteration order. When Blinky is absent
+      // (not in activeGhostTypes), the snapshot is null: Inky must NOT flank off
+      // a bogus (0,0) tile, so it falls back to a direct chase below (BUG-22).
       const blinkySnapshot = findBlinkyTile(ghostStore, positionStore, ghostEntityIds, blinkyTile);
-      blinkyTile.row = blinkySnapshot.row;
-      blinkyTile.col = blinkySnapshot.col;
+      const hasBlinky = blinkySnapshot !== null;
+      if (hasBlinky) {
+        blinkyTile.row = blinkySnapshot.row;
+        blinkyTile.col = blinkySnapshot.col;
+      }
 
       const deltaSeconds = readDeltaMs(context) / 1000;
 
@@ -849,6 +897,11 @@ export function createGhostAiSystem(options = {}) {
               row: mapResource.ghostSpawnRow ?? currentTile.row,
               col: mapResource.ghostSpawnCol ?? currentTile.col,
             };
+          } else if (ghostType === GHOST_TYPE.INKY && !hasBlinky) {
+            // Inky's flank target depends on Blinky's tile; with Blinky absent
+            // there is no valid reference, so chase the player directly like
+            // Blinky instead of flanking off a bogus origin tile (BUG-22).
+            targetTile = computeBlinkyTarget(playerTile);
           } else {
             targetTile = resolveGhostTargetTile(ghostType, {
               ghostTile: currentTile,

@@ -449,11 +449,7 @@ describe('A-05 event ordering integration', () => {
     try {
       const bootstrap = createBootstrap({
         boardContainerElement: gameBoard,
-        loadMapForLevel: () => {
-          const map = createRuntimeMapResource();
-          map.ghostSpeed = 0;
-          return map;
-        },
+        loadMapForLevel: () => createRuntimeMapResource(),
         now: 0,
       });
       const inputAdapter = createRuntimeInputAdapterStub();
@@ -500,8 +496,14 @@ describe('A-05 event ordering integration', () => {
       const eventQueue = world.getResource('eventQueue');
       drain(eventQueue);
 
+      // Keep this dummy ghost stationary on the bomb's blast tile so the
+      // explosion is guaranteed to catch it. We re-pin it each frame instead of
+      // relying on a zero map ghostSpeed: after the BUG-17 fix a non-positive
+      // speed falls back to GHOST_DEFAULT_SPEED, so a zero speed no longer
+      // freezes a ghost in place.
       let nowMs = 0;
       for (let step = 1; step <= 190; step++) {
+        placeEntity(positionStore, ghostHandle.id, 3, 4);
         nowMs += FIXED_DT_MS;
         bootstrap.stepFrame(nowMs);
       }

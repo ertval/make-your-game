@@ -8,11 +8,16 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import {
+  AUDIO_SETTINGS_STORAGE_KEY,
+  DEFAULT_AUDIO_SETTINGS,
+  getAudioSettings,
   getHighScore,
   HIGH_SCORE_STORAGE_KEY,
   safeRead,
   safeWrite,
+  saveAudioSettings,
   saveHighScore,
+  updateAudioSetting,
 } from '../../../src/adapters/io/storage-adapter.js';
 
 function createMockStorage() {
@@ -150,5 +155,112 @@ describe('storage-adapter', () => {
     localStorage.setItem(HIGH_SCORE_STORAGE_KEY, JSON.stringify({ score: 105 }));
 
     expect(getHighScore()).toBe(105);
+  });
+});
+
+describe('storage-adapter: C-11A audio settings', () => {
+  let mockStorage;
+
+  beforeEach(() => {
+    mockStorage = createMockStorage();
+    globalThis.localStorage = mockStorage;
+    vi.restoreAllMocks();
+    vi.spyOn(console, 'warn').mockImplementation(() => {});
+  });
+
+  it('returns the documented defaults when no settings are stored', () => {
+    expect(getAudioSettings()).toEqual({
+      musicEnabled: true,
+      sfxEnabled: true,
+      musicVolume: 1,
+      sfxVolume: 1,
+      uiVolume: 1,
+    });
+    // The exported default constant matches the ticket contract.
+    expect(DEFAULT_AUDIO_SETTINGS).toEqual(getAudioSettings());
+  });
+
+  it('round-trips a full settings object through save and restore', () => {
+    const settings = {
+      musicEnabled: false,
+      sfxEnabled: true,
+      musicVolume: 0.25,
+      sfxVolume: 0.5,
+      uiVolume: 0.75,
+    };
+
+    const written = saveAudioSettings(settings);
+    expect(written).toEqual(settings);
+
+    // Restore reads back the exact same values (persistence round-trip).
+    expect(getAudioSettings()).toEqual(settings);
+    // And it is the canonical key the rest of the app reads.
+    expect(JSON.parse(localStorage.getItem(AUDIO_SETTINGS_STORAGE_KEY))).toEqual(settings);
+  });
+
+  it('falls back to defaults when the stored JSON is malformed', () => {
+    localStorage.setItem(AUDIO_SETTINGS_STORAGE_KEY, '{ not valid json');
+
+    expect(getAudioSettings()).toEqual(DEFAULT_AUDIO_SETTINGS);
+    expect(console.warn).toHaveBeenCalled();
+  });
+
+  it('falls back to defaults when the stored value is not an object', () => {
+    localStorage.setItem(AUDIO_SETTINGS_STORAGE_KEY, JSON.stringify('loud'));
+
+    expect(getAudioSettings()).toEqual(DEFAULT_AUDIO_SETTINGS);
+  });
+
+  it('repairs individual invalid fields without discarding the valid ones', () => {
+    localStorage.setItem(
+      AUDIO_SETTINGS_STORAGE_KEY,
+      JSON.stringify({
+        musicEnabled: 'yes', // not a boolean -> default true
+        sfxEnabled: false, // valid -> kept
+        musicVolume: 2, // out of range -> clamped to 1
+        sfxVolume: -3, // out of range -> clamped to 0
+        uiVolume: 'NaN', // not a number -> default 1
+      }),
+    );
+
+    expect(getAudioSettings()).toEqual({
+      musicEnabled: true,
+      sfxEnabled: false,
+      musicVolume: 1,
+      sfxVolume: 0,
+      uiVolume: 1,
+    });
+  });
+
+  it('persists immediately on a single-field change (read-merge-write)', () => {
+    saveAudioSettings({ ...DEFAULT_AUDIO_SETTINGS, musicVolume: 0.9 });
+
+    const result = updateAudioSetting('musicEnabled', false);
+
+    // Returned + persisted value reflects the change and keeps the other fields.
+    expect(result.musicEnabled).toBe(false);
+    expect(result.musicVolume).toBe(0.9);
+    expect(getAudioSettings()).toEqual(result);
+  });
+
+  it('ignores unknown setting keys without corrupting storage', () => {
+    saveAudioSettings(DEFAULT_AUDIO_SETTINGS);
+
+    const result = updateAudioSetting('masterVolume', 0.1);
+
+    expect(result).toEqual(DEFAULT_AUDIO_SETTINGS);
+    expect(console.warn).toHaveBeenCalled();
+  });
+
+  it('normalizes a partial object on save, filling missing fields with defaults', () => {
+    const written = saveAudioSettings({ musicVolume: 0.3 });
+
+    expect(written).toEqual({
+      musicEnabled: true,
+      sfxEnabled: true,
+      musicVolume: 0.3,
+      sfxVolume: 1,
+      uiVolume: 1,
+    });
   });
 });
