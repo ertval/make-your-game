@@ -1,0 +1,85 @@
+name: Deploy to GitHub Pages
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: "pages"
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: 24
+          cache: npm
+
+      - name: Pin npm version
+        run: |
+          set -euo pipefail
+          npm install --global npm@11.6.1
+          npm --version
+
+      - name: Install dependencies
+        run: |
+          set -euo pipefail
+          if [ -f package-lock.json ]; then
+            npm ci
+          else
+            npm install
+          fi
+
+      - name: Run Biome Lint / Format Check
+        run: |
+          set -euo pipefail
+          npm run check
+
+      - name: Run Unit Tests
+        run: |
+          set -euo pipefail
+          npm run test:unit
+
+      - name: Build with Vite
+        run: |
+          set -euo pipefail
+          npm run build
+
+      - name: Copy dynamic runtime assets
+        run: |
+          set -euo pipefail
+          cp -r assets/maps dist/assets/
+          cp -r assets/manifests dist/assets/
+          mkdir -p dist/assets/generated
+          cp -r assets/generated/sfx dist/assets/generated/
+          cp -r assets/generated/music dist/assets/generated/
+
+      - name: Setup Pages
+        uses: actions/configure-pages@v5
+
+      - name: Upload Pages artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: './dist'
+
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4

@@ -183,7 +183,9 @@ async function loadDefaultMaps({ fetchImpl } = {}) {
   for (let levelNumber = 1; levelNumber <= TOTAL_LEVELS; levelNumber += 1) {
     preloadTasks.push(
       (async () => {
-        const response = await fetchImpl(`/assets/maps/level-${levelNumber}.json`);
+        const response = await fetchImpl(
+          `${import.meta.env.BASE_URL}assets/maps/level-${levelNumber}.json`,
+        );
         if (!response || response.ok !== true) {
           const status = Number.isFinite(response?.status) ? response.status : 'unknown';
           throw new Error(`Failed to load map asset for level ${levelNumber} (status: ${status}).`);
@@ -229,7 +231,9 @@ async function loadAudioClipManifest({ fetchImpl, logger = console } = {}) {
   }
 
   try {
-    const response = await fetchImpl('/assets/manifests/audio-manifest.json');
+    const response = await fetchImpl(
+      `${import.meta.env.BASE_URL}assets/manifests/audio-manifest.json`,
+    );
     if (!response || response.ok !== true) {
       return grouped;
     }
@@ -246,7 +250,8 @@ async function loadAudioClipManifest({ fetchImpl, logger = console } = {}) {
           : asset.category === 'ui'
             ? grouped.ui
             : grouped.sfx;
-      bucket[asset.id] = asset.path.startsWith('/') ? asset.path : `/${asset.path}`;
+      const normalizedPath = asset.path.startsWith('/') ? asset.path.slice(1) : asset.path;
+      bucket[asset.id] = `${import.meta.env.BASE_URL}${normalizedPath}`;
     }
   } catch (error) {
     logger.warn('Audio manifest load failed; continuing without preloaded clips.', error);
