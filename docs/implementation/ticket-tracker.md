@@ -58,17 +58,17 @@ All P0 tickets complete. Audit reports published and remediation verified.
 
 ## 🔲 Phase 2 — Playable MVP (P2)
 
-**Status:** In Progress — A-12 (P2 consolidation) remains.
+**Status:** Complete — all P2 tickets done.
 
-- **Audit reports published:** _Pending A-12 completion_
-- **Remediation status:** B-04 ✅, C-02 ✅, C-01 ✅, C-03 ✅, B-05 ✅, A-07 ✅, C-04 ✅, C-05 ✅, C-06 ✅, A-12 ⏳
+- **Audit reports published:** A-12 consolidation complete; per-track P2 fix reports under docs/audit-reports/phase-2/.
+- **Remediation status:** B-04 ✅, C-02 ✅, C-01 ✅, C-03 ✅, B-05 ✅, A-07 ✅, C-04 ✅, C-05 ✅, C-06 ✅, A-12 ✅
 
 ## 🔲 Phase 3 — Feature Complete + Hardening (P3)
 
-**Status:** Not Started — Blocks on P2 completion (A-12).
+**Status:** In Progress — A-13 remains.
 
 - **Audit reports published:** _Pending A-13 completion_
-- **Remediation status:** A-04 ✅, B-06 ⏳, B-07 ⏳, B-08 ⏳, B-09 ⏳, C-07 ✅ (driver), A-05 ⏳, A-06 ⏳, A-08 ⏳, A-13 ⏳
+- **Remediation status:** A-04 ✅, B-06 ✅, B-07 ✅, B-08 ✅, B-09 ✅, C-07 ✅ (driver), A-05 ✅, A-06 ✅, A-08 ✅, A-13 ⏳
 
 ## 🔲 Phase 4 — Polish + Validation (P4)
 
@@ -140,7 +140,7 @@ Canonical ticket ID ranges used by policy checks:
 - [x] **B-05** P2 - Core Gameplay Event Surface (Depends on: B-04, D-01, A-11) | Blocks: A-08; B-09; A-12
 - [x] **A-07** P2 - CI, Schema Validation & Asset Gates (Depends on: A-01, D-03, A-11) | Blocks: A-09, C-10, D-11, A-12
 - [x] **C-06** P2 - Audio Adapter Implementation — Adapter contract complete. `src/adapters/io/audio-adapter.js` owns the Web Audio boundary (autoplay-safe AudioContext unlock on first `pointerdown`/`keydown`, `decodeAudioData` pre-decode + cached `AudioBuffer`s, master/music/sfx/ui gain graph, BufferSource-per-playback for overlapping SFX, missing-clip warn-and-no-op, `visibilitychange` suspend/resume). The adapter docstring specifies that ECS systems MUST consume it via `world.getResource('audio')` and MUST NOT import the module directly. Verification: `tests/integration/adapters/audio-adapter.test.js` (30 deterministic tests across decode flow, buffer caching, overlapping playback, missing-clip fallback, visibility lifecycle, gain updates, music replacement, failed-fetch resilience). Runtime wiring (bootstrap `setAudioAdapter` slot, manifest module, level-load preload, app-boundary construction in `main.ecs.js`) is delivered by a separate Track A integration PR (`ekaramet/integration-track-C-audio-wiring`) because those files are out of Track C ownership scope (Depends on: A-01, D-01, A-11 audit gate, non-blocking) | Blocks: C-07; C-08; C-09; A-12
-- [ ] **A-12** P2 - Consolidate P2 audits + publish 4 deduplicated track fix reports (Depends on: B-04, C-02, C-01, C-03, C-04, C-05, B-05, A-07, C-06) | Blocks: B-06; B-07; B-08; B-09; C-07; A-04; A-05; A-06; A-08
+- [x] **A-12** P2 - Consolidate P2 audits + publish 4 deduplicated track fix reports (Depends on: B-04, C-02, C-01, C-03, C-04, C-05, B-05, A-07, C-06) | Blocks: B-06; B-07; B-08; B-09; C-07; A-04; A-05; A-06; A-08
 
 ### Q3 / P3 Feature Complete + Hardening
 
@@ -151,7 +151,7 @@ Canonical ticket ID ranges used by policy checks:
 - [x] **C-07** P3 - Audio Cue Mapping & Runtime Integration — Driver contract complete. `src/adapters/io/audio-integration.js` ships the canonical `AUDIO_CUE_MAPPING` event→cue table (11 mappings: `BombPlaced`, `BombDetonated`, `PelletCollected`, `PowerPelletCollected`, `PowerUpCollected`, `LifeLost`, `GhostDefeated`, `GhostStunned`, `LevelCleared`, `GameOver`, `Victory`), the `MUSIC_STATE_MAPPING` game-state→track table, and `createAudioCueRunner({ warnUnknownEvents })` factory. The runner drains the D-01 event queue each tick in deterministic `(frame, order)` sequence, dispatches `audio.playSfx(cueId)` for every mapped event (overlapping playback supported via BufferSource-per-call from C-06), and debounces music transitions across `MENU / PLAYING / PAUSED / LEVEL_COMPLETE / GAME_OVER / VICTORY`. Unknown events warn once per type in dev and drop in production; adapter errors are isolated so the game loop survives. Verification: `tests/integration/adapters/audio-integration.test.js` (20 deterministic tests across mapping coverage, queue-order, overlapping playback, music-state debounce, terminal transitions, malformed events, pre-wiring no-op). Runtime system registration (thin wrapper that resolves world resources and forwards to `runner.tick`) is delivered by the same Track A integration handoff PR that wires C-06's `setAudioAdapter` — out of Track C ownership scope per `scripts/policy-gate/lib/policy-utils.mjs`. Forward-compatible: `LifeLost`, `GhostDefeated`, `GhostStunned`, `LevelCleared`, `GameOver`, `Victory` events depend on `B-09` event emitters before they reach the runner at runtime (Depends on: B-09, C-06, A-12) | Blocks: A-08; A-13
 - [x] **A-04** P3 - Unit Tests - ECS Core & Resources (Depends on: A-02, A-03, D-01, D-03, A-12; Early pull reason: foundational regression gate landed ahead of phase gate) | Blocks: A-13
 - [x] **A-05** P3 - Integration Tests - Multi-System & Adapter Boundaries (Depends on: A-03, B-03, B-04, B-06, B-09, C-01, C-02, C-04, C-05, D-08, A-12) | Blocks: A-09; A-13
-- [ ] **A-06** P3 - E2E Audit Tests (Playwright) (Depends on: A-03, B-04, B-06, B-07, B-08, B-09, C-01, C-02, C-03, C-04, C-05, A-12) | Blocks: A-09; A-13
+- [x] **A-06** P3 - E2E Audit Tests (Playwright) (Depends on: A-03, B-04, B-06, B-07, B-08, B-09, C-01, C-02, C-03, C-04, C-05, A-12) | Blocks: A-09; A-13
 - [x] **A-08** P3 - Unit Tests - All Gameplay Systems (Depends on: B-01 through B-09, C-01 through C-05, C-07, A-12) | Blocks: A-09; A-13
 - [ ] **A-13** P3 - Consolidate P3 audits + publish 4 deduplicated track fix reports (Depends on: B-06, B-07, B-08, B-09, C-07, A-04, A-05, A-06, A-08) | Blocks: C-08; C-09; C-10; D-10; D-11; A-09
 

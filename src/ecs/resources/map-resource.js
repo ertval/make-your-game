@@ -101,35 +101,38 @@ function validateBorderIntegrity(rawMap) {
     return { ok: false, errors: ['grid row count mismatch, skipping border check'] };
   }
 
-  // Border cells must be wall types only (indestructible or destructible).
-  const wallTypes = new Set([CELL_TYPE.INDESTRUCTIBLE, CELL_TYPE.DESTRUCTIBLE]);
+  // Border cells must be INDESTRUCTIBLE only. A DESTRUCTIBLE perimeter cell can
+  // be blown open by an explosion, producing a visual hole while movement stays
+  // blocked (getCell clamps out-of-bounds to INDESTRUCTIBLE) — a visual/gameplay
+  // desync (BUG-02 / #115).
+  const isIndestructible = (cell) => cell === CELL_TYPE.INDESTRUCTIBLE;
 
   // Top row.
   for (let c = 0; c < cols; c += 1) {
-    if (!wallTypes.has(grid[0][c])) {
-      errors.push(`border: top row col ${c} is not a wall type (got ${grid[0][c]})`);
+    if (!isIndestructible(grid[0][c])) {
+      errors.push(`border: top row col ${c} is not indestructible (got ${grid[0][c]})`);
     }
   }
 
   // Bottom row.
   const bottomRow = rows - 1;
   for (let c = 0; c < cols; c += 1) {
-    if (!wallTypes.has(grid[bottomRow][c])) {
-      errors.push(`border: bottom row col ${c} is not a wall type (got ${grid[bottomRow][c]})`);
+    if (!isIndestructible(grid[bottomRow][c])) {
+      errors.push(`border: bottom row col ${c} is not indestructible (got ${grid[bottomRow][c]})`);
     }
   }
 
   // Left column.
   for (let r = 0; r < rows; r += 1) {
-    if (!wallTypes.has(grid[r][0])) {
-      errors.push(`border: left col row ${r} is not a wall type (got ${grid[r][0]})`);
+    if (!isIndestructible(grid[r][0])) {
+      errors.push(`border: left col row ${r} is not indestructible (got ${grid[r][0]})`);
     }
   }
 
   // Right column.
   for (let r = 0; r < rows; r += 1) {
-    if (!wallTypes.has(grid[r][cols - 1])) {
-      errors.push(`border: right col row ${r} is not a wall type (got ${grid[r][cols - 1]})`);
+    if (!isIndestructible(grid[r][cols - 1])) {
+      errors.push(`border: right col row ${r} is not indestructible (got ${grid[r][cols - 1]})`);
     }
   }
 
@@ -827,10 +830,13 @@ export function setCell(map, row, col, type) {
     return;
   }
   map.grid[row * map.cols + col] = type;
-  // Keep 2D grid in sync for systems that iterate rows.
-  if (map.grid2D[row]) {
-    map.grid2D[row][col] = type;
-  }
+  // Keep the 2D mirror in lockstep with the flat grid. The row bounds check
+  // above guarantees `row` is in range, and grid2D is constructed with exactly
+  // `map.rows` rows, so this write is always valid. We deliberately do NOT
+  // guard this with `if (map.grid2D[row])`: a missing row indicates upstream
+  // corruption, and silently skipping the mirror write would diverge the two
+  // representations with no signal (BUG-03 / #116). Let it surface instead.
+  map.grid2D[row][col] = type;
 }
 
 /**

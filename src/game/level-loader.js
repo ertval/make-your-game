@@ -118,6 +118,16 @@ export function createLevelLoader({
       return null;
     }
 
+    // Commit the loader index and world resource FIRST so the hook below
+    // observes post-commit state (BUG-23 / #136). Any onLevelLoaded callback
+    // that reads world.getResource(mapResourceKey) or getCurrentLevelIndex()
+    // must see the freshly loaded map/index, not the prior one.
+    currentLevelIndex = nextLevelIndex;
+
+    if (world && typeof world.setResource === 'function') {
+      world.setResource(mapResourceKey, mapResource);
+    }
+
     // The optional level-loaded hook lets runtime bootstrap code synchronize
     // entity state from the freshly loaded map without coupling that work to
     // the map loader's core bookkeeping.
@@ -126,12 +136,6 @@ export function createLevelLoader({
         ...options,
         levelIndex: nextLevelIndex,
       });
-    }
-
-    currentLevelIndex = nextLevelIndex;
-
-    if (world && typeof world.setResource === 'function') {
-      world.setResource(mapResourceKey, mapResource);
     }
 
     return mapResource;

@@ -125,6 +125,7 @@ export function peek(queue) {
  * Used on level reset or game restart to prevent stale events
  * from leaking into the new game state.
  *
+ * @internal
  * @param {EventQueue} queue — Mutable event queue record.
  */
 export function clear(queue) {
