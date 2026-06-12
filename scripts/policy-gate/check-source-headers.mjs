@@ -8,7 +8,15 @@
 
 import fs from 'node:fs';
 import process from 'node:process';
-import { parseArgs, readLines, walkFiles } from './lib/policy-utils.mjs';
+import {
+  DEFAULT_CHANGED_FILES_PATH,
+  GATE_FAIL,
+  GATE_PASS,
+  GATE_WARN,
+  parseArgs,
+  readLines,
+  walkFiles,
+} from './lib/policy-utils.mjs';
 
 // Parse CLI arguments and validate execution mode
 // We default to 'changed' scope so developers iteratively get fast-feedback on only what they touched.
@@ -26,7 +34,7 @@ if (!['warn', 'error', 'fail'].includes(mode)) {
   throw new Error(`Invalid --mode value "${mode}". Expected one of: warn, error, fail.`);
 }
 
-const changedPath = args['changed-file'] || 'changed-files.txt';
+const changedPath = args['changed-file'] || DEFAULT_CHANGED_FILES_PATH;
 const includePrefixes = String(args['include-prefixes'] || 'src/,scripts/')
   .split(',')
   .map((value) => value.trim().replaceAll('\\', '/'))
@@ -128,6 +136,7 @@ if (missingHeaders.length > 0) {
   missingHeaders.forEach((f) => {
     details.push(`- ${f}`);
   });
+  details.push('Action: Add a descriptive top-of-file block comment to these files.');
 }
 
 if (missingPurpose.length > 0) {
@@ -138,29 +147,33 @@ if (missingPurpose.length > 0) {
   missingPurpose.forEach((f) => {
     details.push(`- ${f}`);
   });
+  details.push('Action: Ensure the top-of-file comment provides context such as "Purpose: ...".');
 }
 
 if (lowCommentRatio.length > 0) {
   hasViolations = true;
-  details.push(
-    `Source files below minimum comment ratio, add more comments in critical sections (${MIN_COMMENT_RATIO * 100}%):`,
-  );
+  details.push(`Source files below minimum comment ratio (${MIN_COMMENT_RATIO * 100}%):`);
   lowCommentRatio.forEach((f) => {
     details.push(`- ${f}`);
   });
+  details.push(
+    'Action: Add inline comments to explain complex logic and decisions in critical sections.',
+  );
 }
 
 if (!hasViolations) {
-  console.log(`Code quality and comment check passed for ${files.length} file(s).`);
+  console.log(`${GATE_PASS} — Code quality and comment check for ${files.length} file(s).`);
   process.exit(0);
 }
 
 const errorOutput = details.join('\n');
 
 if (mode === 'error' || mode === 'fail') {
+  console.error(`${GATE_FAIL} — Source header violations found:`);
   console.error(errorOutput);
   process.exit(1);
 }
 
+console.warn(`${GATE_WARN} — Source header violations found (warn mode):`);
 console.warn(errorOutput);
-console.log('Code quality and comment check completed in warn mode; continuing.');
+console.log(`${GATE_WARN} — Code quality and comment check completed in warn mode; continuing.`);

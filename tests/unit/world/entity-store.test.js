@@ -39,4 +39,32 @@ describe('EntityStore', () => {
     store.create();
     expect(() => store.create()).toThrow('Entity limit reached');
   });
+  it('handles invalid arguments for isAlive gracefully', () => {
+    const store = new EntityStore();
+    expect(store.isAlive(null)).toBe(false);
+    expect(store.isAlive({})).toBe(false);
+    expect(store.isAlive({ id: 0 })).toBe(false);
+    expect(store.isAlive({ generation: 0 })).toBe(false);
+    expect(store.isAlive({ id: '0', generation: '0' })).toBe(false);
+  });
+
+  it('getActiveIds and getActiveHandles return correct data for alive entities only', () => {
+    const store = new EntityStore();
+    const h1 = store.create();
+    const h2 = store.create();
+    const h3 = store.create();
+
+    store.destroy(h2);
+
+    expect(store.getActiveIds()).toEqual([h1.id, h3.id]);
+    expect(store.getActiveHandles()).toEqual([h1, h3]);
+  });
+
+  it('getActiveIds returns a frozen array to prevent mutation', () => {
+    const store = new EntityStore();
+    store.create();
+    const activeIds = store.getActiveIds();
+    expect(Object.isFrozen(activeIds)).toBe(true);
+    expect(() => activeIds.push(999)).toThrow();
+  });
 });

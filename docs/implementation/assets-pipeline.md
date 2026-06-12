@@ -16,11 +16,13 @@ assets/
     visual/
     audio/
   generated/
+    alternatives/
+    visuals/
     sprites/
     ui/
     sfx/
     music/
-    ambience/
+    ambience/ (optional)
   manifests/
     visual-manifest.json
     audio-manifest.json
@@ -89,6 +91,13 @@ Recommended baseline formats:
 4. Pool visual instances for high-churn entities (bombs, fire, effects).
 5. Keep decode/start timing constraints explicit for latency-sensitive SFX.
 
+Bootstrap contract:
+
+1. `createBootstrap({ assetPipeline })` registers a World resource named `assetPipeline`.
+2. `assetPipeline` includes immutable `visualManifest` and `audioManifest` objects.
+3. Runtime lookups use `assetPipeline.getAssetById(id)` and `assetPipeline.hasAsset(id)`.
+4. Duplicate IDs across manifests are rejected during bootstrap to fail fast.
+
 ## 9. CI Validation Rules
 
 CI should fail if any of the following occurs:
@@ -116,6 +125,10 @@ npx ajv-cli validate -s docs/schemas/visual-manifest.schema.json -d assets/manif
 npx ajv-cli validate -s docs/schemas/audio-manifest.schema.json -d assets/manifests/audio-manifest.json --spec=draft2020
 ```
 
+### 9.2 Raster-to-WebP Deviation
+
+While SVG is the preferred format for sprites and UI elements to support scaling and performance, the player sprites deviate from this preference. They are generated as lossless WebP images (128x128 pixels). This deviation is because the source assets are authored as a raster sprite sheet, and converting them to vectors would not preserve their original artistic style. Lossless WebP provides a high-fidelity, well-optimized alternative that respects the visual layout budget.
+
 ## 10. Suggested Tooling
 
 1. SVG optimization: svgo.
@@ -141,7 +154,7 @@ ffmpeg -i assets/source/audio/music-level-01.wav -c:a libopus -b:a 128k assets/g
 
 Asset implementation tasks are integrated into the canonical implementation tracks. Follow the verification gates in each track file:
 
-### [Track D — Resources, Map, Rendering & Visual Assets](track-d.md) (Dev 4)
+### [Track D — Resources, Map, Rendering & Visual Assets](track-d.md) (Dev 4) (Visual assets co-owned with Track A)
 
 - **D-04 (Render Data Contracts)**: Includes `V-01 (Visual Schema Contract)`.
 - **D-10 (Visual Asset Production — Gameplay Sprites)**: Includes `V-02 (Character Set)` and `V-03 (Gameplay Props)`.

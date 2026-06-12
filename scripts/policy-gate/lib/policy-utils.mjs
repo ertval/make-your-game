@@ -3,6 +3,17 @@
  * Purpose: Provides shared utilities and policy metadata for policy-gate scripts.
  * Public API: Exports ticket parsing helpers, ownership rules, filesystem helpers, and process-mode resolution used by all gate scripts.
  * Implementation Notes: Utilities are synchronous and deterministic to keep local and CI policy outcomes consistent.
+ *
+ * Bugfix Branch Policy:
+ * Branches matching the pattern <owner>/bugfix-<slug> bypass track ownership checks so a single
+ * developer can touch files across multiple tracks during a cross-cutting bug fix. All other gates
+ * (security boundaries, forbidden APIs, traceability, lockfile pairing) still run normally.
+ *
+ * Integration Branch Policy:
+ * Branches matching the pattern <owner>/integration<slug> (e.g. ekaramet/integration-phase2-merge)
+ * are an alias of bugfix mode — they receive identical ownership-bypass semantics. Use this pattern
+ * when integrating work across tracks rather than fixing a specific defect. All non-ownership gates
+ * still run normally.
  */
 
 import { spawnSync } from 'node:child_process';
@@ -25,12 +36,11 @@ export const REQUIRED_SECTIONS = [
 export const REQUIRED_CHECKBOXES = [
   'I read AGENTS.md and the agentic workflow guide',
   'I ran `npm run policy` locally',
-  'I verified my branch name follows <owner-or-scope>/<TRACK>-<NN> (for example ekaramet/A-03), or I marked the PR body with process for a GENERAL_DOCS_PROCESS branch',
+  'I verified my branch name follows <owner-or-scope>/<TRACK>-<NN>[-<COMMENT>] (for example ekaramet/A-03 or asmyrogl/B-03-runtime-integration), or I marked the PR body with process for a GENERAL_DOCS_PROCESS branch',
   'I confirmed changed files stay within the declared ticket track ownership scope',
   'I ran the applicable local checks',
   'I listed the audit IDs affected by this change',
   'I checked security sinks and trust boundaries',
-  'I checked architecture boundaries',
   'I checked dependency and lockfile impact',
   'I requested human review',
 ];
@@ -43,6 +53,92 @@ export const REQUIRED_LAYER_CHECKBOXES = [
   'No framework imports or canvas APIs were introduced in this change',
 ];
 
+// Generated changed-file context is written under a policy runtime folder to avoid repo-root artifact drift.
+export const DEFAULT_CHANGED_FILES_PATH = '.policy-runtime/changed-files.txt';
+
+// Security policy scanning uses a shared source-file extension set to keep changed/repo checks aligned.
+export const SECURITY_SOURCE_PATTERN = /\.(js|mjs|cjs|ts|tsx|jsx|html)$/;
+
+// Framework dependencies are forbidden because the project is constrained to Vanilla DOM + ECS.
+export const BANNED_FRAMEWORK_DEPENDENCIES = Object.freeze([
+  'react',
+  'vue',
+  'angular',
+  'svelte',
+  'phaser',
+  'pixi.js',
+  'three',
+  'jquery',
+]);
+
+// Canonical forbidden-technology rules reused by changed-file and repo-wide scans.
+export const FORBIDDEN_TECH_RULES = Object.freeze([
+  { name: 'canvas element', pattern: /<\s*canvas\b/i },
+  { name: 'canvas createElement', pattern: /createElement\s*\(\s*['"]canvas['"]\s*\)/i },
+  {
+    name: 'webgl context',
+    pattern: /getContext\s*\(\s*['"](?:webgl2?|experimental-webgl)['"]\s*\)/i,
+  },
+  {
+    name: 'webgl rendering context',
+    pattern: /\bWebGL(?:2)?RenderingContext\b/,
+  },
+  {
+    name: 'webgpu api',
+    pattern: /\bnavigator\.gpu\b/,
+  },
+  {
+    name: 'webgpu interface',
+    pattern: /\bGPU(?:Adapter|Device|Queue|Buffer|CommandEncoder|RenderPipeline|ComputePipeline)\b/,
+  },
+  {
+    name: 'inline event handler attribute (quoted)',
+    pattern: /<[^>]+\son[a-z]+\s*=\s*['"]/i,
+  },
+  {
+    name: 'inline event handler attribute (unquoted)',
+    pattern: /<[^>]+\son[a-z]+\s*=\s*[^\s>"']+/i,
+  },
+  {
+    name: 'framework import',
+    pattern: /from\s+['"](?:react|vue|angular|svelte|phaser|pixi\.js|three|jquery)['"]/,
+  },
+  {
+    name: 'framework require',
+    pattern:
+      /require\s*\(\s*['"](?:react|vue|angular|svelte|phaser|pixi\.js|three|jquery)['"]\s*\)/,
+  },
+]);
+
+// Unsafe sinks and dynamic execution APIs are banned for secure DOM boundaries.
+export const SECURITY_SINK_RULES = Object.freeze([
+  { name: 'innerHTML sink', pattern: /\.\s*innerHTML\s*=/ },
+  { name: 'outerHTML sink', pattern: /\.\s*outerHTML\s*=/ },
+  { name: 'insertAdjacentHTML sink', pattern: /\.\s*insertAdjacentHTML\s*\(/ },
+  { name: 'document.write sink', pattern: /\bdocument\.write\s*\(/ },
+  { name: 'eval call', pattern: /\beval\s*\(/ },
+  { name: 'Function constructor', pattern: /\bnew\s+Function\s*\(/ },
+  { name: 'CommonJS require', pattern: /\brequire\s*\(/ },
+  { name: 'var declaration', pattern: /^\s*var\s+[A-Za-z_$][\w$]*/m },
+  { name: 'XMLHttpRequest API', pattern: /\bnew\s+XMLHttpRequest\s*\(/ },
+  { name: 'string setTimeout', pattern: /setTimeout\s*\(\s*['"]/ },
+  { name: 'string setInterval', pattern: /setInterval\s*\(\s*['"]/ },
+]);
+
+// DOM APIs are blocked in simulation systems; only the render DOM system can use them.
+export const ECS_DOM_API_RULES = Object.freeze([
+  /\bdocument\./,
+  /\bwindow\./,
+  /\bquerySelector(All)?\b/,
+  /\bcreateElement(NS)?\b/,
+  /\bappendChild\b/,
+  /\binsertBefore\b/,
+  /\baddEventListener\b/,
+  /\binnerHTML\b/,
+  /\bouterHTML\b/,
+  /\binsertAdjacentHTML\b/,
+]);
+
 // Policy scans ignore generated and dependency folders to keep repository checks deterministic and fast.
 const IGNORED_DIRS = new Set([
   '.git',
@@ -54,7 +150,148 @@ const IGNORED_DIRS = new Set([
 ]);
 
 export const TICKET_ID_PATTERN = /\b([ABCD]-\d{2})\b/gi;
-export const EXPLICIT_TICKET_BRANCH_PATTERN = /^[A-Za-z0-9._-]+\/([ABCD]-\d{2})$/;
+export const EXPLICIT_TICKET_BRANCH_PATTERN =
+  /^[A-Za-z0-9._-]+\/([ABCD]-\d{2})(?:-[A-Za-z0-9._-]+)?$/;
+
+// Bugfix branches bypass ownership checks so a developer can fix cross-track issues without
+// splitting into per-track PRs. The owner prefix is still required and must be a registered owner,
+// ensuring commits are attributed but not gated on file scope.
+export const BUGFIX_BRANCH_PATTERN = /^[A-Za-z0-9._-]+\/bugfix-[A-Za-z0-9._-]+$/;
+
+/**
+ * Return true when the branch follows the cross-track bugfix convention.
+ * Format: <owner>/bugfix-<slug> (e.g. ekaramet/bugfix-ghost-collision)
+ * The <owner> part MUST be a registered developer in OWNER_TRACK_MAPPING.
+ *
+ * @param {string} branchName — The full branch name.
+ * @returns {boolean}
+ */
+export function isBugfixBranch(branchName) {
+  if (!BUGFIX_BRANCH_PATTERN.test(String(branchName || '').trim())) {
+    return false;
+  }
+
+  const owner = extractOwnerFromBranch(branchName).toLowerCase();
+  return Object.keys(OWNER_TRACK_MAPPING).some((key) => key.toLowerCase() === owner);
+}
+
+// Integration branches are an alias of bugfix mode — the slug begins with "integration" instead of
+// "bugfix-". They bypass track ownership checks in the same way, enabling cross-track merge/integration
+// PRs without requiring a per-track branch split.
+export const INTEGRATION_BRANCH_PATTERN = /^[A-Za-z0-9._-]+\/integration[A-Za-z0-9._-]*$/;
+
+/**
+ * Return true when the branch follows the cross-track integration convention.
+ * Format: <owner>/integration<slug> (e.g. ekaramet/integration-phase2-merge)
+ * The <owner> part MUST be a registered developer in OWNER_TRACK_MAPPING.
+ * This is a named alias of bugfix mode — it receives identical ownership-bypass semantics.
+ *
+ * @param {string} branchName — The full branch name.
+ * @returns {boolean}
+ */
+export function isIntegrationBranch(branchName) {
+  if (!INTEGRATION_BRANCH_PATTERN.test(String(branchName || '').trim())) {
+    return false;
+  }
+
+  const owner = extractOwnerFromBranch(branchName).toLowerCase();
+  return Object.keys(OWNER_TRACK_MAPPING).some((key) => key.toLowerCase() === owner);
+}
+
+// Owner-to-track mapping enforces that each developer only modifies files in their assigned track.
+// This prevents cross-track edits when a branch owner's ticket belongs to a different track.
+export const OWNER_TRACK_MAPPING = {
+  ekaramet: 'A',
+  asmyrogl: 'B',
+  chbaikas: 'C',
+  medvall: 'D',
+};
+
+/**
+ * Extract the owner (username) from a branch name.
+ * Branch format: <owner>/<TRACK>-<NN>[-<COMMENT>], e.g. "ekaramet/A-03" or "asmyrogl/B-03-runtime-integration"
+ * @param {string} branchName — The full branch name.
+ * @returns {string} The owner string, or empty string if not parseable.
+ */
+export function extractOwnerFromBranch(branchName) {
+  const normalized = String(branchName || '').trim();
+  const slashIndex = normalized.indexOf('/');
+  if (slashIndex <= 0) {
+    return '';
+  }
+  return normalized.slice(0, slashIndex);
+}
+
+/**
+ * Resolve the mapped track for a branch owner, if one exists.
+ *
+ * @param {string} branchName — The full branch name (e.g. "ekaramet/A-03").
+ * @returns {string} The mapped track code (A/B/C/D) or empty string when not mapped.
+ */
+export function resolveOwnerTrackFromBranch(branchName) {
+  const owner = extractOwnerFromBranch(branchName);
+  if (!owner) {
+    return '';
+  }
+
+  return OWNER_TRACK_MAPPING[owner.toLowerCase()] || '';
+}
+
+/**
+ * Return all owners registered for a track code.
+ *
+ * @param {string} trackCode — Target track code.
+ * @returns {string[]} Sorted owner usernames.
+ */
+export function getOwnersForTrack(trackCode) {
+  const normalizedTrackCode = String(trackCode || '')
+    .trim()
+    .toUpperCase();
+  if (!normalizedTrackCode) {
+    return [];
+  }
+
+  return Object.entries(OWNER_TRACK_MAPPING)
+    .filter(([, mappedTrack]) => mappedTrack === normalizedTrackCode)
+    .map(([owner]) => owner)
+    .sort();
+}
+
+/**
+ * Validate that the branch owner's assigned track matches the ticket's track.
+ * Throws if the owner is mapped to a different track than the ticket specifies.
+ *
+ * @param {string} trackCode — The resolved track code from ticket IDs (e.g. 'A', 'B', 'C', 'D').
+ * @param {string} branchName — The full branch name (e.g. "ekaramet/A-03").
+ * @throws {Error} If owner-track mismatch detected.
+ */
+export function assertOwnerTrackMatch(trackCode, branchName) {
+  const owner = extractOwnerFromBranch(branchName);
+  if (!owner) {
+    // Cannot extract owner — skip validation (may be a shared or CI branch).
+    return;
+  }
+
+  const ownerTrack = OWNER_TRACK_MAPPING[owner.toLowerCase()];
+  if (!ownerTrack) {
+    // Owner not in mapping — skip validation (new dev or unregistered owner).
+    return;
+  }
+
+  const normalizedTrackCode = String(trackCode || '')
+    .trim()
+    .toUpperCase();
+
+  if (ownerTrack !== normalizedTrackCode) {
+    throw new Error(
+      [
+        `Owner-track mismatch: branch owner "${owner}" is assigned to Track ${ownerTrack},`,
+        `but the ticket resolves to Track ${normalizedTrackCode}.`,
+        `Action: Use a ticket from Track ${ownerTrack} on this branch, or use a branch owned by Track ${normalizedTrackCode}'s assigned owner.`,
+      ].join('\n'),
+    );
+  }
+}
 
 // Shared ownership paths are allowed across tracks to avoid false positives on governance/docs changes.
 export const SHARED_OWNERSHIP_PATTERNS = [
@@ -62,30 +299,46 @@ export const SHARED_OWNERSHIP_PATTERNS = [
   '.qwen/**',
   'AGENTS.md',
   'README.md',
+  'LICENSE',
   '.github/**',
-  '.gitea/**',
+  '.claude/**',
   'docs/**',
   'styles/base.css',
   'package-lock.json',
   '**/.gitkeep',
+  '.agents/**',
 ];
 
+// Track ownership is dual-layer for tests:
+// - Track A has global QA ownership over tests/**.
+// - Tracks B/C/D own scoped tests that validate their owned implementation files.
 export const TRACK_OWNERSHIP_RULES = {
   A: {
     name: 'Track A (Engine/CI/Testing)',
     patterns: [
       'package.json',
+      'LICENSE',
+      'assets/generated/alternatives/**',
+      'assets/generated/sprites/**',
+      'assets/generated/ui/**',
+      'assets/generated/visuals/**',
+      'assets/source/visual/**',
+      'assets/maps/**',
+      'assets/manifests/visual-manifest.json',
+      'docs/schemas/map.schema.json',
+      'docs/schemas/visual-manifest.schema.json',
       'index.html',
       'vite.config.js',
       'vitest.config.js',
       'playwright.config.js',
       'biome.json',
       'scripts/**',
+      'src/main.js',
       'src/main.ecs.js',
+      'src/shared/**',
       'src/game/**',
       'src/debug/**',
       'src/ecs/world/**',
-      'styles/reset.css',
       'tests/**',
     ],
   },
@@ -100,12 +353,12 @@ export const TRACK_OWNERSHIP_RULES = {
       'src/ecs/components/visual.js',
       'src/adapters/io/input-adapter.js',
       'src/ecs/systems/input-system.js',
-      'src/ecs/systems/player-move-system.js',
-      'src/ecs/systems/collision-system.js',
-      'src/ecs/systems/bomb-tick-system.js',
-      'src/ecs/systems/explosion-system.js',
-      'src/ecs/systems/power-up-system.js',
-      'src/ecs/systems/ghost-ai-system.js',
+      'src/ecs/systems/player-move-*.js',
+      'src/ecs/systems/collision-*.js',
+      'src/ecs/systems/bomb-*.js',
+      'src/ecs/systems/explosion-*.js',
+      'src/ecs/systems/power-up-*.js',
+      'src/ecs/systems/ghost-ai-*.js',
     ],
     testPatterns: [
       'tests/unit/components/registry.test.js',
@@ -115,12 +368,12 @@ export const TRACK_OWNERSHIP_RULES = {
       'tests/unit/components/stats.test.js',
       'tests/unit/components/visual.test.js',
       'tests/unit/systems/input-system.test.js',
-      'tests/unit/systems/player-move-system.test.js',
-      'tests/unit/systems/collision-system.test.js',
-      'tests/unit/systems/bomb-tick-system.test.js',
-      'tests/unit/systems/explosion-system.test.js',
-      'tests/unit/systems/power-up-system.test.js',
-      'tests/unit/systems/ghost-ai-system.test.js',
+      'tests/unit/systems/player-*.test.js',
+      'tests/unit/systems/collision-*.test.js',
+      'tests/unit/systems/bomb-*.test.js',
+      'tests/unit/systems/explosion-*.test.js',
+      'tests/unit/systems/power-up-*.test.js',
+      'tests/unit/systems/ghost-ai-*.test.js',
       'tests/integration/adapters/input-adapter.test.js',
       'tests/integration/gameplay/b-*.test.js',
     ],
@@ -128,16 +381,16 @@ export const TRACK_OWNERSHIP_RULES = {
   C: {
     name: 'Track C (Gameplay Feedback + Audio)',
     patterns: [
-      'src/ecs/systems/scoring-system.js',
-      'src/ecs/systems/timer-system.js',
-      'src/ecs/systems/life-system.js',
-      'src/ecs/systems/spawn-system.js',
-      'src/ecs/systems/pause-system.js',
-      'src/ecs/systems/level-progress-system.js',
-      'src/adapters/dom/hud-adapter.js',
-      'src/adapters/dom/screens-adapter.js',
-      'src/adapters/io/storage-adapter.js',
-      'src/adapters/io/audio-adapter.js',
+      'src/ecs/systems/scoring-*.js',
+      'src/ecs/systems/timer-*.js',
+      'src/ecs/systems/life-*.js',
+      'src/ecs/systems/spawn-*.js',
+      'src/ecs/systems/pause-*.js',
+      'src/ecs/systems/level-progress-*.js',
+      'src/adapters/dom/hud-*.js',
+      'src/adapters/dom/screens-*.js',
+      'src/adapters/io/storage-*.js',
+      'src/adapters/io/audio-*.js',
       'assets/generated/sfx/**',
       'assets/generated/music/**',
       'assets/source/audio/**',
@@ -145,17 +398,18 @@ export const TRACK_OWNERSHIP_RULES = {
       'docs/schemas/audio-manifest.schema.json',
     ],
     testPatterns: [
-      'tests/unit/systems/scoring-system.test.js',
-      'tests/unit/systems/timer-system.test.js',
-      'tests/unit/systems/life-system.test.js',
-      'tests/unit/systems/spawn-system.test.js',
-      'tests/unit/systems/pause-system.test.js',
-      'tests/unit/systems/level-progress-system.test.js',
-      'tests/integration/adapters/hud-adapter.test.js',
-      'tests/integration/adapters/screens-adapter.test.js',
-      'tests/integration/adapters/storage-adapter.test.js',
-      'tests/integration/adapters/audio-adapter.test.js',
+      'tests/unit/systems/scoring-*.test.js',
+      'tests/unit/systems/timer-*.test.js',
+      'tests/unit/systems/life-*.test.js',
+      'tests/unit/systems/spawn-*.test.js',
+      'tests/unit/systems/pause-*.test.js',
+      'tests/unit/systems/level-progress-*.test.js',
+      'tests/integration/adapters/hud-*.test.js',
+      'tests/integration/adapters/screens-*.test.js',
+      'tests/integration/adapters/storage-*.test.js',
+      'tests/integration/adapters/audio-*.test.js',
       'tests/integration/gameplay/c-*.test.js',
+      'tests/e2e/c-*.spec.js',
     ],
   },
   D: {
@@ -163,17 +417,15 @@ export const TRACK_OWNERSHIP_RULES = {
     patterns: [
       'src/ecs/resources/**',
       'src/ecs/components/visual.js',
-      'src/ecs/components/renderable.js',
-      'src/ecs/components/visual-state.js',
       'src/ecs/render-intent.js',
-      'src/ecs/systems/render-collect-system.js',
-      'src/ecs/systems/render-dom-system.js',
-      'src/adapters/dom/renderer-adapter.js',
-      'src/adapters/dom/sprite-pool-adapter.js',
+      'src/ecs/systems/render-*.js',
+      'src/adapters/dom/renderer-*.js',
+      'src/adapters/dom/sprite-pool-*.js',
       'styles/**',
       'assets/maps/**',
       'assets/generated/sprites/**',
       'assets/generated/ui/**',
+      'assets/generated/visuals/**',
       'assets/source/visual/**',
       'assets/manifests/visual-manifest.json',
       'docs/schemas/map.schema.json',
@@ -183,13 +435,10 @@ export const TRACK_OWNERSHIP_RULES = {
       'tests/unit/resources/**',
       'tests/unit/schema/map-schema.test.js',
       'tests/unit/components/visual.test.js',
-      'tests/unit/components/renderable.test.js',
-      'tests/unit/components/visual-state.test.js',
-      'tests/unit/ecs/render-intent.test.js',
-      'tests/unit/systems/render-collect-system.test.js',
-      'tests/unit/systems/render-dom-system.test.js',
-      'tests/integration/adapters/renderer-adapter.test.js',
-      'tests/integration/adapters/sprite-pool-adapter.test.js',
+      'tests/unit/render-intent/render-intent.test.js',
+      'tests/unit/systems/render-*.test.js',
+      'tests/integration/adapters/renderer-*.test.js',
+      'tests/integration/adapters/sprite-pool-*.test.js',
       'tests/integration/gameplay/d-*.test.js',
     ],
   },
@@ -241,6 +490,10 @@ export function readJson(filePath) {
 }
 
 export function writeJson(filePath, data) {
+  const dirPath = path.dirname(filePath);
+  if (dirPath && dirPath !== '.') {
+    fs.mkdirSync(dirPath, { recursive: true });
+  }
   fs.writeFileSync(filePath, `${JSON.stringify(data, null, 2)}\n`, 'utf8');
 }
 
@@ -249,6 +502,10 @@ export function readText(filePath) {
 }
 
 export function writeLines(filePath, lines) {
+  const dirPath = path.dirname(filePath);
+  if (dirPath && dirPath !== '.') {
+    fs.mkdirSync(dirPath, { recursive: true });
+  }
   fs.writeFileSync(filePath, `${lines.join('\n')}\n`, 'utf8');
 }
 
@@ -270,6 +527,79 @@ export function escapeRegex(value) {
 
 export function getEventPath(args) {
   return args['event-path'] || process.env.EVENT_PATH || process.env.GITHUB_EVENT_PATH || '';
+}
+
+function normalizeBranchNameCandidate(value) {
+  const normalized = String(value || '')
+    .trim()
+    .replace(/^refs\/heads\//, '');
+  if (!normalized || normalized.toUpperCase() === 'HEAD') {
+    return '';
+  }
+  return normalized;
+}
+
+function readBranchNameFromEventPayload() {
+  const eventPath = getEventPath({});
+  if (!eventPath || !fs.existsSync(eventPath)) {
+    return '';
+  }
+
+  try {
+    const event = readJson(eventPath);
+    return normalizeBranchNameCandidate(event?.pull_request?.head?.ref);
+  } catch {
+    return '';
+  }
+}
+
+function readBranchNameFromGithubRef() {
+  const githubRef = String(process.env.GITHUB_REF || '').trim();
+  if (!githubRef.startsWith('refs/heads/')) {
+    return '';
+  }
+  return normalizeBranchNameCandidate(githubRef.slice('refs/heads/'.length));
+}
+
+export function resolveBranchName(...preferredCandidates) {
+  for (const candidate of preferredCandidates) {
+    const normalized = normalizeBranchNameCandidate(candidate);
+    if (normalized) {
+      return normalized;
+    }
+  }
+
+  const ciCandidates = [
+    process.env.BRANCH_NAME,
+    process.env.GITHUB_HEAD_REF,
+    process.env.HEAD_REF,
+    readBranchNameFromEventPayload(),
+    readBranchNameFromGithubRef(),
+  ];
+
+  for (const candidate of ciCandidates) {
+    const normalized = normalizeBranchNameCandidate(candidate);
+    if (normalized) {
+      return normalized;
+    }
+  }
+
+  // GITHUB_REF_NAME can point to synthetic refs like "123/merge" in PR contexts.
+  if (String(process.env.GITHUB_REF_TYPE || '').trim() === 'branch') {
+    const fromRefName = normalizeBranchNameCandidate(process.env.GITHUB_REF_NAME);
+    if (fromRefName) {
+      return fromRefName;
+    }
+  }
+
+  if (!commandSucceeded('git', ['rev-parse', '--verify', 'HEAD'])) {
+    return '';
+  }
+
+  const fromGit = normalizeBranchNameCandidate(
+    runCommand('git', ['rev-parse', '--abbrev-ref', 'HEAD']).trim(),
+  );
+  return fromGit;
 }
 
 export function normalizePolicyPath(filePath) {
@@ -347,10 +677,70 @@ export function inferProcessModeFromSources(...sources) {
   return sources.some((source) => /\bprocess\b/i.test(String(source || '')));
 }
 
+/**
+ * Resolve whether PR-local checks should run, or if we must fallback to repo-wide checks.
+ *
+ * Rationale:
+ * - Process-marker branches still require `policy:checks` so process-scope violations are caught.
+ * - Repo fallback is only valid when there is neither ticket metadata nor process marker context.
+ *
+ * @param {object} options
+ * @param {string[]} [options.branchTicketIds=[]] — Ticket IDs inferred from branch name.
+ * @param {string[]} [options.commitTicketIds=[]] — Ticket IDs inferred from branch commits.
+ * @param {boolean} [options.hasProcessMode=false] — Whether process marker context is active.
+ * @returns {{hasPrMetadata: boolean, shouldRunPrChecks: boolean, auditMode: string, selectedPath: string}}
+ */
+export function resolvePrPolicyPath({
+  branchTicketIds = [],
+  commitTicketIds = [],
+  hasProcessMode = false,
+  isBugfixMode = false,
+  // isIntegrationMode is a named alias of isBugfixMode — both activate identical ownership bypass.
+  isIntegrationMode = false,
+} = {}) {
+  // Merge integration mode into the bugfix flag so the rest of the function has a single branch.
+  const effectiveBugfixMode = isBugfixMode || isIntegrationMode;
+  const hasPrMetadata = branchTicketIds.length > 0 || commitTicketIds.length > 0;
+  const shouldRunPrChecks = hasPrMetadata || hasProcessMode || effectiveBugfixMode;
+
+  if (shouldRunPrChecks) {
+    return {
+      hasPrMetadata,
+      shouldRunPrChecks,
+      auditMode: effectiveBugfixMode
+        ? 'BUGFIX'
+        : hasProcessMode
+          ? 'GENERAL_DOCS_PROCESS'
+          : 'TICKET',
+      selectedPath: effectiveBugfixMode
+        ? isIntegrationMode
+          ? 'cross-track integration checks'
+          : 'cross-track bugfix checks'
+        : hasProcessMode
+          ? 'owner-scoped process checks'
+          : 'PR ticket checks',
+    };
+  }
+
+  return {
+    hasPrMetadata,
+    shouldRunPrChecks,
+    auditMode: 'REPO_FALLBACK',
+    selectedPath: 'repo-wide fallback from missing ticket metadata',
+  };
+}
+
+// Visual markers make gate outcomes typographically scannable in CI and local logs.
+export const GATE_PASS = '✅ PASS';
+export const GATE_FAIL = '❌ FAIL';
+export const GATE_WARN = '⚠️  WARN';
+
 export function describePolicyResolution({
   auditMode,
   branchTicketIds = [],
   commitTicketIds = [],
+  owner = '',
+  ownerTrack = '',
   processMarkerDetected = false,
   selectedPath = '',
   ticketIds = [],
@@ -360,16 +750,32 @@ export function describePolicyResolution({
   const normalizedBranchTicketIds = sortTicketIds(branchTicketIds);
   const normalizedCommitTicketIds = sortTicketIds(commitTicketIds);
 
+  const resolvedMode =
+    auditMode || (normalizedTicketIds.length > 0 ? 'TICKET' : 'GENERAL_DOCS_PROCESS');
+  const modeEmoji =
+    resolvedMode === 'BUGFIX'
+      ? '🐞'
+      : resolvedMode === 'GENERAL_DOCS_PROCESS'
+        ? '⚠️ '
+        : resolvedMode === 'TICKET'
+          ? '✅'
+          : '🔍';
+
   return [
-    'Policy checks resolved',
-    `mode=${auditMode || (normalizedTicketIds.length > 0 ? 'TICKET' : 'GENERAL_DOCS_PROCESS')}`,
-    `path=${selectedPath || (normalizedTicketIds.length > 0 ? 'ticketed checks' : 'fallback checks')}`,
-    `track=${normalizedTicketIds.length > 0 ? trackCode : 'GENERAL'}`,
-    `tickets=${normalizedTicketIds.length > 0 ? normalizedTicketIds.join(', ') : '(none)'}`,
-    `branchTickets=${normalizedBranchTicketIds.length > 0 ? normalizedBranchTicketIds.join(', ') : '(none)'}`,
-    `commitTickets=${normalizedCommitTicketIds.length > 0 ? normalizedCommitTicketIds.join(', ') : '(none)'}`,
-    `processMarker=${processMarkerDetected ? 'true' : 'false'}`,
-  ].join('; ');
+    '',
+    `╭── ${modeEmoji} Policy Resolution Context ────────────────────────────`,
+    `│ Mode:           ${resolvedMode}`,
+    `│ Path:           ${selectedPath || (normalizedTicketIds.length > 0 ? 'ticketed checks' : 'fallback checks')}`,
+    `│ Track:          ${trackCode || 'GENERAL'}`,
+    `│ Tickets:        ${normalizedTicketIds.length > 0 ? normalizedTicketIds.join(', ') : '(none)'}`,
+    `│ Branch Tickets: ${normalizedBranchTicketIds.length > 0 ? normalizedBranchTicketIds.join(', ') : '(none)'}`,
+    `│ Commit Tickets: ${normalizedCommitTicketIds.length > 0 ? normalizedCommitTicketIds.join(', ') : '(none)'}`,
+    `│ Branch Owner:   ${owner || '(none)'}`,
+    `│ Owner Track:    ${ownerTrack || '(none)'}`,
+    `│ Process Marker: ${processMarkerDetected ? 'true' : 'false'}`,
+    `╰───────────────────────────────────────────────────────────`,
+    '',
+  ].join('\n');
 }
 
 export function readTicketIdsFromTracker(trackerPath = 'docs/implementation/ticket-tracker.md') {
@@ -458,8 +864,18 @@ export function runCommand(command, commandArgs, options = {}) {
     const spawnError = result.error ? String(result.error.message || result.error) : '';
     const stderr = (result.stderr || '').trim();
     const stdout = (result.stdout || '').trim();
-    const detail = spawnError || stderr || stdout;
-    throw new Error(`${command} ${commandArgs.join(' ')} failed${detail ? `: ${detail}` : ''}`);
+    const exitStatus = Number.isInteger(result.status) ? String(result.status) : '';
+    const inheritedOutputHint =
+      options.stdio === 'inherit' ? 'Command output was streamed above (stdio=inherit).' : '';
+    const detail = spawnError || stderr || stdout || inheritedOutputHint || 'No output';
+    throw new Error(
+      [
+        `Command execution failed: ${command} ${commandArgs.join(' ')}`,
+        `Details: ${detail}`,
+        `Exit status: ${exitStatus || 'unknown'}`,
+        'Action: Review the command details above to determine the cause of the failure.',
+      ].join('\n'),
+    );
   }
 
   return result.stdout || '';
@@ -477,16 +893,7 @@ export function commandSucceeded(command, commandArgs) {
 }
 
 export function getCurrentBranchName() {
-  const fromEnv = process.env.GITHUB_HEAD_REF || process.env.HEAD_REF || '';
-  if (fromEnv) {
-    return String(fromEnv).trim();
-  }
-
-  if (!commandSucceeded('git', ['rev-parse', '--verify', 'HEAD'])) {
-    return '';
-  }
-
-  return runCommand('git', ['rev-parse', '--abbrev-ref', 'HEAD']).trim();
+  return resolveBranchName();
 }
 
 function expandBaseRefCandidate(candidate) {

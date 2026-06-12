@@ -9,6 +9,7 @@
 import { describe, expect, it } from 'vitest';
 
 import {
+  ACTOR_STORE_RUNTIME_STATUS,
   createGhostStore,
   createInputStateStore,
   createPlayerStore,
@@ -26,6 +27,15 @@ import {
 } from '../../../src/ecs/resources/constants.js';
 
 describe('actor component stores', () => {
+  it('documents which actor stores are active versus planned in the runtime path', () => {
+    expect(ACTOR_STORE_RUNTIME_STATUS).toEqual({
+      ghost: 'planned',
+      inputState: 'active',
+      player: 'active',
+    });
+    expect(Object.isFrozen(ACTOR_STORE_RUNTIME_STATUS)).toBe(true);
+  });
+
   it('uses the canonical ghost enums from the constants resource', () => {
     expect(GHOST_TYPE.BLINKY).toBe(0);
     expect(GHOST_TYPE.PINKY).toBe(1);

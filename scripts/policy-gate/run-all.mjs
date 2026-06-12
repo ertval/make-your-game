@@ -10,10 +10,17 @@ import fs from 'node:fs';
 import process from 'node:process';
 import {
   describePolicyResolution,
+  extractOwnerFromBranch,
+  GATE_FAIL,
   inferProcessModeFromSources,
   inferTicketIdsFromSources,
+  isBugfixBranch,
+  isIntegrationBranch,
   parseArgs,
   readJson,
+  resolveBranchName,
+  resolveOwnerTrackFromBranch,
+  resolvePrPolicyPath,
   runCommand,
   toBool,
 } from './lib/policy-utils.mjs';
@@ -59,6 +66,8 @@ for (const [key, value] of Object.entries(args)) {
   passThrough.push(`--${key}=${value}`);
 }
 
+const aggregatedErrors = [];
+
 // We wrap shell execution to unify error propagation and consistently hint the user on how to reproduce the step locally.
 function runStep(label, command, commandArgs, retryHint) {
   try {
@@ -66,8 +75,52 @@ function runStep(label, command, commandArgs, retryHint) {
   } catch (error) {
     const hint = retryHint ? ` Retry with: ${retryHint}.` : '';
     const detail = error instanceof Error ? error.message : String(error);
-    throw new Error(`${label} failed.${hint} Original error: ${detail}`);
+    const msg = `${label} failed.${hint}\n  Error details: ${detail}`;
+    console.error(`\n${GATE_FAIL} — ${msg}\n`);
+    aggregatedErrors.push(msg);
   }
+}
+
+// We centralize metadata parsing so PR/repo flows cannot drift in how they infer owner, tickets, or process mode.
+function resolvePolicyContext() {
+  const metadata = fs.existsSync(metaPath) ? readJson(metaPath) : {};
+  const branchName = resolveBranchName(
+    metadata.branchName,
+    args['branch-name'] || '',
+    process.env.BRANCH_NAME || '',
+  );
+  const branchOwner = extractOwnerFromBranch(branchName);
+  const branchOwnerTrack = resolveOwnerTrackFromBranch(branchName);
+  const branchTicketIds = inferTicketIdsFromSources(metadata.branchName || '');
+  const commitTicketIds = inferTicketIdsFromSources(metadata.commitMessages || '');
+  const hasPrMetadata = branchTicketIds.length > 0 || commitTicketIds.length > 0;
+  const hasProcessMode =
+    Boolean(metadata.processMode) ||
+    inferProcessModeFromSources(
+      metadata.branchName || '',
+      metadata.commitMessages || '',
+      metadata.body || '',
+    );
+  const ticketIds = inferTicketIdsFromSources(
+    metadata.branchName || '',
+    metadata.commitMessages || '',
+  );
+  const isBugfixMode = isBugfixBranch(branchName);
+  // Integration branches are an alias of bugfix mode — detect both here for forwarding to policy path.
+  const isIntegrationMode = isIntegrationBranch(branchName);
+
+  return {
+    metadata,
+    branchOwner,
+    branchOwnerTrack,
+    branchTicketIds,
+    commitTicketIds,
+    hasPrMetadata,
+    hasProcessMode,
+    isBugfixMode,
+    isIntegrationMode,
+    ticketIds,
+  };
 }
 
 let ranRepoFallback = false;
@@ -82,47 +135,25 @@ if (scope === 'pr' || scope === 'all') {
   });
   contextPrepared = true;
 
-  // We parse the extracted git metadata file to infer PR intent and verify traceability.
-  const metadata = fs.existsSync(metaPath) ? readJson(metaPath) : {};
-  const branchTicketIds = inferTicketIdsFromSources(metadata.branchName || '');
-  const commitTicketIds = inferTicketIdsFromSources(metadata.commitMessages || '');
-  const hasPrMetadata = branchTicketIds.length > 0 || commitTicketIds.length > 0;
-  const hasProcessMode =
-    Boolean(metadata.processMode) ||
-    inferProcessModeFromSources(
-      metadata.branchName || '',
-      metadata.commitMessages || '',
-      metadata.body || '',
-    );
+  console.log('\n========================================================================');
+  console.log('🚀 Phase 2: Starting Policy Enforcements');
+  console.log('========================================================================\n');
 
-  // We establish an audit mode flag based on context clues to control the rigor of subsequent gates.
-  const auditMode = hasPrMetadata
-    ? 'TICKET'
-    : hasProcessMode
-      ? 'GENERAL_DOCS_PROCESS'
-      : 'REPO_FALLBACK';
-  const selectedPath = hasPrMetadata
-    ? 'PR ticket checks'
-    : hasProcessMode
-      ? 'repo-wide fallback from process marker'
-      : 'repo-wide fallback from missing ticket metadata';
-  const ticketIds = hasPrMetadata
-    ? inferTicketIdsFromSources(metadata.branchName || '', metadata.commitMessages || '')
-    : [];
+  // Process-marker branches must still run PR checks so process-scope violations are enforced.
+  const { branchTicketIds, commitTicketIds, hasProcessMode, isBugfixMode, isIntegrationMode } =
+    resolvePolicyContext();
 
-  console.log(
-    describePolicyResolution({
-      auditMode,
-      branchTicketIds,
-      commitTicketIds,
-      processMarkerDetected: hasProcessMode,
-      selectedPath,
-      ticketIds,
-      trackCode: metadata.trackCode || 'GENERAL',
-    }),
-  );
+  // Process-marker branches must still run PR checks so process-scope violations are enforced.
+  const policyPath = resolvePrPolicyPath({
+    branchTicketIds,
+    commitTicketIds,
+    hasProcessMode,
+    isBugfixMode,
+    isIntegrationMode,
+  });
 
-  if (hasPrMetadata) {
+  // The describePolicyResolution call was removed from here because run-checks.mjs
+  if (policyPath.shouldRunPrChecks) {
     runStep(
       'PR checklist and traceability checks',
       'npm',
@@ -133,8 +164,8 @@ if (scope === 'pr' || scope === 'all') {
     runStep(
       'Changed-file forbidden-tech scan',
       'npm',
-      ['run', 'policy:forbid', '--', ...passThrough],
-      'npm run policy:forbid',
+      ['run', 'policy:forbidden', '--', ...passThrough],
+      'npm run policy:forbidden',
     );
 
     runStep(
@@ -153,20 +184,10 @@ if (scope === 'pr' || scope === 'all') {
         '--',
         ...passThrough,
         `--require-approval=${requireApproval ? 'true' : 'false'}`,
+        `--ci-mode=${mode === 'ci' ? 'true' : 'false'}`,
       ],
       'npm run policy:approve',
     );
-  } else if (hasProcessMode) {
-    console.log(
-      'No ticket IDs found, but a process marker was detected. Running repo-wide policy checks instead.',
-    );
-    runStep(
-      'Repo-wide policy gate',
-      'npm',
-      ['run', 'policy:repo', '--', ...passThrough],
-      'npm run policy:repo',
-    );
-    ranRepoFallback = true;
   } else {
     console.log('No branch/commit ticket metadata found. Running repo-wide policy checks instead.');
     runStep(
@@ -190,19 +211,66 @@ if ((scope === 'repo' || scope === 'all') && !(scope === 'all' && ranRepoFallbac
     contextPrepared = true;
   }
 
+  // We read the prepared metadata to report owner and mode info for repo scope runs.
+  const {
+    metadata,
+    branchOwner,
+    branchOwnerTrack,
+    branchTicketIds,
+    commitTicketIds,
+    hasProcessMode,
+    isBugfixMode,
+    isIntegrationMode,
+    ticketIds,
+  } = resolvePolicyContext();
+  // Integration mode is an alias of bugfix mode; treat them equivalently for audit reporting.
+  const effectiveBugfixMode = isBugfixMode || isIntegrationMode;
+  const auditMode = effectiveBugfixMode
+    ? 'BUGFIX'
+    : hasProcessMode
+      ? 'GENERAL_DOCS_PROCESS'
+      : ticketIds.length > 0
+        ? 'TICKET'
+        : 'GENERAL_DOCS_PROCESS';
+
   // We execute repo-wide policies for deeper validation when specifically requested or on merge to main.
+  // Suppress the duplicate resolution log if we're running all scopes, as PR already printed context.
+  if (scope !== 'all') {
+    console.log(
+      describePolicyResolution({
+        auditMode,
+        branchTicketIds,
+        commitTicketIds,
+        owner: branchOwner,
+        ownerTrack: branchOwnerTrack,
+        processMarkerDetected: hasProcessMode,
+        selectedPath: 'repo-wide validation',
+        ticketIds,
+        trackCode: branchOwnerTrack || metadata.trackCode || 'GENERAL',
+      }),
+    );
+  } else {
+    console.log('\n========================================================================');
+    console.log('🚀 Phase 3: Repo-Wide Validations');
+    console.log('========================================================================\n');
+  }
   runStep(
     'Repo-wide forbidden-tech scan',
-    'npm',
-    ['run', 'policy:forbidrepo', '--', ...passThrough],
-    'npm run policy:forbidrepo',
+    'node',
+    ['scripts/policy-gate/check-forbidden.mjs', '--scope=repo', ...passThrough],
+    'node scripts/policy-gate/check-forbidden.mjs --scope=repo',
   );
 
   runStep(
     'Repo-wide source-header scan',
-    'npm',
-    ['run', 'policy:headerrepo', '--', ...headerModeArgs, ...passThrough],
-    'npm run policy:headerrepo',
+    'node',
+    [
+      'scripts/policy-gate/check-source-headers.mjs',
+      '--scope=repo',
+      ...headerModeArgs,
+      ...passThrough,
+    ],
+    'node scripts/policy-gate/check-source-headers.mjs --scope=repo',
   );
 
   if (runIntegrityChecks) {
@@ -217,4 +285,16 @@ if ((scope === 'repo' || scope === 'all') && !(scope === 'all' && ranRepoFallbac
   }
 }
 
-console.log(`Policy gate completed in ${mode} mode for ${scope} scope.`);
+if (aggregatedErrors.length > 0) {
+  console.error(
+    `\n${GATE_FAIL} — Policy gate finished with ${aggregatedErrors.length} failure(s):`,
+  );
+  for (const err of aggregatedErrors) {
+    console.error(` - ${err}`);
+  }
+  process.exit(1);
+}
+
+console.log(
+  `\n🎉 🏁 ALL CLEAR: Policy gate successfully completed in ${mode} mode for ${scope} scope. 🏁 🎉\n`,
+);

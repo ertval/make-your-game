@@ -179,12 +179,14 @@
 }
 
 /** Apply fade-in to active overlays. */
-.overlay--active {
+.overlay--active,
+.screen-overlay.is-screen-visible {
   animation: overlay-fade-in var(--anim-overlay-fade-duration) var(--anim-easing);
 }
 
 /** Apply slide-in to overlay panels. */
-.overlay--active .overlay__panel {
+.overlay--active .overlay__panel,
+.screen-overlay.is-screen-visible .overlay__panel {
   animation: menu-slide-in var(--anim-menu-transition-duration) var(--anim-easing);
 }
 
@@ -233,11 +235,13 @@
   }
 
   /** Menu transitions: disable slide-in, keep instant appearance. */
-  .overlay--active {
+  .overlay--active,
+  .screen-overlay.is-screen-visible {
     animation: none;
   }
 
-  .overlay--active .overlay__panel {
+  .overlay--active .overlay__panel,
+  .screen-overlay.is-screen-visible .overlay__panel {
     animation: none;
   }
 }

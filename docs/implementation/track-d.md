@@ -2,7 +2,7 @@
 
 ��� Source plan: `docs/implementation/implementation-plan.md` (Section 3)
 
-> **Scope**: ECS resources (time, constants, RNG, events, game-status), map loading, renderer adapters, sprite pools, CSS layout, render systems (collect + DOM batch), gameplay sprite production, and UI visual/manifest governance. Dev 4 owns deterministic world-state infrastructure and the full DOM render/visual pipeline. Track D may modify tests that map to Track D-owned implementation files; Track A retains global testing ownership.
+> **Scope**: ECS resources (time, constants, RNG, events, game-status), map loading, renderer adapters, sprite pools, CSS layout, render systems (collect + DOM batch), gameplay sprite production, and UI visual/manifest governance. Dev 4 owns deterministic world-state infrastructure and the full DOM render/visual pipeline. All visual assets (including maps, sprites, UI, schemas) are co-owned by Track A and Track D. Track D owns scoped tests that validate Track D-owned implementation files. Track A remains the global owner for `tests/**` and QA gates.
 > **Execution model**: Build resource/map/render foundations first, then lock memory-stable rendering, then finish visual polish and manifest governance.
 
 ## Phase Order (Prototype-First)
@@ -128,12 +128,12 @@
 **Deliverables**:
 - `src/adapters/dom/renderer-adapter.js` — createElement/createElementNS, zero innerHTML
 
-- [ ] Implement `renderer-adapter.js`: Strict `document.createElement` / `createElementNS` logic for generating the static board. Zero `innerHTML`.
-- [ ] Generate static grid cells from `map-resource` data: walls get appropriate CSS classes, empty cells are passable.
-- [ ] Define Content Security Policy (CSP) and Trusted Types rollout plan (relaxed for Vite dev, strict for production).
-- [ ] Use `textContent` and explicit attribute APIs for all dynamic content.
-- [ ] Verification gate: adapter tests confirm safe DOM sinks, no innerHTML usage.
-- [ ] **DEFERRED from D-03**: Playwright e2e restart test proves canonical map reset (load level, trigger restart, verify board returns to initial state with correct cell types and spawn positions).
+- [x] Implement `renderer-adapter.js`: Strict `document.createElement` / `createElementNS` logic for generating the static board. Zero `innerHTML`.
+- [x] Generate static grid cells from `map-resource` data: walls get appropriate CSS classes, empty cells are passable.
+- [x] Define Content Security Policy (CSP) and Trusted Types rollout plan (relaxed for Vite dev, strict for production).
+- [x] Use `textContent` and explicit attribute APIs for all dynamic content.
+- [x] Verification gate: adapter tests confirm safe DOM sinks, no innerHTML usage.
+- [ ] **DEFERRED from D-03**: Playwright e2e restart test proves canonical map reset (load level, trigger restart, verify board returns to initial state with correct cell types and spawn positions). — Pending D-08 integration
 
 ---
 
@@ -147,34 +147,37 @@
 **Deliverables**:
 - `src/ecs/systems/render-collect-system.js` — interpolation, render-intent buffer
 
-- [ ] Implement `render-collect-system.js`: Called after simulation but before DOM write. Matches all entities with Position + Renderable. Computes intended transforms using interpolation factor (`alpha`). Outputs a preallocated render-intent buffer.
-- [ ] Use stable intent ordering for deterministic commits.
-- [ ] Verification gate: unit tests validate interpolation math and deterministic intent ordering.
+- [x] Implement `render-collect-system.js`: Called after simulation but before DOM write. Matches all entities with Position + Renderable. Computes intended transforms using interpolation factor (`alpha`). Outputs a preallocated render-intent buffer.
+- [x] Use stable intent ordering for deterministic commits.
+- [x] Verification gate: unit tests validate interpolation math and deterministic intent ordering.
 
 ---
 
 #### D-08: Render DOM System (The Batcher)
 **Priority**: ��� Critical
 **Phase**: P1 Visual Prototype
-**Depends On**: `D-06`, `D-07`, `D-09`
+**Depends On**: `D-06` ✓, `D-07`, `D-09`
 **Impacts**: Frame-time stability and compositor-only writes (`AUDIT-F-19`, `AUDIT-F-20`, `AUDIT-F-21`)
 **Blocks**: D-09, D-10 || A-05
+
+**D-06 Dependency Note**: Board generation (`renderer-adapter.js`) is complete; D-08 integrates board rendering with entity sprite rendering.
 
 **Deliverables**:
 - `src/ecs/systems/render-dom-system.js` — one-pass DOM commit, transform/opacity/class writes only
 
-- [ ] Implement `render-dom-system.js`: The ONLY system where DOM mutates.
-- [ ] Applies batched writes:
-  - Exclusively updates `.style.transform = "translate3d(x, y, 0)"` and `.style.opacity`.
-  - Swaps `classList` values based on states (stunned, invincible, speed-boosted, dead).
-  - Informs `sprite-pool-adapter` to reclaim/hide nodes not in current frame's render-intent set.
-- [ ] Enforce strict render commit phases: no layout reads interleaved with write loops.
-- [ ] Keep commit path write-only and pool reclaim in same commit window.
-- [ ] Verification gate: traces show no forced-layout thrash loops and no recurring long tasks > 50ms.
-- [ ] **DEFERRED from D-05**: DevTools layer/paint evidence confirms `AUDIT-F-20` (layer minimization) and `AUDIT-F-21` (layer promotion) compliance — capture DevTools Performance panel traces showing:
+- [x] Implement `render-dom-system.js`: The ONLY system where DOM mutates.
+- [x] Applies batched writes:
+- [x] Exclusively updates `.style.transform = "translate3d(x, y, 0)"` and `.style.opacity`.
+- [x] Swaps `classList` values based on states (stunned, invincible, speed-boosted, dead).
+- [x] Informs `sprite-pool-adapter` to reclaim/hide nodes not in current frame's render-intent set.
+- [x] Enforce strict render commit phases: no layout reads interleaved with write loops.
+- [x] Keep commit path write-only and pool reclaim in same commit window.
+- [x] Verification gate: traces show no forced-layout thrash loops and no recurring long tasks > 50ms.
+- [ ] **DEFERRED to D-10**: DevTools layer/paint evidence confirms `AUDIT-F-20` (layer minimization) and `AUDIT-F-21` (layer promotion) compliance — capture DevTools Performance panel traces showing:
   - Only player + 4 ghost sprites carry `will-change: transform` (target ~5 promoted layers).
   - Bombs, fire tiles, static grid cells, and HUD elements do NOT create compositor layers.
   - Paint rectangles are minimal and confined to moving sprite bounds during normal gameplay.
+- [ ] GAP-01: Verify that player and ghost entities are assigned the correct component masks and properties (including COMPONENT_MASK.RENDERABLE) in bootstrap so the render collect system sees them properly.
 
 ---
 
@@ -188,38 +191,42 @@
 **Deliverables**:
 - `src/adapters/dom/sprite-pool-adapter.js` — pre-allocated pools, offscreen-transform hiding, pool acquire/release API
 
-- [ ] Implement `sprite-pool-adapter.js`:
+- [x] Implement `sprite-pool-adapter.js`:
   - Pre-allocates pools sized from `constants.js` (e.g., `POOL_FIRE = maxBombs * fireRadius * 4`, `POOL_BOMBS = MAX_BOMBS`, `POOL_PELLETS = maxPellets`).
   - Hidden elements MUST use `transform: translate(-9999px, -9999px)` — never `display:none` (triggers layout).
   - When pool exhausted: log `console.warn` in development; silently recycle oldest active element in production.
-- [ ] Pool acquire/release API for render-dom-system consumption.
-- [ ] Pre-warm pools during level load to avoid runtime allocation bursts.
-- [ ] Verification gate: pool tests validate sizing, hiding strategy, and exhaustion behavior.
+- [x] Pool acquire/release API for render-dom-system consumption.
+- [x] Pre-warm pools during level load to avoid runtime allocation bursts.
+- [x] Verification gate: pool tests validate sizing, hiding strategy, and exhaustion behavior.
 
 ---
 
 #### D-10: Visual Asset Production — Gameplay Sprites
 **Priority**: ��� Critical
 **Phase**: P4 Polish and Validation
-**Depends On**: `D-06`, `D-08`
-**Impacts**: In-game readability and SVG compliance (`AUDIT-B-04`)
+**Depends On**: `D-06`, `D-08` (A-13 formal gate deferred — early pull, consistent with A-04 precedent)
+**Impacts**: In-game readability; walk-cycle animation; live board pellet sync
 **Blocks**: D-11
 
-**Deliverables**:
-- `assets/generated/sprites/*.svg` — all gameplay sprites (player, ghosts, bombs, fire, pellets, walls, power-ups)
-- `assets/source/visual/` — source design files
+**Deliverables** (delivered):
+- `src/ecs/systems/player-animation-system.js` — logic-phase walk-cycle animation (8 directional frames, 100 ms interval)
+- `src/ecs/systems/board-sync-system.js` — render-phase pellet/power-pellet DOM sync via board adapter
+- `src/adapters/dom/renderer-adapter.js` (updated) — `updateCell(row, col, cellType)` API
+- `src/ecs/systems/render-dom-system.js` (updated) — player sprite frame class application from `buffer.spriteId`
+- `styles/grid.css` (updated) — 10 player sprite CSS classes (`sprite--player--idle`, `sprite--player--walk-*`)
+- `assets/generated/visuals/128px/characters/` — 9 WebP (lossless, 128×128) player walk frames cropped from `player_direction_v4` sheet
 
-- [ ] Create/export core gameplay sprites (SVG preferred, < 50 path elements each):
-  - Ms. Ghostman: idle, walking frames (4 directions), death animation, invincibility blink, speed boost tint/trail.
-  - 4 Ghost types: Blinky (red), Pinky (pink), Inky (cyan), Clyde (orange) — each with normal, stunned (blue), and dead (eyes-only) variants.
-  - Bombs: idle, fuse ticking animation frames.
-  - Fire: explosion cross tiles (animated fade).
-  - Pellets: regular dot, power pellet (larger, pulsing).
-  - Walls: indestructible (brick pattern), destructible (crate/box), destruction animation.
-- [ ] Create/export power-up sprites/icons: Power Pellet `⚡`, Bomb+ `���+`, Fire+ `���+`, Speed Boost `���`.
-- [ ] Ensure all sprites have declared dimensions in metadata for layout reservation.
-- [ ] Emit a sprite metadata handoff table (`spriteId`, `width`, `height`, `className`) consumed by `D-11` manifest mapping.
-- [ ] Verification gate: all sprites render correctly at target display size.
+
+- [x] Player walk-cycle animation system (`player-animation-system.js`): reads `velocity.rowDelta/colDelta` for direction; idles on delta=0 (holds last-facing frame 01, resets timer); alternates frames every 100 ms while moving.
+- [x] Board-sync system (`board-sync-system.js`): fires `boardAdapter.updateCell(row, col, 0)` for `pellet-collected` and `power-pellet-collected` events in the render phase.
+- [x] `renderer-adapter.js` updated with `updateCell(row, col, cellType)` — looks up pre-built cell element by index, swaps CSS classes.
+- [x] `render-dom-system.js` reads `buffer.spriteId` for PLAYER-kind intents and applies one of ten `sprite--player--*` frame classes from a static allowlist.
+- [x] CSS walk frame classes added to `styles/grid.css`; `sprite--player` base style sets `background-size` and `background-repeat`; individual frame classes set `background-image` to 128 px WebP paths.
+- [x] 9 WebP (lossless, 128×128) player walk frames extracted from `player_direction_v4` sheet. **Format deviation**: spec says SVG preferred; WebP lossless used because source sheet is raster — preserves per-pixel accuracy, no path-element budget applies.
+- [x] Bootstrap wired: `createPlayerAnimationSystem()` registered in logic phase (after explosion-system, before render-collect).
+- [x] Verification gate (automated): 19 unit tests in `tests/unit/systems/player-animation-system.test.js`; 11 unit tests in `tests/unit/systems/board-sync-system.test.js`; +4 integration tests in `tests/integration/adapters/renderer-adapter.test.js`; bootstrap logic-phase order list pinned in `tests/unit/game/bootstrap.test.js`. `npm run policy` green (882 tests).
+- [x] **DEFERRED from D-08**: DevTools layer/paint evidence confirms AUDIT-F-20 and AUDIT-F-21 compliance — code inspection confirms no new `will-change` declarations; `background-image` swaps repaint the already-promoted player sprite layer only. Addenda in `docs/audit-reports/evidence/AUDIT-F-20.layers.md` and `AUDIT-F-21.promotion.md`.
+- [x] **DEFERRED from D-03/D-06**: Playwright e2e restart test proves canonical map reset — `tests/e2e/board-reset.spec.js` verifies pellet cell count restores after `runtime.restart()`.
 
 ---
 
@@ -237,6 +244,17 @@
 - CSS layouts for all screen overlays
 - HUD layout CSS
 
+**Deliverables deferred from D-10**:
+- Ghost sprites: 4 types × 3 states (normal, stunned, dead)
+- Bomb sprites: idle + fuse ticking animation
+- Fire tiles: explosion cross (animated fade)
+- Pellet sprites: regular dot, power pellet (pulsing)
+- Wall sprites: indestructible (brick), destructible (crate), destruction animation
+- Power-up sprites/icons: Bomb+, Fire+, Speed Boost
+- Sprite metadata handoff table (`spriteId`, `width`, `height`, `className`) for visual manifest mapping
+
+- [ ] **DEFERRED from D-10**: Create remaining gameplay sprites (ghosts × 4 types × 3 states, bombs, fire tiles, pellets, walls, power-up icons).
+- [ ] **DEFERRED from D-10**: Emit sprite metadata handoff table (`spriteId`, `width`, `height`, `className`) consumed by visual manifest.
 - [ ] Design and build CSS layouts for all screen overlays:
   - Start Screen: title treatment, button styles, high score table.
   - Pause Menu: semi-transparent overlay, button styles.

@@ -18,6 +18,7 @@ function createAdapterStub({ heldKeys = [], pressedKeys = [] } = {}) {
     pressedKeys: new Set(pressedKeys),
   };
 
+  adapter.getHeldKeys = () => adapter.heldKeys;
   adapter.drainPressedKeys = () => {
     const drainedKeys = new Set(adapter.pressedKeys);
     adapter.pressedKeys.clear();
@@ -28,6 +29,18 @@ function createAdapterStub({ heldKeys = [], pressedKeys = [] } = {}) {
 }
 
 describe('input-system', () => {
+  it('declares the adapter and input snapshot resources it reads', () => {
+    const inputSystem = createInputSystem({
+      adapterResourceKey: 'customAdapter',
+      inputStateResourceKey: 'customInputState',
+    });
+
+    expect(inputSystem.resourceCapabilities).toEqual({
+      read: ['customAdapter', 'customInputState'],
+      write: ['customInputState'],
+    });
+  });
+
   it('writes held movement keys and one-shot intents into the player snapshot', () => {
     const world = new World();
     const inputSystem = createInputSystem();
@@ -172,5 +185,21 @@ describe('input-system', () => {
       inputSystem.update({ world });
     }).not.toThrow();
     expect(player.id).toBeGreaterThanOrEqual(0);
+  });
+
+  it('throws when a registered adapter does not expose the explicit contract', () => {
+    const world = new World();
+    const inputSystem = createInputSystem();
+    const inputState = createInputStateStore(4);
+
+    world.createEntity(COMPONENT_MASK.PLAYER | COMPONENT_MASK.INPUT_STATE);
+    world.setResource('inputState', inputState);
+    world.setResource('inputAdapter', {
+      heldKeys: new Set(['left']),
+    });
+
+    expect(() => {
+      inputSystem.update({ world });
+    }).toThrow('must expose getHeldKeys()');
   });
 });

@@ -19,7 +19,10 @@
 
 // --- Core Loop ---
 
-/** Fixed simulation updates per second. */
+/** Fixed simulation updates per second.
+ *  Used to derive FIXED_DT_MS below. Exported for tests/devtools that need
+ *  to reference the canonical tick rate; the runtime itself reads FIXED_DT_MS
+ *  (DEAD-16). */
 export const SIMULATION_HZ = 60;
 
 /** Fixed timestep in milliseconds (= 1000 / SIMULATION_HZ ≈ 16.6667ms). */
@@ -56,10 +59,15 @@ export const BOMB_FUSE_MS = 3000;
 /** Default explosion radius in tiles (cross pattern, each arm). */
 export const DEFAULT_FIRE_RADIUS = 2;
 
+/** Radius budget used to size fire pools for upgraded bombs. */
+export const MAX_FIRE_RADIUS = 4;
+
 /** Duration fire tiles remain visible after detonation (ms). */
 export const FIRE_DURATION_MS = 500;
 
-/** Maximum chain depth for bomb chain-reaction scoring. */
+/** Maximum chain depth for bomb chain-reaction scoring.
+ *  @internal Reserved for the explosion/chain system (not yet implemented in
+ *  Phase 1). Do not remove (DEAD-17). */
 export const MAX_CHAIN_DEPTH = 10;
 
 // --- Ghost ---
@@ -88,28 +96,22 @@ export const GHOST_STATE = {
   DEAD: 2,
 };
 
-/** Clyde distance threshold for target switching (tiles). */
+/** Clyde distance threshold for target switching (tiles).
+ *  Used by ghost-ai-system.js ClydeScatterTarget. */
 export const CLYDE_DISTANCE_THRESHOLD = 8;
 
-/** Pinky target offset ahead of player (tiles). */
+/** Pinky target offset ahead of player (tiles).
+ *  Used by ghost-ai-system.js PinkyAmbushTarget. */
 export const PINKY_TARGET_OFFSET = 4;
 
-/** Inky reference offset ahead of player (tiles). */
+/** Inky reference offset ahead of player (tiles).
+ *  Used by ghost-ai-system.js InkyPincerTarget. */
 export const INKY_REFERENCE_OFFSET = 2;
-
-/** Minimum valid exits at an intersection for ghost pathfinding. */
-export const GHOST_INTERSECTION_MIN_EXITS = 3;
 
 // --- Level ---
 
 /** Per-level timer durations in seconds. */
 export const LEVEL_TIMERS = [120, 180, 240];
-
-/** Per-level maximum active ghosts. */
-export const LEVEL_MAX_GHOSTS = [2, 3, 4];
-
-/** Per-level ghost normal speed in tiles per second. */
-export const LEVEL_GHOST_SPEED = [4.0, 4.5, 5.0];
 
 /** Stunned ghost speed (constant across all levels). */
 export const GHOST_STUNNED_SPEED = 2.0;
@@ -118,45 +120,21 @@ export const GHOST_STUNNED_SPEED = 2.0;
 export const TOTAL_LEVELS = 3;
 
 // --- Scoring ---
-
-/** Points for eating a regular pellet. */
-export const SCORE_PELLET = 10;
-
-/** Points for eating a power pellet. */
-export const SCORE_POWER_PELLET = 50;
-
-/** Points for killing a normal-state ghost with a bomb. */
-export const SCORE_GHOST_KILL = 200;
-
-/** Points for killing a stunned ghost with a bomb (skill bonus). */
-export const SCORE_STUNNED_GHOST_KILL = 400;
-
-/** Points for collecting a power-up. */
-export const SCORE_POWER_UP = 100;
-
-/** Base points for clearing a level. */
-export const SCORE_LEVEL_CLEAR = 1000;
-
-/** Multiplier for remaining seconds converted to bonus points. */
-export const SCORE_TIME_BONUS_MULTIPLIER = 10;
+// Canonical scoring point values live in `src/ecs/systems/scoring-system.js`
+// (the single source of truth consumed by the scoring runtime). They were
+// previously duplicated here with identical values but never imported from
+// this module; the duplicates were removed (DEAD-02). Import `SCORE_*` from
+// the scoring system if a non-scoring module ever needs a point value.
 
 // --- Power-Up Drop Rates ---
 
 /** Probability map for power-up drops when a destructible wall is destroyed.
- *  Values sum to 1.0. Index aligns with POWER_UP_TYPE enum. */
+ *  Values sum to 1.0. */
 export const POWER_UP_DROP_CHANCES = {
   NONE: 0.85,
   BOMB: 0.05,
   FIRE: 0.05,
   SPEED: 0.05,
-};
-
-/** Power-up type IDs. */
-export const POWER_UP_TYPE = {
-  NONE: 0,
-  BOMB: 1,
-  FIRE: 2,
-  SPEED: 3,
 };
 
 // --- Map Cell Types ---
@@ -191,16 +169,16 @@ export const VISUAL_FLAGS = {
 // --- Sprite Pool Sizes ---
 
 /** Maximum concurrent bombs on the field (player max bombs + chain reaction headroom). */
-export const POOL_MAX_BOMBS = 10;
+export const POOL_MAX_BOMBS = 5;
 
 /** Maximum fire tiles per bomb explosion (radius * 4 arms + center). */
-export const POOL_FIRE_PER_BOMB = DEFAULT_FIRE_RADIUS * 4 + 1;
+export const POOL_FIRE_PER_BOMB = MAX_FIRE_RADIUS * 4 + 1;
 
 /** Total fire tile pool size (max bombs * fire per bomb). */
 export const POOL_FIRE = POOL_MAX_BOMBS * POOL_FIRE_PER_BOMB;
 
 /** Maximum pellets on a level (upper bound for a fully open 15x11 map). */
-export const POOL_PELLETS = 15 * 11;
+export const POOL_PELLETS = 130;
 
 /** Maximum ghosts active simultaneously (level 3 max). */
 export const POOL_GHOSTS = 4;

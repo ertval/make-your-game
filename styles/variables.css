@@ -21,16 +21,16 @@
   /* --- Color Palette --- */
 
   /** Primary background color for the game viewport. */
-  --color-bg: #12131a;
+  --color-bg: #2b1d14;
 
   /** Secondary surface color for panels, HUD, and overlays. */
-  --color-surface: #1d2333;
+  --color-surface: #3e2723;
 
   /** Primary text and icon color (light on dark surfaces). */
-  --color-ink: #f0f3f8;
+  --color-ink: #f5e6d3;
 
   /** Accent color for highlights, interactive elements, and score indicators. */
-  --color-accent: #ffb703;
+  --color-accent: #d4af37;
 
   /** Player sprite color (Ms. Ghostman - yellow). */
   --color-player: #ffdd00;
@@ -48,8 +48,8 @@
   --color-ghost-dead: #ffffff;
 
   /** Wall colors for the static grid. */
-  --color-wall-indestructible: #4466aa;
-  --color-wall-destructible: #8b6914;
+  --color-wall-indestructible: #8c5b3f;
+  --color-wall-destructible: #a67c00;
 
   /** Pellet and power pellet colors. */
   --color-pellet: #ffccaa;
@@ -66,9 +66,9 @@
   --color-powerup-speed: #00ff88;
 
   /** HUD and UI state colors. */
-  --color-hud-bg: rgba(29, 35, 51, 0.95);
-  --color-hud-border: rgba(255, 183, 3, 0.4);
-  --color-overlay-bg: rgba(0, 0, 0, 0.85);
+  --color-hud-bg: rgba(62, 39, 35, 0.95);
+  --color-hud-border: rgba(212, 175, 55, 0.4);
+  --color-overlay-bg: rgba(43, 29, 20, 0.85);
   --color-success: #00ff88;
   --color-danger: #ff4444;
   --color-warning: #ffaa00;
@@ -91,6 +91,15 @@
   --board-rows: 17;
   --board-width: calc(var(--tile-size) * var(--board-columns));
   --board-height: calc(var(--tile-size) * var(--board-rows));
+
+  /**
+   * Presentation-only layout tokens. The board is visually scaled (transform)
+   * to fill the viewport up to --board-max-scale; --hud-row-height reserves the
+   * top-bar height in the board-fit calculation. Neither affects gameplay
+   * coordinates, which always use the fixed --tile-size grid above.
+   */
+  --board-max-scale: 4;
+  --hud-row-height: 72px;
 
   /** Border radius values for UI elements. */
   --radius-sm: 4px;

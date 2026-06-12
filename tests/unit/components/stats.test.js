@@ -14,10 +14,20 @@ import {
   resetHealth,
   resetScore,
   resetTimer,
+  STATS_STORE_RUNTIME_STATUS,
 } from '../../../src/ecs/components/stats.js';
 import { PLAYER_START_LIVES } from '../../../src/ecs/resources/constants.js';
 
 describe('stats component stores', () => {
+  it('documents all stats stores as planned runtime scaffolding', () => {
+    expect(STATS_STORE_RUNTIME_STATUS).toEqual({
+      health: 'planned',
+      score: 'planned',
+      timer: 'planned',
+    });
+    expect(Object.isFrozen(STATS_STORE_RUNTIME_STATUS)).toBe(true);
+  });
+
   it('creates and resets a score store with zeroed defaults', () => {
     const store = createScoreStore(3);
 

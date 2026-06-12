@@ -2,7 +2,7 @@
 
 > **Architecture**: Entity-Component-System (ECS)  
 > **Stack**: Vanilla JS (ES2026) · HTML · CSS Grid · DOM API only  
-> **Tooling**: Biome (lint + format) · Vite (dev server + bundler) · Vitest (unit tests) · Playwright (e2e)  
+> **Tooling**: Biome (check + fix) · Vite (dev server + bundler) · Vitest (unit tests) · Playwright (e2e)  
 > **Target**: 60 FPS via `requestAnimationFrame` · No canvas · No frameworks
 
 ---
@@ -54,20 +54,27 @@ graph TB
         MAIN["main.ecs.js (entry)"]
         RENDERER["Renderer Adapter (DOM)"]
         INPUT["Input Adapter"]
-        AUDIO["Audio Adapter"]
+        AUDIO["Audio Adapter (Web Audio)"]
     end
 
     subgraph "Core ECS Simulation (Pure Data & Behavior)"
-        WORLD["World (Entities, Scheduling)"]
-        
+        WORLD["World (Entities, Scheduling, Resources)"]
+
+        subgraph "World Resources (adapter slots)"
+          RES_INPUT["resources.inputAdapter"]
+          RES_AUDIO["resources.audio"]
+          RES_HUD["resources.hudAdapter"]
+        end
+
         subgraph "Systems"
             SYS_INPUT["Input System"]
             SYS_MOVE["Movement & Collision Systems"]
             SYS_BOMB["Bomb & Explosion Systems"]
             SYS_AI["Ghost AI System"]
+            SYS_AUDIO["Audio Cue System (C-07)"]
             SYS_RENDER["Render Collect & DOM Systems"]
         end
-        
+
         subgraph "Components"
           COMP_POS["Position, Velocity"]
           COMP_ACT["Player, Ghost, Bomb"]
@@ -75,20 +82,31 @@ graph TB
         end
     end
 
-    MAIN --> WORLD
+    MAIN -- "setInputAdapter / setAudioAdapter / setHudAdapter" --> WORLD
+    INPUT -. "registered as" .-> RES_INPUT
+    AUDIO -. "registered as" .-> RES_AUDIO
+
     WORLD --> SYS_INPUT
     WORLD --> SYS_AI
     WORLD --> SYS_MOVE
     WORLD --> SYS_BOMB
+    WORLD --> SYS_AUDIO
     WORLD --> SYS_RENDER
-    
-    SYS_INPUT -. reads .-> INPUT
+
+    SYS_INPUT -. "world.getResource('inputAdapter')" .-> RES_INPUT
+    SYS_AUDIO -. "world.getResource('audio')" .-> RES_AUDIO
     SYS_RENDER -. writes .-> RENDERER
-    
+
     SYS_INPUT --> COMP_POS
     SYS_MOVE --> COMP_POS
     SYS_AI --> COMP_ACT
 ```
+
+> **Audio adapter boundary**: see [`runtime-audio.md`](runtime-audio.md) for the as-built C-06 contract. Systems consume audio exclusively through `world.getResource('audio')`; the adapter module is never imported from a system.
+
+> **Audio cue runtime integration**: the C-07 driver at `src/adapters/io/audio-integration.js` exports `AUDIO_CUE_MAPPING` (event type → SFX cue id), `MUSIC_STATE_MAPPING` (game state → music track id), and `createAudioCueRunner({ warnUnknownEvents })`. The runner drains the D-01 event queue each tick and dispatches mapped cues plus music transitions across `MENU / PLAYING / PAUSED / LEVEL_COMPLETE / GAME_OVER / VICTORY`. Track A registers the runner via a thin system wrapper that resolves world resources and forwards to `runner.tick({ audio, eventQueue, gameStatus })`.
+
+> **Audio asset production (C-08, draft)**: the cue ids referenced by C-07 are backed by candidate `.mp3` assets under `assets/generated/{sfx,music}/`, registered in `assets/manifests/audio-manifest.json` and validated by the C-10 schema gate (`npm run validate:schema`). The full pipeline (C-06 adapter → C-07 runner → C-08 assets) is integration-validated end-to-end on `chbaikas/integration-C-08`. Remaining SFX, loudness normalization, and the `A-13` gate are pending before C-08 closure.
 
 ### Core Architectural Boundaries
 
@@ -99,9 +117,10 @@ graph TB
    - Systems run in fixed order and mutate component data in place in hot paths.
    - No DOM calls in simulation systems.
 3. **Adapter Layer**
-   - Input adapter, render adapter, storage adapter, audio adapter.
-   - Converts browser events/DOM into normalized data for ECS resources.
+   - Input adapter, render adapter, storage adapter, audio adapter (Web Audio).
+   - Converts browser events/DOM/audio APIs into normalized data for ECS resources.
    - **Adapters are registered as World resources** and accessed via the resource API. Systems MUST NOT import adapters directly — direct imports violate DOM isolation boundaries.
+   - Canonical resource keys: `inputAdapter`, `audio`, `hudAdapter`, `screensAdapter`, `storageProvider`. The audio adapter binds the Web Audio boundary only — no `HTMLAudioElement`, no module-level singleton. See [`runtime-audio.md`](runtime-audio.md).
 4. **Render Boundary**
    - Two-stage rendering:
      - `render-collect-system`: computes render intents from ECS state
@@ -269,7 +288,7 @@ make-your-game/
 │   │
 │   ├── adapters/
 │   │   ├── dom/
-│   │   │   ├── renderer-adapter.js    # DOM helper wrappers (no `innerHTML`)
+│   │   │   ├── renderer-dom.js        # DOM helper wrappers (no `innerHTML`)
 │   │   │   ├── sprite-pool-adapter.js # Object pool for DOM elements
 │   │   │   ├── hud-adapter.js         # Updates textContent for UI
 │   │   │   └── screens-adapter.js     # Menus and overlays
@@ -316,21 +335,30 @@ Live ticket progress for this section is tracked in `docs/implementation/ticket-
 
 | Phase | Goal | Primary Ticket Bands | Exit Criteria |
 |---|---|---|---|
-| P0 Foundation | Boot deterministic runtime and data contracts | A-01..A-03, B-01, D-01..D-04 | App boots, fixed-step world ticks, resources/map contracts available, render intent contracts defined |
-| P1 Visual Prototype (Fast Feedback) | Get first playable-on-screen loop as early as possible | B-02..B-03, D-05..D-08 (after P0 deps) | Board renders, player movement is visible, frame pipeline runs through render collect and DOM commit |
-| P2 Playable MVP | Deliver core gameplay loop and user-facing flow | B-04, C-01..C-05 | Start/pause/continue/restart works, score/lives/timer/HUD update, collision outcomes are visible and testable |
-| P3 Feature Complete + Hardening | Add genre depth and lock quality gates | A-04..A-08, B-05..B-09, C-06..C-07, D-09 | Bomb depth, ghost AI, power-ups, event contracts, audio runtime integration, CI and automated test hardening |
-| P4 Polish & Validation | Final production quality and asset governance | A-09, C-08..C-10, D-10..D-11 | Asset schemas/manifests, UI/audio polish, audit-ready evidence |
+| P0 Foundation | Boot deterministic runtime and data contracts | A-01..A-03, A-10, B-01, D-01..D-04 | App boots, fixed-step world ticks, resources/map contracts available, render intent contracts defined |
+| P1 Visual Prototype (Fast Feedback) | Get first playable-on-screen loop as early as possible | A-11, B-02..B-03, D-05..D-09 | Board renders, player movement is visible, frame pipeline runs through render collect and DOM commit |
+| P2 Playable MVP | Deliver core gameplay loop and user-facing flow | A-07, A-12, B-04..B-05, C-01..C-06 | Start/pause/continue/restart works, score/lives/timer/HUD update, collision outcomes are visible and testable |
+| P3 Feature Complete + Hardening | Add genre depth and lock quality gates | A-04..A-06, A-08, A-13, B-06..B-09, C-07 | Bomb depth, ghost AI, power-ups, event contracts, audio runtime integration, CI and automated test hardening |
+| P4 Polish & Validation | Final production quality and asset governance | A-09, A-14, C-08..C-10, D-10..D-11 | Asset schemas/manifests, UI/audio polish, audit-ready evidence |
+
+### Phase Transitions & Codebase Audits
+
+> **Important Instruction:**
+> Every time a phase of the plan tracker is finished, all tracks MUST run prompt `codebase-analysis-audit` (repository prompt file: `.github/prompts/code-analysis-audit.prompt.md`) against the whole codebase and merge their generated reports.
+>
+> Then Track A MUST run `.github/prompts/phase-deduplicate-track-audits.prompt.md` to produce one deduplicated fix report per track (A/B/C/D), assign ownership, and save those reports under `docs/audit-reports/<phase>/`.
+>
+> After that, each track MUST fix all issues assigned to their track report before phase closure.
 
 ### Workload Summary (Balanced Ownership)
 
 | Track | Developer | Tickets | Scope |
 |---|---|---|---|
-| Track A | Dev 1 | 9 | World engine, game flow, scaffolding, all testing (unit/integration/e2e/audit), CI, QA and evidence. Track A can update all tests; feature tracks can update scoped tests tied to owned files |
+| Track A | Dev 1 | 14 | World engine, game flow, scaffolding, all testing (unit/integration/e2e/audit), CI, QA and evidence. Track A can update all tests; feature tracks can update scoped tests tied to owned files. All visual assets are co-owned by Track A and Track D |
 | Track B | Dev 2 | 9 | Components, input, movement and collision, bombs/explosions, power-ups, ghost AI, gameplay event contracts |
 | Track C | Dev 3 | 10 | Scoring/timer/lives, spawn, pause/progression, HUD/screens/storage adapters, audio adapter/cues/SFX/music/manifest |
-| Track D | Dev 4 | 11 | Resources, map loading, renderer and sprite pools, CSS/layout, gameplay and UI visual assets, visual manifest governance |
-| **Total** | **4 Devs** | **39** | |
+| Track D | Dev 4 | 11 | Resources, map loading, renderer and sprite pools, CSS/layout, gameplay and UI visual assets (co-owned with Track A), visual manifest governance |
+| **Total** | **4 Devs** | **44** | |
 
 ### Critical Path By Dev
 
@@ -637,7 +665,7 @@ This section is mandatory for delivery readiness and complements Track C (Audio)
 
 ### 9.1 Scope and Ownership
 
-1. Track D owns visual asset authoring, rendering, and optimization.
+1. Track D owns visual asset authoring, rendering, and optimization (co-owned with Track A).
 2. Track C owns audio asset authoring, decoding, and playback.
 3. Asset authoring, optimization, and validation standards are defined in `assets-pipeline.md`.
 4. Asset changes should be reviewed with gameplay and performance in the same PR when behavior is affected.

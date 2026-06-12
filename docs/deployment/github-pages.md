@@ -6,7 +6,7 @@ This guide covers how to publish Ms. Ghostman on GitHub Pages.
 
 GitHub Pages serves static files only. That means the published site must end up as HTML, CSS, JavaScript, SVG, and related assets.
 
-For this repository snapshot, that matters because the repo currently contains documentation, workflow files, and asset manifests, but it does not yet include a checked-in runtime entry point such as `index.html` or a build pipeline such as `package.json` plus a production build output.
+For this repository snapshot, the repo currently contains documentation, workflow files, and asset manifests, and includes a minimal development entry (`index.html`) and project manifest (`package.json`). It may not yet include a production build artifact; to publish the actual game, add a built static output or point Pages at the production build output.
 
 If you want to publish the actual game, add a static entry point first. If you want to publish docs, you can host a documentation page from the repository source as well.
 

@@ -21,7 +21,9 @@
 /* --- Game Grid Container --- */
 
 /** Main game board grid with fixed dimensions matching map layout. */
-.game-grid {
+.game-grid,
+.game-board,
+.board-grid {
   display: grid;
   grid-template-columns: repeat(var(--board-columns), var(--tile-size));
   grid-template-rows: repeat(var(--board-rows), var(--tile-size));
@@ -36,29 +38,45 @@
 /* --- Grid Cells --- */
 
 /** Base grid cell for all static elements (walls, empty spaces, spawn points). */
-.grid-cell {
+.cell {
   width: var(--tile-size);
   height: var(--tile-size);
   position: relative;
   z-index: var(--z-grid);
 }
 
+/**
+ * Empty cell (walkable space). Transparent so the board floor (`--color-bg`)
+ * shows through — using an opaque color here produces a high-contrast trail
+ * behind the player as pellets are consumed (issue #103).
+ */
+.cell-empty {
+  background: transparent;
+}
+
 /** Indestructible wall cell with brick pattern styling. */
-.grid-cell--indestructible {
-  background: var(--color-wall-indestructible);
-  border: 1px solid color-mix(in srgb, var(--color-wall-indestructible) 70%, #000 30%);
-  border-radius: var(--radius-xs, 2px);
+.cell-wall {
+  background-image: url("../assets/generated/visuals/128px/environment/wall-indestructible.webp");
+  background-size: 100% 100%;
+  background-repeat: no-repeat;
 }
 
 /** Destructible wall cell with crate/box styling. */
-.grid-cell--destructible {
-  background: var(--color-wall-destructible);
-  border: 1px solid color-mix(in srgb, var(--color-wall-destructible) 70%, #000 30%);
-  border-radius: var(--radius-xs, 2px);
+.cell-destructible {
+  background-image: url("../assets/generated/visuals/128px/environment/wall-destructible.webp");
+  background-size: 100% 100%;
+  background-repeat: no-repeat;
+}
+
+/** Door cell styling. */
+.cell-door {
+  background: var(--color-accent);
+  border: 1px solid var(--color-ink);
+  opacity: 0.7;
 }
 
 /** Ghost house cell with subtle background indicator. */
-.grid-cell--ghost-house {
+.cell-ghost-house {
   background: color-mix(in srgb, var(--color-surface) 50%, transparent 50%);
   border: 1px dashed color-mix(in srgb, var(--color-accent) 30%, transparent 70%);
 }
@@ -66,28 +84,32 @@
 /* --- Collectibles --- */
 
 /** Regular pellet (small dot). */
-.collectible--pellet {
+.cell-pellet::after {
+  content: "";
   position: absolute;
   top: 50%;
   left: 50%;
   transform: translate(-50%, -50%);
-  width: 6px;
-  height: 6px;
-  background: var(--color-pellet);
-  border-radius: 50%;
+  width: 16px;
+  height: 16px;
+  background-image: url("../assets/generated/visuals/128px/items/pellet.webp");
+  background-size: 100% 100%;
+  background-repeat: no-repeat;
   z-index: var(--z-items);
 }
 
 /** Power pellet (larger, pulsing). */
-.collectible--power-pellet {
+.cell-power-pellet::after {
+  content: "";
   position: absolute;
   top: 50%;
   left: 50%;
   transform: translate(-50%, -50%);
-  width: 12px;
-  height: 12px;
-  background: var(--color-power-pellet);
-  border-radius: 50%;
+  width: 20px;
+  height: 20px;
+  background-image: url("../assets/generated/visuals/128px/items/pellet.webp");
+  background-size: 100% 100%;
+  background-repeat: no-repeat;
   z-index: var(--z-items);
   animation: pellet-pulse var(--anim-walk-duration) ease-in-out infinite;
 }
@@ -101,6 +123,7 @@
   left: 0;
   width: var(--tile-size);
   height: var(--tile-size);
+  background-color: transparent;
   /* Use translate3d for GPU-accelerated compositing */
   transform: translate3d(0, 0, 0);
   transition: none;
@@ -110,87 +133,350 @@
 .sprite--player {
   z-index: var(--z-player);
   will-change: transform;
+  background-size: 100% 100%;
+  background-repeat: no-repeat;
+}
+
+/** Player animation frame classes — override background-image per frame. */
+.sprite--player--idle {
+  background-image: url("../assets/generated/visuals/128px/characters/player-idle.webp");
+}
+.sprite--player--walk-right-01 {
+  background-image: url("../assets/generated/visuals/128px/characters/player-walk-right-01.webp");
+}
+.sprite--player--walk-right-02 {
+  background-image: url("../assets/generated/visuals/128px/characters/player-walk-right-02.webp");
+}
+.sprite--player--walk-left-01 {
+  background-image: url("../assets/generated/visuals/128px/characters/player-walk-left-01.webp");
+}
+.sprite--player--walk-left-02 {
+  background-image: url("../assets/generated/visuals/128px/characters/player-walk-left-02.webp");
+}
+.sprite--player--walk-up-01 {
+  background-image: url("../assets/generated/visuals/128px/characters/player-walk-up-01.webp");
+}
+.sprite--player--walk-up-02 {
+  background-image: url("../assets/generated/visuals/128px/characters/player-walk-up-02.webp");
+}
+.sprite--player--walk-down-01 {
+  background-image: url("../assets/generated/visuals/128px/characters/player-walk-down-01.webp");
+}
+.sprite--player--walk-down-02 {
+  background-image: url("../assets/generated/visuals/128px/characters/player-walk-down-02.webp");
 }
 
 /** Ghost sprites with layer promotion (always moving, need compositor layers). */
 .sprite--ghost {
   z-index: var(--z-ghosts);
   will-change: transform;
+  background-size: 100% 100%;
+  background-repeat: no-repeat;
 }
 
-/** Ghost type-specific color classes. */
+/** Ghost type-specific sprite classes. */
 .sprite--ghost--blinky {
-  background: var(--color-ghost-blinky);
+  background-image: url("../assets/generated/visuals/128px/enemies/ghost-blinky-normal.webp");
 }
 
 .sprite--ghost--pinky {
-  background: var(--color-ghost-pinky);
+  background-image: url("../assets/generated/visuals/128px/enemies/ghost-pinky-normal.webp");
 }
 
 .sprite--ghost--inky {
-  background: var(--color-ghost-inky);
+  background-image: url("../assets/generated/visuals/128px/enemies/ghost-inky-normal.webp");
 }
 
 .sprite--ghost--clyde {
-  background: var(--color-ghost-clyde);
+  background-image: url("../assets/generated/visuals/128px/enemies/ghost-clyde-normal.webp");
 }
 
 /** Ghost state variants. */
 .sprite--ghost--stunned {
-  background: var(--color-ghost-stunned);
+  background-image: url("../assets/generated/visuals/128px/enemies/ghost-stunned.webp");
 }
 
 .sprite--ghost--dead {
-  background: var(--color-ghost-dead);
+  background-image: url("../assets/generated/visuals/128px/enemies/ghost-eyes-dead.webp");
+}
+
+/**
+ * Ghost directional walk-cycle frames (4 types × 4 directions × 2 frames = 32).
+ * Frame images authored at 128px; sized via `background-size: 100% 100%` from
+ * the `.sprite--ghost` base. Each class encodes both ghost type and walk frame
+ * (e.g. `.sprite--ghost--blinky--walk-up-01`).
+ *
+ * Awaiting wiring — important caveat: unlike the player pattern, the runtime
+ * needs BOTH the ghost type (blinky/pinky/inky/clyde) AND the walk frame to
+ * select a class. Ghost type lives in the ghost component store (separate
+ * from `renderable.spriteId`) and is NOT carried in `render-intent` today.
+ * A future wiring effort must extend render-intent (or have render-dom read
+ * the ghost store directly) AND introduce a ghost-animation-system before
+ * these classes can be applied. See `render-dom-system.js` PLAYER_SPRITE_CLASSES
+ * for the simpler player case where spriteId alone is sufficient.
+ */
+
+/* Blinky walk frames */
+.sprite--ghost--blinky--walk-up-01 {
+  background-image: url("../assets/generated/visuals/128px/enemies/ghost-blinky-walk-up-01.webp");
+}
+.sprite--ghost--blinky--walk-up-02 {
+  background-image: url("../assets/generated/visuals/128px/enemies/ghost-blinky-walk-up-02.webp");
+}
+.sprite--ghost--blinky--walk-down-01 {
+  background-image: url("../assets/generated/visuals/128px/enemies/ghost-blinky-walk-down-01.webp");
+}
+.sprite--ghost--blinky--walk-down-02 {
+  background-image: url("../assets/generated/visuals/128px/enemies/ghost-blinky-walk-down-02.webp");
+}
+.sprite--ghost--blinky--walk-left-01 {
+  background-image: url("../assets/generated/visuals/128px/enemies/ghost-blinky-walk-left-01.webp");
+}
+.sprite--ghost--blinky--walk-left-02 {
+  background-image: url("../assets/generated/visuals/128px/enemies/ghost-blinky-walk-left-02.webp");
+}
+.sprite--ghost--blinky--walk-right-01 {
+  background-image: url("../assets/generated/visuals/128px/enemies/ghost-blinky-walk-right-01.webp");
+}
+.sprite--ghost--blinky--walk-right-02 {
+  background-image: url("../assets/generated/visuals/128px/enemies/ghost-blinky-walk-right-02.webp");
+}
+
+/* Pinky walk frames */
+.sprite--ghost--pinky--walk-up-01 {
+  background-image: url("../assets/generated/visuals/128px/enemies/ghost-pinky-walk-up-01.webp");
+}
+.sprite--ghost--pinky--walk-up-02 {
+  background-image: url("../assets/generated/visuals/128px/enemies/ghost-pinky-walk-up-02.webp");
+}
+.sprite--ghost--pinky--walk-down-01 {
+  background-image: url("../assets/generated/visuals/128px/enemies/ghost-pinky-walk-down-01.webp");
+}
+.sprite--ghost--pinky--walk-down-02 {
+  background-image: url("../assets/generated/visuals/128px/enemies/ghost-pinky-walk-down-02.webp");
+}
+.sprite--ghost--pinky--walk-left-01 {
+  background-image: url("../assets/generated/visuals/128px/enemies/ghost-pinky-walk-left-01.webp");
+}
+.sprite--ghost--pinky--walk-left-02 {
+  background-image: url("../assets/generated/visuals/128px/enemies/ghost-pinky-walk-left-02.webp");
+}
+.sprite--ghost--pinky--walk-right-01 {
+  background-image: url("../assets/generated/visuals/128px/enemies/ghost-pinky-walk-right-01.webp");
+}
+.sprite--ghost--pinky--walk-right-02 {
+  background-image: url("../assets/generated/visuals/128px/enemies/ghost-pinky-walk-right-02.webp");
+}
+
+/* Inky walk frames */
+.sprite--ghost--inky--walk-up-01 {
+  background-image: url("../assets/generated/visuals/128px/enemies/ghost-inky-walk-up-01.webp");
+}
+.sprite--ghost--inky--walk-up-02 {
+  background-image: url("../assets/generated/visuals/128px/enemies/ghost-inky-walk-up-02.webp");
+}
+.sprite--ghost--inky--walk-down-01 {
+  background-image: url("../assets/generated/visuals/128px/enemies/ghost-inky-walk-down-01.webp");
+}
+.sprite--ghost--inky--walk-down-02 {
+  background-image: url("../assets/generated/visuals/128px/enemies/ghost-inky-walk-down-02.webp");
+}
+.sprite--ghost--inky--walk-left-01 {
+  background-image: url("../assets/generated/visuals/128px/enemies/ghost-inky-walk-left-01.webp");
+}
+.sprite--ghost--inky--walk-left-02 {
+  background-image: url("../assets/generated/visuals/128px/enemies/ghost-inky-walk-left-02.webp");
+}
+.sprite--ghost--inky--walk-right-01 {
+  background-image: url("../assets/generated/visuals/128px/enemies/ghost-inky-walk-right-01.webp");
+}
+.sprite--ghost--inky--walk-right-02 {
+  background-image: url("../assets/generated/visuals/128px/enemies/ghost-inky-walk-right-02.webp");
+}
+
+/* Clyde walk frames */
+.sprite--ghost--clyde--walk-up-01 {
+  background-image: url("../assets/generated/visuals/128px/enemies/ghost-clyde-walk-up-01.webp");
+}
+.sprite--ghost--clyde--walk-up-02 {
+  background-image: url("../assets/generated/visuals/128px/enemies/ghost-clyde-walk-up-02.webp");
+}
+.sprite--ghost--clyde--walk-down-01 {
+  background-image: url("../assets/generated/visuals/128px/enemies/ghost-clyde-walk-down-01.webp");
+}
+.sprite--ghost--clyde--walk-down-02 {
+  background-image: url("../assets/generated/visuals/128px/enemies/ghost-clyde-walk-down-02.webp");
+}
+.sprite--ghost--clyde--walk-left-01 {
+  background-image: url("../assets/generated/visuals/128px/enemies/ghost-clyde-walk-left-01.webp");
+}
+.sprite--ghost--clyde--walk-left-02 {
+  background-image: url("../assets/generated/visuals/128px/enemies/ghost-clyde-walk-left-02.webp");
+}
+.sprite--ghost--clyde--walk-right-01 {
+  background-image: url("../assets/generated/visuals/128px/enemies/ghost-clyde-walk-right-01.webp");
+}
+.sprite--ghost--clyde--walk-right-02 {
+  background-image: url("../assets/generated/visuals/128px/enemies/ghost-clyde-walk-right-02.webp");
 }
 
 /** Bomb sprite WITHOUT will-change (not always active). */
 .sprite--bomb {
   z-index: var(--z-effects);
-  background: var(--color-bomb);
-  border-radius: 50%;
-  border: 2px solid var(--color-bomb-fuse);
+  background-image: url("../assets/generated/visuals/128px/items/bomb-idle.webp");
+  background-size: 100% 100%;
+  background-repeat: no-repeat;
   /* NO will-change: bombs are transient, not continuously moving */
+}
+
+/**
+ * Bomb fuse-cycle frames (idle + 3 ticking states). Layered on top of
+ * `.sprite--bomb` to swap the background-image per fuse tick. Mirrors the
+ * `.sprite--player--walk-*` per-frame pattern from D-10.
+ *
+ * Wired by render-collect-system (computes the frame index from
+ * `bombStore.fuseMs`) + render-dom-system's `BOMB_SPRITE_CLASSES` table, which
+ * applies the matching class as the fuse counts down toward detonation.
+ */
+.sprite--bomb--idle {
+  background-image: url("../assets/generated/visuals/128px/items/bomb-idle.webp");
+}
+.sprite--bomb--fuse-01 {
+  background-image: url("../assets/generated/visuals/128px/items/bomb-fuse-01.webp");
+}
+.sprite--bomb--fuse-02 {
+  background-image: url("../assets/generated/visuals/128px/items/bomb-fuse-02.webp");
+}
+.sprite--bomb--fuse-03 {
+  background-image: url("../assets/generated/visuals/128px/items/bomb-fuse-03.webp");
 }
 
 /** Fire tile effect WITHOUT will-change (short-lived effect). */
 .sprite--fire {
   z-index: var(--z-effects);
-  background: var(--color-fire);
-  border-radius: var(--radius-sm);
+  background-image: url("../assets/generated/visuals/128px/effects/fire-tile.webp");
+  background-size: 100% 100%;
+  background-repeat: no-repeat;
   opacity: 0.9;
   /* NO will-change: fire is short-lived, avoid unnecessary layer promotion */
 }
 
+/**
+ * Fire-tile animation frames driven by render-collect-system's
+ * burnTimerMs → spriteId mapping. Frame 01 is the peak blast (fire just
+ * detonated), frame 04 is the fading embers right before the fire tile
+ * expires. render-dom-system applies the matching class via
+ * FIRE_SPRITE_CLASSES; the base `.sprite--fire` rule sets sizing + opacity
+ * + the fallback image so a missing spriteId still shows a valid sprite.
+ */
+.sprite--fire--01 {
+  background-image: url("../assets/generated/visuals/128px/effects/explosion-01.webp");
+}
+.sprite--fire--02 {
+  background-image: url("../assets/generated/visuals/128px/effects/explosion-02.webp");
+}
+.sprite--fire--03 {
+  background-image: url("../assets/generated/visuals/128px/effects/explosion-03.webp");
+}
+.sprite--fire--04 {
+  background-image: url("../assets/generated/visuals/128px/effects/explosion-04.webp");
+}
+
+/**
+ * Explosion sequence frames (flash → X-bright → X-fade → embers).
+ * Designed to play once per detonation, ~80–100 ms per frame.
+ * Sized via `background-size: 100% 100%` on `.sprite` base width/height.
+ *
+ * Awaiting wiring: requires an explosion-animation-system to apply these
+ * classes per-frame on a fire/explosion entity; not yet present in the
+ * render pipeline.
+ */
+.sprite--explosion {
+  z-index: var(--z-effects);
+  background-size: 100% 100%;
+  background-repeat: no-repeat;
+  /* NO will-change: explosions are short-lived, ~400ms total. */
+}
+.sprite--explosion--flash {
+  background-image: url("../assets/generated/visuals/128px/effects/explosion-01.webp");
+}
+.sprite--explosion--x-bright {
+  background-image: url("../assets/generated/visuals/128px/effects/explosion-02.webp");
+}
+.sprite--explosion--x-fade {
+  background-image: url("../assets/generated/visuals/128px/effects/explosion-03.webp");
+}
+.sprite--explosion--embers {
+  background-image: url("../assets/generated/visuals/128px/effects/explosion-04.webp");
+}
+
 /* --- Power-Up Sprites --- */
 
-/** Power-up sprite base class. */
+/** Pellet sprite (ECS pool path). */
+.sprite--pellet {
+  z-index: var(--z-items);
+  background-image: url("../assets/generated/visuals/128px/items/pellet.webp");
+  background-size: 100% 100%;
+  background-repeat: no-repeat;
+}
+
+/** Power-up sprite base class — fallback image until spriteId type is wired by Track B/C. */
 .sprite--powerup {
   z-index: var(--z-items);
   border-radius: var(--radius-md);
+  background-image: url("../assets/generated/visuals/128px/items/powerup-fire.webp");
+  background-size: 100% 100%;
+  background-repeat: no-repeat;
 }
 
 .sprite--powerup--bomb {
-  background: var(--color-powerup-bomb);
+  background-image: url("../assets/generated/visuals/128px/items/powerup-bomb.webp");
+  background-size: 100% 100%;
+  background-repeat: no-repeat;
 }
 
 .sprite--powerup--fire {
-  background: var(--color-powerup-fire);
+  background-image: url("../assets/generated/visuals/128px/items/powerup-fire.webp");
+  background-size: 100% 100%;
+  background-repeat: no-repeat;
 }
 
 .sprite--powerup--speed {
-  background: var(--color-powerup-speed);
+  background-image: url("../assets/generated/visuals/128px/items/powerup-speed.webp");
+  background-size: 100% 100%;
+  background-repeat: no-repeat;
 }
 
 /* --- HUD Layout --- */
 
-/** HUD container fixed at top of viewport. */
+/**
+ * HUD top bar. Lives in the app-shell grid's first row (above the board) and
+ * lays its metrics out as a single horizontal strip. Wraps on narrow viewports
+ * so labels stay visible instead of overflowing.
+ */
+#hud {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-sm) var(--space-2xl);
+  min-height: var(--hud-row-height, 72px);
+  padding-block: var(--space-sm);
+  /* Readable from normal desktop distance; scales down gracefully on mobile. */
+  font-size: clamp(19px, 1.7vw + 10px, 26px);
+  font-weight: 700;
+  line-height: 1.2;
+}
+
+/** Fixed-overlay HUD variant (class-based) for layouts not using the app-shell grid. */
 .hud {
   position: fixed;
   top: var(--space-sm);
   left: 50%;
   transform: translateX(-50%);
   display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
   gap: var(--space-lg);
   padding: var(--space-sm) var(--space-md);
   background: var(--color-hud-bg);
@@ -204,22 +490,40 @@
 /** Individual HUD metric (score, timer, lives). */
 .hud__metric {
   display: flex;
-  align-items: center;
-  gap: var(--space-xs);
+  align-items: baseline;
+  gap: var(--space-sm);
+  margin: 0;
   color: var(--color-ink);
 }
 
-/** HUD metric label styling. */
+/**
+ * Screen-reader status line. Visually collapsed out of the strip (it is empty
+ * most of the time) while staying available to assistive tech via aria-live.
+ */
+#hud [data-hud="status"] {
+  margin: 0;
+  flex-basis: 100%;
+  text-align: center;
+}
+
+#hud [data-hud="status"]:empty {
+  display: none;
+}
+
+/** HUD metric label styling — smaller, accented, uppercase for hierarchy. */
 .hud__label {
   color: var(--color-accent);
   text-transform: uppercase;
-  font-size: 12px;
-  letter-spacing: 0.05em;
+  font-size: 0.7em;
+  font-weight: 700;
+  letter-spacing: 0.08em;
 }
 
-/** HUD metric value styling. */
+/** HUD metric value styling — primary emphasis, larger and brighter. */
 .hud__value {
+  color: var(--color-ink);
   font-variant-numeric: tabular-nums;
+  font-weight: 700;
   min-width: 3ch;
 }
 

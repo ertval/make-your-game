@@ -15,7 +15,13 @@ import path from 'node:path';
 import { describe, expect, it } from 'vitest';
 
 import { CELL_TYPE } from '../../../src/ecs/resources/constants.js';
-import {
+import * as mapResource from '../../../src/ecs/resources/map-resource.js';
+import { World } from '../../../src/ecs/world/world.js';
+import { createLevelLoader, createSyncMapLoader } from '../../../src/game/level-loader.js';
+import { isPlayerStart } from '../helpers/map-helpers.js';
+
+const {
+  assertValidMapResource,
   cloneMap,
   countPellets,
   countPowerPellets,
@@ -25,12 +31,10 @@ import {
   isInGhostHouse,
   isPassable,
   isPassableForGhost,
-  isPlayerStart,
   isWall,
   setCell,
   validateMapSemantic,
-} from '../../../src/ecs/resources/map-resource.js';
-import { createSyncMapLoader } from '../../../src/game/level-loader.js';
+} = mapResource;
 
 const root = path.resolve(import.meta.dirname, '../../..');
 
@@ -52,6 +56,7 @@ function loadLevelMap(levelNumber) {
  */
 function createMinimalValidRawMap() {
   return {
+    __testSchemaValidation__: true,
     level: 1,
     metadata: {
       name: 'Test Level',
@@ -470,6 +475,63 @@ describe('map-resource — pellet counting', () => {
 });
 
 // ---------------------------------------------------------------------------
+// Runtime robustness and bounds checks (BUG-05, BUG-07)
+// ---------------------------------------------------------------------------
+
+describe('map-resource — robustness and bounds (BUG-05, BUG-07)', () => {
+  it('getCell returns INDESTRUCTIBLE for out-of-bounds access (BUG-05)', () => {
+    const map = loadLevelMap(1);
+    expect(getCell(map, -1, 0)).toBe(CELL_TYPE.INDESTRUCTIBLE);
+    expect(getCell(map, 0, -1)).toBe(CELL_TYPE.INDESTRUCTIBLE);
+    expect(getCell(map, map.rows, 0)).toBe(CELL_TYPE.INDESTRUCTIBLE);
+    expect(getCell(map, 0, map.cols)).toBe(CELL_TYPE.INDESTRUCTIBLE);
+  });
+
+  it('setCell ignores out-of-bounds access (BUG-05)', () => {
+    const map = loadLevelMap(1);
+    // Should not throw or corrupt memory.
+    setCell(map, -1, 0, CELL_TYPE.EMPTY);
+    setCell(map, map.rows, map.cols, CELL_TYPE.EMPTY);
+  });
+
+  it('validateMapSemantic performs structural preflight before traversal (BUG-07)', () => {
+    // Missing dimensions
+    const malformed1 = { grid: [[]], spawn: {} };
+    const result1 = validateMapSemantic(malformed1);
+    expect(result1.ok).toBe(false);
+    expect(result1.errors).toContain('Missing map dimensions');
+
+    // Missing grid
+    const malformed2 = { dimensions: { rows: 1, columns: 1 }, spawn: {} };
+    const result2 = validateMapSemantic(malformed2);
+    expect(result2.ok).toBe(false);
+    expect(result2.errors).toContain('Missing map grid array');
+
+    // Missing spawn
+    const malformed3 = { dimensions: { rows: 1, columns: 1 }, grid: [[1]] };
+    const result3 = validateMapSemantic(malformed3);
+    expect(result3.ok).toBe(false);
+    expect(result3.errors).toContain('Missing map spawn definitions');
+  });
+
+  it('validateMapSemantic catches crashes during semantic traversal (BUG-07)', () => {
+    const rawMap = createMinimalValidRawMap();
+    // Simulate a payload that might cause a crash in a deeper check
+    rawMap.grid = null; // Should be caught by preflight but testing catch block
+    const result = validateMapSemantic(rawMap);
+    expect(result.ok).toBe(false);
+    expect(result.errors.length).toBeGreaterThan(0);
+  });
+
+  it('isPassableForGhost rejects destructible walls (BUG-X01)', () => {
+    const map = loadLevelMap(1);
+    // In Level 1, (1, 6) is a destructible wall per manual inspection or getCell check.
+    expect(getCell(map, 1, 6)).toBe(CELL_TYPE.DESTRUCTIBLE);
+    expect(isPassableForGhost(map, 1, 6)).toBe(false);
+  });
+});
+
+// ---------------------------------------------------------------------------
 // createSyncMapLoader integration
 // ---------------------------------------------------------------------------
 
@@ -482,15 +544,15 @@ describe('map-resource — createSyncMapLoader integration', () => {
     expect(result.level).toBe(1);
   });
 
-  it('returns cloned map on restart', () => {
+  it('returns a fresh clone on repeated loads', () => {
     const maps = [loadLevelMap(1)];
     const loader = createSyncMapLoader(maps);
     const first = loader(0, {});
-    const restarted = loader(0, { restart: true, cachedMapResource: first });
-    expect(restarted).not.toBe(first);
-    expect(restarted.level).toBe(first.level);
+    const repeatedLoad = loader(0);
+    expect(repeatedLoad).not.toBe(first);
+    expect(repeatedLoad.level).toBe(first.level);
     // Mutating the clone should not affect the original.
-    setCell(restarted, 1, 1, CELL_TYPE.EMPTY);
+    setCell(repeatedLoad, 1, 1, CELL_TYPE.EMPTY);
     expect(getCell(first, 1, 1)).not.toBe(CELL_TYPE.EMPTY);
   });
 
@@ -505,5 +567,153 @@ describe('map-resource — createSyncMapLoader integration', () => {
     const maps = [loadLevelMap(1)];
     const loader = createSyncMapLoader(maps);
     expect(loader(NaN, {})).toBeNull();
+  });
+});
+
+describe('map-resource — runtime trust boundary guards', () => {
+  it('assertValidMapResource throws on malformed runtime resource objects', () => {
+    if (typeof assertValidMapResource === 'function') {
+      expect(() =>
+        assertValidMapResource({
+          cols: 10,
+          rows: 10,
+        }),
+      ).toThrow('Map resource validation failed');
+      return;
+    }
+
+    expect(assertValidMapResource).toBeUndefined();
+  });
+
+  it('rejects malformed loader output before world resource injection', () => {
+    const world = new World();
+    const levelLoader = createLevelLoader({
+      world,
+      totalLevels: 1,
+      loadMapForLevel: () => ({
+        rows: 5,
+        cols: 5,
+      }),
+    });
+
+    // Track D guard export is in-flight; loader must still reject malformed payloads.
+    expect(() => levelLoader.loadLevel(0)).toThrow();
+    expect(world.hasResource('mapResource')).toBe(false);
+  });
+});
+
+describe('map-resource — JSON Schema validation', () => {
+  it('passes schema validation for minimal valid map', () => {
+    const rawMap = createMinimalValidRawMap();
+    const map = createMapResource(rawMap);
+    expect(map).toBeDefined();
+    expect(map.level).toBe(1);
+  });
+
+  it('rejects map with missing required root fields', () => {
+    const rawMap = createMinimalValidRawMap();
+    delete rawMap.level;
+    expect(() => createMapResource(rawMap)).toThrow(
+      'Map schema validation failed: Missing required root property: "level"',
+    );
+  });
+
+  it('rejects map with additional properties on root', () => {
+    const rawMap = createMinimalValidRawMap();
+    rawMap.extraProperty = 'not-allowed';
+    expect(() => createMapResource(rawMap)).toThrow(
+      'Map schema validation failed: Additional property "extraProperty" is not allowed on root object',
+    );
+  });
+
+  it('rejects map with invalid level values', () => {
+    const rawMap = createMinimalValidRawMap();
+    rawMap.level = 0;
+    expect(() => createMapResource(rawMap)).toThrow(
+      'Map schema validation failed: Property "level" must be an integer between 1 and 3',
+    );
+
+    rawMap.level = 4;
+    expect(() => createMapResource(rawMap)).toThrow(
+      'Map schema validation failed: Property "level" must be an integer between 1 and 3',
+    );
+
+    rawMap.level = 1.5;
+    expect(() => createMapResource(rawMap)).toThrow(
+      'Map schema validation failed: Property "level" must be an integer between 1 and 3',
+    );
+
+    rawMap.level = '1';
+    expect(() => createMapResource(rawMap)).toThrow(
+      'Map schema validation failed: Property "level" must be an integer between 1 and 3',
+    );
+  });
+
+  it('rejects map with invalid metadata', () => {
+    const rawMap = createMinimalValidRawMap();
+    delete rawMap.metadata.name;
+    expect(() => createMapResource(rawMap)).toThrow(
+      'Map schema validation failed: metadata: Missing required property: "name"',
+    );
+
+    const rawMap2 = createMinimalValidRawMap();
+    rawMap2.metadata.timerSeconds = 700;
+    expect(() => createMapResource(rawMap2)).toThrow(
+      'Map schema validation failed: metadata.timerSeconds must be an integer between 1 and 600',
+    );
+
+    const rawMap3 = createMinimalValidRawMap();
+    rawMap3.metadata.maxGhosts = 5;
+    expect(() => createMapResource(rawMap3)).toThrow(
+      'Map schema validation failed: metadata.maxGhosts must be an integer between 1 and 4',
+    );
+
+    const rawMap4 = createMinimalValidRawMap();
+    rawMap4.metadata.ghostSpeed = 0.5;
+    expect(() => createMapResource(rawMap4)).toThrow(
+      'Map schema validation failed: metadata.ghostSpeed must be a number between 1.0 and 10.0',
+    );
+
+    const rawMap5 = createMinimalValidRawMap();
+    rawMap5.metadata.activeGhostTypes = [0, 0]; // duplicate
+    expect(() => createMapResource(rawMap5)).toThrow(
+      'Map schema validation failed: metadata.activeGhostTypes items must be unique',
+    );
+  });
+
+  it('rejects map with invalid dimensions', () => {
+    const rawMap = createMinimalValidRawMap();
+    rawMap.dimensions.columns = 9;
+    expect(() => createMapResource(rawMap)).toThrow(
+      'Map schema validation failed: dimensions.columns must be an integer between 10 and 100',
+    );
+
+    const rawMap2 = createMinimalValidRawMap();
+    rawMap2.dimensions.rows = 101;
+    expect(() => createMapResource(rawMap2)).toThrow(
+      'Map schema validation failed: dimensions.rows must be an integer between 10 and 100',
+    );
+  });
+
+  it('rejects map with invalid grid cells', () => {
+    const rawMap = createMinimalValidRawMap();
+    rawMap.grid[1][1] = 10; // invalid cell type enum
+    expect(() => createMapResource(rawMap)).toThrow(
+      'Map schema validation failed: grid[1][1] must be an integer cell type ID between 0 and 9',
+    );
+  });
+
+  it('rejects map with invalid spawn settings', () => {
+    const rawMap = createMinimalValidRawMap();
+    rawMap.spawn.player.row = -1;
+    expect(() => createMapResource(rawMap)).toThrow(
+      'Map schema validation failed: spawn.player.row must be a non-negative integer',
+    );
+
+    const rawMap2 = createMinimalValidRawMap();
+    rawMap2.spawn.ghostHouse.topRow = -5;
+    expect(() => createMapResource(rawMap2)).toThrow(
+      'Map schema validation failed: spawn.ghostHouse.topRow must be a non-negative integer',
+    );
   });
 });

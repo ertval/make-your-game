@@ -11,6 +11,7 @@
  * - KEYBOARD_CODE_BINDINGS: canonical KeyboardEvent.code -> intent mapping.
  * - KEYBOARD_KEY_BINDINGS: fallback KeyboardEvent.key -> intent mapping.
  * - normalizeKeyboardIntent(event): normalize one keyboard event into an intent.
+ * - assertValidInputAdapter(adapter): runtime contract guard for system-facing adapters.
  * - createInputAdapter(options): create an adapter with held-key and pressed-key state.
  *
  * Implementation notes:
@@ -20,6 +21,9 @@
  *   like bomb, pause, and confirm can be consumed exactly once per fixed step.
  * - `drainPressedKeys()` reuses an internal Set buffer so fixed-step input
  *   sampling does not allocate fresh collections every simulation tick.
+ * - `getHeldKeys()` is the canonical read API for simulation systems. The raw
+ *   `heldKeys`/`pressedKeys` Sets remain exposed only for compatibility and
+ *   tests while Track A finishes runtime-side registration hardening.
  * - `clearHeldKeys()` intentionally clears both held and pressed input state
  *   because the runtime already calls that method on blur/visibility recovery.
  * - The adapter also listens for `blur` and hidden `visibilitychange` events
@@ -95,6 +99,43 @@ export function normalizeKeyboardIntent(event) {
   return null;
 }
 
+function assertInputAdapter(condition, message) {
+  if (!condition) {
+    throw new Error(`Input adapter contract violation: ${message}`);
+  }
+}
+
+/**
+ * Validate that a value satisfies the explicit system-facing input adapter contract.
+ *
+ * @param {unknown} adapter - Candidate adapter resource object.
+ * @returns {true}
+ */
+export function assertValidInputAdapter(adapter) {
+  assertInputAdapter(Boolean(adapter) && typeof adapter === 'object', 'adapter must be an object');
+  assertInputAdapter(
+    typeof adapter.getHeldKeys === 'function',
+    'adapter.getHeldKeys() must be defined',
+  );
+  assertInputAdapter(
+    typeof adapter.drainPressedKeys === 'function',
+    'adapter.drainPressedKeys() must be defined',
+  );
+  assertInputAdapter(
+    typeof adapter.clearHeldKeys === 'function',
+    'adapter.clearHeldKeys() must be defined',
+  );
+  assertInputAdapter(typeof adapter.destroy === 'function', 'adapter.destroy() must be defined');
+
+  const heldKeys = adapter.getHeldKeys();
+  const pressedKeys = adapter.drainPressedKeys();
+
+  assertInputAdapter(heldKeys instanceof Set, 'adapter.getHeldKeys() must return a Set');
+  assertInputAdapter(pressedKeys instanceof Set, 'adapter.drainPressedKeys() must return a Set');
+
+  return true;
+}
+
 /**
  * Create the keyboard input adapter and attach listeners when an event target exists.
  *
@@ -123,6 +164,15 @@ export function createInputAdapter(options = {}) {
   function clearHeldKeys() {
     heldKeys.clear();
     pressedKeys.clear();
+  }
+
+  /**
+   * Return the canonical held-intent Set used by simulation systems.
+   *
+   * @returns {Set<string>} Live Set of currently held gameplay intents.
+   */
+  function getHeldKeys() {
+    return heldKeys;
   }
 
   /**
@@ -230,6 +280,7 @@ export function createInputAdapter(options = {}) {
     clearHeldKeys,
     destroy,
     drainPressedKeys,
+    getHeldKeys,
     heldKeys,
     pressedKeys,
   };

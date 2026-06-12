@@ -6,34 +6,66 @@
  */
 
 import fs from 'node:fs';
-import { runCommand } from './lib/policy-utils.mjs';
+import { GATE_FAIL, GATE_PASS, runCommand } from './lib/policy-utils.mjs';
 
 if (!fs.existsSync('package.json')) {
   console.log('package.json not present; skipping npm project gate.');
   process.exit(0);
 }
 
+console.log('\n========================================================================');
+console.log('🚀 Phase 1: Project Quality Gates (Linters, Tests, Security)');
+console.log('========================================================================\n');
+
 const pkg = JSON.parse(fs.readFileSync('package.json', 'utf8'));
 const scripts = pkg.scripts ?? {};
 
-const commands = ['check', 'test'];
+const commands = [{ script: 'check' }];
+// test:coverage implies a vitest run, which covers unit, integration, and audit unit tests.
 if (scripts['test:coverage']) {
-  commands.push('test:coverage');
+  commands.push({ script: 'test:coverage' });
 } else if (scripts.coverage) {
-  commands.push('coverage');
+  commands.push({ script: 'coverage' });
+} else if (scripts.test) {
+  commands.push({ script: 'test' });
+}
+
+// We run the full E2E test suite if present, which covers both audit and non-audit browser specs in a single run.
+// If test:e2e is not defined, we fall back to running test:audit:e2e or test:audit.
+if (scripts['test:e2e']) {
+  commands.push({ script: 'test:e2e' });
+} else if (scripts['test:audit:e2e']) {
+  commands.push({ script: 'test:audit:e2e' });
+} else if (scripts['test:audit']) {
+  commands.push({ script: 'test:audit' });
 }
 
 if (scripts['validate:schema']) {
-  commands.push('validate:schema');
+  commands.push({ script: 'validate:schema' });
 }
 
 if (scripts.sbom) {
-  commands.push('sbom');
+  commands.push({ script: 'sbom' });
 }
 
-for (const script of commands) {
-  console.log(`Running npm run ${script}`);
-  runCommand('npm', ['run', script], { stdio: 'inherit' });
+const errors = [];
+
+for (const command of commands) {
+  console.log(`Running npm run ${command.script}`);
+  try {
+    runCommand('npm', ['run', command.script], { stdio: 'inherit', env: command.env });
+  } catch {
+    console.error(`\n${GATE_FAIL} — npm run ${command.script} failed.`);
+    errors.push(`npm run ${command.script}`);
+  }
 }
 
-console.log('Project gate checks completed successfully.');
+if (errors.length > 0) {
+  console.error(`\n${GATE_FAIL} — Project gate checks completed with ${errors.length} failure(s):`);
+  for (const err of errors) {
+    console.error(` - ${err}`);
+  }
+  process.exit(1);
+}
+
+console.log(`${GATE_PASS} — Project gate checks completed.`);

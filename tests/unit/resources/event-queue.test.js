@@ -90,4 +90,40 @@ describe('event-queue', () => {
     expect(queue.orderCounter).toBe(0);
     expect(queue.events).toHaveLength(1);
   });
+
+  it('resets orderCounter on drain to prevent unbounded growth (BUG-10)', () => {
+    const queue = createEventQueue();
+    enqueue(queue, 'Test', {}, 1);
+    enqueue(queue, 'Test', {}, 1);
+    expect(queue.orderCounter).toBe(2);
+
+    drain(queue);
+    expect(queue.orderCounter).toBe(0);
+  });
+
+  it('drain transfers internal buffer ownership without copying (BUG-12)', () => {
+    const queue = createEventQueue();
+    enqueue(queue, 'Test', { id: 1 }, 1);
+
+    const internalBufferBeforeDrain = queue.events;
+    const events = drain(queue);
+    expect(events).toBe(internalBufferBeforeDrain);
+    expect(queue.events).not.toBe(events);
+    expect(queue.events).toHaveLength(0);
+  });
+
+  it('guards against non-finite frame indices (BUG-10)', () => {
+    const queue = createEventQueue();
+    enqueue(queue, 'Test', {}, NaN);
+    const events = drain(queue);
+    expect(events[0].frame).toBe(0);
+  });
+
+  it('does not throw when queue is null (BUG-15)', () => {
+    expect(() => enqueue(null, 'Test', {}, 0)).not.toThrow();
+  });
+
+  it('does not throw when queue is undefined (BUG-15)', () => {
+    expect(() => enqueue(undefined, 'Test', {}, 0)).not.toThrow();
+  });
 });

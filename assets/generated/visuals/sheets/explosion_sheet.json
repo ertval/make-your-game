@@ -1,0 +1,131 @@
+{
+  "frames": {
+    "explosion-blast-01": {
+      "frame": {
+        "x": 0,
+        "y": 0,
+        "w": 512,
+        "h": 512
+      }
+    },
+    "explosion-blast-02": {
+      "frame": {
+        "x": 514,
+        "y": 0,
+        "w": 512,
+        "h": 512
+      }
+    },
+    "explosion-blast-03": {
+      "frame": {
+        "x": 1028,
+        "y": 0,
+        "w": 512,
+        "h": 512
+      }
+    },
+    "explosion-blast-04": {
+      "frame": {
+        "x": 0,
+        "y": 514,
+        "w": 512,
+        "h": 512
+      }
+    },
+    "explosion-blast-05": {
+      "frame": {
+        "x": 0,
+        "y": 1028,
+        "w": 512,
+        "h": 512
+      }
+    },
+    "explosion-blast-06": {
+      "frame": {
+        "x": 514,
+        "y": 514,
+        "w": 512,
+        "h": 512
+      }
+    },
+    "explosion-blast-07": {
+      "frame": {
+        "x": 514,
+        "y": 1028,
+        "w": 512,
+        "h": 512
+      }
+    },
+    "explosion-blast-08": {
+      "frame": {
+        "x": 1028,
+        "y": 514,
+        "w": 512,
+        "h": 512
+      }
+    },
+    "explosion-blast-09": {
+      "frame": {
+        "x": 1028,
+        "y": 1028,
+        "w": 512,
+        "h": 512
+      }
+    },
+    "explosion-blast-10": {
+      "frame": {
+        "x": 1542,
+        "y": 0,
+        "w": 512,
+        "h": 512
+      }
+    },
+    "explosion-blast-11": {
+      "frame": {
+        "x": 1542,
+        "y": 514,
+        "w": 512,
+        "h": 512
+      }
+    },
+    "explosion-blast-12": {
+      "frame": {
+        "x": 1542,
+        "y": 1028,
+        "w": 512,
+        "h": 512
+      }
+    },
+    "explosion-blast-13": {
+      "frame": {
+        "x": 2056,
+        "y": 0,
+        "w": 512,
+        "h": 512
+      }
+    },
+    "explosion-blast-14": {
+      "frame": {
+        "x": 2570,
+        "y": 0,
+        "w": 512,
+        "h": 512
+      }
+    },
+    "explosion-blast-15": {
+      "frame": {
+        "x": 3084,
+        "y": 0,
+        "w": 512,
+        "h": 512
+      }
+    }
+  },
+  "meta": {
+    "image": "explosion_sheet.png",
+    "size": {
+      "w": 4096,
+      "h": 2048
+    }
+  }
+}

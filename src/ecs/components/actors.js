@@ -6,7 +6,13 @@
  * systems. The stores remain data-only so later systems can mutate them without
  * crossing the DOM or adapter boundary.
  *
+ * Runtime status:
+ * - `player` and `input-state` are part of the active runtime bootstrap path.
+ * - `ghost` is a planned gameplay store that is intentionally not wired into
+ *   the live bootstrap path yet.
+ *
  * Public API:
+ * - ACTOR_STORE_RUNTIME_STATUS: runtime/bootstrap status for each actor store.
  * - UNASSIGNED_GHOST_TYPE: sentinel value for ghost slots that are not yet configured.
  * - createPlayerStore(maxEntities): allocate typed arrays for player state.
  * - resetPlayer(store, entityId): restore one player slot to canonical defaults.
@@ -39,7 +45,18 @@ import {
 export const UNASSIGNED_GHOST_TYPE = -1;
 
 /**
+ * Declarative runtime/bootstrap status for actor stores.
+ * This metadata is descriptive only and must not be treated as a registration API.
+ */
+export const ACTOR_STORE_RUNTIME_STATUS = Object.freeze({
+  ghost: 'planned',
+  inputState: 'active',
+  player: 'active',
+});
+
+/**
  * Allocate the typed-array store for player gameplay state.
+ * This store is part of the active runtime contract today.
  *
  * @param {number} maxEntities - Total entity capacity for the world.
  * @returns {PlayerStore} Fresh player store pre-filled with canonical defaults.
@@ -75,6 +92,8 @@ export function resetPlayer(store, entityId) {
 
 /**
  * Allocate the typed-array store for ghost gameplay state.
+ * This store is planned scaffolding for later gameplay tickets and is not
+ * registered by the current bootstrap path yet.
  *
  * @param {number} maxEntities - Total entity capacity for the world.
  * @returns {GhostStore} Fresh ghost store with inert timer and speed defaults.
@@ -106,6 +125,7 @@ export function resetGhost(store, entityId) {
 
 /**
  * Allocate the typed-array store for the per-step input snapshot.
+ * This store is part of the active runtime contract today.
  *
  * @param {number} maxEntities - Total entity capacity for the world.
  * @returns {InputStateStore} Fresh input-state store with "no input" defaults.

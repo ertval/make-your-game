@@ -1,0 +1,82 @@
+{
+  "schemaVersion": "1.0.0",
+  "updatedAt": "2026-06-06",
+  "entries": [
+    {
+      "auditId": "AUDIT-F-19",
+      "executionType": "Manual-With-Evidence",
+      "requiredArtifacts": [
+        {
+          "path": "docs/audit-reports/evidence/AUDIT-F-19.paint.md",
+          "description": "Paint flashing analysis with per-activity paint region breakdown and DevTools observations."
+        },
+        {
+          "path": "docs/audit-reports/evidence/playwright-trace.zip",
+          "description": "Playwright automated performance trace recording paint rects, layer boundaries, will-change styling, and heap allocations."
+        }
+      ],
+      "signOff": {
+        "reviewer": "ekaramet",
+        "date": "2026-06-06",
+        "notes": "Paint flashing verified per F-19 evidence document. Playwright trace recorded and added. No full-screen repaints observed. HUD-only paint regions, no layout thrashing, promoted layers GPU-composited. PASS."
+      }
+    },
+    {
+      "auditId": "AUDIT-F-20",
+      "executionType": "Manual-With-Evidence",
+      "requiredArtifacts": [
+        {
+          "path": "docs/audit-reports/evidence/AUDIT-F-20.layers.md",
+          "description": "Layer inventory, composition reasons, stability across level transitions, and leak detection."
+        },
+        {
+          "path": "docs/audit-reports/evidence/playwright-trace.zip",
+          "description": "Playwright automated performance trace recording paint rects, layer boundaries, will-change styling, and heap allocations."
+        }
+      ],
+      "signOff": {
+        "reviewer": "ekaramet",
+        "date": "2026-06-06",
+        "notes": "Layer borders captured across 3 levels. Playwright trace recorded and added. Root + player + N ghosts = 2-6 layers total. No unnecessary promotion, no layer leaks on restart. PASS."
+      }
+    },
+    {
+      "auditId": "AUDIT-F-21",
+      "executionType": "Manual-With-Evidence",
+      "requiredArtifacts": [
+        {
+          "path": "docs/audit-reports/evidence/AUDIT-F-21.promotion.md",
+          "description": "Compositor-layer promotion verified: will-change policy audit, lifecycle tracking, and memory impact."
+        },
+        {
+          "path": "docs/audit-reports/evidence/playwright-trace.zip",
+          "description": "Playwright automated performance trace recording paint rects, layer boundaries, will-change styling, and heap allocations."
+        }
+      ],
+      "signOff": {
+        "reviewer": "ekaramet",
+        "date": "2026-06-06",
+        "notes": "Layer promotion policy confirmed per AGENTS.md. Playwright trace recorded and added. will-change: transform only on player and active ghosts. Transient elements (bombs, fire) not promoted. Memory steady at ~3-4.5 MB compositor layers. PASS."
+      }
+    },
+    {
+      "auditId": "AUDIT-B-06",
+      "executionType": "Manual-With-Evidence",
+      "requiredArtifacts": [
+        {
+          "path": "docs/audit-reports/evidence/AUDIT-B-06.overall.md",
+          "description": "Overall quality sign-off covering game loop, ECS architecture, performance, security, and audit coverage."
+        },
+        {
+          "path": "docs/audit-reports/evidence/playwright-trace.zip",
+          "description": "Playwright automated performance trace recording paint rects, layer boundaries, will-change styling, and heap allocations."
+        }
+      ],
+      "signOff": {
+        "reviewer": "ekaramet",
+        "date": "2026-06-06",
+        "notes": "Final quality review completed. Playwright trace recorded and added. All 27 audit questions covered, policy gates green, ECS boundaries intact, performance targets met. Phase 2 MVP ready. PASS."
+      }
+    }
+  ]
+}

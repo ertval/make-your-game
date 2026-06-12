@@ -6,9 +6,10 @@
  * so later systems can consume input deterministically per fixed simulation step.
  */
 
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 
 import {
+  assertValidInputAdapter,
   createInputAdapter,
   INPUT_INTENT,
   normalizeKeyboardIntent,
@@ -101,8 +102,8 @@ describe('keyboard input adapter', () => {
       repeat: false,
     });
 
-    expect(adapter.heldKeys.has(INPUT_INTENT.LEFT)).toBe(true);
-    expect(adapter.heldKeys.has(INPUT_INTENT.CONFIRM)).toBe(true);
+    expect(adapter.getHeldKeys().has(INPUT_INTENT.LEFT)).toBe(true);
+    expect(adapter.getHeldKeys().has(INPUT_INTENT.CONFIRM)).toBe(true);
 
     const pressedKeys = adapter.drainPressedKeys();
     expect(pressedKeys.has(INPUT_INTENT.LEFT)).toBe(true);
@@ -122,8 +123,8 @@ describe('keyboard input adapter', () => {
       },
     });
 
-    expect(adapter.heldKeys.has(INPUT_INTENT.LEFT)).toBe(false);
-    expect(adapter.heldKeys.has(INPUT_INTENT.CONFIRM)).toBe(false);
+    expect(adapter.getHeldKeys().has(INPUT_INTENT.LEFT)).toBe(false);
+    expect(adapter.getHeldKeys().has(INPUT_INTENT.CONFIRM)).toBe(false);
     expect(keydownPreventDefaultCalls).toEqual(['down-left', 'down-enter']);
     expect(keyupPreventDefault).toEqual({
       enter: 0,
@@ -153,6 +154,58 @@ describe('keyboard input adapter', () => {
     adapter.destroy();
   });
 
+  it('exposes an explicit adapter contract for systems to consume', () => {
+    const eventTarget = createEventTargetStub();
+    const adapter = createInputAdapter({ eventTarget });
+
+    expect(assertValidInputAdapter(adapter)).toBe(true);
+    expect(adapter.getHeldKeys()).toBe(adapter.heldKeys);
+
+    adapter.destroy();
+  });
+
+  it('validates the adapter contract by checking the pressed-key drain shape once', () => {
+    const eventTarget = createEventTargetStub();
+    const adapter = createInputAdapter({ eventTarget });
+
+    eventTarget.dispatch('keydown', {
+      code: 'Space',
+      repeat: false,
+    });
+
+    expect(assertValidInputAdapter(adapter)).toBe(true);
+    expect(adapter.pressedKeys.size).toBe(0);
+    expect([...adapter.drainPressedKeys()]).toEqual([]);
+
+    adapter.destroy();
+  });
+
+  it('rejects malformed adapters that do not implement the explicit contract', () => {
+    expect(() => {
+      assertValidInputAdapter(null);
+    }).toThrow('adapter must be an object');
+
+    expect(() => {
+      assertValidInputAdapter({
+        clearHeldKeys() {},
+        destroy() {},
+        drainPressedKeys() {
+          return new Set();
+        },
+      });
+    }).toThrow('adapter.getHeldKeys() must be defined');
+
+    expect(() => {
+      assertValidInputAdapter({
+        clearHeldKeys() {},
+        destroy() {},
+        getHeldKeys() {
+          return new Set();
+        },
+      });
+    }).toThrow('adapter.drainPressedKeys() must be defined');
+  });
+
   it('buffers one press edge regardless of repeated keydown events', () => {
     const eventTarget = createEventTargetStub();
     const adapter = createInputAdapter({ eventTarget });
@@ -170,7 +223,7 @@ describe('keyboard input adapter', () => {
       repeat: true,
     });
 
-    expect(adapter.heldKeys.has(INPUT_INTENT.BOMB)).toBe(true);
+    expect(adapter.getHeldKeys().has(INPUT_INTENT.BOMB)).toBe(true);
     expect(adapter.pressedKeys.size).toBe(1);
     expect([...adapter.drainPressedKeys()]).toEqual([INPUT_INTENT.BOMB]);
 
@@ -207,16 +260,16 @@ describe('keyboard input adapter', () => {
       repeat: false,
     });
 
-    expect(adapter.heldKeys.has(INPUT_INTENT.UP)).toBe(true);
-    expect(adapter.heldKeys.has(INPUT_INTENT.RIGHT)).toBe(true);
-    expect(adapter.heldKeys.size).toBe(2);
+    expect(adapter.getHeldKeys().has(INPUT_INTENT.UP)).toBe(true);
+    expect(adapter.getHeldKeys().has(INPUT_INTENT.RIGHT)).toBe(true);
+    expect(adapter.getHeldKeys().size).toBe(2);
 
     eventTarget.dispatch('keyup', {
       code: 'ArrowUp',
     });
 
-    expect(adapter.heldKeys.has(INPUT_INTENT.UP)).toBe(false);
-    expect(adapter.heldKeys.has(INPUT_INTENT.RIGHT)).toBe(true);
+    expect(adapter.getHeldKeys().has(INPUT_INTENT.UP)).toBe(false);
+    expect(adapter.getHeldKeys().has(INPUT_INTENT.RIGHT)).toBe(true);
 
     adapter.destroy();
   });
@@ -317,5 +370,223 @@ describe('keyboard input adapter', () => {
 
     expect(adapter.heldKeys.size).toBe(0);
     expect(adapter.pressedKeys.size).toBe(0);
+  });
+
+  it('returns null when key property is an unbound string and code is absent', () => {
+    expect(normalizeKeyboardIntent({ key: 'q' })).toBeNull();
+    expect(normalizeKeyboardIntent({ key: 'Tab' })).toBeNull();
+    expect(normalizeKeyboardIntent({ key: 'Shift' })).toBeNull();
+    expect(normalizeKeyboardIntent({ key: '' })).toBeNull();
+  });
+
+  it('ignores keyup for unrecognized keys without mutating held state', () => {
+    const eventTarget = createEventTargetStub();
+    const adapter = createInputAdapter({ eventTarget });
+
+    eventTarget.dispatch('keydown', { code: 'ArrowUp', repeat: false });
+
+    eventTarget.dispatch('keyup', { code: 'KeyZ' });
+    eventTarget.dispatch('keyup', { key: 'Tab' });
+
+    expect(adapter.heldKeys.has(INPUT_INTENT.UP)).toBe(true);
+    expect(adapter.heldKeys.size).toBe(1);
+
+    adapter.destroy();
+  });
+
+  it('tracks all four directions plus bomb held simultaneously', () => {
+    const eventTarget = createEventTargetStub();
+    const adapter = createInputAdapter({ eventTarget });
+
+    const allKeys = [
+      { code: 'ArrowUp', intent: INPUT_INTENT.UP },
+      { code: 'ArrowDown', intent: INPUT_INTENT.DOWN },
+      { code: 'ArrowLeft', intent: INPUT_INTENT.LEFT },
+      { code: 'ArrowRight', intent: INPUT_INTENT.RIGHT },
+      { code: 'Space', intent: INPUT_INTENT.BOMB },
+    ];
+
+    for (const { code } of allKeys) {
+      eventTarget.dispatch('keydown', { code, repeat: false });
+    }
+
+    expect(adapter.getHeldKeys().size).toBe(5);
+    for (const { intent } of allKeys) {
+      expect(adapter.getHeldKeys().has(intent)).toBe(true);
+    }
+
+    const pressed = adapter.drainPressedKeys();
+    expect(pressed.size).toBe(5);
+    for (const { intent } of allKeys) {
+      expect(pressed.has(intent)).toBe(true);
+    }
+
+    eventTarget.dispatch('keyup', { code: 'ArrowLeft' });
+    eventTarget.dispatch('keyup', { code: 'ArrowRight' });
+
+    expect(adapter.getHeldKeys().has(INPUT_INTENT.LEFT)).toBe(false);
+    expect(adapter.getHeldKeys().has(INPUT_INTENT.RIGHT)).toBe(false);
+    expect(adapter.getHeldKeys().has(INPUT_INTENT.UP)).toBe(true);
+    expect(adapter.getHeldKeys().has(INPUT_INTENT.DOWN)).toBe(true);
+    expect(adapter.getHeldKeys().has(INPUT_INTENT.BOMB)).toBe(true);
+
+    adapter.destroy();
+  });
+
+  it('drain mid-sequence preserves held state for keys not yet released', () => {
+    const eventTarget = createEventTargetStub();
+    const adapter = createInputAdapter({ eventTarget });
+
+    eventTarget.dispatch('keydown', { code: 'ArrowUp', repeat: false });
+    eventTarget.dispatch('keydown', { code: 'Space', repeat: false });
+
+    const firstDrain = adapter.drainPressedKeys();
+    expect(firstDrain.has(INPUT_INTENT.UP)).toBe(true);
+    expect(firstDrain.has(INPUT_INTENT.BOMB)).toBe(true);
+
+    expect(adapter.getHeldKeys().has(INPUT_INTENT.UP)).toBe(true);
+    expect(adapter.getHeldKeys().has(INPUT_INTENT.BOMB)).toBe(true);
+
+    eventTarget.dispatch('keydown', { code: 'Enter', repeat: false });
+
+    const secondDrain = adapter.drainPressedKeys();
+    expect(secondDrain.has(INPUT_INTENT.CONFIRM)).toBe(true);
+    expect(secondDrain.has(INPUT_INTENT.UP)).toBe(false);
+    expect(secondDrain.has(INPUT_INTENT.BOMB)).toBe(false);
+    expect(adapter.getHeldKeys().has(INPUT_INTENT.UP)).toBe(true);
+    expect(adapter.getHeldKeys().has(INPUT_INTENT.BOMB)).toBe(true);
+
+    adapter.destroy();
+  });
+
+  it('blur flushes queued pressed keys before next drain', () => {
+    const eventTarget = createEventTargetStub();
+    const windowTarget = createEventTargetStub();
+    const adapter = createInputAdapter({ eventTarget, windowTarget });
+
+    eventTarget.dispatch('keydown', { code: 'ArrowUp', repeat: false });
+    eventTarget.dispatch('keydown', { code: 'Space', repeat: false });
+
+    expect(adapter.pressedKeys.size).toBe(2);
+    expect(adapter.heldKeys.size).toBe(2);
+
+    windowTarget.dispatch('blur');
+
+    expect(adapter.pressedKeys.size).toBe(0);
+    expect(adapter.heldKeys.size).toBe(0);
+
+    const drained = adapter.drainPressedKeys();
+    expect(drained.size).toBe(0);
+
+    adapter.destroy();
+  });
+
+  it('input captured cleanly after blur recovery', () => {
+    const eventTarget = createEventTargetStub();
+    const windowTarget = createEventTargetStub();
+    const adapter = createInputAdapter({ eventTarget, windowTarget });
+
+    eventTarget.dispatch('keydown', { code: 'ArrowLeft', repeat: false });
+    windowTarget.dispatch('blur');
+
+    expect(adapter.heldKeys.size).toBe(0);
+    expect(adapter.pressedKeys.size).toBe(0);
+
+    eventTarget.dispatch('keydown', { code: 'ArrowRight', repeat: false });
+
+    expect(adapter.heldKeys.has(INPUT_INTENT.RIGHT)).toBe(true);
+    expect(adapter.heldKeys.has(INPUT_INTENT.LEFT)).toBe(false);
+    expect([...adapter.drainPressedKeys()]).toEqual([INPUT_INTENT.RIGHT]);
+
+    adapter.destroy();
+  });
+
+  it('multiple visibility transitions only clear on hide', () => {
+    const eventTarget = createEventTargetStub();
+    const documentTarget = createDocumentStub();
+    const adapter = createInputAdapter({ documentTarget, eventTarget });
+
+    eventTarget.dispatch('keydown', { code: 'ArrowUp', repeat: false });
+    eventTarget.dispatch('keydown', { code: 'ArrowDown', repeat: false });
+
+    documentTarget.hidden = false;
+    documentTarget.dispatch('visibilitychange');
+
+    expect(adapter.heldKeys.size).toBe(2);
+    expect(adapter.pressedKeys.size).toBe(2);
+
+    documentTarget.hidden = true;
+    documentTarget.dispatch('visibilitychange');
+
+    expect(adapter.heldKeys.size).toBe(0);
+    expect(adapter.pressedKeys.size).toBe(0);
+
+    eventTarget.dispatch('keydown', { code: 'Space', repeat: false });
+
+    documentTarget.hidden = false;
+    documentTarget.dispatch('visibilitychange');
+
+    expect(adapter.heldKeys.has(INPUT_INTENT.BOMB)).toBe(true);
+    expect(adapter.pressedKeys.size).toBe(1);
+
+    documentTarget.hidden = true;
+    documentTarget.dispatch('visibilitychange');
+
+    expect(adapter.heldKeys.size).toBe(0);
+    expect(adapter.pressedKeys.size).toBe(0);
+
+    adapter.destroy();
+  });
+
+  it('destroy also removes visibilitychange listener', () => {
+    const eventTarget = createEventTargetStub();
+    const documentTarget = createDocumentStub();
+    const adapter = createInputAdapter({ documentTarget, eventTarget });
+
+    eventTarget.dispatch('keydown', { code: 'ArrowUp', repeat: false });
+
+    adapter.destroy();
+
+    documentTarget.hidden = true;
+    documentTarget.dispatch('visibilitychange');
+
+    expect(adapter.heldKeys.size).toBe(0);
+    expect(adapter.pressedKeys.size).toBe(0);
+  });
+
+  it('creates with null targets and destroy is safe when no listeners registered', () => {
+    const adapter = createInputAdapter({
+      eventTarget: null,
+      windowTarget: null,
+      documentTarget: null,
+    });
+
+    expect(adapter.getHeldKeys().size).toBe(0);
+    expect(adapter.drainPressedKeys().size).toBe(0);
+    expect(() => adapter.destroy()).not.toThrow();
+    expect(adapter.heldKeys.size).toBe(0);
+    expect(adapter.pressedKeys.size).toBe(0);
+  });
+
+  it('falls back to global window and document when no targets provided', () => {
+    const mockWindow = createEventTargetStub();
+    const mockDocument = createDocumentStub();
+
+    vi.stubGlobal('window', mockWindow);
+    vi.stubGlobal('document', mockDocument);
+
+    try {
+      const adapter = createInputAdapter({});
+
+      mockWindow.dispatch('keydown', { code: 'ArrowUp', repeat: false });
+      expect(adapter.heldKeys.has(INPUT_INTENT.UP)).toBe(true);
+
+      mockWindow.dispatch('blur');
+      expect(adapter.heldKeys.size).toBe(0);
+
+      adapter.destroy();
+    } finally {
+      vi.unstubAllGlobals();
+    }
   });
 });

@@ -172,7 +172,7 @@ make-your-game/
 │   └── source/                     # ✏️ Hand-authored source art and audio
 │       ├── audio/
 │       └── visual/
-├── biome.json                      # 🧹 Biome linter/formatter config
+├── biome.json                      # 🧹 Biome check/fix configuration
 ├── docs/                           # 📚 Documentation and implementation plans
 │   ├── README.md                   # Documentation map and workflow guide
 │   ├── audit.md                    # Audit checklist for grading
@@ -196,25 +196,25 @@ make-your-game/
 │       └── visual-manifest.schema.json
 ├── index.html                      # 🏠 Single-page entry point
 ├── package-lock.json               # 🔒 Locked npm dependency graph
-├── package.json                    # 📦 ES module config, scripts, exports
-├── sbom.json                       # 🧾 Generated dependency inventory for policy checks
+├── package.json                    # 📦 Core config, dependencies, and project quality scripts
+├── sbom.json                       # 🔒 SPDX SBOM for dependency auditing (managed and enforced by CI)
 ├── src/                            # 🧠 Runtime source code
 │   ├── adapters/                   # 🔌 Imperative boundaries for DOM and IO
-│   ├── adapters/dom/               # Planned DOM adapter subfolder
-│   ├── adapters/io/                # Planned IO adapter subfolder
+│   ├── adapters/dom/               # DOM adapter implementations (present)
+│   ├── adapters/io/                # IO adapter implementations (present)
 │   ├── debug/                      # 🐞 Debug utilities and replay helpers
 │   ├── ecs/                        # ⚙️ ECS core
-│   │   ├── components/             # Planned pure state data definitions
+│   │   ├── components/             # Pure state data definitions (present)
 │   │   ├── resources/              # Shared data (Clock, RNG, Maps)
-│   │   ├── systems/                # Planned domain logic systems
+│   │   ├── systems/                # Domain logic systems (partial/iterative)
 │   │   └── world/                  # World, entity store, queries
 │   ├── game/                       # 🎮 Game bootstrap and flow orchestration
 │   ├── main.ecs.js                 # App entry — bootstraps the ECS World
 │   └── shared/                     # 🛠️ Cross-cutting utilities
 ├── styles/                         # 💅 Global CSS
 │   ├── base.css                    # Design tokens, reset, and layout base
-│   ├── grid.css                    # Planned grid layout stylesheet not checked in yet
-│   └── animations.css              # Planned animation stylesheet not checked in yet
+│   ├── grid.css                    # Grid layout stylesheet
+│   └── animations.css              # Animation stylesheet
 ├── tests/                          # 🧪 Automated test suites
 │   ├── README.md                   # Coverage policy and completion rules
 │   ├── e2e/                        # Browser-level validation suites
@@ -272,14 +272,19 @@ For a free GitHub account, the repository must be public to publish a Pages site
 - **Compositor Friendly**: All movement updates restricted to `transform` and `opacity`.
 - **Minimal Jank**: Strict avoidance of layout thrashing through batched read/write phases.
 
+### 📐 Responsive Board Fit
+- The board automatically scales to fill the available viewport (centered, capped at `--board-max-scale`) and re-fits on window resize, coalesced to one recalculation per animation frame.
+- Scaling is **visual-only**: it applies a uniform `transform: scale()` via `--fit-scale`. The fixed `--tile-size` grid, integer `(row, col)` coordinates, and all gameplay/ECS logic are unchanged.
+- The scale factor is computed in JS (`fitBoardToViewport` in `src/adapters/dom/renderer-adapter.js`) rather than CSS. A CSS `calc()` would divide a length by a length (viewport ÷ board size), which Firefox/Gecko rejects per spec while Chrome/Blink accepts — so the board would render at its small intrinsic size in Firefox. A JS-computed plain number scales identically across engines.
+
 ### ⚡ Targets
 
 | Metric | Target |
 |---|---|
-| Frame rate | ≥ 60 FPS target with no sustained dropped-frame bursts |
+| Frame rate | 60 FPS target with no dropped frames in audited scenarios; acceptance must match docs/audit.md criteria |
 | Frame budget | p95 <= 16.7ms over representative 60s scenarios |
 | DOM elements | ≤ 500 |
-| Layer count | 3-5 composited layers |
+| Layer usage | Layers must be as few as possible but non-zero, with intentional promotion justified by audit evidence |
 | GC pauses | < 1ms (object pooling, in-place component mutation) |
 | JS heap | < 10MB |
 | Layout thrashing | Zero (batch reads → writes via `render-dom-system.js`) |
@@ -292,7 +297,7 @@ The repository includes the current runtime/build toolchain, so the commands bel
 
 ### Prerequisites
 
-- **Node.js** ≥ 20.x
+- **Node.js** ≥ 24.0.0
 - **npm** ≥ 10.x
 
 ### Installation
@@ -336,10 +341,10 @@ policy command family
     ├── npm run policy:quality
     ├── npm run policy:checks:local
     ├── npm run policy:checks
-    ├── npm run policy:forbid
+    ├── npm run policy:forbidden
     ├── npm run policy:header
     ├── npm run policy:approve
-    ├── npm run policy:forbidrepo
+    ├── npm run policy:forbiddenrepo
     ├── npm run policy:headerrepo
     └── npm run policy:trace
 ```
@@ -355,10 +360,10 @@ Use the broadest command first, then drop to the narrower command below if you n
 | `npm run policy:quality` | Runs the project quality gate: Biome, tests, coverage, schema validation, and SBOM. |
 | `npm run policy:checks:local` | Local helper for policy checks debugging. Runs `policy:prep` before `policy:checks` so metadata context is ready. |
 | `npm run policy:checks` | Validates ticket association from branch name or commits, or a `process` marker for GENERAL_DOCS_PROCESS branches, plus single-track ownership boundaries. |
-| `npm run policy:forbid` | Scans only the changed files for forbidden tech or patterns. |
+| `npm run policy:forbidden` | Scans only the changed files for forbidden tech or patterns. |
 | `npm run policy:header` | Checks only the changed files for required source headers. |
 | `npm run policy:approve` | Verifies the PR approval / human-review requirement. |
-| `npm run policy:forbidrepo` | Scans the entire repository for forbidden tech or patterns. |
+| `npm run policy:forbiddenrepo` | Scans the entire repository for forbidden tech or patterns. |
 | `npm run policy:headerrepo` | Checks the entire repository for required source headers. |
 | `npm run policy:trace` | Verifies requirement-to-audit traceability and dependency pairing across the repository. |
 
@@ -366,11 +371,11 @@ Use the broadest command first, then drop to the narrower command below if you n
 |---|---|---|
 | `npm run policy` | `npm run policy:quality` | Biome, tests, coverage, schema validation, and SBOM via the project quality gate |
 | `npm run policy` | `npm run policy:checks:local` | Local rerun for ticket association and ownership checks with metadata preparation (`policy:prep` + `policy:checks`) |
-| `npm run policy` | `npm run policy:forbid` | Forbidden tech in changed files only |
+| `npm run policy` | `npm run policy:forbidden` | Forbidden tech in changed files only |
 | `npm run policy` | `npm run policy:header` | Source headers in changed files only |
 | `npm run policy` | `npm run policy:approve` | Human approval/review requirement |
 | `npm run policy` | `npm run policy:repo` | Repo-wide scans and traceability/dependency pairing |
-| `npm run policy:repo` | `npm run policy:forbidrepo` | Forbidden tech across the repository |
+| `npm run policy:repo` | `npm run policy:forbiddenrepo` | Forbidden tech across the repository |
 | `npm run policy:repo` | `npm run policy:headerrepo` | Source headers across the repository |
 | `npm run policy:repo` | `npm run policy:trace` | Requirement/audit matrix coverage and dependency pairing |
 
@@ -396,14 +401,13 @@ Use the broadest command first, then drop to the narrower command below if you n
 | `npm run test:watch` | Run tests in watch mode |
 | `npm run test:unit` | Run unit tests only |
 | `npm run test:integration` | Run integration tests only; passes when no integration files exist yet |
-| `npm run test:e2e` | Run Playwright browser tests |
+| `npm run test:e2e` | Run Playwright browser tests (top-level `tests/e2e`). For audit tests run `npm run test:audit` |
 | `npm run test:audit` | Run the audit inventory suite |
 | `npm run test:coverage` | Generate test coverage report |
-| `npm run lint` | Run Biome linter |
-| `npm run format` | Run Biome formatter |
-| `npm run check` | Run Biome lint + format check |
+| `npm run check` | Run all Biome checks (lint, format, and import sorting) |
+| `npm run fix` | Run all Biome checks and apply safe fixes automatically |
 | `npm run validate:schema` | Run JSON Schema 2020-12 validation for maps |
-| `npm run sbom` | Generate SPDX SBOM for dependency auditing |
+| `npm run sbom` | Generate SPDX SBOM for dependency auditing. Note: `sbom.json` is a committed artifact managed by the CI workflow policy gates to ensure lockfile integrity. |
 
 ---
 
@@ -415,11 +419,16 @@ The project is split into **4 parallel workflow tracks** to enable multiple deve
 |---|---|---|---|
 | **Track A** | Dev 1 | Core Engine, CI, Schema, Testing, QA, and Evidence Wiring | `src/ecs/world/*`, `src/ecs/resources/*`, `main.ecs.js`, `tests/**/*`, `vitest.config.js`, `playwright.config.js` |
 | **Track B** | Dev 2 | Physics, Input, and Gameplay Logic & Rules | `input-system.js`, `player-move-system.js`, `ghost-ai-system.js`, `collision-system.js` |
-| **Track C** | Dev 3 | Audio Production and Integration | `audio-adapter.js`, audio manifests, cue mapping, decode/preload flow |
+| **Track C** | Dev 3 | Scoring, timer, lives, pause and progression, HUD and overlays, storage flow, and audio integration | `scoring-system.js`, `timer-system.js`, `life-system.js`, `pause-system.js`, `level-progress-system.js`, `hud-adapter.js`, `screens-adapter.js`, `audio-adapter.js` |
 | **Track D** | Dev 4 | Rendering, DOM Batching, and Visual Production and Integration | `render-collect-system.js`, `render-dom-system.js`, Adapters |
 
 > **Note**: For the full integration milestone breakdown, check `docs/implementation/implementation-plan.md`.
 > **Execution tracking**: Update `docs/implementation/ticket-tracker.md` as tickets move from `[ ]` -> `[-]` -> `[x]`.
+
+### Phase Transitions & Codebase Audits
+
+> **Important Instruction:**
+> Every time a phase of the plan tracker is finished, each dev should run the prompt `codebase-analysis-audit` against the whole codebase. Merge the resulting report to main. Then there should be created a deduplicated consolidated report with all issues found. Then each can fix the ones owned by the track they follow.
 
 ## 🧭 Documentation Flow
 
@@ -430,20 +439,19 @@ Recommended reading order for new contributors:
 3. `docs/game-description.md` (gameplay behavior source of truth)
 4. `docs/audit.md` (acceptance/pass criteria source of truth)
 5. `docs/implementation/implementation-plan.md` (ECS execution plan and milestones)
-6. `docs/implementation/ticket-tracker.md` (live line-by-line ticket status board with dependencies and reverse block mapping)
-7. `docs/implementation/ticket-tracker.md` (canonical ticket ID index and live status board used by automated policy checks)
-8. `docs/implementation/agentic-workflow-guide.md` (team process, PR checklist, and PR Message and Gate Workflow)
-9. `docs/implementation/pr-template.md` (docs entrypoint for PR contract and canonical template source)
-10. `docs/implementation/track-a.md` + `docs/implementation/track-b.md` + `docs/implementation/track-c.md` + `docs/implementation/track-d.md` (detailed track ticket definitions and verification gates)
-11. `docs/implementation/audit-traceability-matrix.md` (single-source requirement/audit/ticket/test coverage mapping and status)
-12. `docs/implementation/assets-pipeline.md` (visual/audio asset creation, optimization, and validation workflow)
-13. `docs/deployment/github-pages.md` (GitHub Pages publishing options and static-hosting constraints)
+6. [`docs/implementation/ticket-tracker.md`](docs/implementation/ticket-tracker.md) (live line-by-line ticket status board and canonical ticket ID index for automated policy checks)
+7. `docs/implementation/agentic-workflow-guide.md` (team process, PR checklist, and PR Message and Gate Workflow)
+8. `docs/implementation/pr-template.md` (docs entrypoint for PR contract and canonical template source)
+9. `docs/implementation/track-a.md` + `docs/implementation/track-b.md` + `docs/implementation/track-c.md` + `docs/implementation/track-d.md` (detailed track ticket definitions and verification gates)
+10. `docs/implementation/audit-traceability-matrix.md` (single-source requirement/audit/ticket/test coverage mapping and status)
+11. `docs/implementation/assets-pipeline.md` (visual/audio asset creation, optimization, and validation workflow)
+12. `docs/deployment/github-pages.md` (GitHub Pages publishing options and static-hosting constraints)
 
 ### 📌 Source Of Truth Policy
 
-- Implementation constraints, architecture boundaries, and audit verification categories: `AGENTS.md`
 - Requirement intent and feature scope: `docs/requirements.md` + `docs/game-description.md`
 - Final pass/fail acceptance criteria: `docs/audit.md`
+- Implementation constraints, architecture boundaries, and audit verification categories: `AGENTS.md`
 - Ticket execution progress and dependency/block mapping board: `docs/implementation/ticket-tracker.md`
 - Canonical ticket ID index for branch enforcement: `docs/implementation/ticket-tracker.md`
 - PR message and gate workflow: `docs/implementation/agentic-workflow-guide.md#12-pr-message-and-gate-workflow`
@@ -486,6 +494,7 @@ tests/
     - Semi-Automatable: `F-17`, `F-18`, `B-05`
     - Manual-With-Evidence: `F-19`, `F-20`, `F-21`, `B-06`
 - The project is complete only when all mapped automated checks pass and required manual evidence artifacts are attached.
+- See the [Phase Testing & Verification Report](file:///home/ertval/code/zone-modules/make-your-game/docs/audit-reports/phase-testing-verification-report.md) for detailed testing instructions and exit criteria for each phase.
 
 ---
 
@@ -501,7 +510,7 @@ tests/
 | **HTML5** | Semantic page structure |
 | **CSS3** | Grid layout, animations, styling |
 | **Vite** | Dev server, bundler |
-| **Biome** | Linting + formatting |
+| **Biome** | Check + fix (linting + formatting) |
 | **Vitest** | Unit testing |
 | **SVG** | Sprites and visual assets |
 | **Web Workers (profiling-gated)** | Optional offload for heavy computations only when profiling shows > 4 ms/frame main-thread impact |
@@ -532,7 +541,7 @@ tests/
 6. Core systems MUST remain pure functions handling data components; systems MUST access adapters via World resources and MUST NOT import adapters directly (including `render-dom-system.js`).
 7. Run baseline checks locally: `npm run ci` for the standard local wrapper, plus any scope-specific tests (`npm run test:unit`, `npm run test:integration`, `npm run test:e2e`, `npm run test:audit`).
 8. Run the all-in-one PR gate before opening the PR: `npm run policy`.
-9. Use `npm run policy:repo` and narrow reruns (`policy:quality`, `policy:checks:local`, `policy:checks`, `policy:forbid`, `policy:header`, `policy:forbidrepo`, `policy:headerrepo`, `policy:trace`, `policy:approve`) only as needed for troubleshooting. If a branch is intentionally docs/process-only, mark the PR body with `process` so the gate can classify it without a ticket ID.
+9. Use `npm run policy:repo` and narrow reruns (`policy:quality`, `policy:checks:local`, `policy:checks`, `policy:forbidden`, `policy:header`, `policy:forbiddenrepo`, `policy:headerrepo`, `policy:trace`, `policy:approve`) only as needed for troubleshooting. If a branch is intentionally docs/process-only, mark the PR body with `process` so the gate can classify it without a ticket ID.
 10. CI MUST pass all merge gates (schema validation, testing, lockfile integrity, policy gate) before merge. When coverage/SBOM scripts are configured, those gates MUST also pass.
 11. The policy gate workflow enforces PR review, audit alignment, security boundaries, and dependency pairing.
 12. Request review at integration milestones.
@@ -540,6 +549,8 @@ tests/
 ---
 
 ## 📄 License
+
+This project is licensed under the **GNU General Public License v3.0**. See the [LICENSE](LICENSE) file for the full text.
 
 This project is developed as an educational exercise for strict data-oriented ECS and high-performance DOM constraints.
 

@@ -6,7 +6,12 @@
  * and use typed arrays because the represented values are numeric, enum-like,
  * or grid-aligned.
  *
+ * Runtime status:
+ * - `bomb` and `fire` are part of the active runtime bootstrap path.
+ * - `pellet` and `powerUp` remain planned gameplay scaffolding.
+ *
  * Public API:
+ * - PROP_STORE_RUNTIME_STATUS: runtime/bootstrap status for each prop store.
  * - PROP_POWER_UP_TYPE: ticket-aligned power-up type enum values.
  * - createBombStore(maxEntities): allocate typed arrays for bomb state.
  * - resetBomb(store, entityId): clear one bomb slot back to defaults.
@@ -21,8 +26,8 @@
  * - Bombs and fire are tile-locked, so row/col use Int32Array instead of
  *   Float64Array because they represent discrete grid cells rather than
  *   fractional movement positions.
- * - Owner and sprite-like identifiers use -1 as the "unassigned" sentinel,
- *   which requires Int32Array rather than an unsigned array.
+ * - Owner, source, and sprite-like identifiers use -1 as the "unassigned"
+ *   sentinel, which requires Int32Array rather than an unsigned array.
  * - Pellet and power-up variants are enum/flag values, so compact integer
  *   arrays are sufficient and avoid per-entity object allocation.
  */
@@ -41,7 +46,19 @@ export const PROP_POWER_UP_TYPE = Object.freeze({
 });
 
 /**
+ * Declarative runtime/bootstrap status for prop stores.
+ * This metadata is descriptive only and must not be treated as a registration API.
+ */
+export const PROP_STORE_RUNTIME_STATUS = Object.freeze({
+  bomb: 'active',
+  fire: 'active',
+  pellet: 'planned',
+  powerUp: 'planned',
+});
+
+/**
  * Allocate the typed-array store for bomb gameplay state.
+ * This store is part of the active runtime contract today.
  *
  * @param {number} maxEntities - Total entity capacity for the world.
  * @returns {BombStore} Fresh bomb store with canonical defaults.
@@ -75,6 +92,7 @@ export function resetBomb(store, entityId) {
 
 /**
  * Allocate the typed-array store for fire-tile gameplay state.
+ * This store is part of the active runtime contract today.
  *
  * @param {number} maxEntities - Total entity capacity for the world.
  * @returns {FireStore} Fresh fire store with canonical defaults.
@@ -86,6 +104,9 @@ export function createFireStore(maxEntities) {
     // Fire occupies discrete map cells, so integer coordinates are enough.
     row: new Int32Array(maxEntities),
     col: new Int32Array(maxEntities),
+    // Source bomb and chain depth let later collision/scoring code group kills.
+    sourceBombId: new Int32Array(maxEntities).fill(-1),
+    chainDepth: new Uint8Array(maxEntities),
   };
 }
 
@@ -99,10 +120,14 @@ export function resetFire(store, entityId) {
   store.burnTimerMs[entityId] = FIRE_DURATION_MS;
   store.row[entityId] = 0;
   store.col[entityId] = 0;
+  store.sourceBombId[entityId] = -1;
+  store.chainDepth[entityId] = 0;
 }
 
 /**
  * Allocate the typed-array store for power-up state.
+ * This store is planned scaffolding and is not part of the active runtime
+ * bootstrap contract yet.
  *
  * @param {number} maxEntities - Total entity capacity for the world.
  * @returns {PowerUpStore} Fresh power-up store with canonical defaults.
@@ -126,6 +151,8 @@ export function resetPowerUp(store, entityId) {
 
 /**
  * Allocate the typed-array store for pellet state.
+ * This store is planned scaffolding and is not part of the active runtime
+ * bootstrap contract yet.
  *
  * @param {number} maxEntities - Total entity capacity for the world.
  * @returns {PelletStore} Fresh pellet store with "regular pellet" defaults.

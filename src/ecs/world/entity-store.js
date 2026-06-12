@@ -8,12 +8,16 @@
  */
 
 export class EntityStore {
-  constructor({ maxEntities = 10_000 } = {}) {
+  constructor({ maxEntities = 550 } = {}) {
     this.maxEntities = maxEntities;
     this.generations = [];
     this.activeFlags = [];
     this.freeIds = [];
     this.activeCount = 0;
+  }
+
+  isValidId(id) {
+    return Number.isInteger(id) && id >= 0 && id < this.generations.length;
   }
 
   create() {
@@ -47,10 +51,7 @@ export class EntityStore {
 
     const { id, generation } = handle;
     return (
-      id >= 0 &&
-      id < this.generations.length &&
-      this.activeFlags[id] === true &&
-      this.generations[id] === generation
+      this.isValidId(id) && this.activeFlags[id] === true && this.generations[id] === generation
     );
   }
 
@@ -77,6 +78,37 @@ export class EntityStore {
       }
     }
 
-    return activeIds;
+    return Object.freeze(activeIds);
+  }
+
+  destroyAll() {
+    let count = 0;
+    for (let id = 0; id < this.activeFlags.length; id += 1) {
+      if (this.activeFlags[id] === true) {
+        this.activeFlags[id] = false;
+        this.generations[id] += 1;
+        this.freeIds.push(id);
+        count += 1;
+      }
+    }
+    this.activeCount = 0;
+    return count;
+  }
+
+  getActiveHandles() {
+    const activeHandles = [];
+
+    for (let id = 0; id < this.activeFlags.length; id += 1) {
+      if (this.activeFlags[id] !== true) {
+        continue;
+      }
+
+      activeHandles.push({
+        id,
+        generation: this.generations[id],
+      });
+    }
+
+    return activeHandles;
   }
 }

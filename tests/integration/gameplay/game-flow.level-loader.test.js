@@ -29,6 +29,55 @@ function loadMap(levelNumber) {
 }
 
 describe('game-flow + level-loader integration', () => {
+  it('transitions to VICTORY after completing the final level', () => {
+    const world = new World();
+    const preloadedMaps = [loadMap(1), loadMap(2), loadMap(3)];
+    const levelLoader = createLevelLoader({
+      loadMapForLevel: createSyncMapLoader(preloadedMaps),
+      totalLevels: preloadedMaps.length,
+      world,
+    });
+    const gameFlow = createGameFlow({
+      clock: createClock(0),
+      gameStatus: createGameStatus(GAME_STATE.MENU),
+      levelLoader,
+      world,
+    });
+
+    expect(gameFlow.startGame({ levelIndex: 2 })).toBe(true);
+    const finalMap = world.getResource('mapResource');
+    expect(finalMap.level).toBe(3);
+
+    expect(gameFlow.setState(GAME_STATE.LEVEL_COMPLETE)).toBe(true);
+    expect(gameFlow.startGame()).toBe(true);
+    expect(gameFlow.getSnapshot().state).toBe(GAME_STATE.VICTORY);
+    expect(levelLoader.getCurrentLevelIndex()).toBe(2);
+    expect(world.getResource('mapResource')).toBe(finalMap);
+  });
+
+  it('fails closed on startup when the requested map cannot be loaded', () => {
+    const world = new World();
+    const previousMap = { id: 'last-known-good-map' };
+    world.setResource('mapResource', previousMap);
+
+    const levelLoader = createLevelLoader({
+      loadMapForLevel: () => null,
+      totalLevels: 3,
+      world,
+    });
+    const gameFlow = createGameFlow({
+      clock: createClock(0),
+      gameStatus: createGameStatus(GAME_STATE.MENU),
+      levelLoader,
+      world,
+    });
+
+    expect(gameFlow.startGame({ levelIndex: 0 })).toBe(false);
+    expect(gameFlow.getSnapshot().state).toBe(GAME_STATE.MENU);
+    expect(levelLoader.getCurrentLevelIndex()).toBe(0);
+    expect(world.getResource('mapResource')).toBe(previousMap);
+  });
+
   it('loads level resources into the world and advances to the next level', () => {
     const world = new World();
     const preloadedMaps = [loadMap(1), loadMap(2), loadMap(3)];
@@ -84,5 +133,32 @@ describe('game-flow + level-loader integration', () => {
 
     expect(restartedMap).not.toBe(mapBeforeRestart);
     expect(getCell(restartedMap, 1, 6)).toBe(CELL_TYPE.DESTRUCTIBLE);
+  });
+
+  it('tears down active entities on restart without leaking stale handles', () => {
+    const world = new World();
+    const preloadedMaps = [loadMap(1)];
+    const levelLoader = createLevelLoader({
+      loadMapForLevel: createSyncMapLoader(preloadedMaps),
+      totalLevels: preloadedMaps.length,
+      world,
+    });
+    const gameFlow = createGameFlow({
+      clock: createClock(0),
+      gameStatus: createGameStatus(GAME_STATE.MENU),
+      levelLoader,
+      world,
+    });
+
+    expect(gameFlow.startGame({ levelIndex: 0 })).toBe(true);
+    const firstEntity = world.createEntity(0b0001);
+    const secondEntity = world.createEntity(0b0010);
+
+    expect(world.getEntityCount()).toBe(2);
+    expect(gameFlow.restartLevel()).toBe(true);
+
+    expect(world.getEntityCount()).toBe(0);
+    expect(world.isEntityAlive(firstEntity)).toBe(false);
+    expect(world.isEntityAlive(secondEntity)).toBe(false);
   });
 });

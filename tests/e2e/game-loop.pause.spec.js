@@ -18,7 +18,26 @@ test('keeps rAF active while paused and freezes simulation progression', async (
     window.__MS_GHOSTMAN_RUNTIME__.startGame();
   });
 
-  await page.waitForTimeout(200);
+  // Wait until the runtime has advanced AND the frame probe has at least one
+  // post-warmup sample. The probe discards the first ~30 frames as boot-jank
+  // warmup, so polling on the runtime frame counter alone can race ahead of
+  // the probe and leave sampleCount at 0 when the pause snapshot is taken.
+  await expect
+    .poll(
+      async () => {
+        return page.evaluate(() => window.__MS_GHOSTMAN_RUNTIME__.getSnapshot().frame);
+      },
+      { timeout: 5_000 },
+    )
+    .toBeGreaterThanOrEqual(1);
+  await expect
+    .poll(
+      async () => {
+        return page.evaluate(() => window.__MS_GHOSTMAN_FRAME_PROBE__.getStats().sampleCount);
+      },
+      { timeout: 5_000 },
+    )
+    .toBeGreaterThanOrEqual(1);
 
   const beforePause = await page.evaluate(() => window.__MS_GHOSTMAN_RUNTIME__.getSnapshot());
 
@@ -26,7 +45,16 @@ test('keeps rAF active while paused and freezes simulation progression', async (
     window.__MS_GHOSTMAN_RUNTIME__.pause();
   });
 
-  await page.waitForTimeout(200);
+  await expect
+    .poll(
+      async () => {
+        return page.evaluate(() => window.__MS_GHOSTMAN_RUNTIME__.getSnapshot().isPaused);
+      },
+      {
+        timeout: 5_000,
+      },
+    )
+    .toBe(true);
 
   const pausedSnapshot = await page.evaluate(() => {
     return {
@@ -35,7 +63,24 @@ test('keeps rAF active while paused and freezes simulation progression', async (
     };
   });
 
-  await page.waitForTimeout(200);
+  await expect
+    .poll(
+      async () => {
+        return page.evaluate(() => {
+          return {
+            frame: window.__MS_GHOSTMAN_RUNTIME__.getSnapshot().frame,
+            sampleCount: window.__MS_GHOSTMAN_FRAME_PROBE__.getStats().sampleCount,
+          };
+        });
+      },
+      {
+        timeout: 5_000,
+      },
+    )
+    .toEqual({
+      frame: pausedSnapshot.runtime.frame,
+      sampleCount: expect.any(Number),
+    });
 
   const pausedSnapshotLater = await page.evaluate(() => {
     return {

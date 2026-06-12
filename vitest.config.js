@@ -1,3 +1,10 @@
+/*
+ * Vitest configuration.
+ * Purpose: Defines test discovery, environment, and coverage thresholds.
+ * Public API: N/A (config module).
+ * Implementation Notes: Coverage tracks all src recursive .js files for threshold enforcement.
+ */
+
 import { defineConfig } from 'vitest/config';
 
 export default defineConfig({
@@ -8,8 +15,14 @@ export default defineConfig({
     coverage: {
       provider: 'v8',
       reporter: ['text', 'html'],
-      include: ['src/**/*.js', 'tests/**/*.js'],
-      exclude: ['tests/e2e/**'],
+      all: true,
+      include: ['src/**/*.js'],
+      thresholds: {
+        branches: 85,
+        functions: 85,
+        lines: 90,
+        statements: 90,
+      },
     },
   },
 });

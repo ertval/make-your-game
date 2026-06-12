@@ -8,10 +8,64 @@
   </head>
   <body>
     <main id="app" class="app-shell">
-      <section id="hud" aria-label="Game HUD"></section>
-      <section id="game-board" aria-label="Game Board"></section>
-      <section id="overlay-root" aria-live="polite"></section>
+      <section id="hud" aria-label="Game HUD">
+        <p class="hud__metric" data-hud="timer"><span class="hud__label">Timer:</span> <span class="hud__value" data-hud-value>0:00</span></p>
+        <p class="hud__metric" data-hud="score"><span class="hud__label">Score:</span> <span class="hud__value" data-hud-value>00000</span></p>
+        <p class="hud__metric" data-hud="lives"><span class="hud__label">Lives:</span> <span class="hud__value" data-hud-value>3</span></p>
+        <p class="hud__metric" data-hud="bombs"><span class="hud__label">Bombs:</span> <span class="hud__value" data-hud-value>0</span></p>
+        <p class="hud__metric" data-hud="fire"><span class="hud__label">Fire:</span> <span class="hud__value" data-hud-value>0</span></p>
+        <p class="hud__metric" data-hud="level"><span class="hud__label">Level:</span> <span class="hud__value" data-hud-value>1</span></p>
+        <p data-hud="status" aria-live="polite" aria-atomic="true"></p>
+      </section>
+      <section id="game-board" aria-label="Game Board" tabindex="-1"></section>
+      <section id="overlay-root" class="overlay-container" role="dialog" aria-modal="true">
+        <div id="overlay-error" aria-live="assertive" role="alert" class="is-screen-hidden"></div>
+        <section data-screen="start" class="screen-overlay is-screen-hidden" aria-hidden="true" tabindex="-1">
+          <div class="overlay__panel">
+            <h1>Ms. Ghostman</h1>
+            <div class="overlay__actions">
+              <button type="button" data-option data-action="start-primary">Start Game</button>
+              <button type="button" data-option data-action="start-secondary">High Scores</button>
+            </div>
+          </div>
+        </section>
+        <section data-screen="pause" class="screen-overlay is-screen-hidden" aria-hidden="true" tabindex="-1">
+          <div class="overlay__panel">
+            <h2>Paused</h2>
+            <div class="overlay__actions">
+              <button type="button" data-option data-action="pause-continue">Continue</button>
+              <button type="button" data-option data-action="pause-restart">Restart</button>
+            </div>
+          </div>
+        </section>
+        <section data-screen="level-complete" class="screen-overlay is-screen-hidden" aria-hidden="true" tabindex="-1">
+          <div class="overlay__panel">
+            <h2>Level Complete</h2>
+            <div class="overlay__actions">
+              <button type="button" data-option data-action="level-next">Next Level</button>
+            </div>
+          </div>
+        </section>
+        <section data-screen="game-over" class="screen-overlay is-screen-hidden" aria-hidden="true" tabindex="-1">
+          <div class="overlay__panel">
+            <h2>Game Over</h2>
+            <p data-high-score></p>
+            <div class="overlay__actions">
+              <button type="button" data-option data-action="gameover-play-again">Play Again</button>
+            </div>
+          </div>
+        </section>
+        <section data-screen="victory" class="screen-overlay is-screen-hidden" aria-hidden="true" tabindex="-1">
+          <div class="overlay__panel">
+            <h2>Victory!</h2>
+            <p data-high-score></p>
+            <div class="overlay__actions">
+              <button type="button" data-option data-action="victory-play-again">Play Again</button>
+            </div>
+          </div>
+        </section>
+      </section>
     </main>
-    <script type="module" src="/src/main.ecs.js"></script>
+    <script type="module" src="/src/main.js"></script>
   </body>
 </html>

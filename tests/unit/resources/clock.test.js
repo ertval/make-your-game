@@ -20,6 +20,7 @@ describe('clock', () => {
   it('creates a clock with zeroed initial state', () => {
     const clock = createClock(0);
     expect(clock.lastFrameTime).toBe(0);
+    expect(clock.realTimeMs).toBe(0);
     expect(clock.simTimeMs).toBe(0);
     expect(clock.accumulator).toBe(0);
     expect(clock.alpha).toBe(0);
@@ -91,8 +92,6 @@ describe('clock', () => {
     resetClock(clock, 3000);
 
     // The next tick after reset should NOT produce a burst of steps.
-    // Use a gap of 2× fixedDtMs to avoid floating-point edge cases
-    // where (baseline + FIXED_DT_MS) - baseline < FIXED_DT_MS.
     const nextTick = 3000 + FIXED_DT_MS * 2;
     const steps = tickClock(clock, nextTick);
     expect(steps).toBe(2);
@@ -110,10 +109,45 @@ describe('clock', () => {
     expect(clock.alpha).toBe(0);
   });
 
-  it('handles negative or zero delta gracefully', () => {
+  it('handles negative or zero delta gracefully (BUG-06)', () => {
     const clock = createClock(100);
     const steps = tickClock(clock, 50);
+    expect(steps).toBe(0); // Should not produce negative steps or synthetic progress
+    expect(clock.lastFrameTime).toBe(100); // Should stick to last known good time
+  });
+
+  it('prevents NaN propagation when tickClock is called with non-finite values (BUG-01)', () => {
+    const clock = createClock(100);
+    const steps = tickClock(clock, NaN);
+    expect(steps).toBe(0);
+    expect(clock.lastFrameTime).toBe(100);
+    expect(clock.realTimeMs).toBe(100);
+  });
+
+  it('prevents NaN delta when resetClock is called with undefined (BUG-01)', () => {
+    const clock = createClock(100);
+    resetClock(clock, undefined);
+    expect(clock.lastFrameTime).toBeUndefined();
+    // Subsequent tick should handle undefined baseline gracefully
+    const steps = tickClock(clock, 200);
     expect(steps).toBeGreaterThanOrEqual(0);
+    expect(clock.lastFrameTime).toBe(200);
+  });
+
+  it('clamps large deltas using maxStepsPerFrame instead of hardcoded multiplier (BUG-09)', () => {
+    const clock = createClock(0);
+    const largeGap = 10_000;
+    const steps = tickClock(clock, largeGap);
+    // Should be exactly MAX_STEPS_PER_FRAME, not 10 steps.
+    expect(steps).toBe(MAX_STEPS_PER_FRAME);
+  });
+
+  it('uses epsilon-safe clamp for leftover accumulator (BUG-X03)', () => {
+    const clock = createClock(0);
+    clock.accumulator = FIXED_DT_MS; // Edge case: exactly one step leftover
+    tickClock(clock, 0); // Trigger clamp logic
+    expect(clock.accumulator).toBeLessThan(FIXED_DT_MS);
+    expect(clock.alpha).toBeLessThan(1);
   });
 
   it('computes correct alpha after partial step', () => {
