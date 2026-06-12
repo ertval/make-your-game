@@ -17,7 +17,7 @@ import {
 import {
   createRenderIntentBuffer,
   resetRenderIntentBuffer,
-} from '../../../src/ecs/render-intent.js';
+} from '../../../src/ecs/resources/render-intent.js';
 import { World } from '../../../src/ecs/world/world.js';
 
 const MAX_ENTITIES = 16;

@@ -14,12 +14,12 @@ import {
   createVisualStateStore,
   RENDERABLE_KIND,
 } from '../../../src/ecs/components/visual.js';
+import { BOMB_FUSE_MS, VISUAL_FLAGS } from '../../../src/ecs/resources/constants.js';
 import {
   createRenderIntentBuffer,
   getRenderIntentView,
   resetRenderIntentBuffer,
-} from '../../../src/ecs/render-intent.js';
-import { BOMB_FUSE_MS, VISUAL_FLAGS } from '../../../src/ecs/resources/constants.js';
+} from '../../../src/ecs/resources/render-intent.js';
 import {
   createRenderCollectSystem,
   RENDER_COLLECT_REQUIRED_MASK,

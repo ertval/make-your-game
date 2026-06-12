@@ -226,7 +226,7 @@ describe('policy-utils ticket and process detection', () => {
     expect(TRACK_OWNERSHIP_RULES.D.patterns).toEqual(
       expect.arrayContaining([
         'src/ecs/resources/**',
-        'src/ecs/render-intent.js',
+        'src/ecs/resources/render-intent.js',
         'src/ecs/systems/render-*.js',
         'src/adapters/dom/renderer-*.js',
         'src/adapters/dom/sprite-pool-*.js',
