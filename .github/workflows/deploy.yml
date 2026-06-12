@@ -4,7 +4,6 @@ on:
   push:
     branches:
       - main
-      - ekaramet/bugfix-gh-pages-deployment
   workflow_dispatch:
 
 permissions:
