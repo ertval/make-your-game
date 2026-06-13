@@ -6,12 +6,16 @@
  * any future runtime cell mutation).
  *
  * Public API:
- * - createBoardSyncSystem(boardAdapter, options) — factory; returns a render-phase system.
+ * - createBoardSyncSystem(options) — factory; returns a render-phase system.
  *
  * Implementation notes:
  * - Reads the canonical `mapResource.grid` each render frame and diffs
  *   against a locally-cached snapshot of the last DOM cell types. Any cell
  *   that changed is committed via boardAdapter.updateCell(row, col, type).
+ * - ARCH-02 (#154): The board adapter is accessed via
+ *   `context.world.getResource('boardAdapter')`, NOT a closure parameter, so
+ *   the system follows the same resource-injection contract as every other
+ *   adapter consumer and stays auditable/testable through the resource API.
  * - This is intent-independent: a producer that mutates the map via
  *   `setCell()` (e.g. explosion-system destroying a destructible wall — see
  *   issue #85) is picked up the next render frame even when no
@@ -19,6 +23,11 @@
  *   missed due to a logic/render-phase race (see issue #104).
  * - Snapshot is lazily allocated on the first frame after map dimensions
  *   stabilize and re-allocated when dimensions change (level transitions).
+ * - ARCH-06 (#158): on restart / level-load the bootstrap flips
+ *   `world.renderFrame` to 0 and `generateBoard()` repaints the whole board
+ *   from the fresh grid. The stale snapshot is dropped on the frame-0 commit so
+ *   the diff does not re-emit ~165 redundant `updateCell` writes (visible flash
+ *   on constrained devices) against the previous run's mutated grid.
  * - Runs in the render phase so DOM writes batch with sprite writes.
  *
  * Constraints:
@@ -27,9 +36,12 @@
  */
 
 const DEFAULT_MAP_RESOURCE_KEY = 'mapResource';
+const DEFAULT_BOARD_ADAPTER_RESOURCE_KEY = 'boardAdapter';
 
-export function createBoardSyncSystem(boardAdapter, options = {}) {
+export function createBoardSyncSystem(options = {}) {
   const mapResourceKey = options.mapResourceKey || DEFAULT_MAP_RESOURCE_KEY;
+  const boardAdapterResourceKey =
+    options.boardAdapterResourceKey || DEFAULT_BOARD_ADAPTER_RESOURCE_KEY;
 
   /** @type {Uint8Array | null} Cached snapshot of last-committed cell types. */
   let snapshot = null;
@@ -56,14 +68,27 @@ export function createBoardSyncSystem(boardAdapter, options = {}) {
     name: 'board-sync-system',
     phase: 'render',
     resourceCapabilities: {
-      read: [mapResourceKey],
+      read: [mapResourceKey, boardAdapterResourceKey],
     },
     update(context) {
+      const boardAdapter = context.world.getResource(boardAdapterResourceKey);
       const mapResource = context.world.getResource(mapResourceKey);
-      if (!mapResource?.grid) return;
+      // Without a board adapter there is nowhere to commit cell writes; bail so
+      // headless tests (no DOM adapter) and pre-injection frames are safe no-ops.
+      if (!boardAdapter || !mapResource?.grid) return;
 
       const { rows, cols, grid } = mapResource;
       if (rows <= 0 || cols <= 0) return;
+
+      // ARCH-06 (#158): Restart / level-load resets `renderFrame` to 0 and
+      // `generateBoard()` has already repainted the full board from the fresh
+      // grid. Re-baseline the snapshot to that fresh grid so the diff below does
+      // not replay the previous run's mutations as ~165 redundant DOM writes.
+      // Mirrors render-dom-system's frame-0 restart handling for consistency.
+      if (context.renderFrame === 0) {
+        syncSnapshotFromGrid(grid, rows, cols);
+        return;
+      }
 
       // Snapshot lifecycle: lazy-init on first frame; resize on level switch.
       // Initial value mirrors the map so the very first render frame is a

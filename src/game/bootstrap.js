@@ -956,6 +956,10 @@ export function createBootstrap(options = {}) {
   world.setResource('levelLoader', levelLoader);
   world.setResource('renderIntent', createRenderIntentBuffer());
   world.setResource('spritePool', spritePool);
+  // ARCH-02 (#154): Register the board adapter as a world resource so
+  // board-sync-system reads it via the resource API rather than a closure
+  // param, keeping adapter access consistent and auditable.
+  world.setResource(options.boardAdapterResourceKey || 'boardAdapter', boardAdapter);
 
   // Initialize HUD-related resources
   world.setResource('scoreState', createDefaultScoreState());
@@ -985,7 +989,9 @@ export function createBootstrap(options = {}) {
     ),
   );
 
-  world.registerSystem(createBoardSyncSystem(boardAdapter));
+  world.registerSystem(
+    createBoardSyncSystem({ boardAdapterResourceKey: options.boardAdapterResourceKey }),
+  );
   world.registerSystem(createPlayerAnimationSystem());
 
   function stepFrame(
