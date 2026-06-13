@@ -447,9 +447,12 @@ export function createScreensAdapter(rootElement, options = {}) {
   }
 
   /**
-   * Write the persisted high score into the High Scores overlay's value node,
-   * formatted as a 5-digit zero-padded score (matching the game-over/victory
-   * readouts). Tolerates a missing node / non-numeric provider result.
+   * Render the persisted top-N high scores as ranked list rows inside the High
+   * Scores overlay (`[data-high-scores]`), each formatted as `"<rank>. <score>"`
+   * with a 5-digit zero-padded score (matching the game-over/victory readouts).
+   * Renders a single "No scores yet" row when the list is empty. Tolerates a
+   * missing node / non-array provider result, drops non-positive entries, and
+   * caps the list at MAX_HIGH_SCORE_ROWS.
    */
   function renderHighScores() {
     const screen = screens.highScores;
