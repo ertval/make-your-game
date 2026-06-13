@@ -198,4 +198,142 @@ describe('Replay Determinism Integration', () => {
     const rngC = bootstrapC.world.getResource('rng');
     expect(rngA.state).not.toBe(rngC.state);
   });
+
+  it('guarantees replay determinism on empty traces (no inputs)', () => {
+    // 1. Create a trace of 100 frames with no keys pressed or held
+    const trace = [];
+    for (let f = 0; f < 100; f += 1) {
+      trace.push({
+        pressed: [],
+        held: [],
+      });
+    }
+
+    // 2. Play back trace on bootstrap A
+    const bootstrapA = createBootstrap({
+      loadMapForLevel: () => createDeterminismMapResource(),
+      now: 0,
+      seed: 42,
+    });
+    const stepsA = runReplay(bootstrapA, trace);
+
+    // 3. Play back trace on bootstrap B
+    const bootstrapB = createBootstrap({
+      loadMapForLevel: () => createDeterminismMapResource(),
+      now: 0,
+      seed: 42,
+    });
+    const stepsB = runReplay(bootstrapB, trace);
+
+    // 4. Assert both runs are exactly matching step-by-step
+    expect(stepsA.length).toBe(stepsB.length);
+    for (let i = 0; i < stepsA.length; i += 1) {
+      expect(stepsA[i].frame).toBe(stepsB[i].frame);
+      expect(stepsA[i].hash).toBe(stepsB[i].hash);
+    }
+  });
+
+  it('guarantees replay determinism on dense inputs for 300 frames', () => {
+    // 1. Create a dense input trace
+    const trace = [];
+    const directions = ['up', 'right', 'down', 'left'];
+    for (let f = 0; f < 300; f += 1) {
+      const heldDir = directions[f % directions.length];
+      trace.push({
+        pressed: f % 10 === 0 ? ['bomb'] : [],
+        held: [heldDir],
+      });
+    }
+
+    // 2. Play back trace on bootstrap A
+    const bootstrapA = createBootstrap({
+      loadMapForLevel: () => createDeterminismMapResource(),
+      now: 0,
+      seed: 42,
+    });
+    const stepsA = runReplay(bootstrapA, trace);
+
+    // 3. Play back trace on bootstrap B
+    const bootstrapB = createBootstrap({
+      loadMapForLevel: () => createDeterminismMapResource(),
+      now: 0,
+      seed: 42,
+    });
+    const stepsB = runReplay(bootstrapB, trace);
+
+    // 4. Assert both runs are exactly matching step-by-step
+    expect(stepsA.length).toBe(stepsB.length);
+    for (let i = 0; i < stepsA.length; i += 1) {
+      expect(stepsA[i].frame).toBe(stepsB[i].frame);
+      expect(stepsA[i].hash).toBe(stepsB[i].hash);
+    }
+  });
+
+  it('guarantees replay determinism when keys are held across multiple frames', () => {
+    const trace = [];
+    for (let f = 0; f < 50; f += 1) {
+      const held = [];
+      const pressed = [];
+      if (f < 10) {
+        held.push('right');
+      } else if (f < 30) {
+        held.push('down');
+        if (f === 21) {
+          pressed.push('bomb');
+        }
+      }
+      trace.push({ pressed, held });
+    }
+
+    const bootstrapA = createBootstrap({
+      loadMapForLevel: () => createDeterminismMapResource(),
+      now: 0,
+      seed: 42,
+    });
+    const stepsA = runReplay(bootstrapA, trace);
+
+    const bootstrapB = createBootstrap({
+      loadMapForLevel: () => createDeterminismMapResource(),
+      now: 0,
+      seed: 42,
+    });
+    const stepsB = runReplay(bootstrapB, trace);
+
+    expect(stepsA.length).toBe(stepsB.length);
+    for (let i = 0; i < stepsA.length; i += 1) {
+      expect(stepsA[i].frame).toBe(stepsB[i].frame);
+      expect(stepsA[i].hash).toBe(stepsB[i].hash);
+    }
+  });
+
+  it('guarantees replay determinism with pause/resume sequences', () => {
+    const trace = [];
+    for (let f = 0; f < 40; f += 1) {
+      const pressed = [];
+      if (f === 11 || f === 26) {
+        pressed.push('pause');
+      }
+      trace.push({ pressed, held: [] });
+    }
+
+    const bootstrapA = createBootstrap({
+      loadMapForLevel: () => createDeterminismMapResource(),
+      now: 0,
+      seed: 42,
+    });
+    const stepsA = runReplay(bootstrapA, trace);
+
+    const bootstrapB = createBootstrap({
+      loadMapForLevel: () => createDeterminismMapResource(),
+      now: 0,
+      seed: 42,
+    });
+    const stepsB = runReplay(bootstrapB, trace);
+
+    expect(stepsA.length).toBe(stepsB.length);
+    for (let i = 0; i < stepsA.length; i += 1) {
+      expect(stepsA[i].frame).toBe(stepsB[i].frame);
+      expect(stepsA[i].hash).toBe(stepsB[i].hash);
+    }
+  });
 });

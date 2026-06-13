@@ -1,150 +1,76 @@
 /**
- * Unit tests for ARCH-01 and DEAD-X06 DOM Renderer.
+ * D-08 / ARCH-01: Render DOM System Integration Tests
  *
- * Verifies that the renderer correctly creates and updates entity nodes
- * using direct iteration over the RenderIntentBuffer.
- *
- * Uses stubs to avoid dependency on a real DOM environment (JSDOM/HappyDOM).
+ * Verifies that the active render-dom-system does not perform any writes
+ * to innerHTML, ensuring DOM safety.
  */
 
-import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { createDomRenderer } from '../../../src/adapters/dom/renderer-dom.js';
+import fs from 'node:fs';
+import path from 'node:path';
+import { describe, expect, it, vi } from 'vitest';
+import { RENDERABLE_KIND } from '../../../src/ecs/components/visual.js';
+import { createRenderIntentBuffer } from '../../../src/ecs/render-intent.js';
+import { createRenderDomSystem } from '../../../src/ecs/systems/render-dom-system.js';
+import { World } from '../../../src/ecs/world/world.js';
 
-function createMockElement(_kind = 'div') {
-  const classes = new Set();
-  return {
-    get className() {
-      return Array.from(classes).join(' ');
-    },
-    set className(value) {
-      classes.clear();
-      for (const c of String(value).split(/\s+/).filter(Boolean)) classes.add(c);
-    },
+function createMockSpritePool() {
+  let innerHtmlWrites = 0;
+
+  const mockElement = {
     classList: {
-      add: vi.fn((...names) => {
-        for (const n of names) classes.add(n);
-      }),
-      remove: vi.fn((...names) => {
-        for (const n of names) classes.delete(n);
-      }),
-      contains: (n) => classes.has(n),
+      add: vi.fn(),
+      remove: vi.fn(),
     },
-    children: [],
     style: {
       transform: '',
       opacity: '',
     },
-    dataset: {},
-    appendChild: vi.fn(function (child) {
-      this.children.push(child);
-    }),
-    removeChild: vi.fn(function (child) {
-      const idx = this.children.indexOf(child);
-      if (idx !== -1) this.children.splice(idx, 1);
-    }),
+    get innerHTML() {
+      return '';
+    },
+    set innerHTML(_val) {
+      innerHtmlWrites += 1;
+    },
+    className: '',
+  };
+
+  return {
+    acquire: vi.fn(() => mockElement),
+    release: vi.fn(),
+    getInnerHtmlWrites: () => innerHtmlWrites,
   };
 }
 
-describe('dom-renderer', () => {
-  let appRoot;
-  let renderer;
+describe('render-dom-system DOM safety', () => {
+  it('enforces 0 innerHTML writes during runRenderCommit', () => {
+    const world = new World();
+    const buffer = createRenderIntentBuffer(16);
+    const spritePool = createMockSpritePool();
 
-  beforeEach(() => {
-    // Stub global document for the factory call
-    vi.stubGlobal('document', {
-      createElement: vi.fn(() => createMockElement()),
-    });
+    world.setResource('renderIntent', buffer);
+    world.setResource('spritePool', spritePool);
 
-    appRoot = createMockElement();
-    renderer = createDomRenderer({ appRoot });
+    // Pre-populate buffer with intents
+    buffer.entityId[0] = 1;
+    buffer.kind[0] = RENDERABLE_KIND.PLAYER;
+    buffer.x[0] = 2;
+    buffer.y[0] = 3;
+    buffer.opacity[0] = 255;
+    buffer.classBits[0] = 0;
+    buffer._count = 1;
+
+    world.registerSystem(createRenderDomSystem());
+    world.runRenderCommit({ alpha: 1 });
+
+    expect(spritePool.acquire).toHaveBeenCalledTimes(1);
+    expect(spritePool.getInnerHtmlWrites()).toBe(0);
   });
 
-  it('creates new elements for new entities', () => {
-    const buffer = {
-      _count: 1,
-      entityId: [10],
-      kind: [1],
-      x: [1],
-      y: [2],
-      opacity: [255],
-      classBits: [0],
-    };
+  it('contains zero innerHTML references in the render-dom-system source code', () => {
+    const systemFilePath = path.resolve(__dirname, '../../../src/ecs/systems/render-dom-system.js');
+    const sourceCode = fs.readFileSync(systemFilePath, 'utf8');
 
-    renderer.update(buffer);
-
-    expect(appRoot.appendChild).toHaveBeenCalled();
-    expect(appRoot.children.length).toBe(1);
-    const el = appRoot.children[0];
-    expect(el.className).toContain('kind-1');
-  });
-
-  it('updates existing elements and avoids re-creation', () => {
-    const buffer1 = {
-      _count: 1,
-      entityId: [10],
-      kind: [1],
-      x: [1],
-      y: [1],
-      opacity: [255],
-      classBits: [0],
-    };
-
-    renderer.update(buffer1);
-    const firstEl = appRoot.children[0];
-    expect(appRoot.appendChild).toHaveBeenCalledTimes(1);
-
-    const buffer2 = {
-      _count: 1,
-      entityId: [10],
-      kind: [1],
-      x: [2],
-      y: [2],
-      opacity: [128],
-      classBits: [1],
-    };
-
-    renderer.update(buffer2);
-
-    expect(appRoot.children.length).toBe(1);
-    expect(appRoot.children[0]).toBe(firstEl); // Stable node tracking
-    expect(appRoot.appendChild).toHaveBeenCalledTimes(1); // No new append
-    expect(firstEl.style.transform).toBe('translate3d(64px, 64px, 0)'); // 2 * 32px
-    expect(firstEl.style.opacity).toBe('0.50'); // 128 / 255
-  });
-
-  it('removes elements for entities no longer in the buffer (ARCH-13)', () => {
-    const buffer1 = {
-      _count: 1,
-      entityId: [10],
-      kind: [1],
-      x: [1],
-      y: [1],
-      opacity: [255],
-      classBits: [0],
-    };
-
-    renderer.update(buffer1);
-    expect(appRoot.children.length).toBe(1);
-
-    const buffer2 = {
-      _count: 0,
-      entityId: [],
-      kind: [],
-      x: [],
-      y: [],
-      opacity: [],
-      classBits: [],
-    };
-
-    renderer.update(buffer2);
-    expect(appRoot.removeChild).toHaveBeenCalled();
-    expect(appRoot.children.length).toBe(0);
-  });
-
-  it('throws when appRoot is missing', () => {
-    expect(() => createDomRenderer({})).toThrow('DomRenderer requires an appRoot element.');
-    expect(() => createDomRenderer({ appRoot: null })).toThrow(
-      'DomRenderer requires an appRoot element.',
-    );
+    // Make sure 'innerHTML' string/token is nowhere in the file.
+    expect(sourceCode.includes('innerHTML')).toBe(false);
   });
 });

@@ -113,6 +113,15 @@ export function serializeWorldState(world) {
     };
   }
 
+  // Map Resource
+  const mapResource = world.getResource('mapResource');
+  if (mapResource) {
+    state.resources.mapResource = {
+      level: mapResource.level,
+      grid: Array.from(mapResource.grid),
+    };
+  }
+
   // Entities
   const activeHandles = world.getActiveEntityHandles() || [];
   // Sort by ID to ensure stable order

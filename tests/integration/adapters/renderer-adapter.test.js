@@ -8,16 +8,31 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { createBoardAdapter } from '../../../src/adapters/dom/renderer-adapter.js';
 
 function createMockDocument() {
+  const createdElements = [];
   return {
-    createElement: vi.fn(() => ({
-      classList: { add: vi.fn() },
-      style: { setProperty: vi.fn() },
-      children: [],
-      innerHTML: '',
-      setAttribute: vi.fn(),
-      appendChild: vi.fn(),
-      parentNode: null,
-    })),
+    createdElements,
+    createElement: vi.fn(() => {
+      let innerHtmlWrites = 0;
+      const el = {
+        classList: { add: vi.fn() },
+        style: { setProperty: vi.fn() },
+        children: [],
+        get innerHTML() {
+          return '';
+        },
+        set innerHTML(_value) {
+          innerHtmlWrites += 1;
+        },
+        setAttribute: vi.fn(),
+        appendChild: vi.fn(),
+        parentNode: null,
+        getInnerHtmlWrites() {
+          return innerHtmlWrites;
+        },
+      };
+      createdElements.push(el);
+      return el;
+    }),
   };
 }
 
@@ -42,6 +57,16 @@ describe('board-adapter', () => {
     adapter.generateBoard(map, container);
 
     expect(mockDoc.createElement).toHaveBeenCalled();
+  });
+
+  it('does not write through innerHTML', () => {
+    const map = { rows: 2, cols: 3, grid: new Uint8Array(6), grid2D: [], activeGhostTypes: [] };
+    adapter.generateBoard(map, container);
+
+    expect(mockDoc.createdElements.length).toBeGreaterThan(0);
+    for (const el of mockDoc.createdElements) {
+      expect(el.getInnerHtmlWrites()).toBe(0);
+    }
   });
 
   it('throws on invalid map', () => {
