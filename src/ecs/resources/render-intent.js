@@ -26,9 +26,9 @@
  *   DOM system converts them to pixel translate3d values.
  */
 
-import { isDevelopment } from '../shared/env.js';
-import { RENDERABLE_KIND } from './components/visual.js';
-import { MAX_RENDER_INTENTS } from './resources/constants.js';
+import { isDevelopment } from '../../shared/env.js';
+import { RENDERABLE_KIND } from '../components/visual.js';
+import { MAX_RENDER_INTENTS } from './constants.js';
 
 /**
  * @typedef {Object} RenderIntentBuffer

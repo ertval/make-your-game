@@ -43,7 +43,6 @@ import {
   resetRenderable,
   resetVisualState,
 } from '../ecs/components/visual.js';
-import { createRenderIntentBuffer, resetRenderIntentBuffer } from '../ecs/render-intent.js';
 import {
   advanceSimTime,
   createClock,
@@ -61,6 +60,10 @@ import {
 } from '../ecs/resources/constants.js';
 import { createEventQueue } from '../ecs/resources/event-queue.js';
 import { createGameStatus } from '../ecs/resources/game-status.js';
+import {
+  createRenderIntentBuffer,
+  resetRenderIntentBuffer,
+} from '../ecs/resources/render-intent.js';
 import { createBoardSyncSystem } from '../ecs/systems/board-sync-system.js';
 import { createCollisionSystem } from '../ecs/systems/collision-system.js';
 import { createGhostAiSystem, GHOST_AI_REQUIRED_MASK } from '../ecs/systems/ghost-ai-system.js';

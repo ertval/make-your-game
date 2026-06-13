@@ -84,7 +84,7 @@ describe('level-loader', () => {
     const observed = [];
     const levelLoader = createLevelLoader({
       loadMapForLevel: (levelIndex) => maps[levelIndex] ?? null,
-      onLevelLoaded: (mapResource, meta) => {
+      onLevelLoaded: (_mapResource, meta) => {
         // The callback must see post-commit state: the world resource and the
         // loader index already reflect the map being loaded, not the prior one.
         observed.push({

@@ -417,7 +417,7 @@ export const TRACK_OWNERSHIP_RULES = {
     patterns: [
       'src/ecs/resources/**',
       'src/ecs/components/visual.js',
-      'src/ecs/render-intent.js',
+      'src/ecs/resources/render-intent.js',
       'src/ecs/systems/render-*.js',
       'src/adapters/dom/renderer-*.js',
       'src/adapters/dom/sprite-pool-*.js',
