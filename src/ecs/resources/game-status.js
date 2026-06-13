@@ -29,7 +29,7 @@
  * These correspond to the FSM nodes in the game flow.
  */
 export const GAME_STATE = {
-  /** Initial state — start screen with "Start Game" and "High Scores". */
+  /** Initial state — start screen with "Start Game" and "Settings". */
   MENU: 'MENU',
   /** Active gameplay — simulation running, player controlling character. */
   PLAYING: 'PLAYING',

@@ -14,9 +14,18 @@ import { expect } from '@playwright/test';
 /**
  * Boot the game runtime and wait for it to be ready.
  * Waits for both __MS_GHOSTMAN_RUNTIME__ and __MS_GHOSTMAN_FRAME_PROBE__.
+ *
+ * The runtime now boots into the MENU state (the Start Game overlay is shown)
+ * instead of auto-starting into PLAYING, so audio can unlock on the player's
+ * first gesture. By default this helper starts the game for backwards
+ * compatibility with specs that expect a populated board on load. Pass
+ * `{ autoStart: false }` to assert on the initial MENU/overlay state.
  * @param {import('@playwright/test').Page} page
+ * @param {object} [options]
+ * @param {boolean} [options.autoStart=true] - Start the game after boot.
  */
-export async function bootRuntime(page) {
+export async function bootRuntime(page, options = {}) {
+  const { autoStart = true } = options;
   await page.goto('/', { waitUntil: 'networkidle' });
   await page.waitForFunction(
     () =>
@@ -24,6 +33,9 @@ export async function bootRuntime(page) {
       window.__MS_GHOSTMAN_FRAME_PROBE__ !== undefined,
     { timeout: 5000 },
   );
+  if (autoStart) {
+    await startGameAndWait(page);
+  }
 }
 
 /**

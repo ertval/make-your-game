@@ -55,8 +55,10 @@ test('high score is displayed on game over screen', async ({ page }) => {
   await page.reload();
   await page.waitForFunction(() => window.__MS_GHOSTMAN_RUNTIME__ !== undefined);
 
-  // Trigger game over
+  // The runtime boots into MENU; GAME_OVER is only reachable from PLAYING, so
+  // start the game before triggering game over.
   await page.evaluate(() => {
+    window.__MS_GHOSTMAN_RUNTIME__.startGame({ levelIndex: 0 });
     window.__MS_GHOSTMAN_RUNTIME__.setState('GAME_OVER');
   });
 
