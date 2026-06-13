@@ -45,6 +45,7 @@ import { createInputAdapter } from './adapters/io/input-adapter.js';
 import {
   getAudioSettings,
   getHighScore,
+  getHighScores,
   saveHighScore,
   updateAudioSetting,
 } from './adapters/io/storage-adapter.js';
@@ -668,6 +669,8 @@ export async function bootstrapApplication({
         ? createScreensAdapter(overlayRoot, {
             gameplayElement: boardContainerElement,
             initialSettings: getAudioSettings(),
+            // C-05: the High Scores overlay reads the persisted top-N scores on open.
+            getHighScores,
             onSettingChange: handleSettingChange,
             onAction(action) {
               // The screens adapter calls onAction for every confirmed action

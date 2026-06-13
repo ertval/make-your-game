@@ -1,7 +1,7 @@
 /**
  * Storage adapter for local persistence behind a guarded JSON boundary.
  * Public API: safeRead(key, validate, defaultValue), safeWrite(key, value),
- * saveHighScore(score), getHighScore(),
+ * saveHighScore(score), getHighScore(), getHighScores(),
  * getAudioSettings(), saveAudioSettings(settings), updateAudioSetting(key, value).
  * Notes: This module avoids DOM usage, treats storage as untrusted input, and is
  * the ONLY module permitted to touch localStorage. Callers pass a
@@ -9,6 +9,9 @@
  * parses to an object but fails the caller's shape contract.
  */
 export const HIGH_SCORE_STORAGE_KEY = 'ms-ghostman.highScore';
+
+/** Max number of high scores retained in the top-N leaderboard. */
+export const MAX_HIGH_SCORES = 10;
 
 /** C-11A: persisted audio-settings key. */
 export const AUDIO_SETTINGS_STORAGE_KEY = 'ms-ghostman.audioSettings';
@@ -90,25 +93,71 @@ function normalizeHighScoreValue(score) {
   return Math.max(0, Math.floor(score));
 }
 
-export function saveHighScore(score) {
-  const currentHighScore = getHighScore();
-  const normalizedScore = normalizeHighScoreValue(score);
+/**
+ * Read the stored payload and normalize it into a sorted (descending) list of
+ * the top high scores.
+ *
+ * Backward compatible: legacy payloads shaped `{ score: N }` (written before the
+ * top-N list existed) are read as a single-entry list. Newer payloads carry a
+ * `scores` array. Any malformed entry is dropped, the list is sorted high→low,
+ * deduplicated by value, and capped at MAX_HIGH_SCORES.
+ *
+ * @returns {number[]} Up to MAX_HIGH_SCORES scores, descending.
+ */
+export function getHighScores() {
+  const parsedValue = safeRead(HIGH_SCORE_STORAGE_KEY, isHighScorePayload, { score: 0 });
 
-  if (normalizedScore > currentHighScore) {
-    safeWrite(HIGH_SCORE_STORAGE_KEY, {
-      score: normalizedScore,
-    });
+  const rawList = Array.isArray(parsedValue.scores)
+    ? parsedValue.scores
+    : typeof parsedValue.score === 'number'
+      ? [parsedValue.score]
+      : [];
+
+  const normalized = rawList
+    .map((value) => normalizeHighScoreValue(value))
+    .filter((value) => value > 0);
+
+  // Descending, unique, capped.
+  const unique = Array.from(new Set(normalized)).sort((a, b) => b - a);
+  return unique.slice(0, MAX_HIGH_SCORES);
+}
+
+/**
+ * Insert a finished-game score into the persisted top-N leaderboard. The list is
+ * kept sorted high→low and capped at MAX_HIGH_SCORES; the legacy `score` field
+ * (the single best) is written alongside `scores` for backward compatibility.
+ * A score of 0 (or invalid) is ignored.
+ *
+ * @param {number} score - The finished-game score to record.
+ */
+export function saveHighScore(score) {
+  const normalizedScore = normalizeHighScoreValue(score);
+  if (normalizedScore <= 0) {
+    return;
   }
+
+  const scores = getHighScores();
+  scores.push(normalizedScore);
+  const nextScores = Array.from(new Set(scores))
+    .sort((a, b) => b - a)
+    .slice(0, MAX_HIGH_SCORES);
+
+  safeWrite(HIGH_SCORE_STORAGE_KEY, {
+    // `score` stays the single best for legacy readers; `scores` is the top-N list.
+    score: nextScores[0] ?? 0,
+    scores: nextScores,
+  });
 }
 
 function isHighScorePayload(value) {
-  return typeof value.score === 'number' && Number.isFinite(value.score);
+  const hasScalar = typeof value.score === 'number' && Number.isFinite(value.score);
+  const hasList = Array.isArray(value.scores);
+  return hasScalar || hasList;
 }
 
 export function getHighScore() {
-  const parsedValue = safeRead(HIGH_SCORE_STORAGE_KEY, isHighScorePayload, { score: 0 });
-
-  return Math.max(0, Math.floor(parsedValue.score));
+  const [best = 0] = getHighScores();
+  return best;
 }
 
 /**

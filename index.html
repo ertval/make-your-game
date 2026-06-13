@@ -53,7 +53,19 @@
             <h1>Ms. Ghostman</h1>
             <div class="overlay__actions">
               <button type="button" data-option data-action="start-primary">Start Game</button>
+              <button type="button" data-option data-action="open-high-scores" data-high-scores-origin="start">High Scores</button>
               <button type="button" data-option data-action="open-settings" data-settings-origin="start">Settings</button>
+            </div>
+          </div>
+        </section>
+        <section data-screen="high-scores" class="screen-overlay is-screen-hidden" aria-hidden="true" tabindex="-1">
+          <div class="overlay__panel" role="group" aria-label="High scores">
+            <h2>High Scores</h2>
+            <ol class="high-scores__list" data-high-scores aria-live="polite">
+              <li class="high-scores__empty">No scores yet</li>
+            </ol>
+            <div class="overlay__actions">
+              <button type="button" data-option data-action="high-scores-back">Back</button>
             </div>
           </div>
         </section>
@@ -63,6 +75,7 @@
             <div class="overlay__actions">
               <button type="button" data-option data-action="pause-continue">Continue</button>
               <button type="button" data-option data-action="open-settings" data-settings-origin="pause">Settings</button>
+              <button type="button" data-option data-action="open-high-scores" data-high-scores-origin="pause">High Scores</button>
               <button type="button" data-option data-action="pause-restart">Restart</button>
             </div>
           </div>

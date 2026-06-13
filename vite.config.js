@@ -9,6 +9,11 @@ import { defineConfig } from 'vite';
 function createCopyStaticAssetsPlugin() {
   return {
     name: 'copy-static-assets',
+    // Build-only: the copy step targets `dist/`, which is produced solely by
+    // `vite build`. Restricting with `apply: 'build'` keeps the plugin out of
+    // the dev server and `vite preview` runs (where there is no bundle to copy)
+    // without altering the build output.
+    apply: 'build',
     closeBundle() {
       const __dirname = path.dirname(fileURLToPath(import.meta.url));
       const srcDir = path.resolve(__dirname, 'assets');
@@ -103,6 +108,21 @@ export default defineConfig(({ command }) => {
   const csp = isProductionBuild ? PRODUCTION_CSP : DEVELOPMENT_CSP;
 
   return {
+    // `base: './'` keeps the *bundled* entry references (the hashed JS/CSS that
+    // Vite injects into index.html) relative, so the built app can be opened
+    // from a file path or a non-root mount without rewriting those tags.
+    //
+    // Deployment assumption — ROOT-HOSTED: assets that are fetched at runtime
+    // rather than bundled (level maps + the audio/visual manifests) use
+    // root-absolute URLs, e.g. `/assets/maps/level-1.json` and
+    // `/assets/manifests/audio-manifest.json` (see src/main.ecs.js). The
+    // copy-static-assets plugin below lands those files at `dist/assets/...`,
+    // which only resolves when the build is served from the domain root (the
+    // documented `npm run prod` → `vite preview` flow serves from `/`). Hosting
+    // the build under a sub-path would break those root-absolute fetches; that
+    // would require switching the fetches to `import.meta.env.BASE_URL`-relative
+    // URLs, which is intentionally out of scope here to preserve runtime
+    // behavior.
     base: './',
     plugins: [createCspMetaPlugin(csp), createCopyStaticAssetsPlugin()],
     server: {

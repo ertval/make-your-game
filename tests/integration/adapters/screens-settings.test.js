@@ -82,11 +82,33 @@ function createElement(tag, attrs = {}) {
       listeners.get(type)?.delete(handler);
     },
     _listeners: listeners,
+    get className() {
+      return attributes.get('class') ?? '';
+    },
+    set className(v) {
+      attributes.set('class', String(v));
+    },
+    get firstChild() {
+      return children[0] ?? null;
+    },
     append(...nodes) {
       for (const n of nodes) {
         children.push(n);
         n.parent = this;
       }
+    },
+    appendChild(node) {
+      children.push(node);
+      node.parent = this;
+      return node;
+    },
+    removeChild(node) {
+      const idx = children.indexOf(node);
+      if (idx !== -1) {
+        children.splice(idx, 1);
+        node.parent = null;
+      }
+      return node;
     },
     matches(selector) {
       return matchSelector(this, selector);
@@ -127,7 +149,10 @@ function dispatch(node, type, event) {
   }
 }
 
-const ownerDocument = { activeElement: null };
+const ownerDocument = {
+  activeElement: null,
+  createElement: (tag) => createElement(tag),
+};
 
 function button(action, extra = {}) {
   const b = createElement('button', { 'data-option': '', 'data-action': action, ...extra });
@@ -179,7 +204,7 @@ function buildRoot() {
   const startSection = screenSection('start', [
     button('start-primary'),
     button('open-settings', { 'data-settings-origin': 'start' }),
-    button('start-secondary'),
+    button('open-high-scores', { 'data-high-scores-origin': 'start' }),
   ]);
   const pauseSection = screenSection('pause', [
     button('pause-continue'),
@@ -195,7 +220,15 @@ function buildRoot() {
     button('settings-back'),
   ]);
 
-  root.append(startSection, pauseSection, settingsSection);
+  // C-05 High Scores overlay: a leaderboard list node (data-high-scores) plus a
+  // Back option.
+  const highScoresList = createElement('ol', { 'data-high-scores': '' });
+  const highScoresSection = screenSection('high-scores', [
+    highScoresList,
+    button('high-scores-back'),
+  ]);
+
+  root.append(startSection, pauseSection, settingsSection, highScoresSection);
   return root;
 }
 
@@ -348,6 +381,123 @@ describe('screens-adapter: C-11B Settings overlay', () => {
     expect(settings.querySelector('[data-setting="sfxVolume"]').getAttribute('aria-valuenow')).toBe(
       '10',
     );
+  });
+});
+
+describe('screens-adapter: C-05 High Scores overlay', () => {
+  function setup(opts = {}) {
+    const root = buildRoot();
+    const adapter = createScreensAdapter(root, opts);
+    return { root, adapter };
+  }
+
+  function highScoreRows(root) {
+    return screen(root, 'high-scores')
+      .querySelector('[data-high-scores]')
+      .children.map((li) => li.textContent);
+  }
+
+  it('opens High Scores from the start menu and shows only that overlay', () => {
+    const { root, adapter } = setup();
+    adapter.showStart();
+
+    // Start options: [start-primary(0), open-settings(1), open-high-scores(2)].
+    keydown(root, 'ArrowDown');
+    keydown(root, 'ArrowDown');
+    keydown(root, 'Enter');
+
+    expect(screen(root, 'high-scores').hasClass('is-screen-visible')).toBe(true);
+    expect(screen(root, 'start').hasClass('is-screen-hidden')).toBe(true);
+    const visible = root
+      .querySelectorAll('[data-screen]')
+      .filter((s) => s.hasClass('is-screen-visible'));
+    expect(visible).toHaveLength(1);
+  });
+
+  it('renders the persisted top-N scores as a ranked, zero-padded list on open', () => {
+    const getHighScores = vi.fn(() => [4200, 1500, 300]);
+    const { root, adapter } = setup({ getHighScores });
+
+    adapter.showStart();
+    adapter.showHighScores('start');
+
+    expect(getHighScores).toHaveBeenCalledTimes(1);
+    expect(highScoreRows(root)).toEqual(['1. 04200', '2. 01500', '3. 00300']);
+  });
+
+  it('renders a "No scores yet" placeholder when the list is empty', () => {
+    const { root, adapter } = setup({ getHighScores: () => [] });
+
+    adapter.showHighScores('start');
+
+    expect(highScoreRows(root)).toEqual(['No scores yet']);
+  });
+
+  it('caps the rendered list at 10 rows', () => {
+    const many = Array.from({ length: 15 }, (_v, i) => (15 - i) * 100);
+    const { root, adapter } = setup({ getHighScores: () => many });
+
+    adapter.showHighScores('start');
+
+    expect(highScoreRows(root)).toHaveLength(10);
+    expect(highScoreRows(root)[0]).toBe('1. 01500');
+  });
+
+  it('drops invalid entries and tolerates a non-array provider result', () => {
+    const { root, adapter } = setup({
+      getHighScores: () => [500, 0, -10, Number.NaN, 250],
+    });
+
+    expect(() => adapter.showHighScores('start')).not.toThrow();
+    expect(highScoreRows(root)).toEqual(['1. 00500', '2. 00250']);
+  });
+
+  it('accepts a legacy single-score getHighScore provider', () => {
+    const { root, adapter } = setup({ getHighScore: () => 4200 });
+
+    adapter.showHighScores('start');
+
+    expect(highScoreRows(root)).toEqual(['1. 04200']);
+  });
+
+  it('Back from High Scores returns to the start menu', () => {
+    const { root, adapter } = setup({ getHighScores: () => [10] });
+    adapter.showStart();
+    adapter.showHighScores('start');
+
+    // Back is the only option in the overlay; Enter activates it.
+    keydown(root, 'Enter');
+
+    expect(screen(root, 'start').hasClass('is-screen-visible')).toBe(true);
+    expect(screen(root, 'high-scores').hasClass('is-screen-hidden')).toBe(true);
+  });
+
+  it('Back from High Scores returns to the pause menu when opened from pause', () => {
+    const { root, adapter } = setup({ getHighScores: () => [10] });
+    adapter.showPause();
+    adapter.showHighScores('pause');
+
+    keydown(root, 'Enter');
+
+    expect(screen(root, 'pause').hasClass('is-screen-visible')).toBe(true);
+    expect(screen(root, 'high-scores').hasClass('is-screen-hidden')).toBe(true);
+  });
+
+  it('does not forward High Scores navigation as a game action', () => {
+    const onAction = vi.fn();
+    const { root, adapter } = setup({ onAction, getHighScores: () => [] });
+    adapter.showStart();
+
+    // Navigate to open-high-scores (index 2) and activate it, then Back.
+    keydown(root, 'ArrowDown');
+    keydown(root, 'ArrowDown');
+    keydown(root, 'Enter');
+    keydown(root, 'Enter'); // Back from the High Scores overlay.
+
+    // open-high-scores / high-scores-back are adapter-internal (like Settings);
+    // they must never reach the game-action handler.
+    expect(onAction).not.toHaveBeenCalledWith('open-high-scores');
+    expect(onAction).not.toHaveBeenCalledWith('high-scores-back');
   });
 });
 

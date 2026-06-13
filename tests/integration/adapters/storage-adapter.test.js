@@ -12,7 +12,9 @@ import {
   DEFAULT_AUDIO_SETTINGS,
   getAudioSettings,
   getHighScore,
+  getHighScores,
   HIGH_SCORE_STORAGE_KEY,
+  MAX_HIGH_SCORES,
   safeRead,
   safeWrite,
   saveAudioSettings,
@@ -138,10 +140,12 @@ describe('storage-adapter', () => {
     expect(console.warn).toHaveBeenCalled();
   });
 
-  it('stores normalized high scores with the canonical key', () => {
+  it('stores a normalized high score as a top-N list with the canonical key', () => {
     saveHighScore(42.9);
 
-    expect(localStorage.getItem(HIGH_SCORE_STORAGE_KEY)).toBe(JSON.stringify({ score: 42 }));
+    expect(localStorage.getItem(HIGH_SCORE_STORAGE_KEY)).toBe(
+      JSON.stringify({ score: 42, scores: [42] }),
+    );
   });
 
   it('returns 0 for malformed high score payloads', () => {
@@ -151,10 +155,51 @@ describe('storage-adapter', () => {
     expect(console.warn).toHaveBeenCalled();
   });
 
-  it('returns the stored finite high score value', () => {
+  it('returns the stored finite high score value (legacy single-score shape)', () => {
     localStorage.setItem(HIGH_SCORE_STORAGE_KEY, JSON.stringify({ score: 105 }));
 
     expect(getHighScore()).toBe(105);
+    expect(getHighScores()).toEqual([105]);
+  });
+
+  it('accumulates finished-game scores into a descending, deduplicated top-N list', () => {
+    saveHighScore(100);
+    saveHighScore(300);
+    saveHighScore(300); // duplicate is collapsed
+    saveHighScore(200);
+
+    expect(getHighScores()).toEqual([300, 200, 100]);
+    expect(getHighScore()).toBe(300);
+  });
+
+  it(`caps the leaderboard at MAX_HIGH_SCORES (${MAX_HIGH_SCORES}) keeping the highest`, () => {
+    // Insert 1..15 in arbitrary order.
+    for (const value of [5, 12, 3, 15, 9, 1, 14, 7, 11, 2, 13, 8, 4, 10, 6]) {
+      saveHighScore(value);
+    }
+
+    const scores = getHighScores();
+    expect(scores).toHaveLength(MAX_HIGH_SCORES);
+    expect(scores).toEqual([15, 14, 13, 12, 11, 10, 9, 8, 7, 6]);
+  });
+
+  it('ignores zero / invalid finished-game scores', () => {
+    saveHighScore(0);
+    saveHighScore(-50);
+    saveHighScore(Number.NaN);
+
+    expect(getHighScores()).toEqual([]);
+    expect(localStorage.getItem(HIGH_SCORE_STORAGE_KEY)).toBeNull();
+  });
+
+  it('reads a stored top-N list and returns it sorted descending', () => {
+    localStorage.setItem(
+      HIGH_SCORE_STORAGE_KEY,
+      JSON.stringify({ score: 50, scores: [10, 50, 30] }),
+    );
+
+    expect(getHighScores()).toEqual([50, 30, 10]);
+    expect(getHighScore()).toBe(50);
   });
 });
 
