@@ -26,7 +26,8 @@
  *
  * Adapter methods:
  * - loadClips(manifest): fetch + decodeAudioData each clip in the manifest.
- * - playSfx(cueId): play a one-shot SFX cue (overlapping playback supported).
+ * - playSfx(cueId, { gain? }): play a one-shot SFX cue (overlapping playback supported);
+ *   optional per-call gain [0,1] attenuates just that playback.
  * - playSfxLoop(cueId) / stopSfxLoop(cueId): start/stop a looping SFX cue (e.g. bomb fuse).
  * - playMusic(trackId, options): play a music track, replacing any previous one.
  * - stopMusic(): stop the currently playing music track.
@@ -573,10 +574,17 @@ export function createAudioAdapter(options = {}) {
    * Each call creates a brand-new AudioBufferSourceNode so overlapping
    * playback is safe. Missing cues warn once and no-op.
    *
+   * An optional per-call `gain` (linear, clamped to [0, 1]) attenuates just this
+   * playback by inserting a GainNode before the category destination — useful
+   * for a softer cue (e.g. a subtle UI confirm click) without changing the
+   * category volume or the player's persisted settings. Defaults to 1 (no
+   * attenuation), so existing callers are unaffected.
+   *
    * @param {string} cueId - Cue identifier from the loaded manifest.
+   * @param {{ gain?: number }} [playbackOptions] - Optional per-call attenuation.
    * @returns {AudioBufferSourceNode | null} The started source, or null when no playback occurred.
    */
-  function playSfx(cueId) {
+  function playSfx(cueId, playbackOptions = {}) {
     if (typeof cueId !== 'string' || !cueId) {
       return null;
     }
@@ -601,10 +609,23 @@ export function createAudioAdapter(options = {}) {
       return null;
     }
 
+    const perCallGain = clampGain(
+      typeof playbackOptions.gain === 'number' ? playbackOptions.gain : 1,
+    );
+
     try {
       const source = context.createBufferSource();
       source.buffer = buffer;
-      source.connect(destination);
+      // Insert a per-call gain stage only when attenuating, so the common path
+      // (full volume) keeps the original direct source→category wiring.
+      if (perCallGain < 1 && typeof context.createGain === 'function') {
+        const gainNode = context.createGain();
+        gainNode.gain.value = perCallGain;
+        source.connect(gainNode);
+        gainNode.connect(destination);
+      } else {
+        source.connect(destination);
+      }
       source.start(0);
       return source;
     } catch (error) {

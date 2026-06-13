@@ -506,6 +506,51 @@ describe('audio-adapter: playSfx', () => {
     expect(source.connections).toContain(uiBus);
   });
 
+  it('inserts a per-call gain stage between source and bus when gain < 1', async () => {
+    const { adapter, records } = setup();
+    await adapter.loadClips({ ui: { confirm: '/audio/confirm.wav' } });
+    const gainNodesBefore = records.createdGainNodes.length;
+
+    const source = adapter.playSfx('confirm', { gain: 0.35 });
+
+    const context = records.instances[0];
+    const uiBus = context.createdGainNodes[3];
+    // A new gain node was created for this call.
+    expect(records.createdGainNodes.length).toBe(gainNodesBefore + 1);
+    const perCallGain = records.createdGainNodes[gainNodesBefore];
+    expect(perCallGain.gain.value).toBe(0.35);
+    // Source → per-call gain → ui bus (not directly source → bus).
+    expect(source.connections).toContain(perCallGain);
+    expect(source.connections).not.toContain(uiBus);
+    expect(perCallGain.connections).toContain(uiBus);
+  });
+
+  it('keeps the direct source→bus wiring when gain is 1 (default)', async () => {
+    const { adapter, records } = setup();
+    await adapter.loadClips({ ui: { confirm: '/audio/confirm.wav' } });
+    const gainNodesBefore = records.createdGainNodes.length;
+
+    const source = adapter.playSfx('confirm');
+
+    const context = records.instances[0];
+    const uiBus = context.createdGainNodes[3];
+    // No extra gain node; source connects straight to the bus.
+    expect(records.createdGainNodes.length).toBe(gainNodesBefore);
+    expect(source.connections).toContain(uiBus);
+  });
+
+  it('clamps an out-of-range per-call gain', async () => {
+    const { adapter, records } = setup();
+    await adapter.loadClips({ ui: { confirm: '/audio/confirm.wav' } });
+
+    adapter.playSfx('confirm', { gain: 5 });
+
+    // gain >= 1 (clamped to 1) takes the direct path: no per-call gain node.
+    const context = records.instances[0];
+    expect(records.createdGainNodes.length).toBe(context.createdGainNodes.length);
+    expect(context.createdGainNodes.length).toBe(4); // master/music/sfx/ui only
+  });
+
   it('warns and no-ops on missing clip without throwing', async () => {
     const { adapter, warnSpy } = setup();
     await adapter.loadClips({ sfx: { pellet: '/audio/pellet.wav' } });

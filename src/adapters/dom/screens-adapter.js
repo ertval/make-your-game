@@ -10,8 +10,12 @@
  *   Returned methods: showStart, showPause, showSettings(origin),
  *   showHighScores(origin), showLevelComplete, showGameOver, showVictory,
  *   hideAll, syncSettingsControls(settings), destroy.
- *   Options: onAction, onResume, onRestart, onSettingChange(key, value),
- *   getHighScores (or legacy getHighScore), gameplayElement, initialSettings.
+ *   Options: onAction, onConfirm(action), onResume, onRestart,
+ *   onSettingChange(key, value), getHighScores (or legacy getHighScore),
+ *   gameplayElement, initialSettings.
+ *   onConfirm fires for every confirmed button activation (including the
+ *   internally-handled Settings / High Scores overlay navigation and toggles),
+ *   so the host can play a single uniform confirm cue.
  *
  * Implementation notes:
  * - Screen nodes are queried once during adapter creation and then reused.
@@ -202,6 +206,13 @@ export function createScreensAdapter(rootElement, options = {}) {
   }
 
   function dispatchAction(action, option) {
+    // Confirm cue for EVERY confirmed button activation (Enter or trusted click),
+    // regardless of whether the action is forwarded to the host or handled
+    // internally (Settings / High Scores overlay navigation, toggles, Back).
+    // Fired here — the single button-activation funnel — so menu start, pause,
+    // and both sub-overlays all click uniformly. Sliders never reach this path.
+    options.onConfirm?.(action);
+
     // C-11B settings actions are handled inside the adapter (overlay-to-overlay
     // navigation + control state) and are NOT forwarded as game actions, so the
     // confirm-cue/game-flow handler in main.ecs only sees real game actions.

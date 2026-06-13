@@ -501,6 +501,76 @@ describe('screens-adapter: C-05 High Scores overlay', () => {
   });
 });
 
+describe('screens-adapter: onConfirm cue fires for every confirmed button', () => {
+  function setup(opts = {}) {
+    const root = buildRoot();
+    const onConfirm = vi.fn();
+    const adapter = createScreensAdapter(root, { onConfirm, getHighScores: () => [], ...opts });
+    return { root, adapter, onConfirm };
+  }
+
+  it('fires on a forwarded start-menu action (start-primary)', () => {
+    const { root, adapter, onConfirm } = setup();
+    adapter.showStart();
+    // Start option index 0 is start-primary.
+    keydown(root, 'Enter');
+    expect(onConfirm).toHaveBeenCalledWith('start-primary');
+  });
+
+  it('fires when opening Settings (intercepted action)', () => {
+    const { root, adapter, onConfirm } = setup();
+    adapter.showStart();
+    keydown(root, 'ArrowDown'); // index 1 = open-settings
+    keydown(root, 'Enter');
+    expect(onConfirm).toHaveBeenCalledWith('open-settings');
+  });
+
+  it('fires when opening High Scores (intercepted action)', () => {
+    const { root, adapter, onConfirm } = setup();
+    adapter.showStart();
+    keydown(root, 'ArrowDown');
+    keydown(root, 'ArrowDown'); // index 2 = open-high-scores
+    keydown(root, 'Enter');
+    expect(onConfirm).toHaveBeenCalledWith('open-high-scores');
+  });
+
+  it('fires on a Settings toggle and on Back', () => {
+    const { root, adapter, onConfirm } = setup();
+    adapter.showSettings('start');
+    keydown(root, 'Enter'); // index 0 = settings-toggle-music
+    expect(onConfirm).toHaveBeenCalledWith('settings-toggle-music');
+
+    onConfirm.mockClear();
+    adapter.showSettings('start');
+    keydown(root, 'ArrowUp'); // wrap to last = settings-back
+    keydown(root, 'Enter');
+    expect(onConfirm).toHaveBeenCalledWith('settings-back');
+  });
+
+  it('fires for every pause-menu option (Continue, Settings, High Scores, Restart)', () => {
+    // The shared buildRoot pause section is [continue, open-settings, restart].
+    // Verify the cue fires on Continue (forwarded) AND open-settings (intercepted).
+    const { root, adapter, onConfirm } = setup();
+    adapter.showPause();
+    keydown(root, 'Enter'); // index 0 = pause-continue (forwarded)
+    expect(onConfirm).toHaveBeenCalledWith('pause-continue');
+
+    onConfirm.mockClear();
+    adapter.showPause();
+    keydown(root, 'ArrowDown'); // index 1 = open-settings (intercepted)
+    keydown(root, 'Enter');
+    expect(onConfirm).toHaveBeenCalledWith('open-settings');
+  });
+
+  it('does NOT fire when adjusting a slider (no confirm semantics)', () => {
+    const { root, adapter, onConfirm } = setup();
+    adapter.showSettings('start');
+    keydown(root, 'ArrowDown'); // index 1 = music volume slider
+    keydown(root, 'ArrowRight'); // adjust slider — not a confirm
+    expect(onConfirm).not.toHaveBeenCalledWith('settings-volume-music');
+  });
+});
+
 describe('screens-audio-toggle: persistent quick-toggle (C-11B)', () => {
   function buildToggleRoot(initial = { musicEnabled: true, sfxEnabled: true }) {
     const root = createElement('div');
