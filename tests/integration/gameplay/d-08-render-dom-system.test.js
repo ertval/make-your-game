@@ -20,7 +20,7 @@ function createMockSpritePool() {
 
   return {
     acquire: vi.fn((type) => {
-      const el = { classList: { add: vi.fn() }, style: {}, className: '' };
+      const el = { classList: { add: vi.fn(), remove: vi.fn() }, style: {}, className: '' };
       acquired.push({ type, element: el });
       activeEls.push(el);
       return el;

@@ -93,6 +93,7 @@ function createElementStub(tagName) {
     },
     classList: {
       add() {},
+      remove() {},
     },
     firstChild: null,
     parentNode: null,

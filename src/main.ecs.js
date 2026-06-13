@@ -581,11 +581,11 @@ export async function bootstrapApplication({
     throw new Error('Missing #app root.');
   }
 
-  // DEAD-01: render-dom-system (run during runRenderCommit) is the canonical
-  // DOM commit path. The legacy createDomRenderer remains available for non-ECS
-  // tooling (map preview, debug views) but is intentionally NOT registered with
-  // the bootstrap step loop — registering it would cause double DOM writes per
-  // frame and bypass the sprite pool.
+  // DEAD-01 / DEAD-03: render-dom-system (run during runRenderCommit) is the
+  // sole canonical DOM commit path. The legacy `renderer-dom.js` adapter was
+  // removed (DEAD-03 / #139); no separate per-frame DOM renderer is registered
+  // with the bootstrap step loop, which would otherwise cause double DOM writes
+  // per frame and bypass the sprite pool.
 
   const hudSection = targetDocument.getElementById('hud');
   const hudAdapter = hudSection ? createHudAdapter(hudSection) : null;
