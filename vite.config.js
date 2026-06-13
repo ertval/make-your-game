@@ -75,7 +75,7 @@ export default defineConfig(({ command }) => {
   const csp = isProductionBuild ? PRODUCTION_CSP : DEVELOPMENT_CSP;
 
   return {
-    base: process.env.GITHUB_ACTIONS ? '/make-your-game/' : '/',
+    base: (command === 'build' && process.env.GITHUB_ACTIONS) ? '/make-your-game/' : '/',
     plugins: [createCspMetaPlugin(csp)],
     server: {
       host: true,
