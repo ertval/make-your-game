@@ -112,17 +112,19 @@ export default defineConfig(({ command }) => {
     // Vite injects into index.html) relative, so the built app can be opened
     // from a file path or a non-root mount without rewriting those tags.
     //
-    // Deployment assumption — ROOT-HOSTED: assets that are fetched at runtime
-    // rather than bundled (level maps + the audio/visual manifests) use
-    // root-absolute URLs, e.g. `/assets/maps/level-1.json` and
-    // `/assets/manifests/audio-manifest.json` (see src/main.ecs.js). The
-    // copy-static-assets plugin below lands those files at `dist/assets/...`,
-    // which only resolves when the build is served from the domain root (the
-    // documented `npm run prod` → `vite preview` flow serves from `/`). Hosting
-    // the build under a sub-path would break those root-absolute fetches; that
-    // would require switching the fetches to `import.meta.env.BASE_URL`-relative
-    // URLs, which is intentionally out of scope here to preserve runtime
-    // behavior.
+    // Deployment assumptions:
+    //   1. Deployment target is ROOT-HOSTED — the build is served from the
+    //      domain root `/` (the documented `npm run prod` → `vite preview` flow
+    //      serves from `/`).
+    //   2. Runtime asset fetches INTENTIONALLY use root-absolute `/assets/...`
+    //      URLs — level maps and the audio/visual manifests, e.g.
+    //      `/assets/maps/level-1.json` and `/assets/manifests/audio-manifest.json`
+    //      (see src/main.ecs.js). The copy-static-assets plugin below lands those
+    //      files at `dist/assets/...`, which resolves only under root hosting.
+    //   3. Sub-path deployments are OUT OF SCOPE — hosting under a sub-path would
+    //      break those root-absolute fetches; supporting it would require moving
+    //      the fetches to `import.meta.env.BASE_URL`-relative URLs, deliberately
+    //      not done here so runtime behavior is unchanged.
     base: './',
     plugins: [createCspMetaPlugin(csp), createCopyStaticAssetsPlugin()],
     server: {
