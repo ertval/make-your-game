@@ -138,10 +138,10 @@ Source plan: `docs/implementation/implementation-plan.md` (Section 3)
 - `src/debug/replay.js` — replay utility
 - Replay determinism test using `src/debug/replay.js`
 
-- [ ] Write integration tests for `tests/integration/gameplay/`: multi-system interaction scenarios (bomb→explosion→collision→scoring pipeline).
-- [ ] Write integration tests for gameplay event emission: event order, payload schema, deterministic ordering across seeded runs.
-- [ ] Write integration tests for pause invariants: rAF active, simulation frozen, HUD responsive, timer/fuse frozen.
-- [ ] Write integration tests for `tests/integration/adapters/`: adapter boundary tests using jsdom.
+- [x] Write integration tests for `tests/integration/gameplay/`: multi-system interaction scenarios (bomb→explosion→collision→scoring pipeline).
+- [x] Write integration tests for gameplay event emission: event order, payload schema, deterministic ordering across seeded runs.
+- [x] Write integration tests for pause invariants: rAF active, simulation frozen, HUD responsive, timer/fuse frozen.
+- [x] Write integration tests for `tests/integration/adapters/`: adapter boundary tests using jsdom.
   - `input-adapter.js`: keydown/keyup mapping, blur clearing, no OS key-repeat dependency.
   - `renderer-dom.js`: safe DOM sinks (no innerHTML), createElementNS.
   - `sprite-pool-adapter.js`: pool sizing, offscreen-transform hiding (not display:none), pool exhaustion.
@@ -149,9 +149,9 @@ Source plan: `docs/implementation/implementation-plan.md` (Section 3)
   - `screens-adapter.js`: overlay toggling, keyboard focus transfer.
   - `audio-adapter.js`: async decode path, cue mapping, fallback behavior for missing clips.
   - `storage-adapter.js`: untrusted data validation on read.
-- [ ] Implement replay utility in `src/debug/replay.js` to support determinism checks and tests.
-- [ ] Write replay determinism test: same seed + input trace → identical `hashWorldState` at frame N.
-- [ ] Verification gate: all integration tests green.
+- [x] Implement replay utility in `src/debug/replay.js` to support determinism checks and tests.
+- [x] Write replay determinism test: same seed + input trace → identical `hashWorldState` at frame N.
+- [x] Verification gate: all integration tests green.
 
 ---
 
@@ -167,8 +167,8 @@ Source plan: `docs/implementation/implementation-plan.md` (Section 3)
 - `tests/e2e/audit/audit.e2e.test.js`
 - Evidence artifact templates for manual audit items
 
-- [ ] Implement `tests/e2e/audit/audit-question-map.js` mapping each audit question to a test ID.
-- [ ] **Fully Automatable tests** (Playwright real browser):
+- [x] Implement `tests/e2e/audit/audit-question-map.js` mapping each audit question to a test ID.
+- [x] **Fully Automatable tests** (Playwright real browser):
   - F-01: Game runs without crashing (60s smoke test with randomized input).
   - F-02: Animation uses `requestAnimationFrame` (assert rAF in source/runtime).
   - F-03: Game is single player.
@@ -189,16 +189,16 @@ Source plan: `docs/implementation/implementation-plan.md` (Section 3)
   - B-02: Code obeys good practices (CI/static/security gates).
   - B-03: Memory reuse (no jank from GC).
   - B-04: SVG usage (static SVG scan + runtime DOM/assertion checks).
-- [ ] **Semi-Automatable tests** (Playwright + `page.evaluate()`):
+- [x] **Semi-Automatable tests** (Playwright + `page.evaluate()`):
   - F-17: No sustained frame-drop periods.
   - F-18: Game runs at ~60fps.
   - B-05: Async performance.
-- [ ] **Manual-With-Evidence** (DevTools traces as PR artifacts):
+- [x] **Manual-With-Evidence** (DevTools traces as PR artifacts):
   - F-19: Paint usage minimal.
   - F-20: Layers minimal but non-zero.
   - F-21: Layer promotion proper.
   - B-06: Overall project quality.
-- [ ] Verification gate: all automated audit tests pass; evidence artifacts attached for manual items.
+- [x] Verification gate: all automated audit tests pass; evidence artifacts attached for manual items.
 
 ---
 
@@ -317,11 +317,11 @@ Source plan: `docs/implementation/implementation-plan.md` (Section 3)
 **Deliverables**:
 - Consolidated deduplicated codebase audit package for P2 (all-track audits + 4 track fix reports)
 
-- [ ] Each track runs prompt `codebase-analysis-audit` (repository prompt file: `.github/prompts/code-analysis-audit.prompt.md`) against the P2 codebase and merges the generated report.
-- [ ] Track A runs `.github/prompts/phase-deduplicate-track-audits.prompt.md` and publishes four deduplicated track reports (A/B/C/D) in `docs/audit-reports/phase-2/`.
-- [ ] Map deduplicated issues to existing or new implementation tickets.
-- [ ] Each track resolves all issues assigned in its track report.
-- [ ] Verification gate: all P2 reports + 4 deduplicated track reports merged to `docs/audit-reports/phase-2/`, and all assigned issues are resolved.
+- [x] Each track runs prompt `codebase-analysis-audit` (repository prompt file: `.github/prompts/code-analysis-audit.prompt.md`) against the P2 codebase and merges the generated report.
+- [x] Track A runs `.github/prompts/phase-deduplicate-track-audits.prompt.md` and publishes four deduplicated track reports (A/B/C/D) in `docs/audit-reports/phase-2/`.
+- [x] Map deduplicated issues to existing or new implementation tickets.
+- [x] Each track resolves all issues assigned in its track report.
+- [x] Verification gate: all P2 reports + 4 deduplicated track reports merged to `docs/audit-reports/phase-2/`, and all assigned issues are resolved.
 
 ---
 

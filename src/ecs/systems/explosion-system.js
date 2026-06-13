@@ -27,6 +27,7 @@ import {
   CELL_TYPE,
   FIRE_DURATION_MS,
   MAX_CHAIN_DEPTH,
+  MAX_DETONATIONS_PER_TICK,
   POWER_UP_DROP_CHANCES,
 } from '../resources/constants.js';
 import { enqueue } from '../resources/event-queue.js';
@@ -645,10 +646,16 @@ function resolveDetonationGeometry({
 }
 
 /**
- * Drain queued detonations into a local iterative work queue.
+ * Seed the local iterative work queue from the shared detonation queue.
  *
- * Clearing the shared queue before processing prevents stale requests from
- * being processed again if a later system inspects the same resource.
+ * At most MAX_DETONATIONS_PER_TICK requests are drained per tick (BUG-07); any
+ * remainder is left at the head of the shared queue and processed on subsequent
+ * ticks. This smooths a post-quarantine backlog so it cannot all fire in one
+ * tick, which could otherwise starve the fire pool or spike a frame. Drained
+ * requests are removed from the shared queue so a later system inspecting the
+ * same resource never reprocesses them. Chain-reaction detonations are appended
+ * to the local work queue (not the shared queue), so the per-tick cap applies
+ * only to this seed drain and never throttles or breaks chain reactions.
  *
  * @param {Array<object>} bombDetonationQueue - Shared detonation queue resource.
  * @param {Array<object>} workQueue - Reusable local work queue scratch array.
@@ -657,11 +664,20 @@ function resolveDetonationGeometry({
 function takeDetonationWorkQueue(bombDetonationQueue, workQueue) {
   workQueue.length = 0;
 
-  for (const detonation of bombDetonationQueue) {
-    workQueue.push(detonation);
+  const seedCount = Math.min(bombDetonationQueue.length, MAX_DETONATIONS_PER_TICK);
+
+  for (let index = 0; index < seedCount; index += 1) {
+    workQueue.push(bombDetonationQueue[index]);
   }
 
-  bombDetonationQueue.length = 0;
+  // Drop the drained head while preserving the order of any carried remainder.
+  // Compact in place (no Array#splice / slice) so no result array is allocated
+  // on the tick path; only the carried remainder is shifted down by seedCount.
+  const remainder = bombDetonationQueue.length - seedCount;
+  for (let index = 0; index < remainder; index += 1) {
+    bombDetonationQueue[index] = bombDetonationQueue[index + seedCount];
+  }
+  bombDetonationQueue.length = remainder;
   return workQueue;
 }
 

@@ -174,6 +174,8 @@ const GHOST_RUNTIME_MASK =
  * honored so callers that wire the system directly do not silently break while
  * we migrate everything to the explicit bootstrap API.
  *
+ * @internal
+ * @deprecated Legacy option fallback
  * @param {object} [options={}] - Bootstrap options.
  * @returns {string} Resolved resource key for the input adapter slot.
  */
