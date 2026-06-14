@@ -603,9 +603,16 @@ export function createAudioAdapter(options = {}) {
 
     await Promise.all(
       entries.map(async ({ category, cueId, url }) => {
+        // Skip cues already decoded (e.g. by a concurrent preloadAudioAssets
+        // call). The preload path populates the same buffer stores, so a cache
+        // hit here avoids a duplicate fetch/decode race on the same URL.
+        const store = bufferStoreForCategory(category);
+        if (store.has(cueId)) {
+          report.loaded.push(cueId);
+          return;
+        }
         try {
           const buffer = await decodeClip(context, url);
-          const store = bufferStoreForCategory(category);
           store.set(cueId, buffer);
           clipIndex.set(cueId, { category, buffers: store });
           report.loaded.push(cueId);
