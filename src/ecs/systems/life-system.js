@@ -24,11 +24,11 @@
  *   with no browser coupling.
  */
 
+import { readEntityTile } from '../../shared/tile-utils.js';
 import { resetInputState } from '../components/actors.js';
 import { resetPosition, resetVelocity } from '../components/spatial.js';
 import { INVINCIBILITY_MS, PLAYER_START_LIVES } from '../resources/constants.js';
 import { canTransition, GAME_STATE, transitionTo } from '../resources/game-status.js';
-import { readEntityTile } from '../shared/tile-utils.js';
 import {
   emitGameplayEvent,
   GAME_OVER_CAUSE,

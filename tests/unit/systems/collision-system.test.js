@@ -20,7 +20,6 @@ import { createHealthStore } from '../../../src/ecs/components/stats.js';
 import { CELL_TYPE, GHOST_STATE } from '../../../src/ecs/resources/constants.js';
 import { createEventQueue, drain } from '../../../src/ecs/resources/event-queue.js';
 import { createMapResource, getCell } from '../../../src/ecs/resources/map-resource.js';
-import { readEntityTile } from '../../../src/ecs/shared/tile-utils.js';
 import {
   emitGameplayEvent,
   GAMEPLAY_EVENT_SOURCE,
@@ -40,6 +39,7 @@ import {
   tileToCellIndex,
 } from '../../../src/ecs/systems/collision-system.js';
 import { World } from '../../../src/ecs/world/world.js';
+import { readEntityTile } from '../../../src/shared/tile-utils.js';
 
 /**
  * Build a compact valid map for collision-system unit tests.

@@ -17,7 +17,7 @@ import {
 import {
   createRenderIntentBuffer,
   resetRenderIntentBuffer,
-} from '../../../src/ecs/render-intent.js';
+} from '../../../src/ecs/resources/render-intent.js';
 import { World } from '../../../src/ecs/world/world.js';
 
 const MAX_ENTITIES = 16;
@@ -468,18 +468,39 @@ describe('render-dom-system', () => {
   });
 
   describe('classList reset', () => {
-    it('clears className before adding new classes', async () => {
+    /**
+     * Build a sprite-element double backed by a real Set so classList mutations
+     * are observable end-to-end (add/remove actually change membership). Used to
+     * prove the SEC-08 reset semantics rather than just spying on calls.
+     */
+    function createClassListElement(initialClasses = []) {
+      const classes = new Set(initialClasses);
+      return {
+        style: {},
+        classList: {
+          add: (...names) => {
+            for (const name of names) classes.add(name);
+          },
+          remove: (...names) => {
+            for (const name of names) classes.delete(name);
+          },
+          contains: (name) => classes.has(name),
+          get size() {
+            return classes.size;
+          },
+          values: () => [...classes],
+        },
+      };
+    }
+
+    it('keeps the base sprite class after the per-frame reset', async () => {
       const { buffer, fillBuffer, spritePool } = createHarness();
 
       fillBuffer([
         { entityId: 1, kind: RENDERABLE_KIND.PLAYER, x: 0, y: 0, opacity: 255, classBits: 0 },
       ]);
 
-      const mockEl = {
-        classList: { add: vi.fn(), remove: vi.fn() },
-        style: {},
-        className: 'old-class',
-      };
+      const mockEl = createClassListElement(['sprite', 'sprite--ghost']);
       spritePool.acquire.mockReturnValueOnce(mockEl);
 
       renderDomSystem.update({
@@ -491,7 +512,45 @@ describe('render-dom-system', () => {
         },
       });
 
-      expect(mockEl.className).toBe('sprite');
+      // Base class survives; stale managed class from a previous use is cleared;
+      // the fresh kind class is present.
+      expect(mockEl.classList.contains('sprite')).toBe(true);
+      expect(mockEl.classList.contains('sprite--ghost')).toBe(false);
+      expect(mockEl.classList.contains('sprite--player')).toBe(true);
+    });
+
+    it('preserves foreign (non-managed) classes on the pooled element (SEC-08 / #167)', async () => {
+      // Regression: the reset used to be `el.className = 'sprite'`, which wiped
+      // EVERY class on the element — including ones added by other concerns
+      // sharing the pooled node (debug overlays, test markers, future
+      // cross-cutting features). The reset must remove only this system's own
+      // managed sprite classes and leave foreign classes untouched.
+      const { buffer, fillBuffer, spritePool } = createHarness();
+
+      fillBuffer([
+        { entityId: 1, kind: RENDERABLE_KIND.PLAYER, x: 0, y: 0, opacity: 255, classBits: 0 },
+      ]);
+
+      const mockEl = createClassListElement([
+        'sprite',
+        'debug-highlight', // foreign — must survive
+        'sprite--ghost', // stale managed — must be cleared
+      ]);
+      spritePool.acquire.mockReturnValueOnce(mockEl);
+
+      renderDomSystem.update({
+        world: {
+          getResource: (k) => {
+            if (k === 'renderIntent') return buffer;
+            if (k === 'spritePool') return spritePool;
+          },
+        },
+      });
+
+      expect(mockEl.classList.contains('debug-highlight')).toBe(true);
+      expect(mockEl.classList.contains('sprite')).toBe(true);
+      expect(mockEl.classList.contains('sprite--ghost')).toBe(false);
+      expect(mockEl.classList.contains('sprite--player')).toBe(true);
     });
   });
 
