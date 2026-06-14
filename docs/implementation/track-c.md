@@ -357,12 +357,13 @@ C-04 / C-05 / B-03 / C-06 handoff pattern):
 - `docs/schemas/audio-manifest.schema.json` (JSON Schema 2020-12)
 - `assets/manifests/audio-manifest.json` — all audio asset entries
 
-- [ ] Finalize `docs/schemas/audio-manifest.schema.json` (JSON Schema 2020-12):
+- [x] Finalize `docs/schemas/audio-manifest.schema.json` (JSON Schema 2020-12):
   - Required fields: `id`, `path`, `category` (sfx|music|ambience|ui), `format`, `durationMs`, `critical`, `loop`.
   - Optional fields: `channels`, `sampleRateHz`, `loudnessLufs`, `maxBytes`, `notes`.
-- [ ] Create `assets/manifests/audio-manifest.json` with all audio asset entries.
-- [ ] Wire manifest schema validation into CI (fails on invalid entries).
-- [ ] Verification gate: CI rejects invalid manifest entries; valid entries pass.
+  - `additionalProperties: false` at both the manifest and per-asset level; `format` and the `path` extension are constrained to the project-supported `mp3` (no fallback decoder exists, so non-mp3 formats are rejected — C-10 constraint).
+- [x] Create `assets/manifests/audio-manifest.json` with all audio asset entries (12 shipped C-08 assets: 10 gameplay SFX `critical: true`, 1 looping gameplay music `critical: false`, 1 UI confirm). Every `path` exists on disk.
+- [x] Wire manifest schema validation into CI (fails on invalid entries). `scripts/validate-schema.mjs` validates the audio manifest via `npm run validate:schema` (also part of `npm run ci`), enforcing schema shape, on-disk file existence, kebab-case naming, `maxBytes` budgets, and unique asset `id`s (new `DUPLICATE_ID` semantic gate — JSON Schema cannot express uniqueness on a derived key). Fail-closed.
+- [x] Verification gate: CI rejects invalid manifest entries; valid entries pass. `tests/integration/gameplay/c-10-audio-manifest-schema.test.js` drives the real validator as a subprocess and locks: real manifest passes; missing required field, invalid category, non-mp3 format, out-of-tree path, non-positive `durationMs`, non-boolean `critical`, unknown field, duplicate `id`, and missing asset file all fail closed.
 
 ---
 

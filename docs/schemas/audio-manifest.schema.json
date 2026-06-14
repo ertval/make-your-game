@@ -24,7 +24,7 @@
           },
           "path": {
             "type": "string",
-            "pattern": "^(assets/)?generated/(sfx|music|ui|ambience)/[a-z0-9][a-z0-9-]*\\.(mp3|m4a|ogg)$"
+            "pattern": "^(assets/)?generated/(sfx|music|ui|ambience)/[a-z0-9][a-z0-9-]*\\.mp3$"
           },
           "category": {
             "type": "string",
@@ -32,7 +32,7 @@
           },
           "format": {
             "type": "string",
-            "enum": ["mp3", "m4a", "ogg"]
+            "enum": ["mp3"]
           },
           "durationMs": {
             "type": "integer",
