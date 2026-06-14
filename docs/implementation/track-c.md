@@ -194,7 +194,7 @@ This contract is implemented in `src/adapters/io/storage-adapter.js` and defines
 
 **Out of scope for C-06 (covered by later tickets)**:
 - Wiring gameplay events (BombPlaced, PelletCollected, …) to `playSfx` calls and music state across `GAME_STATE` transitions — `C-07`.
-- Producing the actual `.mp3`/`.ogg` asset files — `C-08`.
+- Producing the actual `.mp3` asset files (MP3-only under the C-10 manifest contract) — `C-08`.
 - Lazy/streaming load policy for non-critical audio + perf budgets — `C-09`.
 - Audio manifest JSON Schema + manifest file under `assets/manifests/` — `C-10`.
 
@@ -305,7 +305,7 @@ C-04 / C-05 / B-03 / C-06 handoff pattern):
   - Level complete jingle. Game over sting. Victory fanfare.
 - [ ] Create/export at least one loop-safe level music track (60-120s loop, crossfade handling).
 - [ ] Normalize loudness across categories (gameplay, UI, music).
-- [ ] Export in `.mp3` (primary) and `.ogg` (optional).
+- [ ] Export in `.mp3` only — the C-10 manifest gate accepts `format: "mp3"` exclusively; `.ogg`/`.m4a` are out of scope until the schema and runtime decoder are expanded together.
 - [ ] Keep SFX short (<1s for most, except fuse tick loop).
 - [ ] Verification gate: all SFX/music listed in manifest with correct metadata.
 
@@ -318,8 +318,9 @@ C-04 / C-05 / B-03 / C-06 handoff pattern):
 >   bootstrap loop; `npm run validate:schema` passes for the manifest.
 > - ⏳ Pending before closure: remaining SFX set (chain-reaction, power-up-collect, speed-boost-off,
 >   ghost-stun, ghost-return, player-respawn, menu-navigate, cancel, pause open/close, game-over
->   sting, victory fanfare), loudness-normalization sign-off, optional `.ogg` exports, and the
->   `A-13` P3 audit gate.
+>   sting, victory fanfare), loudness-normalization sign-off, and the
+>   `A-13` P3 audit gate. (Format stays MP3-only under the C-10 contract — no `.ogg`/`.m4a` exports
+>   unless the schema and runtime decoder are expanded together.)
 > - 📄 See `docs/pr-messages/C-08-sound-effects-music-production-pr.md`.
 
 ---

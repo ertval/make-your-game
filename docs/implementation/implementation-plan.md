@@ -680,7 +680,7 @@ This section is mandatory for delivery readiness and complements Track C (Audio)
 
 ### 9.3 Audio Asset Rules
 
-1. Provide at least one broadly compatible compressed format for each clip category (`.mp3` or `.m4a`), and optional higher-efficiency/open variants when supported (`.ogg`/Opus).
+1. Ship every clip as `.mp3` — the audio manifest contract (C-10 schema gate, `npm run validate:schema`) accepts `format: "mp3"` exclusively, and the runtime adapter decodes a single shipped format. Higher-efficiency/open variants (`.m4a`, `.ogg`/Opus) are out of scope until the schema and the runtime decoder are expanded together.
 2. Use short, pre-trimmed SFX for gameplay events; avoid long tails that overlap and inflate active voice count.
 3. Looping tracks must include loop-safe edit points and fade handling to prevent seam artifacts.
 4. Normalize loudness across categories (UI, gameplay, ambience, music) and keep headroom for mix peaks.
