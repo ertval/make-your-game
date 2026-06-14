@@ -336,13 +336,13 @@ C-04 / C-05 / B-03 / C-06 handoff pattern):
 - Loading state display for slow decode
 - Performance timing evidence artifact
 
-- [ ] Implement preloading strategy during level load:
+- [x] Implement preloading strategy during level load:
   - Decode all gameplay-critical SFX asynchronously using `decodeAudioData()`.
   - Show loading state if decode takes > 200ms.
   - Cache decoded buffers for reuse across levels.
-- [ ] Implement lazy loading for non-critical audio (music, ambience).
-- [ ] Audio decode MUST NOT block the main thread or game loop startup.
-- [ ] Verification gate: evidence artifact shows async decode timing and no main-thread blocking.
+- [-] Defer non-critical audio (music, ambience): excluded from the critical preload path (`criticalSfx` filter); `loadClips` decodes them eagerly but fire-and-forget after the game loop starts. True on-demand lazy loading is out of C-09 scope.
+- [x] Audio decode MUST NOT block the main thread or game loop startup.
+- [x] Verification gate: evidence artifact shows async decode timing and no main-thread blocking.
 
 ---
 

@@ -130,6 +130,30 @@ body {
   display: none;
 }
 
+/* C-09 audio-loading indicator — hidden by default, toggled by the
+   audio-loading-indicator adapter. Only appears when SFX preload exceeds the
+   200ms threshold; it never blocks gameplay input (pointer-events: none). */
+.audio-loading {
+  position: absolute;
+  bottom: var(--space-md);
+  right: var(--space-md);
+  padding: var(--space-sm, 8px) var(--space-md);
+  background: var(--color-surface, rgba(0, 0, 0, 0.75));
+  color: var(--color-text, #fff);
+  border-radius: var(--radius-md, 8px);
+  font-size: 0.85rem;
+  z-index: 1;
+  pointer-events: none;
+}
+
+.audio-loading.is-screen-hidden {
+  display: none;
+}
+
+.audio-loading.is-screen-visible {
+  display: block;
+}
+
 /* Screen overlays — hidden by default, shown via adapter class toggle */
 .screen-overlay {
   position: absolute;
