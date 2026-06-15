@@ -5,7 +5,7 @@
  * Implementation Notes: Uses deterministic stubs for window/document/timing to assert simulation invariants.
  */
 
-import { describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { createInputAdapter } from '../../../src/adapters/io/input-adapter.js';
 import { FIXED_DT_MS, MAX_STEPS_PER_FRAME } from '../../../src/ecs/resources/constants.js';
@@ -190,6 +190,16 @@ function createMovementMapResource() {
 }
 
 describe('game loop and runtime', () => {
+  let consoleWarnSpy;
+
+  beforeEach(() => {
+    consoleWarnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+  });
+
+  afterEach(() => {
+    consoleWarnSpy.mockRestore();
+  });
+
   it('treats runtime startGame as idempotent while already PLAYING', () => {
     const bootstrap = createBootstrap({
       loadMapForLevel: () => createMovementMapResource(),

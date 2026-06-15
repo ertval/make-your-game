@@ -19,8 +19,11 @@ describe('main.ecs.js', () => {
   let mockDocument;
   let mockAppRoot;
   let mockOverlayRoot;
+  let consoleWarnSpy;
 
   beforeEach(() => {
+    consoleWarnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+
     mockAppRoot = { id: 'app', appendChild: vi.fn() };
     mockOverlayRoot = { id: 'overlay-root', setAttribute: vi.fn(), textContent: '' };
 
@@ -74,6 +77,7 @@ describe('main.ecs.js', () => {
   });
 
   afterEach(() => {
+    consoleWarnSpy.mockRestore();
     vi.restoreAllMocks();
   });
 
@@ -174,10 +178,15 @@ describe('main.ecs.js', () => {
 
       runtime.start();
 
-      // Wait for frame
+      // Wait for the first frame to fail and trigger quarantine
+      await new Promise((r) => setTimeout(r, 10));
+
+      // Wait another frame duration and verify that the quarantined simulation updates are skipped
+      // (stepFrame is not called again during quarantine).
       await new Promise((r) => setTimeout(r, 10));
 
       expect(logger.error).toHaveBeenCalledWith(expect.stringContaining('fault budget exceeded'));
+      expect(mockBootstrap.stepFrame).toHaveBeenCalledTimes(1);
       runtime.stop();
     });
 
@@ -350,6 +359,15 @@ describe('main.ecs.js', () => {
       ).rejects.toThrow('fetch fail');
 
       expect(logger.error).toHaveBeenCalledWith('World initialization failed.', expect.any(Error));
+
+      // Assert that input adapter listeners were cleaned up on the mock targets
+      expect(mockWindow.removeEventListener).toHaveBeenCalledWith('keydown', expect.any(Function));
+      expect(mockWindow.removeEventListener).toHaveBeenCalledWith('keyup', expect.any(Function));
+      expect(mockWindow.removeEventListener).toHaveBeenCalledWith('blur', expect.any(Function));
+      expect(mockDocument.removeEventListener).toHaveBeenCalledWith(
+        'visibilitychange',
+        expect.any(Function),
+      );
     });
 
     it('warns about missing HUD elements in development mode', async () => {
@@ -362,10 +380,18 @@ describe('main.ecs.js', () => {
         return {};
       });
 
-      await bootstrapApplication({ documentRef: mockDocument, windowRef: mockWindow, logger });
-      expect(logger.warn).toHaveBeenCalledWith(
-        expect.stringContaining('HUD element "[data-hud="timer"]" not found.'),
-      );
+      const runtime = await bootstrapApplication({
+        documentRef: mockDocument,
+        windowRef: mockWindow,
+        logger,
+      });
+      try {
+        expect(logger.warn).toHaveBeenCalledWith(
+          expect.stringContaining('HUD element "[data-hud="timer"]" not found.'),
+        );
+      } finally {
+        runtime?.stop();
+      }
     });
 
     it('C-11A: restores persisted audio settings and applies them at startup', async () => {
@@ -379,6 +405,7 @@ describe('main.ecs.js', () => {
           uiVolume: 0.5,
         }),
       };
+      const originalLocalStorage = globalThis.localStorage;
       globalThis.localStorage = {
         getItem: (key) => (key in store ? store[key] : null),
         setItem: (key, value) => {
@@ -418,30 +445,165 @@ describe('main.ecs.js', () => {
         }
       });
 
-      await bootstrapApplication({
+      const runtime = await bootstrapApplication({
         documentRef: mockDocument,
         windowRef: mockWindow,
         logger: { warn: vi.fn(), error: vi.fn() },
       });
 
-      // No context yet (autoplay policy): the restored settings live in the
-      // adapter's volume map but no gain node exists until a gesture.
-      expect(createdGains.length).toBe(0);
+      try {
+        // No context yet (autoplay policy): the restored settings live in the
+        // adapter's volume map but no gain node exists until a gesture.
+        expect(createdGains.length).toBe(0);
 
-      // Simulate the first user gesture -> ensureContext() creates the gain
-      // nodes and applies the already-restored category volumes to them.
-      for (const handler of unlockHandlers) {
-        handler({ type: 'keydown' });
+        // Simulate the first user gesture -> ensureContext() creates the gain
+        // nodes and applies the already-restored category volumes to them.
+        for (const handler of unlockHandlers) {
+          handler({ type: 'keydown' });
+        }
+
+        // Gain nodes are created in CATEGORY_NAMES order: master, music, sfx, ui.
+        expect(createdGains.length).toBe(4);
+        const [, music, sfx, ui] = createdGains;
+        expect(music.gain.value).toBe(0); // musicEnabled:false -> 0
+        expect(sfx.gain.value).toBe(0.3); // sfxEnabled:true at stored volume
+        expect(ui.gain.value).toBe(0.5);
+      } finally {
+        runtime?.stop();
+        if (originalLocalStorage) {
+          globalThis.localStorage = originalLocalStorage;
+        } else {
+          delete globalThis.localStorage;
+        }
       }
+    });
 
-      // Gain nodes are created in CATEGORY_NAMES order: master, music, sfx, ui.
-      expect(createdGains.length).toBe(4);
-      const [, music, sfx, ui] = createdGains;
-      expect(music.gain.value).toBe(0); // musicEnabled:false -> 0
-      expect(sfx.gain.value).toBe(0.3); // sfxEnabled:true at stored volume
-      expect(ui.gain.value).toBe(0.5);
+    it('C-06: constructs map and manifest fetch paths correctly based on root-hosted base URL', async () => {
+      const originalBaseUrl = import.meta.env.BASE_URL;
+      import.meta.env.BASE_URL = '/';
+      let runtime;
 
-      delete globalThis.localStorage;
+      // Intercept the async fetch of audio-manifest.json to avoid setTimeout race conditions
+      let resolveAudioFetch;
+      const audioFetchPromise = new Promise((resolve) => {
+        resolveAudioFetch = resolve;
+      });
+      mockWindow.fetch.mockImplementation((url) => {
+        if (url.includes('audio-manifest.json')) {
+          resolveAudioFetch(url);
+        }
+        return Promise.resolve({
+          ok: true,
+          json: () =>
+            Promise.resolve({
+              level: 1,
+              dimensions: { rows: 5, columns: 5 },
+              grid: [
+                [1, 1, 1, 1, 1],
+                [1, 3, 3, 3, 1],
+                [1, 3, 3, 3, 1],
+                [1, 3, 3, 5, 1],
+                [1, 1, 1, 1, 1],
+              ],
+              spawn: {
+                player: { row: 2, col: 2 },
+                ghostSpawnPoint: { row: 3, col: 3 },
+                ghostHouse: { topRow: 3, bottomRow: 3, leftCol: 3, rightCol: 3 },
+              },
+              metadata: {
+                name: 'test',
+                activeGhostTypes: [0],
+                ghostSpeed: 1,
+                maxGhosts: 1,
+                timerSeconds: 60,
+              },
+            }),
+        });
+      });
+
+      try {
+        runtime = await bootstrapApplication({
+          documentRef: mockDocument,
+          windowRef: mockWindow,
+          logger: { warn: vi.fn(), error: vi.fn(), info: vi.fn() },
+        });
+
+        // Map loads are synchronous during bootstrap
+        expect(mockWindow.fetch).toHaveBeenCalledWith('/assets/maps/level-1.json');
+        expect(mockWindow.fetch).toHaveBeenCalledWith('/assets/maps/level-2.json');
+        expect(mockWindow.fetch).toHaveBeenCalledWith('/assets/maps/level-3.json');
+
+        // Deterministically wait for the async audio manifest fetch to resolve
+        const audioManifestUrl = await audioFetchPromise;
+        expect(audioManifestUrl).toBe('/assets/manifests/audio-manifest.json');
+      } finally {
+        import.meta.env.BASE_URL = originalBaseUrl;
+        runtime?.stop();
+      }
+    });
+
+    it('C-06: constructs map and manifest fetch paths correctly based on sub-path base URL', async () => {
+      const originalBaseUrl = import.meta.env.BASE_URL;
+      import.meta.env.BASE_URL = '/make-your-game/';
+      let runtime;
+
+      // Intercept the async fetch of audio-manifest.json to avoid setTimeout race conditions
+      let resolveAudioFetch;
+      const audioFetchPromise = new Promise((resolve) => {
+        resolveAudioFetch = resolve;
+      });
+      mockWindow.fetch.mockImplementation((url) => {
+        if (url.includes('audio-manifest.json')) {
+          resolveAudioFetch(url);
+        }
+        return Promise.resolve({
+          ok: true,
+          json: () =>
+            Promise.resolve({
+              level: 1,
+              dimensions: { rows: 5, columns: 5 },
+              grid: [
+                [1, 1, 1, 1, 1],
+                [1, 3, 3, 3, 1],
+                [1, 3, 3, 3, 1],
+                [1, 3, 3, 5, 1],
+                [1, 1, 1, 1, 1],
+              ],
+              spawn: {
+                player: { row: 2, col: 2 },
+                ghostSpawnPoint: { row: 3, col: 3 },
+                ghostHouse: { topRow: 3, bottomRow: 3, leftCol: 3, rightCol: 3 },
+              },
+              metadata: {
+                name: 'test',
+                activeGhostTypes: [0],
+                ghostSpeed: 1,
+                maxGhosts: 1,
+                timerSeconds: 60,
+              },
+            }),
+        });
+      });
+
+      try {
+        runtime = await bootstrapApplication({
+          documentRef: mockDocument,
+          windowRef: mockWindow,
+          logger: { warn: vi.fn(), error: vi.fn(), info: vi.fn() },
+        });
+
+        // Map loads are synchronous during bootstrap
+        expect(mockWindow.fetch).toHaveBeenCalledWith('/make-your-game/assets/maps/level-1.json');
+        expect(mockWindow.fetch).toHaveBeenCalledWith('/make-your-game/assets/maps/level-2.json');
+        expect(mockWindow.fetch).toHaveBeenCalledWith('/make-your-game/assets/maps/level-3.json');
+
+        // Deterministically wait for the async audio manifest fetch to resolve
+        const audioManifestUrl = await audioFetchPromise;
+        expect(audioManifestUrl).toBe('/make-your-game/assets/manifests/audio-manifest.json');
+      } finally {
+        import.meta.env.BASE_URL = originalBaseUrl;
+        runtime?.stop();
+      }
     });
   });
 });
