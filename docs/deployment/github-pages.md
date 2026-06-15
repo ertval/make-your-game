@@ -9,11 +9,12 @@ Pushes to the `main` branch trigger the deployment workflow located in [.github/
 The workflow performs the following steps:
 1. **Checkout**: Checks out the codebase using `actions/checkout`.
 2. **Environment Setup**: Configures Node.js using `actions/setup-node`.
-3. **Dependency Installation**: Runs `npm ci` (or `npm install` if a lockfile is missing).
-4. **Linting and Validation**: Runs `npm run check` (Biome checks) and `npm run test:unit`.
-5. **Vite Build**: Compiles the production artifacts into the `dist/` directory via `npm run build`.
-6. **Dynamic Asset Prep**: Copies runtime assets (`assets/maps`, `assets/manifests`, `assets/generated`) into the `dist/assets` directory.
-7. **Deploy**: Configures Pages and uploads/deploys the `dist` folder to GitHub Pages via `actions/deploy-pages`.
+3. **npm Version Pin**: Installs a specific npm version to ensure reproducible install behavior.
+4. **Dependency Installation**: Runs `npm ci` (or `npm install` if a lockfile is missing).
+5. **Linting and Validation**: Runs `npm run check` (Biome checks) and `npm run test:unit`.
+6. **Vite Build**: Compiles the production artifacts into the `dist/` directory via `npm run build`.
+7. **Dynamic Asset Prep**: Copies runtime assets (`assets/maps`, `assets/manifests`, `assets/generated`) into the `dist/assets` directory.
+8. **Deploy**: Configures Pages and uploads/deploys the `dist` folder to GitHub Pages via `actions/deploy-pages`.
 
 All workflow steps use SHA-pinned GitHub Actions to prevent supply chain attacks.
 

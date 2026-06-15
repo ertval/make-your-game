@@ -159,6 +159,7 @@ graph TB
 make-your-game/
 ├── .github/                        # 🔧 GitHub Actions and repository workflow files
 │   └── workflows/
+│       ├── deploy.yml               # GitHub Pages deployment workflow
 │       └── policy-gate.yml         # PR merge gate workflow
 ├── assets/                         # 🎨 Static and generated asset roots
 │   ├── generated/                  # Build-time generated sprite/UI/audio outputs
