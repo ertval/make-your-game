@@ -79,6 +79,49 @@ function validateDimensionsConsistency(rawMap) {
 }
 
 /**
+ * Highest defined CELL_TYPE id. Cells must be integers in [0, MAX_CELL_TYPE_ID].
+ * Derived from the CELL_TYPE enum so it tracks new cell kinds automatically.
+ */
+const MAX_CELL_TYPE_ID = Math.max(...Object.values(CELL_TYPE));
+
+/**
+ * Validate every grid cell holds a defined CELL_TYPE id (integer 0..MAX).
+ *
+ * SEC-04 (#163): The flat grid is a Uint8Array, so an out-of-range value is
+ * silently coerced (values > 255 wrap, 0..255 are kept as opaque bytes with no
+ * CELL_TYPE meaning) and then mis-handled by collision / pellet-count fallbacks.
+ * The JSON-schema mirror also enforces this, but it is skipped in the test env
+ * and is a separate source of truth — this semantic guard fails closed at the
+ * load boundary regardless of how the payload arrived.
+ *
+ * @param {object} rawMap — Raw map JSON object.
+ * @returns {{ ok: boolean, errors: string[] }}
+ */
+function validateGridCellTypes(rawMap) {
+  const errors = [];
+  const { grid } = rawMap;
+
+  for (let r = 0; r < grid.length; r += 1) {
+    const row = grid[r];
+    if (!Array.isArray(row)) {
+      // Row shape problems are reported by validateDimensionsConsistency; skip
+      // here to avoid duplicate/cascading errors.
+      continue;
+    }
+    for (let c = 0; c < row.length; c += 1) {
+      const value = row[c];
+      if (!Number.isInteger(value) || value < 0 || value > MAX_CELL_TYPE_ID) {
+        errors.push(
+          `grid (${r}, ${c}) has invalid cell type ${value} (must be an integer 0..${MAX_CELL_TYPE_ID})`,
+        );
+      }
+    }
+  }
+
+  return { ok: errors.length === 0, errors };
+}
+
+/**
  * Validate that border cells are wall types only (no passable content).
  *
  * The outer border must not contain pellets, power pellets, power-ups,
@@ -291,6 +334,7 @@ export function validateMapSemantic(rawMap) {
   const allErrors = [];
   const checks = [
     validateDimensionsConsistency,
+    validateGridCellTypes,
     validateBorderIntegrity,
     validateGhostHouseCells,
     validateGhostSpawnInsideHouse,

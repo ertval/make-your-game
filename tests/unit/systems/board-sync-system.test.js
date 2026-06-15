@@ -41,7 +41,9 @@ function makeMap(grid2D) {
 function setupHarness(mapResource, options = {}) {
   const world = new World();
   const adapter = createMockAdapter();
-  const system = createBoardSyncSystem(adapter, options);
+  const system = createBoardSyncSystem(options);
+  // ARCH-02 (#154): the board adapter is injected through the resource API.
+  world.setResource(options.boardAdapterResourceKey || 'boardAdapter', adapter);
   if (mapResource !== undefined) {
     world.setResource(options.mapResourceKey || 'mapResource', mapResource);
   }
@@ -50,8 +52,7 @@ function setupHarness(mapResource, options = {}) {
 
 describe('board-sync-system', () => {
   describe('phase and resource config', () => {
-    const adapter = createMockAdapter();
-    const system = createBoardSyncSystem(adapter);
+    const system = createBoardSyncSystem();
 
     it('runs in the render phase', () => {
       expect(system.phase).toBe('render');
@@ -61,8 +62,79 @@ describe('board-sync-system', () => {
       expect(system.resourceCapabilities.read).toContain('mapResource');
     });
 
+    it('declares read access to boardAdapter (ARCH-02 / #154)', () => {
+      expect(system.resourceCapabilities.read).toContain('boardAdapter');
+    });
+
     it('exposes a stable name', () => {
       expect(system.name).toBe('board-sync-system');
+    });
+  });
+
+  describe('adapter resource injection (ARCH-02 / #154)', () => {
+    it('reads the board adapter from the world resource, not a closure param', () => {
+      const map = makeMap([
+        [3, 3],
+        [3, 3],
+      ]);
+      const world = new World();
+      const system = createBoardSyncSystem();
+      world.setResource('mapResource', map);
+      const adapter = createMockAdapter();
+      world.setResource('boardAdapter', adapter);
+
+      // Prime snapshot, then mutate a cell.
+      system.update({ world });
+      map.grid[1] = 0;
+      system.update({ world });
+
+      expect(adapter.updateCell).toHaveBeenCalledTimes(1);
+      expect(adapter.updateCell).toHaveBeenCalledWith(0, 1, 0);
+    });
+
+    it('no-ops safely when the board adapter resource is absent', () => {
+      const map = makeMap([[3]]);
+      const world = new World();
+      const system = createBoardSyncSystem();
+      world.setResource('mapResource', map);
+      // boardAdapter intentionally not registered.
+      expect(() => system.update({ world })).not.toThrow();
+    });
+  });
+
+  describe('same-level restart snapshot reset (ARCH-06 / #158)', () => {
+    it('re-baselines without redundant updateCell calls when renderFrame resets to 0', () => {
+      const map = makeMap([
+        [3, 3, 3],
+        [3, 3, 3],
+      ]);
+      const { world, adapter, system } = setupHarness(map);
+
+      // Steady state: prime the snapshot, then collect pellets so the snapshot
+      // diverges from the (about-to-be-reset) fresh grid.
+      system.update({ renderFrame: 5, world });
+      map.grid[0] = 0;
+      map.grid[1] = 0;
+      map.grid[2] = 0;
+      system.update({ renderFrame: 6, world });
+      adapter.updateCell.mockClear();
+
+      // Restart: bootstrap calls generateBoard() (full repaint from the fresh
+      // grid) and flips renderFrame back to 0. The fresh grid restores pellets.
+      map.grid[0] = 3;
+      map.grid[1] = 3;
+      map.grid[2] = 3;
+      system.update({ renderFrame: 0, world });
+
+      // No redundant writes — generateBoard already painted the fresh board and
+      // the snapshot was silently re-baselined.
+      expect(adapter.updateCell).not.toHaveBeenCalled();
+
+      // Subsequent real mutations on the restarted level are still picked up.
+      map.grid[4] = 0;
+      system.update({ renderFrame: 1, world });
+      expect(adapter.updateCell).toHaveBeenCalledTimes(1);
+      expect(adapter.updateCell).toHaveBeenCalledWith(1, 1, 0);
     });
   });
 

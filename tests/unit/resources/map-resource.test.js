@@ -434,6 +434,36 @@ describe('map-resource — semantic validation (invalid rejection)', () => {
     expect(result.errors.some((e) => e.includes('columns'))).toBe(true);
   });
 
+  it('rejects an out-of-range cell type via validateMapSemantic (SEC-04 / #163)', () => {
+    // A cell value above the valid CELL_TYPE range (0-9) is silently truncated
+    // by the Uint8Array flat grid (e.g. 255 stays 255 but 256 wraps to 0; any
+    // value > 9 has no CELL_TYPE meaning) and is then mis-handled by collision /
+    // pellet-count fallbacks. Semantic validation must reject it instead of
+    // letting corrupt data reach the runtime grid. The schema mirror is skipped
+    // in the test env, so validateMapSemantic is the active guard here.
+    const rawMap = createMinimalValidRawMap();
+    rawMap.grid[5][6] = 42; // inside ghost-house-free interior, out of range
+    const result = validateMapSemantic(rawMap);
+    expect(result.ok).toBe(false);
+    expect(result.errors.some((e) => e.includes('cell type'))).toBe(true);
+  });
+
+  it('rejects a negative cell type via validateMapSemantic (SEC-04 / #163)', () => {
+    const rawMap = createMinimalValidRawMap();
+    rawMap.grid[6][6] = -1;
+    const result = validateMapSemantic(rawMap);
+    expect(result.ok).toBe(false);
+    expect(result.errors.some((e) => e.includes('cell type'))).toBe(true);
+  });
+
+  it('rejects a non-integer cell type via validateMapSemantic (SEC-04 / #163)', () => {
+    const rawMap = createMinimalValidRawMap();
+    rawMap.grid[6][7] = 3.5;
+    const result = validateMapSemantic(rawMap);
+    expect(result.ok).toBe(false);
+    expect(result.errors.some((e) => e.includes('cell type'))).toBe(true);
+  });
+
   it('throws on createMapResource for invalid map', () => {
     const rawMap = createMinimalValidRawMap();
     rawMap.grid[0][3] = CELL_TYPE.EMPTY;

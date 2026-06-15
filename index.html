@@ -4,6 +4,14 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Ms. Ghostman - ECS Edition</title>
+    <!-- #100: Ms. Ghostman favicon. Served from /public by Vite in both dev and
+         build. SVG is declared first so modern browsers use the crisp vector;
+         PNGs (largest-first) and the multi-size .ico are legacy fallbacks. -->
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png" />
+    <link rel="icon" type="image/png" sizes="16x16" href="/favicon-16x16.png" />
+    <link rel="icon" href="/favicon.ico" sizes="any" />
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
     <link rel="stylesheet" href="/styles/base.css" />
   </head>
   <body>
@@ -48,6 +56,7 @@
       <section id="game-board" aria-label="Game Board" tabindex="-1"></section>
       <section id="overlay-root" class="overlay-container" role="dialog" aria-modal="true">
         <div id="overlay-error" aria-live="assertive" role="alert" class="is-screen-hidden"></div>
+        <div data-audio-loading class="audio-loading is-screen-hidden" aria-live="polite" aria-hidden="true" aria-busy="false">Loading audio…</div>
         <section data-screen="start" class="screen-overlay is-screen-hidden" aria-hidden="true" tabindex="-1">
           <div class="overlay__panel">
             <h1>Ms. Ghostman</h1>

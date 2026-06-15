@@ -8,6 +8,7 @@
  */
 
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { MAX_RENDER_INTENTS } from '../../../src/ecs/resources/constants.js';
 import {
   appendRenderIntent,
   appendRenderIntentDirect,
@@ -15,8 +16,7 @@ import {
   getRenderIntentView,
   RENDER_INTENT_VERSION,
   resetRenderIntentBuffer,
-} from '../../../src/ecs/render-intent.js';
-import { MAX_RENDER_INTENTS } from '../../../src/ecs/resources/constants.js';
+} from '../../../src/ecs/resources/render-intent.js';
 
 vi.mock('../../../src/shared/env.js', () => ({
   isDevelopment: vi.fn(() => true),

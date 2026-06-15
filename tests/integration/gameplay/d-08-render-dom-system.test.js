@@ -10,7 +10,7 @@
  */
 
 import { describe, expect, it, vi } from 'vitest';
-import { createRenderIntentBuffer } from '../../../src/ecs/render-intent.js';
+import { createRenderIntentBuffer } from '../../../src/ecs/resources/render-intent.js';
 import { createRenderDomSystem } from '../../../src/ecs/systems/render-dom-system.js';
 import { World } from '../../../src/ecs/world/world.js';
 
@@ -20,7 +20,7 @@ function createMockSpritePool() {
 
   return {
     acquire: vi.fn((type) => {
-      const el = { classList: { add: vi.fn() }, style: {}, className: '' };
+      const el = { classList: { add: vi.fn(), remove: vi.fn() }, style: {}, className: '' };
       acquired.push({ type, element: el });
       activeEls.push(el);
       return el;

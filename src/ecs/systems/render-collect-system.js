@@ -31,8 +31,8 @@
 import { COMPONENT_MASK } from '../components/registry.js';
 import { COLLIDER_TYPE } from '../components/spatial.js';
 import { RENDERABLE_KIND } from '../components/visual.js';
-import { appendRenderIntentDirect } from '../render-intent.js';
 import { BOMB_FUSE_MS, FIRE_DURATION_MS, VISUAL_FLAGS } from '../resources/constants.js';
+import { appendRenderIntentDirect } from '../resources/render-intent.js';
 
 /**
  * Number of fire-tile animation frames. Matches the count of
