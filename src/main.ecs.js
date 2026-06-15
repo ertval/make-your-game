@@ -36,11 +36,12 @@
  * - startBrowserApplication(options)
  */
 
+import { createAudioLoadingIndicator } from './adapters/dom/audio-loading-indicator.js';
 import { createHudAdapter } from './adapters/dom/hud-adapter.js';
 import { createScreensAdapter } from './adapters/dom/screens-adapter.js';
 import { createAudioQuickToggle } from './adapters/dom/screens-audio-toggle.js';
 import { createAudioAdapter } from './adapters/io/audio-adapter.js';
-import { applyAudioSettings } from './adapters/io/audio-integration.js';
+import { applyAudioSettings, preloadWithIndicator } from './adapters/io/audio-integration.js';
 import { createInputAdapter } from './adapters/io/input-adapter.js';
 import {
   getAudioSettings,
@@ -183,7 +184,9 @@ async function loadDefaultMaps({ fetchImpl } = {}) {
   for (let levelNumber = 1; levelNumber <= TOTAL_LEVELS; levelNumber += 1) {
     preloadTasks.push(
       (async () => {
-        const response = await fetchImpl(`/assets/maps/level-${levelNumber}.json`);
+        const response = await fetchImpl(
+          `${import.meta.env.BASE_URL}assets/maps/level-${levelNumber}.json`,
+        );
         if (!response || response.ok !== true) {
           const status = Number.isFinite(response?.status) ? response.status : 'unknown';
           throw new Error(`Failed to load map asset for level ${levelNumber} (status: ${status}).`);
@@ -224,14 +227,21 @@ async function loadDefaultMaps({ fetchImpl } = {}) {
  */
 async function loadAudioClipManifest({ fetchImpl, logger = console } = {}) {
   const grouped = { sfx: {}, music: {}, ui: {} };
+  // C-09: gameplay-critical SFX cue id -> url, derived from the same single
+  // manifest fetch. Only sfx-category assets flagged `critical: true` qualify;
+  // music/ambience are excluded from preload in this phase.
+  const criticalSfx = {};
+  const result = { grouped, criticalSfx };
   if (typeof fetchImpl !== 'function') {
-    return grouped;
+    return result;
   }
 
   try {
-    const response = await fetchImpl('/assets/manifests/audio-manifest.json');
+    const response = await fetchImpl(
+      `${import.meta.env.BASE_URL}assets/manifests/audio-manifest.json`,
+    );
     if (!response || response.ok !== true) {
-      return grouped;
+      return result;
     }
 
     const manifest = await response.json();
@@ -246,13 +256,18 @@ async function loadAudioClipManifest({ fetchImpl, logger = console } = {}) {
           : asset.category === 'ui'
             ? grouped.ui
             : grouped.sfx;
-      bucket[asset.id] = asset.path.startsWith('/') ? asset.path : `/${asset.path}`;
+      const normalizedPath = asset.path.startsWith('/') ? asset.path.slice(1) : asset.path;
+      const resolvedUrl = `${import.meta.env.BASE_URL}${normalizedPath}`;
+      bucket[asset.id] = resolvedUrl;
+      if (asset.category === 'sfx' && asset.critical === true) {
+        criticalSfx[asset.id] = resolvedUrl;
+      }
     }
   } catch (error) {
     logger.warn('Audio manifest load failed; continuing without preloaded clips.', error);
   }
 
-  return grouped;
+  return result;
 }
 
 export function renderCriticalError(overlayRoot, error) {
@@ -581,11 +596,11 @@ export async function bootstrapApplication({
     throw new Error('Missing #app root.');
   }
 
-  // DEAD-01: render-dom-system (run during runRenderCommit) is the canonical
-  // DOM commit path. The legacy createDomRenderer remains available for non-ECS
-  // tooling (map preview, debug views) but is intentionally NOT registered with
-  // the bootstrap step loop — registering it would cause double DOM writes per
-  // frame and bypass the sprite pool.
+  // DEAD-01 / DEAD-03: render-dom-system (run during runRenderCommit) is the
+  // sole canonical DOM commit path. The legacy `renderer-dom.js` adapter was
+  // removed (DEAD-03 / #139); no separate per-frame DOM renderer is registered
+  // with the bootstrap step loop, which would otherwise cause double DOM writes
+  // per frame and bypass the sprite pool.
 
   const hudSection = targetDocument.getElementById('hud');
   const hudAdapter = hudSection ? createHudAdapter(hudSection) : null;
@@ -746,11 +761,37 @@ export async function bootstrapApplication({
       // complete, validated object — malformed storage falls back to defaults.
       applyAudioSettings(audioAdapter, getAudioSettings());
       bootstrap.setAudioAdapter(audioAdapter);
-      // Fire-and-forget decode so startup is never blocked on audio (C-09 intent).
-      loadAudioClipManifest({ fetchImpl: audioFetch, logger }).then((clipManifest) => {
-        audioAdapter.loadClips(clipManifest).catch((error) => {
+      // C-09: a Track C DOM adapter (no ECS→DOM coupling) wired here at the app
+      // boundary. Only appears if the critical-SFX decode crosses the 200ms
+      // threshold and is hidden the instant it completes.
+      const audioLoadingIndicator = overlayRoot ? createAudioLoadingIndicator(overlayRoot) : null;
+      // Single manifest fetch feeds both the full clip load and the C-09
+      // critical-SFX preload. Fire-and-forget so startup is never blocked.
+      loadAudioClipManifest({ fetchImpl: audioFetch, logger }).then(({ grouped, criticalSfx }) => {
+        audioAdapter.loadClips(grouped).catch((error) => {
           logger.warn('Audio clip preload failed.', error);
         });
+        const cueIds = Object.keys(criticalSfx);
+        if (cueIds.length === 0) {
+          return;
+        }
+        preloadWithIndicator({
+          audio: audioAdapter,
+          indicator: audioLoadingIndicator,
+          cueIds,
+          preloadOptions: { urls: criticalSfx },
+        })
+          .then(() => {
+            // C-09: surface the real preload timing/cache instrumentation so it
+            // can be captured for the AUDIT-B-05 evidence artifact. This is a
+            // diagnostic log only; it never blocks the game loop.
+            if (typeof audioAdapter.getPreloadStats === 'function') {
+              logger.info?.('[C-09] audio preload stats', audioAdapter.getPreloadStats());
+            }
+          })
+          .catch((error) => {
+            logger.warn('Critical SFX preload failed.', error);
+          });
       });
     } catch (error) {
       logger.warn('Audio initialization failed; continuing without sound.', error);

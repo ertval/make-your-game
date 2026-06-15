@@ -47,6 +47,7 @@
  *   guard keeps the AI consistent if the systems are wired independently.
  */
 
+import { readEntityTile } from '../../shared/tile-utils.js';
 import { COMPONENT_MASK } from '../components/registry.js';
 import {
   CLYDE_DISTANCE_THRESHOLD,
@@ -59,7 +60,6 @@ import {
 } from '../resources/constants.js';
 import { GAME_STATE } from '../resources/game-status.js';
 import { isInGhostHouse, isPassableForGhost } from '../resources/map-resource.js';
-import { readEntityTile } from '../shared/tile-utils.js';
 
 const DEFAULT_GAME_STATUS_RESOURCE_KEY = 'gameStatus';
 const DEFAULT_GHOST_RESOURCE_KEY = 'ghost';

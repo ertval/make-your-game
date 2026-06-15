@@ -140,6 +140,65 @@ const GHOST_SPRITE_FRAMES = [
 ];
 
 /**
+ * Visual-flag state classes added by applyVisualFlagClasses. Tracked here so the
+ * per-frame reset can remove them alongside the kind/frame classes.
+ */
+const VISUAL_FLAG_CLASSES = [
+  'sprite--ghost--stunned',
+  'sprite--ghost--dead',
+  'sprite--player--speed-boost',
+];
+
+/**
+ * The base class kept on every pooled sprite element (sizing/positioning). It is
+ * never removed during the per-frame reset.
+ */
+const BASE_SPRITE_CLASS = 'sprite';
+
+/**
+ * SEC-08 (#167): The complete, de-duplicated set of every CSS class this system
+ * may add to a sprite element across all kinds, frames, ghost personalities and
+ * visual-flag states — excluding the persistent BASE_SPRITE_CLASS.
+ *
+ * The per-frame reset removes exactly these managed classes instead of calling
+ * `el.className = 'sprite'`, which would clobber any foreign class (e.g. ones
+ * added by tests, debug overlays, or future cross-cutting concerns) sharing the
+ * pooled element. Built from the same source constants the apply-paths use so
+ * the two can never drift.
+ */
+const MANAGED_SPRITE_CLASSES = (() => {
+  const managed = new Set();
+
+  const addClass = (cls) => {
+    if (cls && cls !== BASE_SPRITE_CLASS) {
+      managed.add(cls);
+    }
+  };
+
+  for (const classes of Object.values(KIND_TO_CLASSES)) {
+    for (const cls of classes) {
+      addClass(cls);
+    }
+  }
+
+  for (const cls of PLAYER_SPRITE_CLASSES) addClass(cls);
+  for (const cls of FIRE_SPRITE_CLASSES) addClass(cls);
+  for (const cls of BOMB_SPRITE_CLASSES) addClass(cls);
+  for (const cls of VISUAL_FLAG_CLASSES) addClass(cls);
+
+  for (const typeSuffix of Object.values(GHOST_TYPE_SUFFIX)) {
+    addClass(`sprite--ghost--${typeSuffix}`);
+    for (const frameSuffix of GHOST_SPRITE_FRAMES) {
+      if (frameSuffix) {
+        addClass(`sprite--ghost--${typeSuffix}--${frameSuffix}`);
+      }
+    }
+  }
+
+  return Object.freeze([...managed]);
+})();
+
+/**
  * Convert opacity byte (0-255) to CSS opacity string.
  */
 function opacityToCss(byte) {
@@ -243,8 +302,12 @@ export function createRenderDomSystem(options = {}) {
           el = spritePool.acquire(spriteType);
         }
 
-        // Clear previous classes but keep the base sprite class for width/height
-        el.className = 'sprite';
+        // SEC-08 (#167): Reset only the classes this system manages, preserving
+        // the base sprite class (sizing) AND any foreign class on the pooled
+        // element. `el.className = 'sprite'` previously clobbered everything,
+        // wiping classes added by other concerns sharing the pool element.
+        el.classList.remove(...MANAGED_SPRITE_CLASSES);
+        el.classList.add(BASE_SPRITE_CLASS);
 
         if ((classBits & VISUAL_FLAGS.HIDDEN) !== 0) {
           // ARCH-01: hide via offscreen transform (compositor-only) rather

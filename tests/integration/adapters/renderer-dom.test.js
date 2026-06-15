@@ -9,7 +9,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { describe, expect, it, vi } from 'vitest';
 import { RENDERABLE_KIND } from '../../../src/ecs/components/visual.js';
-import { createRenderIntentBuffer } from '../../../src/ecs/render-intent.js';
+import { createRenderIntentBuffer } from '../../../src/ecs/resources/render-intent.js';
 import { createRenderDomSystem } from '../../../src/ecs/systems/render-dom-system.js';
 import { World } from '../../../src/ecs/world/world.js';
 

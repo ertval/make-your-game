@@ -28,10 +28,10 @@
  *   when its request is dropped, so it cannot re-enqueue on every later step.
  */
 
+import { readEntityTile } from '../../shared/tile-utils.js';
 import { COMPONENT_MASK } from '../components/registry.js';
 import { COLLIDER_TYPE } from '../components/spatial.js';
 import { BOMB_FUSE_MS, DEFAULT_FIRE_RADIUS, MAX_DETONATION_QUEUE } from '../resources/constants.js';
-import { readEntityTile } from '../shared/tile-utils.js';
 import {
   emitGameplayEvent,
   GAMEPLAY_EVENT_SOURCE,
