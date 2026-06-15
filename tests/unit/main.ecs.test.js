@@ -443,5 +443,53 @@ describe('main.ecs.js', () => {
 
       delete globalThis.localStorage;
     });
+
+    it('C-06: constructs map and manifest fetch paths correctly based on root-hosted base URL', async () => {
+      const originalBaseUrl = import.meta.env.BASE_URL;
+      import.meta.env.BASE_URL = '/';
+      try {
+        await bootstrapApplication({
+          documentRef: mockDocument,
+          windowRef: mockWindow,
+          logger: { warn: vi.fn(), error: vi.fn(), info: vi.fn() },
+        });
+
+        // Map loads are synchronous during bootstrap
+        expect(mockWindow.fetch).toHaveBeenCalledWith('/assets/maps/level-1.json');
+        expect(mockWindow.fetch).toHaveBeenCalledWith('/assets/maps/level-2.json');
+        expect(mockWindow.fetch).toHaveBeenCalledWith('/assets/maps/level-3.json');
+
+        // Audio manifest load is async; let microtasks run
+        await new Promise((resolve) => setTimeout(resolve, 10));
+        expect(mockWindow.fetch).toHaveBeenCalledWith('/assets/manifests/audio-manifest.json');
+      } finally {
+        import.meta.env.BASE_URL = originalBaseUrl;
+      }
+    });
+
+    it('C-06: constructs map and manifest fetch paths correctly based on sub-path base URL', async () => {
+      const originalBaseUrl = import.meta.env.BASE_URL;
+      import.meta.env.BASE_URL = '/make-your-game/';
+      try {
+        await bootstrapApplication({
+          documentRef: mockDocument,
+          windowRef: mockWindow,
+          logger: { warn: vi.fn(), error: vi.fn(), info: vi.fn() },
+        });
+
+        // Map loads are synchronous during bootstrap
+        expect(mockWindow.fetch).toHaveBeenCalledWith('/make-your-game/assets/maps/level-1.json');
+        expect(mockWindow.fetch).toHaveBeenCalledWith('/make-your-game/assets/maps/level-2.json');
+        expect(mockWindow.fetch).toHaveBeenCalledWith('/make-your-game/assets/maps/level-3.json');
+
+        // Audio manifest load is async; let microtasks run
+        await new Promise((resolve) => setTimeout(resolve, 10));
+        expect(mockWindow.fetch).toHaveBeenCalledWith(
+          '/make-your-game/assets/manifests/audio-manifest.json',
+        );
+      } finally {
+        import.meta.env.BASE_URL = originalBaseUrl;
+      }
+    });
   });
 });
