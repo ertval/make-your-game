@@ -68,12 +68,18 @@ Use lower-kebab-case and role-oriented names:
 2. Trim leading/trailing silence for all SFX.
 3. Export music and ambience loops with loop-safe boundaries.
 4. Normalize loudness by category before encoding.
-5. Encode at least one compatibility format and optionally one open/high-efficiency format.
+5. Encode to `.mp3` — the single format the audio manifest contract currently accepts.
 
-Recommended baseline formats:
-
-1. Compatibility: `.mp3` or `.m4a`.
-2. Optional open variant: `.ogg` (Opus).
+Format policy (current contract): **MP3-only.** The C-10 audio-manifest schema
+gate (`docs/schemas/audio-manifest.schema.json`, enforced by `npm run
+validate:schema`) accepts only `format: "mp3"` with a `.mp3` file extension. The
+runtime audio adapter decodes a single shipped format, so `.ogg` (Opus) and
+`.m4a` are **not** enabled by the manifest gate today — an asset in either
+format would fail validation and must not be added to the manifest. Adding
+multi-format / open-variant support is a future change that requires BOTH
+expanding the schema (`format` enum + `path` extension pattern) AND adding the
+matching runtime decoder/fallback selection; until both land, keep all generated
+audio in `.mp3`.
 
 ## 7. Audio Naming Rules
 
@@ -139,8 +145,12 @@ Example commands:
 
 ```bash
 svgo assets/source/visual -f assets/generated/sprites
+# Audio is MP3-only under the current C-10 manifest contract — encode every cue
+# (SFX, music, ambience, UI) with libmp3lame to a .mp3 target. A libopus/.ogg
+# target would be rejected by `npm run validate:schema` until the schema and the
+# runtime decoder are expanded together (see §6 Format policy).
 ffmpeg -i assets/source/audio/sfx-bomb-explode.wav -c:a libmp3lame -b:a 192k assets/generated/sfx/sfx-bomb-explode.mp3
-ffmpeg -i assets/source/audio/music-level-01.wav -c:a libopus -b:a 128k assets/generated/music/music-level-01-loop.ogg
+ffmpeg -i assets/source/audio/music-level-01.wav -c:a libmp3lame -b:a 128k assets/generated/music/music-level-01-loop.mp3
 ```
 
 ## 11. References
