@@ -253,22 +253,22 @@
 - Power-up sprites/icons: Bomb+, Fire+, Speed Boost
 - Sprite metadata handoff table (`spriteId`, `width`, `height`, `className`) for visual manifest mapping
 
-- [ ] **DEFERRED from D-10**: Create remaining gameplay sprites (ghosts × 4 types × 3 states, bombs, fire tiles, pellets, walls, power-up icons).
-- [ ] **DEFERRED from D-10**: Emit sprite metadata handoff table (`spriteId`, `width`, `height`, `className`) consumed by visual manifest.
-- [ ] Design and build CSS layouts for all screen overlays:
+- [x] **DEFERRED from D-10**: Create remaining gameplay sprites (ghosts × 4 types × 3 states, bombs, fire tiles, pellets, walls, power-up icons). _(All present under `assets/generated/visuals/`.)_
+- [x] **DEFERRED from D-10**: Emit sprite metadata handoff table (`spriteId`, `width`, `height`, `className`) consumed by visual manifest. _(D-10 source table `assets/source/visual/sprite-handoff.json` aligned to real render-dom CSS classes; the resolved `className` now lives on every `visual-manifest.json` entry, validated in CI.)_
+- [x] Design and build CSS layouts for all screen overlays: _(delivered with C-05 — `.screen-overlay`/`.overlay__panel`/`.overlay__actions` in `styles/`; all five `data-screen` sections present in `index.html`.)_
   - Start Screen: title treatment, button styles, high score table.
   - Pause Menu: semi-transparent overlay, button styles.
   - Level Complete: stats layout, next level button.
   - Game Over: final score display, play again button.
   - Victory: celebration treatment, final stats, play again button.
-- [ ] Create HUD layout CSS: lives icons, score counter, timer, bomb/fire indicators, level number.
-- [ ] Finalize `docs/schemas/visual-manifest.schema.json` (JSON Schema 2020-12):
-  - Required fields: `id`, `path`, `kind` (sprite|ui|tile|effect), `format`, `width`, `height`, `tags`, `critical`.
+- [x] Create HUD layout CSS: lives icons, score counter, timer, bomb/fire indicators, level number. _(`.hud`/`.hud__label`/`.hud__metric`/`.hud__value`.)_
+- [x] Finalize `docs/schemas/visual-manifest.schema.json` (JSON Schema 2020-12):
+  - Required fields: `id`, `path`, `kind` (sprite|ui|tile|effect), `format`, `width`, `height`, `tags`, `critical`, `className` (`sprite--*`/`cell-*`, or `null` when the asset is not bound to a render class).
   - Optional fields: `maxBytes`, `notes`.
-- [ ] Create/maintain `assets/manifests/visual-manifest.json` with all visual asset entries.
-- [ ] Build manifest-to-renderable mapping table and define missing-asset fallback class behavior.
-- [ ] Optimize SVG/raster outputs and validate against layer/paint constraints.
-- [ ] Ensure responsive sizing within the game viewport.
-- [ ] Verification gate: manifest validation passes CI; all screens render correctly with keyboard focus indicators visible; runtime fallback tests prove robust asset mapping.
+- [x] Create/maintain `assets/manifests/visual-manifest.json` with all visual asset entries. _(84 entries.)_
+- [x] Build manifest-to-renderable mapping table and define missing-asset fallback class behavior. _(`className` column + `docs/implementation/assets-pipeline.md` § 8.1 Manifest → renderable mapping & fallback.)_
+- [~] Optimize SVG/raster outputs and validate against layer/paint constraints. _(Per-asset `maxBytes` budget enforced by the schema validator; no separate dedicated optimization pass.)_
+- [x] Ensure responsive sizing within the game viewport. _(Delivered as D-12 / #98 — `--fit-scale` board-fit scaling.)_
+- [x] Verification gate: manifest validation passes CI; all screens render correctly with keyboard focus indicators visible; runtime fallback tests prove robust asset mapping. _(`validate:schema` enforces schema + on-disk asset existence + size budgets; `:focus-visible` indicators in `styles/`; renderer kind-base-class fallback covered by `render-dom-system` unit tests.)_
 
 ---

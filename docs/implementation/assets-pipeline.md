@@ -98,12 +98,39 @@ Bootstrap contract:
 3. Runtime lookups use `assetPipeline.getAssetById(id)` and `assetPipeline.hasAsset(id)`.
 4. Duplicate IDs across manifests are rejected during bootstrap to fail fast.
 
+### 8.1 Manifest → renderable mapping & fallback
+
+Each visual-manifest entry carries a `className` resolving its `id` (spriteId) to
+the CSS class the renderer actually applies. This is the D-11 alignment of the
+D-10 source handoff (`assets/source/visual/sprite-handoff.json`) to the real
+classes in `styles/grid.css`, applied by `render-dom-system.js`.
+
+1. **Resolved classes** are `sprite--*` (pooled sprites: player, ghost, bomb,
+   fire, pellet, power-up frames) or `cell-*` (static board cells: walls). The
+   value is the class the runtime applies — e.g. the explosion frames are
+   surfaced through `sprite--fire--0N` (the `sprite--explosion--*` classes exist
+   in CSS but are never applied), so those entries record `sprite--fire--0N`.
+2. **`className: null`** means the asset is produced and shipped but **not yet
+   bound** to a dedicated render class. These are forward-looking frames
+   (non-directional `ghost-*-walk-01/02`, `*-stunned-0N`, `wall-destruct-*`,
+   `power-pellet-0N`, `player-death`, `fire-tile-center`) and the text-rendered
+   HUD icons (`hud-*`). They are intentionally inert, not missing.
+3. **Runtime fallback behavior** (in `render-dom-system.js`): every pooled
+   entity always receives its kind base class (`KIND_TO_CLASSES`), so a sprite
+   with an out-of-range or absent `spriteId` still shows a valid image via the
+   base class's background-image (e.g. `.sprite--bomb` → idle, `.sprite--fire`
+   → peak). `POWER_UP` falls back to the `pellet` pool. WALL kinds are skipped
+   (rendered as static cells).
+4. **Missing-asset safety** is enforced ahead of runtime: the schema validator
+   fails CI if any manifest `path` is absent on disk (see §9.1), so a referenced
+   asset can never 404 at runtime.
+
 ## 9. CI Validation Rules
 
 CI should fail if any of the following occurs:
 
 1. Asset referenced in manifest does not exist.
-2. Required manifest fields are missing (`id`, `path`, `kind`, `format`, `width`, `height`, `tags`, `critical` for visuals; `id`, `path`, `category`, `format`, `durationMs`, `critical`, `loop` for audio).
+2. Required manifest fields are missing (`id`, `path`, `kind`, `format`, `width`, `height`, `tags`, `critical`, `className` for visuals — `className` is `null` when the asset is not bound to a render class; `id`, `path`, `category`, `format`, `durationMs`, `critical`, `loop` for audio).
 3. File exceeds configured size budget.
 4. Naming convention check fails.
 5. Duplicate IDs exist in manifests.
