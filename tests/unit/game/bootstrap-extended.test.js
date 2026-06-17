@@ -184,12 +184,6 @@ describe('Bootstrap extended coverage', () => {
     bootstrap.stepFrame(currentTime);
 
     const spawnState = world.getResource('ghostSpawnState');
-    console.log(
-      'SPAWN STATE:',
-      JSON.stringify(spawnState),
-      'GAME STATUS:',
-      world.getResource('gameStatus')?.currentState,
-    );
     expect(spawnState.elapsedMs).toBeGreaterThan(0);
     expect(spawnState.releasedGhostIds.length).toBeGreaterThan(0);
 

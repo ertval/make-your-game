@@ -185,7 +185,9 @@ async function loadDefaultMaps({ fetchImpl } = {}) {
   for (let levelNumber = 1; levelNumber <= TOTAL_LEVELS; levelNumber += 1) {
     preloadTasks.push(
       (async () => {
-        const response = await fetchImpl(`/assets/maps/level-${levelNumber}.json`);
+        const response = await fetchImpl(
+          `${import.meta.env.BASE_URL}assets/maps/level-${levelNumber}.json`,
+        );
         if (!response || response.ok !== true) {
           const status = Number.isFinite(response?.status) ? response.status : 'unknown';
           throw new Error(`Failed to load map asset for level ${levelNumber} (status: ${status}).`);
@@ -236,7 +238,9 @@ async function loadAudioClipManifest({ fetchImpl, logger = console } = {}) {
   }
 
   try {
-    const response = await fetchImpl('/assets/manifests/audio-manifest.json');
+    const response = await fetchImpl(
+      `${import.meta.env.BASE_URL}assets/manifests/audio-manifest.json`,
+    );
     if (!response || response.ok !== true) {
       return result;
     }
@@ -247,16 +251,17 @@ async function loadAudioClipManifest({ fetchImpl, logger = console } = {}) {
       if (!asset || typeof asset.id !== 'string' || typeof asset.path !== 'string') {
         continue;
       }
-      const url = asset.path.startsWith('/') ? asset.path : `/${asset.path}`;
       const bucket =
         asset.category === 'music' || asset.category === 'ambience'
           ? grouped.music
           : asset.category === 'ui'
             ? grouped.ui
             : grouped.sfx;
-      bucket[asset.id] = url;
+      const normalizedPath = asset.path.startsWith('/') ? asset.path.slice(1) : asset.path;
+      const resolvedUrl = `${import.meta.env.BASE_URL}${normalizedPath}`;
+      bucket[asset.id] = resolvedUrl;
       if (asset.category === 'sfx' && asset.critical === true) {
-        criticalSfx[asset.id] = url;
+        criticalSfx[asset.id] = resolvedUrl;
       }
     }
   } catch (error) {

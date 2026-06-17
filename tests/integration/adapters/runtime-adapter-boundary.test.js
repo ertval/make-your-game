@@ -6,7 +6,7 @@
  * Public API: N/A (test module).
  */
 
-import { describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { createBootstrap } from '../../../src/game/bootstrap.js';
 import { bootstrapApplication, createGameRuntime } from '../../../src/main.ecs.js';
@@ -88,6 +88,16 @@ function createWindowStub() {
 }
 
 describe('runtime adapter boundaries', () => {
+  let consoleWarnSpy;
+
+  beforeEach(() => {
+    consoleWarnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+  });
+
+  afterEach(() => {
+    consoleWarnSpy.mockRestore();
+  });
+
   it('pre-registers the input adapter slot and stores validated adapters through bootstrap', () => {
     const bootstrap = createBootstrap({ now: 0 });
     const heldKeys = new Set(['left']);
