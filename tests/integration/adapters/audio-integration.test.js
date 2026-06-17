@@ -348,8 +348,8 @@ describe('audio-integration: music state mapping', () => {
     }
   });
 
-  it('plays gameplay music during PLAYING and silences PAUSED / terminal states', () => {
-    expect(resolveMusicForState(GAME_STATE.MENU)).toBe('music-menu');
+  it('plays gameplay music during PLAYING and silences MENU / PAUSED / terminal states', () => {
+    expect(resolveMusicForState(GAME_STATE.MENU)).toBeNull();
     expect(resolveMusicForState(GAME_STATE.PLAYING)).toBe('music-gameplay');
     expect(resolveMusicForState(GAME_STATE.PAUSED)).toBeNull();
     expect(resolveMusicForState(GAME_STATE.LEVEL_COMPLETE)).toBeNull();
@@ -580,7 +580,7 @@ describe('audio-integration: cue runner — music state transitions', () => {
     }
   });
 
-  it('plays menu music on entry into MENU', () => {
+  it('keeps MENU silent (no menu music asset) and stops any active track', () => {
     const audio = createAudioAdapterSpy();
     const eventQueue = createEventQueue();
     const gameStatus = createGameStatus(GAME_STATE.MENU);
@@ -588,7 +588,8 @@ describe('audio-integration: cue runner — music state transitions', () => {
 
     runner.tick({ audio, eventQueue, gameStatus });
 
-    expect(audio.calls.playMusic).toEqual([{ trackId: 'music-menu', options: { loop: true } }]);
+    expect(audio.calls.playMusic).toHaveLength(0);
+    expect(audio.calls.stopMusic).toBe(1);
   });
 
   it('reset() clears lastState so a transition to a different state re-issues music', () => {
@@ -607,10 +608,12 @@ describe('audio-integration: cue runner — music state transitions', () => {
     runner.tick({ audio, eventQueue, gameStatus });
     expect(audio.calls.playMusic).toHaveLength(1);
 
-    // A genuine state change after reset still triggers playMusic.
+    // A genuine state change after reset still reconciles music: MENU is a
+    // silent state, so it stops the active track rather than playing a new one.
     gameStatus.previousState = gameStatus.currentState;
     gameStatus.currentState = GAME_STATE.MENU;
     runner.tick({ audio, eventQueue, gameStatus });
-    expect(audio.calls.playMusic.map((c) => c.trackId)).toEqual(['music-gameplay', 'music-menu']);
+    expect(audio.calls.playMusic.map((c) => c.trackId)).toEqual(['music-gameplay']);
+    expect(audio.calls.stopMusic).toBe(1);
   });
 });

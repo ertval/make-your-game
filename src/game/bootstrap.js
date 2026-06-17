@@ -48,6 +48,7 @@ import {
   createClock,
   resetClock,
   resyncBaseline,
+  setPauseState,
   tickClock,
 } from '../ecs/resources/clock.js';
 import {
@@ -942,9 +943,23 @@ export function createBootstrap(options = {}) {
     },
     world,
   });
-  // Auto-start in browser only to render the board for demo purposes
+  // The runtime boots into the MENU state so the Start Game overlay is shown
+  // and the player must click "Start Game" to begin. That click is a user
+  // gesture the browser accepts as audio activation, which is required to
+  // unlock the AudioContext — notably in Firefox, where arrow-key presses are
+  // NOT accepted as activation, so auto-starting straight into PLAYING would
+  // leave the music permanently suspended. See screens-system (MENU →
+  // showStart) and audio-adapter's gesture-driven unlock listeners.
+  //
+  // We still load level 0 in the browser so the board renders behind the
+  // semi-transparent Start overlay (the same way it shows through the Settings
+  // overlay). loadLevel only draws the map + syncs entities; it does NOT
+  // transition the FSM out of MENU. We freeze the clock so the previewed
+  // player/ghosts stay still — the simulation only advances once the player
+  // presses Start (PLAYING unpauses via game-flow.applyPauseFromState).
   if (typeof window !== 'undefined') {
-    gameFlow.startGame();
+    levelLoader.loadLevel(0, { reason: 'menu-preview' });
+    setPauseState(clock, true);
   }
   const assetPipeline = createAssetPipelineResource(options.assetPipeline || {});
 

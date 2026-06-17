@@ -20,7 +20,7 @@ async function mountScreensHarness(page) {
     <main id="screens-root" tabindex="0">
       <section data-screen="start">
         <button data-option data-action="start-primary">Start Game</button>
-        <button data-option data-action="start-secondary">High Scores</button>
+        <button data-option data-action="open-high-scores" data-high-scores-origin="start">High Scores</button>
       </section>
       <section data-screen="pause">
         <button data-option data-action="pause-continue">Continue</button>
@@ -88,7 +88,7 @@ test('start screen navigation changes the active option and Enter triggers click
 
   await expect
     .poll(async () => page.evaluate(() => window.__SCREENS_TEST_CLICKS__.slice()))
-    .toEqual(['start-secondary']);
+    .toEqual(['open-high-scores']);
 });
 
 test('pause screen supports ArrowUp and ArrowDown selection changes and Enter activation', async ({
@@ -145,7 +145,7 @@ test('keyboard-only navigation works without mouse interaction', async ({ page }
 
   await expect
     .poll(async () => page.evaluate(() => window.__SCREENS_TEST_CLICKS__.slice()))
-    .toEqual(['start-secondary']);
+    .toEqual(['open-high-scores']);
 });
 
 test('pause restart is reachable by keyboard and focus returns to gameplay when hidden', async ({
@@ -175,4 +175,66 @@ test('pause restart is reachable by keyboard and focus returns to gameplay when 
   });
 
   await expect(page.locator('#game-root')).toBeFocused();
+});
+
+// Real-app-shell coverage for the C-05 High Scores overlay (top-N leaderboard).
+// Unlike the harness tests above, these drive the live index.html overlays.
+test('High Scores overlay renders the persisted top-N leaderboard from the start menu', async ({
+  page,
+}) => {
+  await page.goto('/');
+  await page.waitForFunction(() => window.__MS_GHOSTMAN_RUNTIME__ !== undefined, { timeout: 5000 });
+
+  // Seed a leaderboard, then reload so the storage adapter reads it fresh.
+  await page.evaluate(() => {
+    localStorage.setItem(
+      'ms-ghostman.highScore',
+      JSON.stringify({ score: 4200, scores: [4200, 1500, 300] }),
+    );
+  });
+  await page.reload();
+  await page.waitForFunction(() => window.__MS_GHOSTMAN_RUNTIME__ !== undefined, { timeout: 5000 });
+
+  await page.locator('[data-action="open-high-scores"]').first().click();
+
+  const overlay = page.locator('[data-screen="high-scores"]');
+  await expect(overlay).toHaveClass(/is-screen-visible/);
+  await expect(overlay.locator('[data-high-scores] li')).toHaveText([
+    '1. 04200',
+    '2. 01500',
+    '3. 00300',
+  ]);
+  // Only one overlay visible at a time.
+  await expect(page.locator('[data-screen].is-screen-visible')).toHaveCount(1);
+
+  // Back returns to the start menu.
+  await page.locator('[data-action="high-scores-back"]').click();
+  await expect(page.locator('[data-screen="start"]')).toHaveClass(/is-screen-visible/);
+  await expect(overlay).toHaveClass(/is-screen-hidden/);
+});
+
+test('High Scores overlay is reachable from the pause menu and Back returns to pause', async ({
+  page,
+}) => {
+  await page.goto('/');
+  await page.waitForFunction(() => window.__MS_GHOSTMAN_RUNTIME__ !== undefined, { timeout: 5000 });
+
+  // Start the game, then pause so the pause overlay (with its High Scores button)
+  // is visible.
+  await page.locator('[data-action="start-primary"]').click();
+  await page.waitForFunction(
+    () => window.__MS_GHOSTMAN_RUNTIME__.getSnapshot().state === 'PLAYING',
+    { timeout: 4000 },
+  );
+  await page.evaluate(() => window.__MS_GHOSTMAN_RUNTIME__.pause());
+  await expect(page.locator('[data-screen="pause"]')).toHaveClass(/is-screen-visible/);
+
+  // Open High Scores from pause.
+  await page.locator('[data-screen="pause"] [data-action="open-high-scores"]').click();
+  await expect(page.locator('[data-screen="high-scores"]')).toHaveClass(/is-screen-visible/);
+
+  // Back returns to the pause menu (not the start menu).
+  await page.locator('[data-action="high-scores-back"]').click();
+  await expect(page.locator('[data-screen="pause"]')).toHaveClass(/is-screen-visible/);
+  await expect(page.locator('[data-screen="high-scores"]')).toHaveClass(/is-screen-hidden/);
 });

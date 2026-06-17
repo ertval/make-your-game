@@ -112,9 +112,15 @@ export const AUDIO_CUE_MAPPING = Object.freeze({
  * into that state. PAUSED maps to `null` because the adapter only exposes
  * `playMusic` / `stopMusic`; suspending the AudioContext is handled by the
  * adapter's own `visibilitychange` integration, not by this driver.
+ *
+ * MENU maps to `null` (silence): there is no menu music asset in the manifest
+ * (only `music-gameplay`), and the runtime now rests in MENU until the player
+ * presses Start, so mapping it to a missing track only spammed a warn-per-load.
+ * Music begins on the PLAYING transition, when the Start click has unlocked the
+ * AudioContext.
  */
 export const MUSIC_STATE_MAPPING = Object.freeze({
-  [GAME_STATE.MENU]: 'music-menu',
+  [GAME_STATE.MENU]: null,
   [GAME_STATE.PLAYING]: 'music-gameplay',
   [GAME_STATE.PAUSED]: null,
   [GAME_STATE.LEVEL_COMPLETE]: null,

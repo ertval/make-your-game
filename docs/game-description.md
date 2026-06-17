@@ -301,6 +301,7 @@ The start screen appears when the game first loads and after a Game Over or Vict
 ║                           ║
 ║   ▶ Start Game            ║
 ║   📊 High Scores          ║
+║   ⚙ Settings             ║
 ║                           ║
 ║   Arrow Keys: Move        ║
 ║   Space: Drop Bomb        ║
@@ -309,7 +310,8 @@ The start screen appears when the game first loads and after a Game Over or Vict
 ```
 
 - **Start Game**: Begins Level 1 from scratch with score reset to 0.
-- **High Scores**: Displays top scores saved in `localStorage`.
+- **High Scores**: Opens an overlay that displays the **top 10** scores saved in `localStorage` (read on open via the storage adapter), ranked high→low and zero-padded. `Back` returns to the screen it was opened from. Also reachable from the Pause menu.
+- **Settings**: Opens the audio settings overlay (music/SFX toggles and volume).
 - The start screen corresponds to the `MENU` game state in the FSM (`game-status.js`).
 
 ---
@@ -323,11 +325,15 @@ Press **`Escape`** or **`P`** to pause. `requestAnimationFrame` remains active f
 ║    ⏸️ PAUSED       ║
 ║                   ║
 ║   ▶ Continue      ║
+║   ⚙ Settings      ║
+║   📊 High Scores  ║
 ║   🔄 Restart      ║
 ╚═══════════════════╝
 ```
 
 - **Continue**: Resumes the game from exactly where it paused (timer, positions, state all preserved).
+- **Settings**: Opens the audio settings overlay; `Back` returns to the Pause menu.
+- **High Scores**: Opens the top-10 leaderboard overlay; `Back` returns to the Pause menu.
 - **Restart**: Resets the current level from scratch (score preserved from previous levels).
 
 ---

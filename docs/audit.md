@@ -7,6 +7,8 @@
 - There MUST be explicit verification coverage for **every single question** below (functional + bonus) following the categories in `AGENTS.md` (Fully Automatable, Semi-Automatable, Manual-With-Evidence).
 - The project is complete only when mapped automated checks pass and required manual evidence artifacts are attached.
 
+> **Scope note — High Scores (C-05).** The Start/Pause "High Scores" overlay shows a top-10 `localStorage` leaderboard (read on open via `storage-adapter`). It is a C-05 product deliverable, not one of the graded audit questions below, so it adds no `######` audit row — the audit-ID inventory is unchanged. Its behavior is covered by `tests/integration/adapters/storage-adapter.test.js`, `tests/integration/adapters/screens-settings.test.js`, and `tests/e2e/c-05-screens-navigation.spec.js`. See `docs/implementation/audit-traceability-matrix.md` for the deliverable-tracking entry.
+
 #### Functional
 
 ##### Try playing the game

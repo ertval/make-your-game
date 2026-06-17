@@ -32,7 +32,7 @@ async function mountSettingsHarness(page) {
       <section data-screen="start">
         <button data-option data-action="start-primary">Start Game</button>
         <button data-option data-action="open-settings" data-settings-origin="start">Settings</button>
-        <button data-option data-action="start-secondary">High Scores</button>
+        <button data-option data-action="open-high-scores" data-high-scores-origin="start">High Scores</button>
       </section>
       <section data-screen="pause">
         <button data-option data-action="pause-continue">Continue</button>

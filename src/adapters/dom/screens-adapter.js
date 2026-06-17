@@ -7,10 +7,15 @@
  *
  * Public API:
  * - createScreensAdapter(rootElement, options): create a screen adapter bound to one root.
- *   Returned methods: showStart, showPause, showSettings(origin), showLevelComplete,
- *   showGameOver, showVictory, hideAll, syncSettingsControls(settings), destroy.
- *   Options: onAction, onResume, onRestart, onSettingChange(key, value),
+ *   Returned methods: showStart, showPause, showSettings(origin),
+ *   showHighScores(origin), showLevelComplete, showGameOver, showVictory,
+ *   hideAll, syncSettingsControls(settings), destroy.
+ *   Options: onAction, onConfirm(action), onResume, onRestart,
+ *   onSettingChange(key, value), getHighScores (or legacy getHighScore),
  *   gameplayElement, initialSettings.
+ *   onConfirm fires for every confirmed button activation (including the
+ *   internally-handled Settings / High Scores overlay navigation and toggles),
+ *   so the host can play a single uniform confirm cue.
  *
  * Implementation notes:
  * - Screen nodes are queried once during adapter creation and then reused.
@@ -31,10 +36,27 @@
 const HIDDEN_SCREEN_CLASS = 'is-screen-hidden';
 const VISIBLE_SCREEN_CLASS = 'is-screen-visible';
 const ACTIVE_OPTION_ATTRIBUTE = 'data-active';
-const DEFAULT_SCREEN_ORDER = ['start', 'pause', 'settings', 'levelComplete', 'gameOver', 'victory'];
+const DEFAULT_SCREEN_ORDER = [
+  'start',
+  'pause',
+  'settings',
+  'highScores',
+  'levelComplete',
+  'gameOver',
+  'victory',
+];
 
 // Screens the C-11B Settings overlay can be opened from and must return to.
 const SETTINGS_ORIGIN_SCREENS = new Set(['start', 'pause']);
+
+// Screens the C-05 High Scores overlay can be opened from and must return to
+// (the start menu and the pause menu both expose it).
+const HIGH_SCORES_ORIGIN_SCREENS = new Set(['start', 'pause']);
+
+// Cap on how many leaderboard rows the overlay renders, mirroring the storage
+// adapter's MAX_HIGH_SCORES. Kept as a local literal to avoid an adapter→io
+// import (the screens adapter is DOM-only and receives scores via injection).
+const MAX_HIGH_SCORE_ROWS = 10;
 
 /**
  * Whether a [data-option] element is a range slider (Left/Right adjusts value)
@@ -87,12 +109,26 @@ export function createScreensAdapter(rootElement, options = {}) {
     rootElement.ownerDocument || (typeof document !== 'undefined' ? document : null);
   const screens = {
     gameOver: rootElement.querySelector('[data-screen="game-over"]'),
+    highScores: rootElement.querySelector('[data-screen="high-scores"]'),
     levelComplete: rootElement.querySelector('[data-screen="level-complete"]'),
     pause: rootElement.querySelector('[data-screen="pause"]'),
     settings: rootElement.querySelector('[data-screen="settings"]'),
     start: rootElement.querySelector('[data-screen="start"]'),
     victory: rootElement.querySelector('[data-screen="victory"]'),
   };
+  // C-05: optional provider that returns the persisted top-N high scores
+  // (descending) for the High Scores overlay. Defaults to an empty list so the
+  // adapter stays usable in tests / partial layouts without a storage provider.
+  // A legacy single-score `getHighScore` provider is also accepted and wrapped.
+  const getHighScores =
+    typeof options.getHighScores === 'function'
+      ? options.getHighScores
+      : typeof options.getHighScore === 'function'
+        ? () => {
+            const best = options.getHighScore();
+            return Number.isFinite(best) && best > 0 ? [best] : [];
+          }
+        : () => [];
   const allScreens = DEFAULT_SCREEN_ORDER.map((screenKey) => screens[screenKey]);
   const gameplayElement = options.gameplayElement || null;
   const selectedIndices = new Map(DEFAULT_SCREEN_ORDER.map((screenKey) => [screenKey, 0]));
@@ -104,6 +140,9 @@ export function createScreensAdapter(rootElement, options = {}) {
   // C-11B: the screen the Settings overlay was opened from, so Back returns
   // there. Defaults to 'start' when opened without an explicit origin.
   let settingsOrigin = 'start';
+  // C-05: the screen the High Scores overlay was opened from, so Back returns
+  // there. Defaults to 'start' (the only origin today).
+  let highScoresOrigin = 'start';
 
   function restorePreviousFocus() {
     const nextFocusTarget =
@@ -167,6 +206,13 @@ export function createScreensAdapter(rootElement, options = {}) {
   }
 
   function dispatchAction(action, option) {
+    // Confirm cue for EVERY confirmed button activation (Enter or trusted click),
+    // regardless of whether the action is forwarded to the host or handled
+    // internally (Settings / High Scores overlay navigation, toggles, Back).
+    // Fired here — the single button-activation funnel — so menu start, pause,
+    // and both sub-overlays all click uniformly. Sliders never reach this path.
+    options.onConfirm?.(action);
+
     // C-11B settings actions are handled inside the adapter (overlay-to-overlay
     // navigation + control state) and are NOT forwarded as game actions, so the
     // confirm-cue/game-flow handler in main.ecs only sees real game actions.
@@ -183,6 +229,21 @@ export function createScreensAdapter(rootElement, options = {}) {
 
     if (action === 'settings-toggle-music' || action === 'settings-toggle-sfx') {
       toggleSettingButton(option);
+      return;
+    }
+
+    // C-05 High Scores overlay actions are handled inside the adapter
+    // (overlay-to-overlay navigation, like Settings) and are NOT forwarded as
+    // game actions — they never reach game-flow.
+    if (action === 'open-high-scores') {
+      const origin =
+        option?.getAttribute?.('data-high-scores-origin') || activeScreenKey || 'start';
+      showHighScores(origin);
+      return;
+    }
+
+    if (action === 'high-scores-back') {
+      backFromHighScores();
       return;
     }
 
@@ -385,6 +446,85 @@ export function createScreensAdapter(rootElement, options = {}) {
     activateScreenOptions(targetKey, target);
   }
 
+  /**
+   * Render the persisted top-N high scores as ranked list rows inside the High
+   * Scores overlay (`[data-high-scores]`), each formatted as `"<rank>. <score>"`
+   * with a 5-digit zero-padded score (matching the game-over/victory readouts).
+   * Renders a single "No scores yet" row when the list is empty. Tolerates a
+   * missing node / non-array provider result, drops non-positive entries, and
+   * caps the list at MAX_HIGH_SCORE_ROWS.
+   */
+  function renderHighScores() {
+    const screen = screens.highScores;
+    if (!screen) {
+      return;
+    }
+    const listEl = screen.querySelector('[data-high-scores]');
+    if (!listEl) {
+      return;
+    }
+
+    const raw = getHighScores();
+    const scores = (Array.isArray(raw) ? raw : [])
+      .filter((value) => Number.isFinite(value) && value > 0)
+      .slice(0, MAX_HIGH_SCORE_ROWS);
+
+    // Replace the list contents. Build rows as DOM nodes with textContent only
+    // (no innerHTML) so this stays a safe DOM sink per the security policy.
+    while (listEl.firstChild) {
+      listEl.removeChild(listEl.firstChild);
+    }
+
+    if (scores.length === 0) {
+      const empty = ownerDocument?.createElement?.('li');
+      if (empty) {
+        empty.className = 'high-scores__empty';
+        empty.textContent = 'No scores yet';
+        listEl.appendChild(empty);
+      }
+      return;
+    }
+
+    for (const [index, score] of scores.entries()) {
+      const row = ownerDocument?.createElement?.('li');
+      if (!row) {
+        continue;
+      }
+      row.className = 'high-scores__row';
+      // "1.  04340" — rank + zero-padded score, matching the HUD/game-over style.
+      row.textContent = `${index + 1}. ${String(score).padStart(5, '0')}`;
+      listEl.appendChild(row);
+    }
+  }
+
+  /**
+   * Open the C-05 High Scores overlay, remembering the screen it was opened from
+   * so Back can return there. Reads the persisted top-N scores on open (via the
+   * injected provider) so the leaderboard is always current. Mirrors the Settings
+   * overlay-to-overlay navigation: only one overlay is visible at a time.
+   *
+   * @param {string} [originScreenKey='start'] - Origin screen ('start' | 'pause').
+   */
+  function showHighScores(originScreenKey = 'start') {
+    highScoresOrigin = HIGH_SCORES_ORIGIN_SCREENS.has(originScreenKey) ? originScreenKey : 'start';
+    renderHighScores();
+    hideScreensForOverlaySwap();
+    showElement(screens.highScores);
+    activateScreenOptions('highScores', screens.highScores);
+  }
+
+  /**
+   * Return from High Scores to the originating overlay (start). Restores that
+   * screen's previous option selection via the per-screen index memory.
+   */
+  function backFromHighScores() {
+    hideScreensForOverlaySwap();
+    const target = screens[highScoresOrigin] || screens.start;
+    const targetKey = screens[highScoresOrigin] ? highScoresOrigin : 'start';
+    showElement(target);
+    activateScreenOptions(targetKey, target);
+  }
+
   function onOptionClick(event) {
     if (event.isTrusted) {
       const option = event.currentTarget;
@@ -481,6 +621,7 @@ export function createScreensAdapter(rootElement, options = {}) {
     destroy,
     hideAll,
     showGameOver,
+    showHighScores,
     showLevelComplete,
     showPause,
     showSettings,

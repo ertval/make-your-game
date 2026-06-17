@@ -13,7 +13,7 @@
     "dev": "vite",
     "build": "vite build",
     "preview": "vite preview",
-    "prod": "vite build && cp -r assets/maps dist/assets/ && cp -r assets/manifests dist/assets/ && mkdir -p dist/assets/generated && cp -r assets/generated/sfx dist/assets/generated/ && cp -r assets/generated/music dist/assets/generated/ && vite preview",
+    "prod": "npm run build && npm run preview",
     "prepare": "husky",
     "check": "biome check .",
     "fix": "biome check --write .",

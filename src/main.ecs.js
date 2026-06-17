@@ -46,6 +46,7 @@ import { createInputAdapter } from './adapters/io/input-adapter.js';
 import {
   getAudioSettings,
   getHighScore,
+  getHighScores,
   saveHighScore,
   updateAudioSetting,
 } from './adapters/io/storage-adapter.js';
@@ -653,8 +654,11 @@ export async function bootstrapApplication({
     // adapter resource (resolved lazily so it works once the adapter is wired
     // below) rather than the gameplay event queue. Resolved via the bootstrap
     // accessor, not a module import, so the adapter resource contract holds.
+    // A subtle "tick": the confirm cue fires on every menu button, so keep it
+    // quiet (per-call gain, not the UI category volume) to avoid fatigue.
+    const UI_CONFIRM_GAIN = 0.35;
     const playUiConfirm = () => {
-      bootstrap.getAudioAdapter()?.playSfx('ui-confirm');
+      bootstrap.getAudioAdapter()?.playSfx('ui-confirm', { gain: UI_CONFIRM_GAIN });
     };
 
     // C-11B: forward-declared so the settings handler can keep the persistent
@@ -683,14 +687,20 @@ export async function bootstrapApplication({
         ? createScreensAdapter(overlayRoot, {
             gameplayElement: boardContainerElement,
             initialSettings: getAudioSettings(),
+            // C-05: the High Scores overlay reads the persisted top-N scores on open.
+            getHighScores,
             onSettingChange: handleSettingChange,
-            onAction(action) {
-              // The screens adapter calls onAction for every confirmed action
-              // (start, play-again, level-next, AND pause-continue /
-              // pause-restart) before delegating to onResume/onRestart, so the
-              // confirm cue lives here only — playing it again in onResume /
-              // onRestart would double-trigger it.
+            // Play the confirm cue for EVERY confirmed menu button — start menu,
+            // pause menu (Continue/Settings/High Scores/Restart), and the
+            // Settings/High Scores sub-overlays (which are handled inside the
+            // adapter and never reach onAction). Sliders don't trigger it.
+            onConfirm() {
               playUiConfirm();
+            },
+            onAction(action) {
+              // onAction fires only for forwarded (non-intercepted) actions and
+              // delegates to game-flow. The confirm cue is handled by onConfirm
+              // (above) for ALL buttons, so it is NOT replayed here.
               switch (action) {
                 case 'start-primary':
                 case 'gameover-play-again':
