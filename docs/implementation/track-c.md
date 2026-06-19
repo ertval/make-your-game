@@ -194,7 +194,7 @@ This contract is implemented in `src/adapters/io/storage-adapter.js` and defines
 
 **Out of scope for C-06 (covered by later tickets)**:
 - Wiring gameplay events (BombPlaced, PelletCollected, …) to `playSfx` calls and music state across `GAME_STATE` transitions — `C-07`.
-- Producing the actual `.mp3`/`.ogg` asset files — `C-08`.
+- Producing the actual `.mp3` asset files (MP3-only under the C-10 manifest contract) — `C-08`.
 - Lazy/streaming load policy for non-critical audio + perf budgets — `C-09`.
 - Audio manifest JSON Schema + manifest file under `assets/manifests/` — `C-10`.
 
@@ -305,7 +305,7 @@ C-04 / C-05 / B-03 / C-06 handoff pattern):
   - Level complete jingle. Game over sting. Victory fanfare.
 - [ ] Create/export at least one loop-safe level music track (60-120s loop, crossfade handling).
 - [ ] Normalize loudness across categories (gameplay, UI, music).
-- [ ] Export in `.mp3` (primary) and `.ogg` (optional).
+- [ ] Export in `.mp3` only — the C-10 manifest gate accepts `format: "mp3"` exclusively; `.ogg`/`.m4a` are out of scope until the schema and runtime decoder are expanded together.
 - [ ] Keep SFX short (<1s for most, except fuse tick loop).
 - [ ] Verification gate: all SFX/music listed in manifest with correct metadata.
 
@@ -318,8 +318,9 @@ C-04 / C-05 / B-03 / C-06 handoff pattern):
 >   bootstrap loop; `npm run validate:schema` passes for the manifest.
 > - ⏳ Pending before closure: remaining SFX set (chain-reaction, power-up-collect, speed-boost-off,
 >   ghost-stun, ghost-return, player-respawn, menu-navigate, cancel, pause open/close, game-over
->   sting, victory fanfare), loudness-normalization sign-off, optional `.ogg` exports, and the
->   `A-13` P3 audit gate.
+>   sting, victory fanfare), loudness-normalization sign-off, and the
+>   `A-13` P3 audit gate. (Format stays MP3-only under the C-10 contract — no `.ogg`/`.m4a` exports
+>   unless the schema and runtime decoder are expanded together.)
 > - 📄 See `docs/pr-messages/C-08-sound-effects-music-production-pr.md`.
 
 ---
@@ -357,12 +358,13 @@ C-04 / C-05 / B-03 / C-06 handoff pattern):
 - `docs/schemas/audio-manifest.schema.json` (JSON Schema 2020-12)
 - `assets/manifests/audio-manifest.json` — all audio asset entries
 
-- [ ] Finalize `docs/schemas/audio-manifest.schema.json` (JSON Schema 2020-12):
+- [x] Finalize `docs/schemas/audio-manifest.schema.json` (JSON Schema 2020-12):
   - Required fields: `id`, `path`, `category` (sfx|music|ambience|ui), `format`, `durationMs`, `critical`, `loop`.
   - Optional fields: `channels`, `sampleRateHz`, `loudnessLufs`, `maxBytes`, `notes`.
-- [ ] Create `assets/manifests/audio-manifest.json` with all audio asset entries.
-- [ ] Wire manifest schema validation into CI (fails on invalid entries).
-- [ ] Verification gate: CI rejects invalid manifest entries; valid entries pass.
+  - `additionalProperties: false` at both the manifest and per-asset level; `format` and the `path` extension are constrained to the project-supported `mp3` (no fallback decoder exists, so non-mp3 formats are rejected — C-10 constraint).
+- [x] Create `assets/manifests/audio-manifest.json` with all audio asset entries (12 shipped C-08 assets: 10 gameplay SFX `critical: true`, 1 looping gameplay music `critical: false`, 1 UI confirm). Every `path` exists on disk.
+- [x] Wire manifest schema validation into CI (fails on invalid entries). `scripts/validate-schema.mjs` validates the audio manifest via `npm run validate:schema` (also part of `npm run ci`), enforcing schema shape, on-disk file existence, kebab-case naming, `maxBytes` budgets, and unique asset `id`s (new `DUPLICATE_ID` semantic gate — JSON Schema cannot express uniqueness on a derived key). Fail-closed.
+- [x] Verification gate: CI rejects invalid manifest entries; valid entries pass. `tests/integration/gameplay/c-10-audio-manifest-schema.test.js` drives the real validator as a subprocess and locks: real manifest passes; missing required field, invalid category, non-mp3 format, out-of-tree path, non-positive `durationMs`, non-boolean `critical`, unknown field, duplicate `id`, and missing asset file all fail closed.
 
 ---
 

@@ -72,6 +72,7 @@ function writeReport({ schemaTargetCount, assetCount, violations }) {
     missingFiles: violations.filter((violation) => violation.code === 'MISSING_FILE').length,
     namingViolations: violations.filter((violation) => violation.code === 'NAMING_RULE').length,
     budgetViolations: violations.filter((violation) => violation.code === 'SIZE_BUDGET').length,
+    duplicateIds: violations.filter((violation) => violation.code === 'DUPLICATE_ID').length,
     status: violations.length > 0 ? 'fail' : 'pass',
   };
 
@@ -92,6 +93,32 @@ function writeReport({ schemaTargetCount, assetCount, violations }) {
 function validateManifestAssets(manifestType, manifestData, violations) {
   const assets = Array.isArray(manifestData?.assets) ? [...manifestData.assets] : [];
   assets.sort((left, right) => String(left?.path || '').localeCompare(String(right?.path || '')));
+
+  // C-10: cue/asset ids must be unique within a manifest. The JSON Schema can
+  // shape each entry's id but cannot express "unique across the array" for a
+  // derived key (uniqueItems only compares whole objects), so the contract is
+  // enforced here as a fail-closed semantic check alongside the file/naming
+  // gates. A collision means two manifest rows resolve the same runtime cue id.
+  const seenIds = new Set();
+  for (const asset of assets) {
+    const assetId = String(asset?.id || '');
+    if (assetId.length === 0) {
+      continue;
+    }
+    if (seenIds.has(assetId)) {
+      violations.push({
+        code: 'DUPLICATE_ID',
+        manifestType,
+        assetId,
+        path: normalizePath(asset?.path),
+        expected: 'Unique asset id within the manifest',
+        actual: `Duplicate id "${assetId}"`,
+        message: 'Manifest contains a duplicate asset id.',
+      });
+    } else {
+      seenIds.add(assetId);
+    }
+  }
 
   for (const asset of assets) {
     const rawPath = normalizePath(asset.path);
