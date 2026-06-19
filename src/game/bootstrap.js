@@ -94,6 +94,7 @@ import { createGameFlow } from './game-flow.js';
 import { createLevelLoader } from './level-loader.js';
 import {
   createBombExplosionLogicSystems,
+  deactivateAllBombsAndFire,
   initializeBombExplosionResources,
 } from './runtime-bomb-explosion-wiring.js';
 
@@ -876,6 +877,11 @@ export function createBootstrap(options = {}) {
         boardAdapter.generateBoard(mapResource, boardContainerElement);
       }
       updateBoardCss(mapResource);
+      // Clear any bomb/fire left live on the previous level so a bomb placed
+      // just before the exit cannot carry its fuse into the new level and
+      // detonate there. The pools persist across a transition (unlike restart,
+      // which destroys all entities), so the slots must be reset explicitly.
+      deactivateAllBombsAndFire(world, options);
       syncPlayerEntityFromMap(world, mapResource, options);
       syncGhostEntitiesFromMap(world, mapResource, options);
       // Reset spawn state so level-2 ghosts are released on the documented
