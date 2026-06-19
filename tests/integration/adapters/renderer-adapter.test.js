@@ -284,6 +284,41 @@ describe('board-adapter', () => {
 
       expect(cellEl._added.slice(before)).toEqual(['cell-empty']);
     });
+
+    // Regression: power-up drops (CELL_TYPE 7/8/9) used to fall through to
+    // 'cell-empty' because CELL_TYPE_CLASSES only mapped 0..6, so a dropped
+    // power-up was invisible on the board even though pickup still applied.
+    it.each([
+      [7, 'cell-powerup-bomb'],
+      [8, 'cell-powerup-fire'],
+      [9, 'cell-powerup-speed'],
+    ])('renders a visible class for dropped power-up cell type %i', (cellType, expectedClass) => {
+      const { created, document } = createTrackingDoc();
+      const adapter2 = createBoardAdapter({ document });
+      const container2 = { firstChild: null, appendChild: vi.fn(), removeChild: vi.fn() };
+      adapter2.generateBoard({ rows: 1, cols: 1, grid: new Uint8Array([2]) }, container2);
+
+      const cellEl = created[1];
+      const before = cellEl._added.length;
+      adapter2.updateCell(0, 0, cellType);
+
+      expect(cellEl._added.slice(before)).toEqual([expectedClass]);
+    });
+
+    it('reverts the power-up class to cell-empty once the drop is collected', () => {
+      const { created, document } = createTrackingDoc();
+      const adapter2 = createBoardAdapter({ document });
+      const container2 = { firstChild: null, appendChild: vi.fn(), removeChild: vi.fn() };
+      adapter2.generateBoard({ rows: 1, cols: 1, grid: new Uint8Array([2]) }, container2);
+
+      const cellEl = created[1];
+      adapter2.updateCell(0, 0, 7); // drop a bomb power-up
+      const before = cellEl._added.length;
+      adapter2.updateCell(0, 0, 0); // player collects it → cell goes empty
+
+      expect(cellEl._removed).toEqual(expect.arrayContaining(['cell-powerup-bomb']));
+      expect(cellEl._added.slice(before)).toEqual(['cell-empty']);
+    });
   });
 
   describe('board-fit scaling', () => {

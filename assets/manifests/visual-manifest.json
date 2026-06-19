@@ -866,6 +866,18 @@
       "maxBytes": 32768
     },
     {
+      "id": "bomb-fuse-04",
+      "path": "assets/generated/visuals/128px/items/bomb-fuse-04.webp",
+      "kind": "sprite",
+      "format": "webp",
+      "width": 128,
+      "height": 128,
+      "critical": false,
+      "className": "sprite--bomb--fuse-04",
+      "tags": ["items", "bomb", "fuse", "04"],
+      "maxBytes": 32768
+    },
+    {
       "id": "bomb-idle",
       "path": "assets/generated/visuals/128px/items/bomb-idle.webp",
       "kind": "sprite",
@@ -930,10 +942,10 @@
       "path": "assets/generated/visuals/128px/items/powerup-bomb.webp",
       "kind": "sprite",
       "format": "webp",
-      "width": 76,
-      "height": 76,
+      "width": 128,
+      "height": 128,
       "critical": true,
-      "className": "sprite--powerup--bomb",
+      "className": "cell-powerup-bomb",
       "tags": ["items", "bomb"],
       "maxBytes": 32768
     },
@@ -945,7 +957,7 @@
       "width": 128,
       "height": 128,
       "critical": true,
-      "className": "sprite--powerup--fire",
+      "className": "cell-powerup-fire",
       "tags": ["items", "fire"],
       "maxBytes": 32768
     },
@@ -957,7 +969,7 @@
       "width": 128,
       "height": 128,
       "critical": true,
-      "className": "sprite--powerup--speed",
+      "className": "cell-powerup-speed",
       "tags": ["items", "speed"],
       "maxBytes": 32768
     },

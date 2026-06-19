@@ -242,6 +242,60 @@ test('#104 pellet DOM converges to map state after a cell is cleared without a c
 });
 
 /* ------------------------------------------------------------------ */
+/* Power-up drops must be visible on the board (cell types 7/8/9)       */
+/* ------------------------------------------------------------------ */
+
+test('a dropped power-up cell renders a visible icon (cell types 7/8/9)', async ({ page }) => {
+  await bootRuntime(page);
+  await startGameAndWait(page);
+
+  // Find a destructible cell — the explosion system turns these into power-up
+  // cell types (7/8/9) when cleared by fire.
+  const cell = await page.evaluate(() => {
+    const world = window.__MS_GHOSTMAN_RUNTIME__.getWorld();
+    const mapResource = world.getResource('mapResource');
+    for (let r = 0; r < mapResource.rows; r += 1) {
+      for (let c = 0; c < mapResource.cols; c += 1) {
+        if (mapResource.grid[r * mapResource.cols + c] === 2) {
+          return { row: r, col: c };
+        }
+      }
+    }
+    return null;
+  });
+  expect(cell).not.toBeNull();
+
+  // Simulate a bomb power-up drop landing on that tile.
+  await page.evaluate(({ row, col }) => {
+    const world = window.__MS_GHOSTMAN_RUNTIME__.getWorld();
+    const mapResource = world.getResource('mapResource');
+    mapResource.grid[row * mapResource.cols + col] = 7; // CELL_TYPE.POWER_UP_BOMB
+  }, cell);
+
+  // Wait a few frames for board-sync-system to commit the DOM update.
+  await page.waitForTimeout(50);
+
+  const rendered = await page.evaluate(({ row, col }) => {
+    const el = Array.from(document.querySelectorAll('#game-board .cell')).find(
+      (c) =>
+        c.style.getPropertyValue('--cell-row').trim() === String(row) &&
+        c.style.getPropertyValue('--cell-col').trim() === String(col),
+    );
+    if (!el) return null;
+    return {
+      hasClass: el.classList.contains('cell-powerup-bomb'),
+      // Before the fix the cell fell back to `cell-empty` (no ::after image),
+      // so the drop was invisible. A real image proves the pickup is visible.
+      afterImage: window.getComputedStyle(el, '::after').backgroundImage,
+    };
+  }, cell);
+
+  expect(rendered).not.toBeNull();
+  expect(rendered.hasClass).toBe(true);
+  expect(rendered.afterImage).toContain('powerup-bomb');
+});
+
+/* ------------------------------------------------------------------ */
 /* #107 — Ghost AI must not oscillate against a bomb tile              */
 /* ------------------------------------------------------------------ */
 
