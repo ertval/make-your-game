@@ -162,7 +162,7 @@ Canonical ticket ID ranges used by policy checks:
 - [ ] **C-10** P4 - Audio Manifest Schema & Validation (Depends on: C-08, A-07, A-13) | Blocks: A-14
 - [x] **C-11** P4 - Audio Settings Persistence, Settings Overlay & Fuse Sequencing — Complete on `chbaikas/integration-C-11`. Three sub-features: (C-11A) `storage-adapter` extended with persisted `getAudioSettings`/`saveAudioSettings`/`updateAudioSetting` and `applyAudioSettings` added to `audio-integration.js`; (C-11B) Settings overlay in `screens-adapter` (open from Start/Pause, Back nav, keyboard-only, accessible toggle+slider controls) and new `screens-audio-toggle.js` (always-visible top-right music/sfx quick-toggle, `aria-pressed`-driven); (C-11C) `fuseLoopDelay` option in `createAudioCueRunner` (default 310 ms) so `bomb-place.mp3` finishes before the fuse loop starts, with no change to the stop path. PR message: `docs/pr-messages/C-11-audio-settings-fuse-sequencing-pr.md` (Depends on: C-06, C-07, C-08) | Blocks: None
 - [x] **D-10** P4 - Visual Asset Production - Gameplay Sprites (Depends on: D-06, D-08, A-13) | Blocks: D-11; A-14
-- [ ] **D-11** P4 - Visual Assets (UI & Screens) + Visual Manifest & Validation (Depends on: C-05, D-10, A-07, A-13) | Blocks: A-09; A-14
+- [x] **D-11** P4 - Visual Assets (UI & Screens) + Visual Manifest & Validation (Depends on: C-05, D-10, A-07, A-13) | Blocks: A-09; A-14
 - [ ] **A-09** P4 - Evidence Aggregation & Final QA Polish (Depends on: A-05, A-06, A-07, A-08, C-09, D-11, A-13) | Blocks: A-14
 - [ ] **A-14** P4 - Consolidate P4 audits + publish 4 deduplicated track fix reports (Depends on: C-08, C-09, C-10, D-10, D-11, A-09) | Blocks: None
 
