@@ -94,6 +94,7 @@ function createFixture({ audioAssets, createAudioFiles = true } = {}) {
     height: 64,
     critical: true,
     tags: ['player', 'idle'],
+    className: 'sprite--player--idle',
     maxBytes: 32768,
   };
   writeJson(path.join(tempRoot, 'assets/manifests/visual-manifest.json'), {
