@@ -56,6 +56,7 @@ function createFixture(options = {}) {
     height: 64,
     critical: true,
     tags: ['player', 'idle'],
+    className: 'sprite--player--idle',
     maxBytes: options.visualMaxBytes || 32768,
   };
 

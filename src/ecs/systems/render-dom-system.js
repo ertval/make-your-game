@@ -97,15 +97,17 @@ const FIRE_SPRITE_CLASSES = [
 
 /**
  * Bomb spriteId → CSS fuse-frame class. Render-collect-system writes spriteId
- * 0..N-1 based on `fuseMs` progress (0 = just placed / idle, N-1 = fuse burnt
- * to the wick just before detonation). The base `.sprite--bomb` class supplies
- * sizing + the idle fallback so a missing spriteId still shows a valid sprite.
+ * 0..N-1 based on `fuseMs` progress (0 = just placed, N-1 = fuse burnt to the
+ * wick just before detonation). A placed bomb is always lit, so the animation
+ * runs through the four fuse frames; the unlit `bomb-idle` sprite is reserved
+ * for the bomb power-up pickup. The base `.sprite--bomb` class supplies sizing +
+ * a fallback so a missing spriteId still shows a valid sprite.
  */
 const BOMB_SPRITE_CLASSES = [
-  'sprite--bomb--idle', // 0 — freshly placed
-  'sprite--bomb--fuse-01', // 1 — fuse lit
-  'sprite--bomb--fuse-02', // 2 — fuse burning down
-  'sprite--bomb--fuse-03', // 3 — about to detonate
+  'sprite--bomb--fuse-01', // 0 — freshly placed, fuse lit
+  'sprite--bomb--fuse-02', // 1 — fuse burning down
+  'sprite--bomb--fuse-03', // 2 — fuse near the wick
+  'sprite--bomb--fuse-04', // 3 — about to detonate (bright flash)
 ];
 
 /**

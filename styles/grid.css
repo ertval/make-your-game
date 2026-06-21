@@ -114,6 +114,42 @@
   animation: pellet-pulse var(--anim-walk-duration) ease-in-out infinite;
 }
 
+/* --- Power-up drops --- */
+
+/**
+ * Power-up tiles dropped when a destructible wall is cleared
+ * (CELL_TYPE.POWER_UP_BOMB/FIRE/SPEED → cell-powerup-bomb/fire/speed). They share
+ * the collectible ::after overlay pattern, sized a touch larger than a pellet and
+ * gently pulsing so the drop reads as a pickable reward against the floor.
+ */
+.cell-powerup-bomb::after,
+.cell-powerup-fire::after,
+.cell-powerup-speed::after {
+  content: "";
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 24px;
+  height: 24px;
+  background-size: 100% 100%;
+  background-repeat: no-repeat;
+  z-index: var(--z-items);
+  animation: pellet-pulse var(--anim-walk-duration) ease-in-out infinite;
+}
+
+.cell-powerup-bomb::after {
+  background-image: url("../assets/generated/visuals/128px/items/powerup-bomb.webp");
+}
+
+.cell-powerup-fire::after {
+  background-image: url("../assets/generated/visuals/128px/items/powerup-fire.webp");
+}
+
+.cell-powerup-speed::after {
+  background-image: url("../assets/generated/visuals/128px/items/powerup-speed.webp");
+}
+
 /* --- Sprite Base Classes --- */
 
 /** Base sprite class for all dynamic game entities. */
@@ -330,13 +366,15 @@
 }
 
 /**
- * Bomb fuse-cycle frames (idle + 3 ticking states). Layered on top of
+ * Bomb fuse-cycle frames (4 lit ticking states). Layered on top of
  * `.sprite--bomb` to swap the background-image per fuse tick. Mirrors the
  * `.sprite--player--walk-*` per-frame pattern from D-10.
  *
  * Wired by render-collect-system (computes the frame index from
  * `bombStore.fuseMs`) + render-dom-system's `BOMB_SPRITE_CLASSES` table, which
- * applies the matching class as the fuse counts down toward detonation.
+ * applies the matching class as the fuse counts down toward detonation. The
+ * unlit `.sprite--bomb--idle` frame is reserved for the bomb power-up pickup
+ * (cell-powerup-bomb), so a placed bomb always renders a lit fuse.
  */
 .sprite--bomb--idle {
   background-image: url("../assets/generated/visuals/128px/items/bomb-idle.webp");
@@ -349,6 +387,9 @@
 }
 .sprite--bomb--fuse-03 {
   background-image: url("../assets/generated/visuals/128px/items/bomb-fuse-03.webp");
+}
+.sprite--bomb--fuse-04 {
+  background-image: url("../assets/generated/visuals/128px/items/bomb-fuse-04.webp");
 }
 
 /** Fire tile effect WITHOUT will-change (short-lived effect). */

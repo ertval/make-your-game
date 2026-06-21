@@ -9,6 +9,7 @@
       "width": 128,
       "height": 128,
       "critical": false,
+      "className": null,
       "tags": ["characters", "death"],
       "maxBytes": 32768
     },
@@ -20,6 +21,7 @@
       "width": 128,
       "height": 128,
       "critical": true,
+      "className": "sprite--player--idle",
       "tags": ["characters", "idle"],
       "maxBytes": 32768
     },
@@ -31,6 +33,7 @@
       "width": 128,
       "height": 128,
       "critical": true,
+      "className": "sprite--player--walk-down-01",
       "tags": ["characters", "walk", "down", "01"],
       "maxBytes": 32768
     },
@@ -42,6 +45,7 @@
       "width": 128,
       "height": 128,
       "critical": false,
+      "className": "sprite--player--walk-down-02",
       "tags": ["characters", "walk", "down", "02"],
       "maxBytes": 32768
     },
@@ -53,6 +57,7 @@
       "width": 128,
       "height": 128,
       "critical": true,
+      "className": "sprite--player--walk-left-01",
       "tags": ["characters", "walk", "left", "01"],
       "maxBytes": 32768
     },
@@ -64,6 +69,7 @@
       "width": 128,
       "height": 128,
       "critical": false,
+      "className": "sprite--player--walk-left-02",
       "tags": ["characters", "walk", "left", "02"],
       "maxBytes": 32768
     },
@@ -75,6 +81,7 @@
       "width": 128,
       "height": 128,
       "critical": true,
+      "className": "sprite--player--walk-right-01",
       "tags": ["characters", "walk", "right", "01"],
       "maxBytes": 32768
     },
@@ -86,6 +93,7 @@
       "width": 128,
       "height": 128,
       "critical": false,
+      "className": "sprite--player--walk-right-02",
       "tags": ["characters", "walk", "right", "02"],
       "maxBytes": 32768
     },
@@ -97,6 +105,7 @@
       "width": 128,
       "height": 128,
       "critical": true,
+      "className": "sprite--player--walk-up-01",
       "tags": ["characters", "walk", "up", "01"],
       "maxBytes": 32768
     },
@@ -108,6 +117,7 @@
       "width": 128,
       "height": 128,
       "critical": false,
+      "className": "sprite--player--walk-up-02",
       "tags": ["characters", "walk", "up", "02"],
       "maxBytes": 32768
     },
@@ -119,6 +129,7 @@
       "width": 128,
       "height": 128,
       "critical": false,
+      "className": "sprite--fire--01",
       "tags": ["effects", "explosion", "01"],
       "maxBytes": 32768
     },
@@ -130,6 +141,7 @@
       "width": 128,
       "height": 128,
       "critical": false,
+      "className": "sprite--fire--02",
       "tags": ["effects", "explosion", "02"],
       "maxBytes": 32768
     },
@@ -141,6 +153,7 @@
       "width": 128,
       "height": 128,
       "critical": false,
+      "className": "sprite--fire--03",
       "tags": ["effects", "explosion", "03"],
       "maxBytes": 32768
     },
@@ -152,6 +165,7 @@
       "width": 128,
       "height": 128,
       "critical": false,
+      "className": "sprite--fire--04",
       "tags": ["effects", "explosion", "04"],
       "maxBytes": 32768
     },
@@ -163,6 +177,7 @@
       "width": 128,
       "height": 128,
       "critical": false,
+      "className": null,
       "tags": ["effects", "fire", "tile", "center"],
       "maxBytes": 32768
     },
@@ -174,6 +189,7 @@
       "width": 128,
       "height": 128,
       "critical": true,
+      "className": "sprite--fire",
       "tags": ["effects", "fire", "tile"],
       "maxBytes": 32768
     },
@@ -185,6 +201,7 @@
       "width": 128,
       "height": 128,
       "critical": true,
+      "className": "sprite--ghost--blinky",
       "tags": ["enemies", "blinky", "normal"],
       "maxBytes": 32768
     },
@@ -196,6 +213,7 @@
       "width": 128,
       "height": 128,
       "critical": false,
+      "className": null,
       "tags": ["enemies", "blinky", "walk", "01"],
       "maxBytes": 32768
     },
@@ -207,6 +225,7 @@
       "width": 128,
       "height": 128,
       "critical": false,
+      "className": null,
       "tags": ["enemies", "blinky", "walk", "02"],
       "maxBytes": 32768
     },
@@ -218,6 +237,7 @@
       "width": 128,
       "height": 128,
       "critical": false,
+      "className": "sprite--ghost--blinky--walk-down-01",
       "tags": ["enemies", "blinky", "walk", "down", "01"],
       "maxBytes": 32768
     },
@@ -229,6 +249,7 @@
       "width": 128,
       "height": 128,
       "critical": false,
+      "className": "sprite--ghost--blinky--walk-down-02",
       "tags": ["enemies", "blinky", "walk", "down", "02"],
       "maxBytes": 32768
     },
@@ -240,6 +261,7 @@
       "width": 128,
       "height": 128,
       "critical": false,
+      "className": "sprite--ghost--blinky--walk-left-01",
       "tags": ["enemies", "blinky", "walk", "left", "01"],
       "maxBytes": 32768
     },
@@ -251,6 +273,7 @@
       "width": 128,
       "height": 128,
       "critical": false,
+      "className": "sprite--ghost--blinky--walk-left-02",
       "tags": ["enemies", "blinky", "walk", "left", "02"],
       "maxBytes": 32768
     },
@@ -262,6 +285,7 @@
       "width": 128,
       "height": 128,
       "critical": false,
+      "className": "sprite--ghost--blinky--walk-right-01",
       "tags": ["enemies", "blinky", "walk", "right", "01"],
       "maxBytes": 32768
     },
@@ -273,6 +297,7 @@
       "width": 128,
       "height": 128,
       "critical": false,
+      "className": "sprite--ghost--blinky--walk-right-02",
       "tags": ["enemies", "blinky", "walk", "right", "02"],
       "maxBytes": 32768
     },
@@ -284,6 +309,7 @@
       "width": 128,
       "height": 128,
       "critical": false,
+      "className": "sprite--ghost--blinky--walk-up-01",
       "tags": ["enemies", "blinky", "walk", "up", "01"],
       "maxBytes": 32768
     },
@@ -295,6 +321,7 @@
       "width": 128,
       "height": 128,
       "critical": false,
+      "className": "sprite--ghost--blinky--walk-up-02",
       "tags": ["enemies", "blinky", "walk", "up", "02"],
       "maxBytes": 32768
     },
@@ -306,6 +333,7 @@
       "width": 128,
       "height": 128,
       "critical": true,
+      "className": "sprite--ghost--clyde",
       "tags": ["enemies", "clyde", "normal"],
       "maxBytes": 32768
     },
@@ -317,6 +345,7 @@
       "width": 128,
       "height": 128,
       "critical": false,
+      "className": null,
       "tags": ["enemies", "clyde", "walk", "01"],
       "maxBytes": 32768
     },
@@ -328,6 +357,7 @@
       "width": 128,
       "height": 128,
       "critical": false,
+      "className": null,
       "tags": ["enemies", "clyde", "walk", "02"],
       "maxBytes": 32768
     },
@@ -339,6 +369,7 @@
       "width": 128,
       "height": 128,
       "critical": false,
+      "className": "sprite--ghost--clyde--walk-down-01",
       "tags": ["enemies", "clyde", "walk", "down", "01"],
       "maxBytes": 32768
     },
@@ -350,6 +381,7 @@
       "width": 128,
       "height": 128,
       "critical": false,
+      "className": "sprite--ghost--clyde--walk-down-02",
       "tags": ["enemies", "clyde", "walk", "down", "02"],
       "maxBytes": 32768
     },
@@ -361,6 +393,7 @@
       "width": 128,
       "height": 128,
       "critical": false,
+      "className": "sprite--ghost--clyde--walk-left-01",
       "tags": ["enemies", "clyde", "walk", "left", "01"],
       "maxBytes": 32768
     },
@@ -372,6 +405,7 @@
       "width": 128,
       "height": 128,
       "critical": false,
+      "className": "sprite--ghost--clyde--walk-left-02",
       "tags": ["enemies", "clyde", "walk", "left", "02"],
       "maxBytes": 32768
     },
@@ -383,6 +417,7 @@
       "width": 128,
       "height": 128,
       "critical": false,
+      "className": "sprite--ghost--clyde--walk-right-01",
       "tags": ["enemies", "clyde", "walk", "right", "01"],
       "maxBytes": 32768
     },
@@ -394,6 +429,7 @@
       "width": 128,
       "height": 128,
       "critical": false,
+      "className": "sprite--ghost--clyde--walk-right-02",
       "tags": ["enemies", "clyde", "walk", "right", "02"],
       "maxBytes": 32768
     },
@@ -405,6 +441,7 @@
       "width": 128,
       "height": 128,
       "critical": false,
+      "className": "sprite--ghost--clyde--walk-up-01",
       "tags": ["enemies", "clyde", "walk", "up", "01"],
       "maxBytes": 32768
     },
@@ -416,6 +453,7 @@
       "width": 128,
       "height": 128,
       "critical": false,
+      "className": "sprite--ghost--clyde--walk-up-02",
       "tags": ["enemies", "clyde", "walk", "up", "02"],
       "maxBytes": 32768
     },
@@ -427,6 +465,7 @@
       "width": 128,
       "height": 128,
       "critical": true,
+      "className": "sprite--ghost--dead",
       "tags": ["enemies", "eyes", "dead"],
       "maxBytes": 32768
     },
@@ -438,6 +477,7 @@
       "width": 128,
       "height": 128,
       "critical": true,
+      "className": "sprite--ghost--inky",
       "tags": ["enemies", "inky", "normal"],
       "maxBytes": 32768
     },
@@ -449,6 +489,7 @@
       "width": 128,
       "height": 128,
       "critical": false,
+      "className": null,
       "tags": ["enemies", "inky", "walk", "01"],
       "maxBytes": 32768
     },
@@ -460,6 +501,7 @@
       "width": 128,
       "height": 128,
       "critical": false,
+      "className": null,
       "tags": ["enemies", "inky", "walk", "02"],
       "maxBytes": 32768
     },
@@ -471,6 +513,7 @@
       "width": 128,
       "height": 128,
       "critical": false,
+      "className": "sprite--ghost--inky--walk-down-01",
       "tags": ["enemies", "inky", "walk", "down", "01"],
       "maxBytes": 32768
     },
@@ -482,6 +525,7 @@
       "width": 128,
       "height": 128,
       "critical": false,
+      "className": "sprite--ghost--inky--walk-down-02",
       "tags": ["enemies", "inky", "walk", "down", "02"],
       "maxBytes": 32768
     },
@@ -493,6 +537,7 @@
       "width": 128,
       "height": 128,
       "critical": false,
+      "className": "sprite--ghost--inky--walk-left-01",
       "tags": ["enemies", "inky", "walk", "left", "01"],
       "maxBytes": 32768
     },
@@ -504,6 +549,7 @@
       "width": 128,
       "height": 128,
       "critical": false,
+      "className": "sprite--ghost--inky--walk-left-02",
       "tags": ["enemies", "inky", "walk", "left", "02"],
       "maxBytes": 32768
     },
@@ -515,6 +561,7 @@
       "width": 128,
       "height": 128,
       "critical": false,
+      "className": "sprite--ghost--inky--walk-right-01",
       "tags": ["enemies", "inky", "walk", "right", "01"],
       "maxBytes": 32768
     },
@@ -526,6 +573,7 @@
       "width": 128,
       "height": 128,
       "critical": false,
+      "className": "sprite--ghost--inky--walk-right-02",
       "tags": ["enemies", "inky", "walk", "right", "02"],
       "maxBytes": 32768
     },
@@ -537,6 +585,7 @@
       "width": 128,
       "height": 128,
       "critical": false,
+      "className": "sprite--ghost--inky--walk-up-01",
       "tags": ["enemies", "inky", "walk", "up", "01"],
       "maxBytes": 32768
     },
@@ -548,6 +597,7 @@
       "width": 128,
       "height": 128,
       "critical": false,
+      "className": "sprite--ghost--inky--walk-up-02",
       "tags": ["enemies", "inky", "walk", "up", "02"],
       "maxBytes": 32768
     },
@@ -559,6 +609,7 @@
       "width": 128,
       "height": 128,
       "critical": true,
+      "className": "sprite--ghost--pinky",
       "tags": ["enemies", "pinky", "normal"],
       "maxBytes": 32768
     },
@@ -570,6 +621,7 @@
       "width": 128,
       "height": 128,
       "critical": false,
+      "className": null,
       "tags": ["enemies", "pinky", "walk", "01"],
       "maxBytes": 32768
     },
@@ -581,6 +633,7 @@
       "width": 128,
       "height": 128,
       "critical": false,
+      "className": null,
       "tags": ["enemies", "pinky", "walk", "02"],
       "maxBytes": 32768
     },
@@ -592,6 +645,7 @@
       "width": 128,
       "height": 128,
       "critical": false,
+      "className": "sprite--ghost--pinky--walk-down-01",
       "tags": ["enemies", "pinky", "walk", "down", "01"],
       "maxBytes": 32768
     },
@@ -603,6 +657,7 @@
       "width": 128,
       "height": 128,
       "critical": false,
+      "className": "sprite--ghost--pinky--walk-down-02",
       "tags": ["enemies", "pinky", "walk", "down", "02"],
       "maxBytes": 32768
     },
@@ -614,6 +669,7 @@
       "width": 128,
       "height": 128,
       "critical": false,
+      "className": "sprite--ghost--pinky--walk-left-01",
       "tags": ["enemies", "pinky", "walk", "left", "01"],
       "maxBytes": 32768
     },
@@ -625,6 +681,7 @@
       "width": 128,
       "height": 128,
       "critical": false,
+      "className": "sprite--ghost--pinky--walk-left-02",
       "tags": ["enemies", "pinky", "walk", "left", "02"],
       "maxBytes": 32768
     },
@@ -636,6 +693,7 @@
       "width": 128,
       "height": 128,
       "critical": false,
+      "className": "sprite--ghost--pinky--walk-right-01",
       "tags": ["enemies", "pinky", "walk", "right", "01"],
       "maxBytes": 32768
     },
@@ -647,6 +705,7 @@
       "width": 128,
       "height": 128,
       "critical": false,
+      "className": "sprite--ghost--pinky--walk-right-02",
       "tags": ["enemies", "pinky", "walk", "right", "02"],
       "maxBytes": 32768
     },
@@ -658,6 +717,7 @@
       "width": 128,
       "height": 128,
       "critical": false,
+      "className": "sprite--ghost--pinky--walk-up-01",
       "tags": ["enemies", "pinky", "walk", "up", "01"],
       "maxBytes": 32768
     },
@@ -669,6 +729,7 @@
       "width": 128,
       "height": 128,
       "critical": false,
+      "className": "sprite--ghost--pinky--walk-up-02",
       "tags": ["enemies", "pinky", "walk", "up", "02"],
       "maxBytes": 32768
     },
@@ -680,6 +741,7 @@
       "width": 128,
       "height": 128,
       "critical": true,
+      "className": null,
       "tags": ["enemies", "stunned", "01"],
       "maxBytes": 32768
     },
@@ -691,6 +753,7 @@
       "width": 128,
       "height": 128,
       "critical": false,
+      "className": null,
       "tags": ["enemies", "stunned", "02"],
       "maxBytes": 32768
     },
@@ -702,6 +765,7 @@
       "width": 128,
       "height": 128,
       "critical": true,
+      "className": "sprite--ghost--stunned",
       "tags": ["enemies", "stunned"],
       "maxBytes": 32768
     },
@@ -713,6 +777,7 @@
       "width": 128,
       "height": 128,
       "critical": false,
+      "className": null,
       "tags": ["environment", "destruct", "01"],
       "maxBytes": 32768
     },
@@ -724,6 +789,7 @@
       "width": 128,
       "height": 128,
       "critical": false,
+      "className": null,
       "tags": ["environment", "destruct", "cracked"],
       "maxBytes": 32768
     },
@@ -735,6 +801,7 @@
       "width": 128,
       "height": 128,
       "critical": false,
+      "className": null,
       "tags": ["environment", "destruct", "shattered"],
       "maxBytes": 32768
     },
@@ -746,6 +813,7 @@
       "width": 128,
       "height": 128,
       "critical": true,
+      "className": "cell-destructible",
       "tags": ["environment", "destructible"],
       "maxBytes": 32768
     },
@@ -757,6 +825,7 @@
       "width": 128,
       "height": 128,
       "critical": true,
+      "className": "cell-wall",
       "tags": ["environment", "indestructible"],
       "maxBytes": 32768
     },
@@ -768,6 +837,7 @@
       "width": 128,
       "height": 128,
       "critical": false,
+      "className": "sprite--bomb--fuse-01",
       "tags": ["items", "bomb", "fuse", "01"],
       "maxBytes": 32768
     },
@@ -779,6 +849,7 @@
       "width": 128,
       "height": 128,
       "critical": false,
+      "className": "sprite--bomb--fuse-02",
       "tags": ["items", "bomb", "fuse", "02"],
       "maxBytes": 32768
     },
@@ -790,7 +861,20 @@
       "width": 128,
       "height": 128,
       "critical": false,
+      "className": "sprite--bomb--fuse-03",
       "tags": ["items", "bomb", "fuse", "03"],
+      "maxBytes": 32768
+    },
+    {
+      "id": "bomb-fuse-04",
+      "path": "assets/generated/visuals/128px/items/bomb-fuse-04.webp",
+      "kind": "sprite",
+      "format": "webp",
+      "width": 128,
+      "height": 128,
+      "critical": false,
+      "className": "sprite--bomb--fuse-04",
+      "tags": ["items", "bomb", "fuse", "04"],
       "maxBytes": 32768
     },
     {
@@ -801,6 +885,7 @@
       "width": 128,
       "height": 128,
       "critical": true,
+      "className": "sprite--bomb--idle",
       "tags": ["items", "bomb", "idle"],
       "maxBytes": 32768
     },
@@ -812,6 +897,7 @@
       "width": 128,
       "height": 128,
       "critical": true,
+      "className": "sprite--pellet",
       "tags": ["items", "pellet"],
       "maxBytes": 32768
     },
@@ -823,6 +909,7 @@
       "width": 76,
       "height": 76,
       "critical": false,
+      "className": null,
       "tags": ["items", "power", "pellet", "01"],
       "maxBytes": 32768
     },
@@ -834,6 +921,7 @@
       "width": 83,
       "height": 83,
       "critical": false,
+      "className": null,
       "tags": ["items", "power", "pellet", "02"],
       "maxBytes": 32768
     },
@@ -845,6 +933,7 @@
       "width": 64,
       "height": 64,
       "critical": true,
+      "className": null,
       "tags": ["items", "power", "pellet"],
       "maxBytes": 32768
     },
@@ -853,9 +942,10 @@
       "path": "assets/generated/visuals/128px/items/powerup-bomb.webp",
       "kind": "sprite",
       "format": "webp",
-      "width": 76,
-      "height": 76,
+      "width": 128,
+      "height": 128,
       "critical": true,
+      "className": "cell-powerup-bomb",
       "tags": ["items", "bomb"],
       "maxBytes": 32768
     },
@@ -867,6 +957,7 @@
       "width": 128,
       "height": 128,
       "critical": true,
+      "className": "cell-powerup-fire",
       "tags": ["items", "fire"],
       "maxBytes": 32768
     },
@@ -878,6 +969,7 @@
       "width": 128,
       "height": 128,
       "critical": true,
+      "className": "cell-powerup-speed",
       "tags": ["items", "speed"],
       "maxBytes": 32768
     },
@@ -889,6 +981,7 @@
       "width": 64,
       "height": 64,
       "critical": false,
+      "className": null,
       "tags": ["ui", "bomb", "icon"],
       "maxBytes": 32768
     },
@@ -900,6 +993,7 @@
       "width": 64,
       "height": 64,
       "critical": false,
+      "className": null,
       "tags": ["ui", "fire", "radius"],
       "maxBytes": 32768
     },
@@ -911,6 +1005,7 @@
       "width": 64,
       "height": 64,
       "critical": true,
+      "className": null,
       "tags": ["ui", "heart", "empty"],
       "maxBytes": 32768
     },
@@ -922,6 +1017,7 @@
       "width": 128,
       "height": 128,
       "critical": true,
+      "className": null,
       "tags": ["ui", "heart", "full"],
       "maxBytes": 32768
     }

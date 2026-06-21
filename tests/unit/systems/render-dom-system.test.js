@@ -267,7 +267,7 @@ describe('render-dom-system', () => {
     it('maps the bomb spriteId to the matching fuse-frame class', async () => {
       const { buffer, fillBuffer, spritePool } = createHarness();
 
-      // spriteId 2 → third fuse frame (.sprite--bomb--fuse-02).
+      // spriteId 2 → third fuse frame (.sprite--bomb--fuse-03).
       fillBuffer([
         {
           entityId: 1,
@@ -293,7 +293,7 @@ describe('render-dom-system', () => {
       });
 
       expect(mockEl.classList.add).toHaveBeenCalledWith('sprite--bomb');
-      expect(mockEl.classList.add).toHaveBeenCalledWith('sprite--bomb--fuse-02');
+      expect(mockEl.classList.add).toHaveBeenCalledWith('sprite--bomb--fuse-03');
     });
   });
 

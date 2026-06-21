@@ -380,7 +380,7 @@ describe('render-collect-system', () => {
       const bombSpriteId = () =>
         getRenderIntentView(buffer).find((i) => i.kind === RENDERABLE_KIND.BOMB).spriteId;
 
-      // Full fuse → idle frame 0.
+      // Full fuse → first lit frame 0.
       bombs.fuseMs[0] = BOMB_FUSE_MS;
       run();
       expect(bombSpriteId()).toBe(0);

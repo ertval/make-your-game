@@ -30,6 +30,13 @@ const CELL_TYPE_CLASSES = {
   4: 'cell-power-pellet',
   5: 'cell-ghost-house',
   6: 'cell-empty',
+  // Power-up drops (CELL_TYPE.POWER_UP_BOMB/FIRE/SPEED). The explosion system
+  // writes these cell types into the grid when a destructible wall is cleared;
+  // without a class here updateCell fell back to 'cell-empty' and the drop was
+  // invisible on the board even though collision-system still granted the pickup.
+  7: 'cell-powerup-bomb',
+  8: 'cell-powerup-fire',
+  9: 'cell-powerup-speed',
 };
 
 /**
