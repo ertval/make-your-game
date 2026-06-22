@@ -1,4 +1,4 @@
-# 🚀 Track A: Resolve issue #22
+# 🚀 Track A: Resolve issue #221
 > **Summary**: Except the main branch from ticket format naming and track ownership checks.
 
 ---
@@ -48,4 +48,4 @@
 
 ---
 
-Closes #22
+Closes #221
