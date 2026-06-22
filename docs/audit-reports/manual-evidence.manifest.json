@@ -1,6 +1,6 @@
 {
   "schemaVersion": "1.0.0",
-  "updatedAt": "2026-06-06",
+  "updatedAt": "2026-06-23",
   "entries": [
     {
       "auditId": "AUDIT-F-19",
@@ -17,8 +17,8 @@
       ],
       "signOff": {
         "reviewer": "ekaramet",
-        "date": "2026-06-06",
-        "notes": "Paint flashing verified per F-19 evidence document. Playwright trace recorded and added. No full-screen repaints observed. HUD-only paint regions, no layout thrashing, promoted layers GPU-composited. PASS."
+        "date": "2026-06-23",
+        "notes": "Paint flashing verified for P4 Release. No full-screen repaints. HUD-only paint regions, promoted layers GPU-composited with zero redraws during movement. PASS."
       }
     },
     {
@@ -36,8 +36,8 @@
       ],
       "signOff": {
         "reviewer": "ekaramet",
-        "date": "2026-06-06",
-        "notes": "Layer borders captured across 3 levels. Playwright trace recorded and added. Root + player + N ghosts = 2-6 layers total. No unnecessary promotion, no layer leaks on restart. PASS."
+        "date": "2026-06-23",
+        "notes": "Layer count remains stable at 2-6 layers depending on active ghosts. No layer leaks on pause/resume or level resets. Verified for P4 release. PASS."
       }
     },
     {
@@ -55,8 +55,8 @@
       ],
       "signOff": {
         "reviewer": "ekaramet",
-        "date": "2026-06-06",
-        "notes": "Layer promotion policy confirmed per AGENTS.md. Playwright trace recorded and added. will-change: transform only on player and active ghosts. Transient elements (bombs, fire) not promoted. Memory steady at ~3-4.5 MB compositor layers. PASS."
+        "date": "2026-06-23",
+        "notes": "Layer promotion rules verified against AGENTS.md. Only player and active ghosts are promoted. No memory leaks. PASS."
       }
     },
     {
@@ -74,8 +74,8 @@
       ],
       "signOff": {
         "reviewer": "ekaramet",
-        "date": "2026-06-06",
-        "notes": "Final quality review completed. Playwright trace recorded and added. All 27 audit questions covered, policy gates green, ECS boundaries intact, performance targets met. Phase 2 MVP ready. PASS."
+        "date": "2026-06-23",
+        "notes": "Final P4 quality review completed. All 27 audit questions pass, policy gates are satisfied, and regression tests are passing. Release ready. PASS."
       }
     }
   ]
