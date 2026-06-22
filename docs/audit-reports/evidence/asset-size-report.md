@@ -204,12 +204,24 @@ Compressed audio formats.
 
 | Category | File Name | Size (Bytes) | Size (KB) |
 | :--- | :--- | :--- | :--- |
-| UI | \`ui-confirm.mp3\` | 42 | 42 B |
-| **Total Audio** | **42** | **42 B** |
+| Music | `gameplay-loop.mp3` | 1746612 | 1705.68 KB |
+| SFX | `bomb-explode.mp3` | 58464 | 57.09 KB |
+| SFX | `bomb-fuse-loop.mp3` | 119016 | 116.23 KB |
+| SFX | `bomb-place.mp3` | 12528 | 12.23 KB |
+| SFX | `ghost-kill.mp3` | 13572 | 13.25 KB |
+| SFX | `level-complete.mp3` | 78300 | 76.46 KB |
+| SFX | `pellet-collect.mp3` | 13572 | 13.25 KB |
+| SFX | `player-death.mp3` | 56376 | 55.05 KB |
+| SFX | `power-pellet.mp3` | 36540 | 35.68 KB |
+| SFX | `speed-boost-on.mp3` | 84564 | 82.58 KB |
+| SFX | `ui-confirm.mp3` | 13572 | 13.25 KB |
+| SFX | `wall-destroy.mp3` | 49068 | 47.92 KB |
+| UI | `ui-confirm.mp3` | 42 | 0.04 KB |
+| **Total Audio** | **2282226** | **2.18 MB** |
 
 ## 5. Summary & Comparison
 
 - **Original Visual Assets Total**: 11.7 MB (12272073 bytes)
 - **Optimized Visual Assets Total**: 1.21 MB (1266147 bytes)
 - **Visual Footprint Reduction**: **89.68%** size reduction.
-- **Audio Assets Total**: 42 B (42 bytes)
+- **Audio Assets Total**: 2.18 MB (2282226 bytes)
