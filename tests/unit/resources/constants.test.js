@@ -14,7 +14,6 @@ import {
   DEFAULT_FIRE_RADIUS,
   FIRE_DURATION_MS,
   FIXED_DT_MS,
-  GHOST_INTERSECTION_MIN_EXITS,
   GHOST_RESPAWN_MS,
   GHOST_SPAWN_DELAYS,
   GHOST_STATE,
@@ -22,8 +21,6 @@ import {
   GHOST_TYPE,
   INKY_REFERENCE_OFFSET,
   INVINCIBILITY_MS,
-  LEVEL_GHOST_SPEED,
-  LEVEL_MAX_GHOSTS,
   LEVEL_TIMERS,
   MAX_CHAIN_DEPTH,
   MAX_FIRE_RADIUS,
@@ -39,14 +36,6 @@ import {
   POOL_MAX_BOMBS,
   POOL_PELLETS,
   POWER_UP_DROP_CHANCES,
-  POWER_UP_TYPE,
-  SCORE_GHOST_KILL,
-  SCORE_LEVEL_CLEAR,
-  SCORE_PELLET,
-  SCORE_POWER_PELLET,
-  SCORE_POWER_UP,
-  SCORE_STUNNED_GHOST_KILL,
-  SCORE_TIME_BONUS_MULTIPLIER,
   SIMULATION_HZ,
   SPEED_BOOST_MS,
   SPEED_BOOST_MULTIPLIER,
@@ -96,25 +85,15 @@ describe('constants', () => {
     expect(CLYDE_DISTANCE_THRESHOLD).toBe(8);
     expect(PINKY_TARGET_OFFSET).toBe(4);
     expect(INKY_REFERENCE_OFFSET).toBe(2);
-    expect(GHOST_INTERSECTION_MIN_EXITS).toBe(3);
   });
 
   it('defines correct level progression constants', () => {
     expect(LEVEL_TIMERS).toEqual([120, 180, 240]);
-    expect(LEVEL_MAX_GHOSTS).toEqual([2, 3, 4]);
-    expect(LEVEL_GHOST_SPEED).toEqual([4.0, 4.5, 5.0]);
     expect(TOTAL_LEVELS).toBe(3);
   });
 
-  it('defines correct scoring constants', () => {
-    expect(SCORE_PELLET).toBe(10);
-    expect(SCORE_POWER_PELLET).toBe(50);
-    expect(SCORE_GHOST_KILL).toBe(200);
-    expect(SCORE_STUNNED_GHOST_KILL).toBe(400);
-    expect(SCORE_POWER_UP).toBe(100);
-    expect(SCORE_LEVEL_CLEAR).toBe(1000);
-    expect(SCORE_TIME_BONUS_MULTIPLIER).toBe(10);
-  });
+  // Scoring constants moved to scoring-system.js (DEAD-02, single source of
+  // truth). Their values are asserted in tests/unit/systems/scoring-system.test.js.
 
   it('defines power-up drop chances that sum to 1.0', () => {
     const total =
@@ -123,13 +102,6 @@ describe('constants', () => {
       POWER_UP_DROP_CHANCES.FIRE +
       POWER_UP_DROP_CHANCES.SPEED;
     expect(total).toBeCloseTo(1.0, 10);
-  });
-
-  it('defines power-up type IDs', () => {
-    expect(POWER_UP_TYPE.NONE).toBe(0);
-    expect(POWER_UP_TYPE.BOMB).toBe(1);
-    expect(POWER_UP_TYPE.FIRE).toBe(2);
-    expect(POWER_UP_TYPE.SPEED).toBe(3);
   });
 
   it('defines visual flags as distinct power-of-two values', () => {
@@ -169,7 +141,7 @@ describe('constants', () => {
   });
 
   it('defines POOL_GHOSTS matching max level ghost count', () => {
-    expect(POOL_GHOSTS).toBe(LEVEL_MAX_GHOSTS[LEVEL_MAX_GHOSTS.length - 1]);
+    expect(POOL_GHOSTS).toBe(4);
   });
 
   it('defines POOL_PELLETS as upper bound for a 15x11 map', () => {

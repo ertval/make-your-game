@@ -18,6 +18,7 @@
 import { createBoardAdapter } from '../adapters/dom/renderer-adapter.js';
 import { updateBoardCss } from '../adapters/dom/renderer-board-css.js';
 import { createSpritePool } from '../adapters/dom/sprite-pool-adapter.js';
+import { createAudioCueRunner } from '../adapters/io/audio-integration.js';
 import { assertValidInputAdapter } from '../adapters/io/input-adapter.js';
 import {
   createGhostStore,
@@ -42,12 +43,12 @@ import {
   resetRenderable,
   resetVisualState,
 } from '../ecs/components/visual.js';
-import { createRenderIntentBuffer, resetRenderIntentBuffer } from '../ecs/render-intent.js';
 import {
   advanceSimTime,
   createClock,
   resetClock,
   resyncBaseline,
+  setPauseState,
   tickClock,
 } from '../ecs/resources/clock.js';
 import {
@@ -60,11 +61,16 @@ import {
 } from '../ecs/resources/constants.js';
 import { createEventQueue } from '../ecs/resources/event-queue.js';
 import { createGameStatus } from '../ecs/resources/game-status.js';
+import {
+  createRenderIntentBuffer,
+  resetRenderIntentBuffer,
+} from '../ecs/resources/render-intent.js';
 import { createBoardSyncSystem } from '../ecs/systems/board-sync-system.js';
 import { createCollisionSystem } from '../ecs/systems/collision-system.js';
 import { createGhostAiSystem, GHOST_AI_REQUIRED_MASK } from '../ecs/systems/ghost-ai-system.js';
 import { createGhostAnimationSystem } from '../ecs/systems/ghost-animation-system.js';
-import { createHudSystem } from '../ecs/systems/hud-system.js';
+import { createHudRenderSystem } from '../ecs/systems/hud-render-system.js';
+import { createHudState, createHudSystem } from '../ecs/systems/hud-system.js';
 import { createInputSystem } from '../ecs/systems/input-system.js';
 import { createLevelProgressSystem } from '../ecs/systems/level-progress-system.js';
 import { createLifeSystem } from '../ecs/systems/life-system.js';
@@ -88,6 +94,7 @@ import { createGameFlow } from './game-flow.js';
 import { createLevelLoader } from './level-loader.js';
 import {
   createBombExplosionLogicSystems,
+  deactivateAllBombsAndFire,
   initializeBombExplosionResources,
 } from './runtime-bomb-explosion-wiring.js';
 
@@ -103,6 +110,58 @@ const DEFAULT_GHOST_RESOURCE_KEY = 'ghost';
 const DEFAULT_GHOST_ENTITIES_RESOURCE_KEY = 'ghostEntities';
 const DEFAULT_GHOST_IDS_RESOURCE_KEY = 'ghostIds';
 const DEFAULT_GHOST_SPAWN_STATE_RESOURCE_KEY = 'ghostSpawnState';
+// Canonical world-resource key for the runtime audio adapter (C-06 contract).
+const DEFAULT_AUDIO_RESOURCE_KEY = 'audio';
+
+/**
+ * Thin render-phase wrapper around the C-07 audio cue runner.
+ *
+ * The wrapper adds no audio logic; it only resolves world resources and
+ * forwards them to the runner, which maps drained gameplay events onto SFX
+ * cues and reconciles music against the current game state. It runs in the
+ * `render` phase so it observes every logic-phase event emitted this frame.
+ *
+ * @param {{ eventQueueResourceKey?: string, gameStatusResourceKey?: string, audioResourceKey?: string }} [options]
+ * @returns {object} A registrable render-phase system.
+ */
+function createAudioCueSystem(options = {}) {
+  const eventQueueResourceKey = options.eventQueueResourceKey || DEFAULT_EVENT_QUEUE_RESOURCE_KEY;
+  const gameStatusResourceKey = options.gameStatusResourceKey || 'gameStatus';
+  const audioResourceKey = options.audioResourceKey || DEFAULT_AUDIO_RESOURCE_KEY;
+  const bombAudioActiveResourceKey = options.bombAudioActiveResourceKey || 'bombAudioActive';
+  const powerUpStateResourceKey = options.powerUpStateResourceKey || 'powerUpState';
+  const runner = createAudioCueRunner(
+    typeof options.fuseLoopDelay === 'number' ? { fuseLoopDelay: options.fuseLoopDelay } : {},
+  );
+
+  return {
+    name: 'audio-cue-system',
+    phase: 'render',
+    resourceCapabilities: {
+      read: [
+        audioResourceKey,
+        eventQueueResourceKey,
+        gameStatusResourceKey,
+        bombAudioActiveResourceKey,
+        powerUpStateResourceKey,
+      ],
+      // drain() clears the queue, so this system writes the event-queue resource.
+      write: [eventQueueResourceKey],
+    },
+    update(context) {
+      const powerUpState = context.world.getResource(powerUpStateResourceKey);
+      runner.tick({
+        audio: context.world.getResource(audioResourceKey),
+        eventQueue: context.world.getResource(eventQueueResourceKey),
+        gameStatus: context.world.getResource(gameStatusResourceKey),
+        bombActive: context.world.getResource(bombAudioActiveResourceKey) === true,
+        // Power-pellet frenzy window: loop the frenzy SFX while the stun timer
+        // is live (started by a power pellet, ticked by power-up-system).
+        powerPelletActive: (powerUpState?.stunRemainingMs ?? 0) > 0,
+      });
+    },
+  };
+}
 
 // Full mask applied to a ghost entity once the spawn-system releases it. The
 // AI query mask is widened with RENDERABLE and COLLIDER so the released ghost
@@ -117,6 +176,8 @@ const GHOST_RUNTIME_MASK =
  * honored so callers that wire the system directly do not silently break while
  * we migrate everything to the explicit bootstrap API.
  *
+ * @internal
+ * @deprecated Legacy option fallback
  * @param {object} [options={}] - Bootstrap options.
  * @returns {string} Resolved resource key for the input adapter slot.
  */
@@ -300,10 +361,18 @@ function createDefaultSystemsByPhase(options = {}) {
     meta: [inputSystem, createPauseInputSystem(), createPauseSystem()],
     physics: [playerMoveSystem, createGhostAiSystem()],
     render: [
-      createHudSystem({ hudElementsResourceKey: options.hudElementsResourceKey }),
+      // ARCH-01: hud-render-system is the only HUD→DOM boundary; it reads the
+      // data-only hudState buffer produced by hud-system in the logic phase.
+      createHudRenderSystem({ hudAdapterResourceKey: options.hudAdapterResourceKey }),
       screensSystem,
       renderCollectSystem,
       renderDomSystem,
+      // Audio is a downstream feedback channel: appended last in `render` so it
+      // drains every gameplay event emitted by the logic phase this frame.
+      createAudioCueSystem({
+        eventQueueResourceKey,
+        fuseLoopDelay: options.fuseLoopDelay,
+      }),
     ],
     logic: [
       createCollisionSystem({
@@ -348,6 +417,9 @@ function createDefaultSystemsByPhase(options = {}) {
         playerResourceKey,
         positionResourceKey,
       }),
+      // ARCH-01: hud-system runs last in logic so the hudState buffer captures
+      // this frame's scoring/life/timer/power-up results before the render phase.
+      createHudSystem({ hudStateResourceKey: options.hudStateResourceKey }),
     ],
   };
 }
@@ -754,6 +826,9 @@ export function createBootstrap(options = {}) {
     options.playerEntityResourceKey || DEFAULT_PLAYER_ENTITY_RESOURCE_KEY;
   const clock = createClock(nowMs);
   const gameStatus = createGameStatus();
+  // BUG-16: Resolve the event queue resource key early so it can be accessed
+  // by gameFlow's onRestart closure during synchronous browser startup.
+  const eventQueueResourceKey = options.eventQueueResourceKey || DEFAULT_EVENT_QUEUE_RESOURCE_KEY;
 
   // Resolve a single now-source for restart resyncs. Tests wire a synthetic
   // `nowProvider` so the restart path stays deterministic; production falls
@@ -802,8 +877,20 @@ export function createBootstrap(options = {}) {
         boardAdapter.generateBoard(mapResource, boardContainerElement);
       }
       updateBoardCss(mapResource);
+      // Clear any bomb/fire left live on the previous level so a bomb placed
+      // just before the exit cannot carry its fuse into the new level and
+      // detonate there. The pools persist across a transition (unlike restart,
+      // which destroys all entities), so the slots must be reset explicitly.
+      deactivateAllBombsAndFire(world, options);
       syncPlayerEntityFromMap(world, mapResource, options);
       syncGhostEntitiesFromMap(world, mapResource, options);
+      // Reset spawn state so level-2 ghosts are released on the documented
+      // 0/5/10/15 s stagger, not whatever timing the previous level reached.
+      world.setResource('ghostSpawnState', createInitialSpawnState());
+      world.setResource('deadGhostIds', []);
+      // bomb-cell occupancy is also per-map; clear so a stale level-1 cell
+      // index never blocks a level-2 ghost.
+      world.setResource('bombCellOccupancy', new Set());
       // BUG-01: level transition must reset frame counters so fixed-step
       // progression restarts cleanly for the new level.
       world.frame = 0;
@@ -844,8 +931,13 @@ export function createBootstrap(options = {}) {
       world.setResource('ghostSpawnState', createInitialSpawnState());
       world.setResource('collisionIntents', []);
       world.setResource('deadGhostIds', []);
-      world.setResource('pauseIntent', { restart: false, toggle: false });
-      world.setResource('levelFlow', {});
+      world.setResource('pauseIntent', { toggle: false });
+      world.setResource('bombCellOccupancy', new Set());
+
+      // BUG-16: Reset the event queue so stale events from the previous run
+      // (e.g., BombDetonated, GhostDefeated, LevelCleared) are not replayed
+      // by the audio cue runner on the first post-restart tick.
+      world.setResource(eventQueueResourceKey, createEventQueue());
 
       // D-09: Reset sprite pool so old sprites are returned to idle state.
       // This combined with render-dom-system's frame-0 map clear ensures
@@ -857,9 +949,23 @@ export function createBootstrap(options = {}) {
     },
     world,
   });
-  // Auto-start in browser only to render the board for demo purposes
+  // The runtime boots into the MENU state so the Start Game overlay is shown
+  // and the player must click "Start Game" to begin. That click is a user
+  // gesture the browser accepts as audio activation, which is required to
+  // unlock the AudioContext — notably in Firefox, where arrow-key presses are
+  // NOT accepted as activation, so auto-starting straight into PLAYING would
+  // leave the music permanently suspended. See screens-system (MENU →
+  // showStart) and audio-adapter's gesture-driven unlock listeners.
+  //
+  // We still load level 0 in the browser so the board renders behind the
+  // semi-transparent Start overlay (the same way it shows through the Settings
+  // overlay). loadLevel only draws the map + syncs entities; it does NOT
+  // transition the FSM out of MENU. We freeze the clock so the previewed
+  // player/ghosts stay still — the simulation only advances once the player
+  // presses Start (PLAYING unpauses via game-flow.applyPauseFromState).
   if (typeof window !== 'undefined') {
-    gameFlow.startGame();
+    levelLoader.loadLevel(0, { reason: 'menu-preview' });
+    setPauseState(clock, true);
   }
   const assetPipeline = createAssetPipelineResource(options.assetPipeline || {});
 
@@ -868,13 +974,16 @@ export function createBootstrap(options = {}) {
   // B-05: Register the canonical event queue resource so Track B simulation
   // systems can emit deterministic cross-system events without importing
   // bootstrap or adapter modules. Systems access this only via world.getResource.
-  const eventQueueResourceKey = options.eventQueueResourceKey || DEFAULT_EVENT_QUEUE_RESOURCE_KEY;
   ensureWorldResource(world, eventQueueResourceKey, createEventQueue);
   world.setResource('gameFlow', gameFlow);
   world.setResource('gameStatus', gameStatus);
   world.setResource('levelLoader', levelLoader);
   world.setResource('renderIntent', createRenderIntentBuffer());
   world.setResource('spritePool', spritePool);
+  // ARCH-02 (#154): Register the board adapter as a world resource so
+  // board-sync-system reads it via the resource API rather than a closure
+  // param, keeping adapter access consistent and auditable.
+  world.setResource(options.boardAdapterResourceKey || 'boardAdapter', boardAdapter);
 
   // Initialize HUD-related resources
   world.setResource('scoreState', createDefaultScoreState());
@@ -882,10 +991,16 @@ export function createBootstrap(options = {}) {
   world.setResource('playerLife', { lives: 3, isInvincible: false, invincibilityRemainingMs: 0 });
   world.setResource('ghostSpawnState', createInitialSpawnState());
   world.setResource('collisionIntents', []); // B-04 requirement
-  world.setResource('pauseIntent', { restart: false, toggle: false });
+  world.setResource('pauseIntent', { toggle: false });
   world.setResource('deadGhostIds', []);
-  world.setResource('levelFlow', {});
-  world.setResource(options.hudElementsResourceKey || 'hudElements', options.hudElements || null);
+  world.setResource('bombCellOccupancy', new Set());
+  world.setResource(options.hudStateResourceKey || 'hudState', createHudState());
+  // Bomb-tick writes this each frame; the audio cue system reads it to loop/stop
+  // the fuse SFX. Pre-registered so the reader never sees an undefined slot.
+  world.setResource('bombAudioActive', false);
+  // Pre-register the audio adapter slot as null so the cue system can read it
+  // safely before the app boundary constructs and injects the real adapter.
+  world.setResource(options.audioAdapterResourceKey || DEFAULT_AUDIO_RESOURCE_KEY, null);
 
   registerSystemsByPhase(
     world,
@@ -898,7 +1013,9 @@ export function createBootstrap(options = {}) {
     ),
   );
 
-  world.registerSystem(createBoardSyncSystem(boardAdapter));
+  world.registerSystem(
+    createBoardSyncSystem({ boardAdapterResourceKey: options.boardAdapterResourceKey }),
+  );
   world.registerSystem(createPlayerAnimationSystem());
 
   function stepFrame(
@@ -1050,11 +1167,48 @@ export function createBootstrap(options = {}) {
     return world.getResource(options.storageProviderResourceKey || 'storageProvider') || null;
   }
 
+  /**
+   * Register (or clear) the runtime audio adapter as the canonical `'audio'`
+   * world resource. Passing null/undefined destroys the previous adapter so
+   * runtime teardown releases the AudioContext through one code path.
+   *
+   * @param {object | null} adapter - Audio adapter contract or null to clear it.
+   * @returns {object | null} The stored adapter, or null after clearing.
+   */
+  function setAudioAdapter(adapter) {
+    const key = options.audioAdapterResourceKey || DEFAULT_AUDIO_RESOURCE_KEY;
+    const previous = world.getResource(key) || null;
+
+    if (adapter === null || adapter === undefined) {
+      if (previous && typeof previous.destroy === 'function') {
+        previous.destroy();
+      }
+      world.setResource(key, null);
+      return null;
+    }
+
+    if (typeof adapter.playSfx !== 'function') {
+      throw new Error('Audio adapter must expose a playSfx(cueId) method.');
+    }
+
+    if (previous && previous !== adapter && typeof previous.destroy === 'function') {
+      previous.destroy();
+    }
+
+    world.setResource(key, adapter);
+    return adapter;
+  }
+
+  function getAudioAdapter() {
+    return world.getResource(options.audioAdapterResourceKey || DEFAULT_AUDIO_RESOURCE_KEY) || null;
+  }
+
   return {
     clock,
     eventQueueResourceKey,
     gameFlow,
     gameStatus,
+    getAudioAdapter,
     getHudAdapter,
     getInputAdapter,
     getScreensAdapter,
@@ -1064,6 +1218,7 @@ export function createBootstrap(options = {}) {
     playerEntityResourceKey,
     registerRenderer,
     resyncTime,
+    setAudioAdapter,
     setHudAdapter,
     setInputAdapter,
     setScreensAdapter,

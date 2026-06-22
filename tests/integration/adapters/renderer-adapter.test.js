@@ -8,16 +8,31 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { createBoardAdapter } from '../../../src/adapters/dom/renderer-adapter.js';
 
 function createMockDocument() {
+  const createdElements = [];
   return {
-    createElement: vi.fn(() => ({
-      classList: { add: vi.fn() },
-      style: { setProperty: vi.fn() },
-      children: [],
-      innerHTML: '',
-      setAttribute: vi.fn(),
-      appendChild: vi.fn(),
-      parentNode: null,
-    })),
+    createdElements,
+    createElement: vi.fn(() => {
+      let innerHtmlWrites = 0;
+      const el = {
+        classList: { add: vi.fn() },
+        style: { setProperty: vi.fn() },
+        children: [],
+        get innerHTML() {
+          return '';
+        },
+        set innerHTML(_value) {
+          innerHtmlWrites += 1;
+        },
+        setAttribute: vi.fn(),
+        appendChild: vi.fn(),
+        parentNode: null,
+        getInnerHtmlWrites() {
+          return innerHtmlWrites;
+        },
+      };
+      createdElements.push(el);
+      return el;
+    }),
   };
 }
 
@@ -42,6 +57,16 @@ describe('board-adapter', () => {
     adapter.generateBoard(map, container);
 
     expect(mockDoc.createElement).toHaveBeenCalled();
+  });
+
+  it('does not write through innerHTML', () => {
+    const map = { rows: 2, cols: 3, grid: new Uint8Array(6), grid2D: [], activeGhostTypes: [] };
+    adapter.generateBoard(map, container);
+
+    expect(mockDoc.createdElements.length).toBeGreaterThan(0);
+    for (const el of mockDoc.createdElements) {
+      expect(el.getInnerHtmlWrites()).toBe(0);
+    }
   });
 
   it('throws on invalid map', () => {
@@ -257,6 +282,41 @@ describe('board-adapter', () => {
       const before = cellEl._added.length;
       adapter2.updateCell(0, 0, 999);
 
+      expect(cellEl._added.slice(before)).toEqual(['cell-empty']);
+    });
+
+    // Regression: power-up drops (CELL_TYPE 7/8/9) used to fall through to
+    // 'cell-empty' because CELL_TYPE_CLASSES only mapped 0..6, so a dropped
+    // power-up was invisible on the board even though pickup still applied.
+    it.each([
+      [7, 'cell-powerup-bomb'],
+      [8, 'cell-powerup-fire'],
+      [9, 'cell-powerup-speed'],
+    ])('renders a visible class for dropped power-up cell type %i', (cellType, expectedClass) => {
+      const { created, document } = createTrackingDoc();
+      const adapter2 = createBoardAdapter({ document });
+      const container2 = { firstChild: null, appendChild: vi.fn(), removeChild: vi.fn() };
+      adapter2.generateBoard({ rows: 1, cols: 1, grid: new Uint8Array([2]) }, container2);
+
+      const cellEl = created[1];
+      const before = cellEl._added.length;
+      adapter2.updateCell(0, 0, cellType);
+
+      expect(cellEl._added.slice(before)).toEqual([expectedClass]);
+    });
+
+    it('reverts the power-up class to cell-empty once the drop is collected', () => {
+      const { created, document } = createTrackingDoc();
+      const adapter2 = createBoardAdapter({ document });
+      const container2 = { firstChild: null, appendChild: vi.fn(), removeChild: vi.fn() };
+      adapter2.generateBoard({ rows: 1, cols: 1, grid: new Uint8Array([2]) }, container2);
+
+      const cellEl = created[1];
+      adapter2.updateCell(0, 0, 7); // drop a bomb power-up
+      const before = cellEl._added.length;
+      adapter2.updateCell(0, 0, 0); // player collects it → cell goes empty
+
+      expect(cellEl._removed).toEqual(expect.arrayContaining(['cell-powerup-bomb']));
       expect(cellEl._added.slice(before)).toEqual(['cell-empty']);
     });
   });

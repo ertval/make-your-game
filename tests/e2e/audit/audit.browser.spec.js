@@ -207,6 +207,12 @@ test('AUDIT-F-13 progression contract can reach VICTORY deterministically', asyn
 
     runtime.setState('LEVEL_COMPLETE');
     runtime.startGame();
+
+    // Check spawnState immediately after level 2 transition
+    const spawnStateL2 = runtime.getWorld().getResource('ghostSpawnState');
+    const elapsedMsL2 = spawnStateL2 ? spawnStateL2.elapsedMs : -1;
+    const releasedCountL2 = spawnStateL2 ? spawnStateL2.releasedGhostIds.length : -1;
+
     runtime.setState('LEVEL_COMPLETE');
     runtime.startGame();
     runtime.setState('LEVEL_COMPLETE');
@@ -215,11 +221,85 @@ test('AUDIT-F-13 progression contract can reach VICTORY deterministically', asyn
     return {
       levelIndex: runtime.getLevelIndex(),
       state: runtime.getSnapshot().state,
+      elapsedMsL2,
+      releasedCountL2,
     };
   });
 
   expect(progression.levelIndex).toBe(2);
   expect(progression.state).toBe('VICTORY');
+  expect(progression.elapsedMsL2).toBe(0);
+  expect(progression.releasedCountL2).toBe(0);
+});
+
+test('AUDIT-F-13 ghost-house stagger and release timing conforms to requirements', async ({
+  page,
+}) => {
+  await bootRuntime(page);
+  // Force transition to MENU so startGame can load level 3
+  await page.evaluate(() => {
+    const runtime = window.__MS_GHOSTMAN_RUNTIME__;
+    runtime.setState('GAME_OVER');
+    runtime.setState('MENU');
+  });
+  // Start level 3 (index 2) which allows max 4 ghosts.
+  await startGameAndWait(page, { levelIndex: 2 });
+  // Manually reset spawnState to clear any carryover from the Level 1 boot
+  await page.evaluate(() => {
+    const world = window.__MS_GHOSTMAN_RUNTIME__.getWorld();
+    world.setResource('ghostSpawnState', {
+      elapsedMs: 0,
+      releasedGhostIds: [],
+      queuedGhostIds: [],
+      respawnQueue: [],
+      activeGhostCap: 4,
+    });
+    world.setResource('deadGhostIds', []);
+
+    // Also reset all ghost entity masks to 0
+    const handles = world.getResource('ghostEntities');
+    if (Array.isArray(handles)) {
+      for (const handle of handles) {
+        world.setEntityMask(handle, 0);
+      }
+    }
+  });
+
+  const getActiveGhostCount = async () => {
+    return page.evaluate(() => {
+      return Array.from(document.querySelectorAll('.sprite--ghost')).filter(
+        (el) => !el.style.transform.includes('-9999px'),
+      ).length;
+    });
+  };
+
+  const waitForSpawnTime = async (targetMs) => {
+    await page.waitForFunction(
+      (ms) => {
+        const world = window.__MS_GHOSTMAN_RUNTIME__.getWorld();
+        const spawnState = world.getResource('ghostSpawnState');
+        return spawnState && spawnState.elapsedMs >= ms;
+      },
+      targetMs,
+      { timeout: 30000 },
+    );
+  };
+
+  // Ghost 0 releases immediately (0ms delay).
+  await waitForSpawnTime(100);
+  expect(await getActiveGhostCount()).toBe(1);
+
+  // Ghost 1 releases after 5000ms delay.
+  await waitForSpawnTime(5100);
+  expect(await getActiveGhostCount()).toBe(2);
+
+  // Ghost 2 releases after 10000ms delay.
+  await waitForSpawnTime(10100);
+  expect(await getActiveGhostCount()).toBe(3);
+
+  // Ghost 3 releases after 15000ms delay.
+  await waitForSpawnTime(15100);
+  expect(await getActiveGhostCount()).toBe(4);
 });
 
 test('AUDIT-F-17 explicit frame-drop threshold assertions', async ({ page }) => {
@@ -308,7 +388,7 @@ test('AUDIT-CI-09 explicit DOM element budget and memory allocation assertions',
   });
 
   const domCount = await page.evaluate(() => document.querySelectorAll('*').length);
-  expect(domCount).toBeLessThanOrEqual(600);
+  expect(domCount).toBeLessThanOrEqual(500);
 
   const memoryInfo = await page.evaluate(() => {
     if (typeof performance !== 'undefined' && performance.memory) {
@@ -525,6 +605,62 @@ test('AUDIT-B-03 entity and DOM pooling logic executes', async ({ page }) => {
 
   // Pooling means DOM nodes are not created/destroyed on the fly,
   // so the total DOM count should remain perfectly stable.
-  expect(domCount1).toBeLessThanOrEqual(600);
+  expect(domCount1).toBeLessThanOrEqual(500);
   expect(domCount2).toBe(domCount1);
+});
+
+test('AUDIT-F-21 layer promotion check (will-change only on player/ghosts)', async ({ page }) => {
+  await bootRuntime(page);
+  await startGameAndWait(page, { levelIndex: 0 });
+
+  const invalidElements = await page.evaluate(() => {
+    const elWithWillChange = [];
+    for (const el of document.querySelectorAll('*')) {
+      const style = window.getComputedStyle(el);
+      if (style.willChange.includes('transform')) {
+        const classes = Array.from(el.classList);
+        const isPlayer = classes.some((c) => c.includes('player'));
+        const isGhost = classes.some((c) => c.includes('ghost'));
+        if (!isPlayer && !isGhost) {
+          elWithWillChange.push({ tag: el.tagName, class: el.className });
+        }
+      }
+    }
+    return elWithWillChange;
+  });
+
+  expect(invalidElements).toEqual([]);
+});
+
+test('AUDIT-F-19/F-20/F-21/B-06 record browser trace for manual evidence', async ({
+  page,
+  context,
+}) => {
+  const recordTrace = process.env.RECORD_AUDIT_TRACE === 'true';
+  if (recordTrace) {
+    try {
+      await context.tracing.start({ screenshots: true, snapshots: true });
+    } catch {
+      // Tracing may already be started by the Playwright config/runner
+    }
+  }
+
+  await bootRuntime(page);
+  await startGameAndWait(page, { levelIndex: 0 });
+
+  // Move around to trigger paints, style updates, and layers
+  await page.keyboard.down('ArrowRight');
+  await page.waitForTimeout(200);
+  await page.keyboard.up('ArrowRight');
+  await page.keyboard.down('ArrowDown');
+  await page.waitForTimeout(200);
+  await page.keyboard.up('ArrowDown');
+
+  // Place a bomb and wait for explosion to log performance
+  await page.keyboard.press('Space');
+  await page.waitForTimeout(3500);
+
+  if (recordTrace) {
+    await context.tracing.stop({ path: 'docs/audit-reports/evidence/playwright-trace.zip' });
+  }
 });

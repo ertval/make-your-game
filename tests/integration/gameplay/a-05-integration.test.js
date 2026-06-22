@@ -17,7 +17,11 @@ import {
   createPositionStore,
 } from '../../../src/ecs/components/spatial.js';
 import { createHealthStore } from '../../../src/ecs/components/stats.js';
-import { DEFAULT_FIRE_RADIUS, FIXED_DT_MS } from '../../../src/ecs/resources/constants.js';
+import {
+  DEFAULT_FIRE_RADIUS,
+  FIXED_DT_MS,
+  GHOST_STATE,
+} from '../../../src/ecs/resources/constants.js';
 import { createEventQueue, drain } from '../../../src/ecs/resources/event-queue.js';
 import { createGameStatus, GAME_STATE } from '../../../src/ecs/resources/game-status.js';
 import { createMapResource } from '../../../src/ecs/resources/map-resource.js';
@@ -107,6 +111,7 @@ function createElementStub(tagName) {
     },
     classList: {
       add() {},
+      remove() {},
     },
     firstChild: null,
     parentNode: null,
@@ -335,12 +340,38 @@ describe('A-05 pause invariant integration', () => {
       loadMapForLevel: () => createRuntimeMapResource(),
       now: 0,
     });
+    const inputAdapter = createRuntimeInputAdapterStub();
+    bootstrap.setInputAdapter(inputAdapter);
 
     bootstrap.gameFlow.startGame();
+
+    // Place a bomb before pausing
+    inputAdapter.press('bomb');
 
     // Run one real frame to advance past frame 0
     const firstStep = bootstrap.stepFrame(FIXED_DT_MS);
     expect(firstStep.steps).toBe(1);
+
+    const colliderStore = bootstrap.world.getResource('collider');
+    const bombStore = bootstrap.world.getResource('bomb');
+    const bombRequiredMask =
+      COMPONENT_MASK.BOMB | COMPONENT_MASK.POSITION | COMPONENT_MASK.COLLIDER;
+
+    // Find the active bomb
+    const activeBombIds = findActiveColliderIds(
+      bootstrap.world,
+      colliderStore,
+      bombRequiredMask,
+      COLLIDER_TYPE.BOMB,
+    );
+    expect(activeBombIds).toHaveLength(1);
+    const bombId = activeBombIds[0];
+    const initialFuse = bombStore.fuseMs[bombId];
+    expect(initialFuse).toBeGreaterThan(0);
+
+    const levelTimer = bootstrap.world.getResource('levelTimer');
+    const initialRemainingSeconds = levelTimer.remainingSeconds;
+    expect(initialRemainingSeconds).toBeGreaterThan(0);
 
     const frameBeforePause = bootstrap.world.frame;
     const simBeforePause = bootstrap.clock.simTimeMs;
@@ -353,6 +384,18 @@ describe('A-05 pause invariant integration', () => {
       const result = bootstrap.stepFrame(FIXED_DT_MS * (tickIndex + 2));
       expect(result.steps).toBe(0);
       expect(result.isPaused).toBe(true);
+
+      // Verify timer/fuse are frozen
+      expect(bombStore.fuseMs[bombId]).toBe(initialFuse);
+      expect(levelTimer.remainingSeconds).toBe(initialRemainingSeconds);
+
+      // Verify HUD remains responsive (returns consistent, readable state resources)
+      const scoreState = bootstrap.world.getResource('scoreState');
+      const playerLife = bootstrap.world.getResource('playerLife');
+      expect(scoreState).toBeDefined();
+      expect(scoreState.totalPoints).toBe(0);
+      expect(playerLife).toBeDefined();
+      expect(playerLife.lives).toBe(3);
     }
 
     // Simulation must not have advanced
@@ -437,5 +480,174 @@ describe('A-05 event ordering integration', () => {
 
     const eventTypes = events.map((evt) => evt.type);
     expect(eventTypes).toContain(GAMEPLAY_EVENT_TYPE.PLAYER_GHOST_CONTACT);
+
+    const contactEvent = events.find(
+      (evt) => evt.type === GAMEPLAY_EVENT_TYPE.PLAYER_GHOST_CONTACT,
+    );
+    expect(contactEvent).toBeDefined();
+    expect(contactEvent.payload).toMatchObject({
+      entityId: player.id,
+      ghostState: expect.any(Number),
+      sourceEntityId: expect.any(Number),
+      sourceSystem: 'collision-system',
+      tile: { row: mapResource.playerSpawnRow, col: mapResource.playerSpawnCol },
+    });
+  });
+
+  it('executes a full multi-system pipeline: place bomb -> fuse -> detonate -> collision -> score & events', () => {
+    const { gameBoard, restore: restoreDocument } = installRuntimeDocumentStub();
+
+    try {
+      const bootstrap = createBootstrap({
+        boardContainerElement: gameBoard,
+        loadMapForLevel: () => createRuntimeMapResource(),
+        now: 0,
+      });
+      const inputAdapter = createRuntimeInputAdapterStub();
+      const stepFixedFrames = createFixedStepDriver(bootstrap);
+
+      bootstrap.setInputAdapter(inputAdapter);
+      expect(bootstrap.gameFlow.startGame()).toBe(true);
+
+      const world = bootstrap.world;
+
+      const ghostEntities = world.getResource('ghostEntities');
+      expect(ghostEntities.length).toBeGreaterThan(0);
+      const ghostHandle = ghostEntities[0];
+
+      const GHOST_RUNTIME_MASK =
+        COMPONENT_MASK.GHOST |
+        COMPONENT_MASK.POSITION |
+        COMPONENT_MASK.VELOCITY |
+        COMPONENT_MASK.RENDERABLE |
+        COMPONENT_MASK.COLLIDER;
+      world.setEntityMask(ghostHandle, GHOST_RUNTIME_MASK);
+
+      const ghostStore = world.getResource('ghost');
+      const positionStore = world.getResource('position');
+      const colliderStore = world.getResource('collider');
+
+      ghostStore.state[ghostHandle.id] = GHOST_STATE.NORMAL;
+      placeEntity(positionStore, ghostHandle.id, 3, 4);
+      colliderStore.type[ghostHandle.id] = COLLIDER_TYPE.GHOST;
+
+      inputAdapter.press('bomb');
+      stepFixedFrames(1);
+
+      const bombRequiredMask =
+        COMPONENT_MASK.BOMB | COMPONENT_MASK.POSITION | COMPONENT_MASK.COLLIDER;
+      const activeBombs = findActiveColliderIds(
+        world,
+        colliderStore,
+        bombRequiredMask,
+        COLLIDER_TYPE.BOMB,
+      );
+      expect(activeBombs).toHaveLength(1);
+
+      const eventQueue = world.getResource('eventQueue');
+      drain(eventQueue);
+
+      // Keep this dummy ghost stationary on the bomb's blast tile so the
+      // explosion is guaranteed to catch it. We re-pin it each frame instead of
+      // relying on a zero map ghostSpeed: after the BUG-17 fix a non-positive
+      // speed falls back to GHOST_DEFAULT_SPEED, so a zero speed no longer
+      // freezes a ghost in place.
+      let nowMs = 0;
+      for (let step = 1; step <= 190; step++) {
+        placeEntity(positionStore, ghostHandle.id, 3, 4);
+        nowMs += FIXED_DT_MS;
+        bootstrap.stepFrame(nowMs);
+      }
+
+      const scoreState = world.getResource('scoreState');
+      expect(scoreState.totalPoints).toBe(200);
+
+      const events = drain(eventQueue);
+      expect(events.map((e) => e.type)).toContain('GhostDefeated');
+
+      const defeatEvent = events.find((evt) => evt.type === 'GhostDefeated');
+      expect(defeatEvent).toBeDefined();
+      expect(defeatEvent.payload).toMatchObject({
+        entityId: ghostHandle.id,
+        chainDepth: 1,
+        ghostState: expect.any(Number),
+        sourceEntityId: expect.any(Number),
+        sourceSystem: 'collision-system',
+        tile: { row: 3, col: 4 },
+      });
+
+      expect(ghostStore.state[ghostHandle.id]).toBe(GHOST_STATE.DEAD);
+    } finally {
+      restoreDocument();
+    }
+  });
+
+  it('executes a pipeline with natural ghost AI movement: place bomb -> ghost AI moves -> detonate -> collision -> score & events', () => {
+    const { gameBoard, restore: restoreDocument } = installRuntimeDocumentStub();
+
+    try {
+      const rawMap = {
+        level: 1,
+        metadata: {
+          activeGhostTypes: [0], // BLINKY
+          ghostSpeed: 2.0, // 2 tiles per second
+          maxGhosts: 1,
+          name: 'Sticky Ghost Natural AI Map',
+          timerSeconds: 120,
+        },
+        dimensions: { columns: 5, rows: 3 },
+        grid: [
+          [1, 1, 1, 1, 1],
+          [1, 6, 3, 5, 1], // Player at (1,1), pellet at (1,2), Ghost Spawn at (1,3)
+          [1, 1, 1, 1, 1],
+        ],
+        spawn: {
+          ghostHouse: {
+            bottomRow: 1,
+            leftCol: 3,
+            rightCol: 3,
+            topRow: 1,
+          },
+          ghostSpawnPoint: { col: 3, row: 1 },
+          player: { col: 1, row: 1 },
+        },
+      };
+
+      const bootstrap = createBootstrap({
+        boardContainerElement: gameBoard,
+        loadMapForLevel: () => createMapResource(rawMap),
+        now: 0,
+      });
+
+      const inputAdapter = createRuntimeInputAdapterStub();
+      bootstrap.setInputAdapter(inputAdapter);
+      expect(bootstrap.gameFlow.startGame()).toBe(true);
+
+      const world = bootstrap.world;
+
+      // Drain event queue so we start fresh
+      const eventQueue = world.getResource('eventQueue');
+      drain(eventQueue);
+
+      // Place a bomb at the player's tile (1, 1)
+      inputAdapter.press('bomb');
+
+      const ghostEntities = world.getResource('ghostEntities');
+      const ghostHandle = ghostEntities[0];
+      const ghostStore = world.getResource('ghost');
+      for (let i = 1; i <= 190; i++) {
+        bootstrap.stepFrame(i * FIXED_DT_MS);
+      }
+
+      const scoreState = world.getResource('scoreState');
+      expect(scoreState.totalPoints).toBe(200);
+
+      const events = drain(eventQueue);
+      expect(events.map((e) => e.type)).toContain('GhostDefeated');
+
+      expect(ghostStore.state[ghostHandle.id]).toBe(GHOST_STATE.DEAD);
+    } finally {
+      restoreDocument();
+    }
   });
 });

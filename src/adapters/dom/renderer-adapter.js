@@ -30,7 +30,22 @@ const CELL_TYPE_CLASSES = {
   4: 'cell-power-pellet',
   5: 'cell-ghost-house',
   6: 'cell-empty',
+  // Power-up drops (CELL_TYPE.POWER_UP_BOMB/FIRE/SPEED). The explosion system
+  // writes these cell types into the grid when a destructible wall is cleared;
+  // without a class here updateCell fell back to 'cell-empty' and the drop was
+  // invisible on the board even though collision-system still granted the pickup.
+  7: 'cell-powerup-bomb',
+  8: 'cell-powerup-fire',
+  9: 'cell-powerup-speed',
 };
+
+/**
+ * Hoisted to module scope so `updateCell` does not allocate a new array per
+ * call. board-sync-system now invokes `updateCell` on every map cell that
+ * mutated this frame (pellet collection, wall destruction, etc.), so even a
+ * tiny per-call allocation shows up under sustained gameplay.
+ */
+const CELL_TYPE_CLASS_VALUES = Object.values(CELL_TYPE_CLASSES);
 
 /**
  * Board element class names.
@@ -269,8 +284,8 @@ export function createBoardAdapter({
   function updateCell(row, col, cellType) {
     const el = cellElements[row * boardCols + col];
     if (!el) return;
-    for (const cls of Object.values(CELL_TYPE_CLASSES)) {
-      el.classList.remove(cls);
+    for (let i = 0; i < CELL_TYPE_CLASS_VALUES.length; i += 1) {
+      el.classList.remove(CELL_TYPE_CLASS_VALUES[i]);
     }
     el.classList.add(CELL_TYPE_CLASSES[cellType] || 'cell-empty');
   }

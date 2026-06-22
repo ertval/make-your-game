@@ -20,12 +20,18 @@
  *   newly placed bomb starts with the full canonical fuse on its first frame.
  * - Expired bombs are deactivated immediately after queueing a detonation so
  *   they cannot enqueue duplicate detonation requests on later fixed steps.
+ * - The shared `bombDetonationQueue` is bounded at MAX_DETONATION_QUEUE entries
+ *   (BUG-07). A system cannot observe its own quarantine status, so the bound is
+ *   enforced here at push time: when the explosion system is quarantined and the
+ *   queue is full, the detonation request is dropped (drain-to-waste) rather than
+ *   letting the array grow unbounded. The expired bomb is still deactivated even
+ *   when its request is dropped, so it cannot re-enqueue on every later step.
  */
 
+import { readEntityTile } from '../../shared/tile-utils.js';
 import { COMPONENT_MASK } from '../components/registry.js';
 import { COLLIDER_TYPE } from '../components/spatial.js';
-import { BOMB_FUSE_MS, DEFAULT_FIRE_RADIUS } from '../resources/constants.js';
-import { readEntityTile } from '../shared/tile-utils.js';
+import { BOMB_FUSE_MS, DEFAULT_FIRE_RADIUS, MAX_DETONATION_QUEUE } from '../resources/constants.js';
 import {
   emitGameplayEvent,
   GAMEPLAY_EVENT_SOURCE,
@@ -433,7 +439,13 @@ function tickActiveBombs(
       continue;
     }
 
-    bombDetonationQueue.push(createBombDetonationRequest(bombStore, bombEntityId, frame));
+    // BUG-07: bound the shared queue at push time. If the explosion system is
+    // quarantined it cannot drain the queue, so without this cap the array would
+    // grow unbounded. Drop the request (drain-to-waste) once the queue is full;
+    // the bomb is still deactivated below so it cannot re-enqueue every step.
+    if (bombDetonationQueue.length < MAX_DETONATION_QUEUE) {
+      bombDetonationQueue.push(createBombDetonationRequest(bombStore, bombEntityId, frame));
+    }
     deactivateQueuedBomb(colliderStore, bombEntityId);
   }
 }
@@ -464,7 +476,12 @@ export function createBombTickSystem(options = {}) {
   const bombDetonationQueueResourceKey =
     options.bombDetonationQueueResourceKey || 'bombDetonationQueue';
   // B-09: thread the event queue so placement publishes the BombPlaced fact.
+  // The C-07/C-08 audio cue runner consumes the same 'BombPlaced' event type
+  // (→ sfx-bomb-place), so no separate audio-only enqueue is needed.
   const eventQueueResourceKey = options.eventQueueResourceKey || 'eventQueue';
+  // Boolean flag the audio cue runner reads to drive the looping fuse SFX: true
+  // while at least one bomb is active this frame. Resource-only, no audio import.
+  const bombAudioActiveResourceKey = options.bombAudioActiveResourceKey || 'bombAudioActive';
   const playerRequiredMask = options.playerRequiredMask ?? BOMB_TICK_PLAYER_REQUIRED_MASK;
   const bombRequiredMask = options.bombRequiredMask ?? BOMB_TICK_BOMB_REQUIRED_MASK;
   const reusableTile = { row: 0, col: 0 };
@@ -480,6 +497,7 @@ export function createBombTickSystem(options = {}) {
         bombResourceKey,
         bombDetonationQueueResourceKey,
         eventQueueResourceKey,
+        bombAudioActiveResourceKey,
       ],
     },
     update(context) {
@@ -530,9 +548,23 @@ export function createBombTickSystem(options = {}) {
         });
 
         if (placedBombId >= 0) {
+          // Canonical B-09 placement event. Emits the 'BombPlaced' type that the
+          // C-07/C-08 audio cue runner maps to sfx-bomb-place, so one emission
+          // serves both gameplay-event consumers and audio.
           emitBombPlacedEvent(eventQueue, bombStore, placedBombId, context.frame);
         }
       }
+
+      // Publish whether any bomb is currently active so the audio runner can
+      // loop/stop the fuse SFX from real state (leak-proof vs counting events).
+      let anyBombActive = false;
+      for (const bombEntityId of bombEntityIds) {
+        if (isActiveBomb(colliderStore, bombEntityId)) {
+          anyBombActive = true;
+          break;
+        }
+      }
+      world.setResource(bombAudioActiveResourceKey, anyBombActive);
     },
   };
 }

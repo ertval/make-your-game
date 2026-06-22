@@ -22,7 +22,8 @@
 /** Fixed simulation updates per second.
  *  Used to derive FIXED_DT_MS below. Exported for tests/devtools that need
  *  to reference the canonical tick rate; the runtime itself reads FIXED_DT_MS
- *  (DEAD-16). */
+ *  (DEAD-16).
+ *  @internal */
 export const SIMULATION_HZ = 60;
 
 /** Fixed timestep in milliseconds (= 1000 / SIMULATION_HZ ≈ 16.6667ms). */
@@ -70,6 +71,31 @@ export const FIRE_DURATION_MS = 500;
  *  Phase 1). Do not remove (DEAD-17). */
 export const MAX_CHAIN_DEPTH = 10;
 
+/** Maximum bomb detonations the explosion system seeds from the shared
+ *  `bombDetonationQueue` per tick (BUG-07).
+ *  Bounds the post-quarantine drain so a backlog that accumulated while the
+ *  explosion system was quarantined cannot all fire in a single tick (a burst
+ *  that could starve the fire pool or spike a frame). Any remainder stays in
+ *  the shared queue for subsequent ticks. Sized to POOL_MAX_BOMBS (5) so normal
+ *  play — at most POOL_MAX_BOMBS bombs expiring on one tick — is never throttled
+ *  and stays byte-for-byte identical. Chain-reaction detonations are appended to
+ *  the explosion system's local work queue (bounded by MAX_CHAIN_DEPTH), not the
+ *  shared queue, so this cap does not apply to or break chain reactions.
+ *  (Literal 5; cannot reference POOL_MAX_BOMBS here as it is defined later.) */
+export const MAX_DETONATIONS_PER_TICK = 5;
+
+/** Hard upper bound on the shared `bombDetonationQueue` length (BUG-07).
+ *  A system cannot observe its own quarantine status through the world-view
+ *  API, so bomb-tick enforces this bound at push time: once the queue is full,
+ *  further fuse-expiry requests are dropped (drain-to-waste) instead of letting
+ *  the array grow without limit while the explosion system is quarantined. Set
+ *  to a small multiple (4×) of POOL_MAX_BOMBS (= 20) so a few ticks of backlog
+ *  can buffer during a brief quarantine without unbounded growth; the expired
+ *  bomb is still deactivated even when its request is dropped so it cannot
+ *  re-enqueue every frame.
+ *  (Literal 20; cannot reference POOL_MAX_BOMBS here as it is defined later.) */
+export const MAX_DETONATION_QUEUE = 20;
+
 // --- Ghost ---
 
 /** Stunned duration after eating a power pellet (ms). */
@@ -97,81 +123,53 @@ export const GHOST_STATE = {
 };
 
 /** Clyde distance threshold for target switching (tiles).
- *  @internal Reserved for the ghost-AI system (DEAD-06). */
+ *  Used by ghost-ai-system.js ClydeScatterTarget. */
 export const CLYDE_DISTANCE_THRESHOLD = 8;
 
 /** Pinky target offset ahead of player (tiles).
- *  @internal Reserved for the ghost-AI system (DEAD-06). */
+ *  Used by ghost-ai-system.js PinkyAmbushTarget. */
 export const PINKY_TARGET_OFFSET = 4;
 
 /** Inky reference offset ahead of player (tiles).
- *  @internal Reserved for the ghost-AI system (DEAD-06). */
+ *  Used by ghost-ai-system.js InkyPincerTarget. */
 export const INKY_REFERENCE_OFFSET = 2;
-
-/** Minimum valid exits at an intersection for ghost pathfinding.
- *  @internal Reserved for the ghost-AI pathfinding system (DEAD-18). */
-export const GHOST_INTERSECTION_MIN_EXITS = 3;
 
 // --- Level ---
 
 /** Per-level timer durations in seconds. */
 export const LEVEL_TIMERS = [120, 180, 240];
 
-/** Per-level maximum active ghosts. */
-export const LEVEL_MAX_GHOSTS = [2, 3, 4];
-
-/** Per-level ghost normal speed in tiles per second. */
-export const LEVEL_GHOST_SPEED = [4.0, 4.5, 5.0];
-
 /** Stunned ghost speed (constant across all levels). */
 export const GHOST_STUNNED_SPEED = 2.0;
+
+/** Safety fallback ghost speed (tiles/sec) used by ghost-ai-system.js when
+ *  neither the per-entity speed nor the map's `ghostSpeed` resolves to a
+ *  positive number. Acts as the same kind of terminal guard PLAYER_BASE_SPEED
+ *  provides in player-move-system.js so a missing/non-positive map speed can
+ *  never freeze a ghost on its tile (BUG-17). The 4.5 value is the canonical
+ *  mid (level-2) ghost speed — a sensible neutral default between the level-1
+ *  (4.0) and level-3 (5.0) map speeds. */
+export const GHOST_DEFAULT_SPEED = 4.5;
 
 /** Total number of levels in the game. */
 export const TOTAL_LEVELS = 3;
 
 // --- Scoring ---
-
-/** Points for eating a regular pellet. */
-export const SCORE_PELLET = 10;
-
-/** Points for eating a power pellet. */
-export const SCORE_POWER_PELLET = 50;
-
-/** Points for killing a normal-state ghost with a bomb. */
-export const SCORE_GHOST_KILL = 200;
-
-/** Points for killing a stunned ghost with a bomb (skill bonus). */
-export const SCORE_STUNNED_GHOST_KILL = 400;
-
-/** Points for collecting a power-up. */
-export const SCORE_POWER_UP = 100;
-
-/** Base points for clearing a level. */
-export const SCORE_LEVEL_CLEAR = 1000;
-
-/** Multiplier for remaining seconds converted to bonus points. */
-export const SCORE_TIME_BONUS_MULTIPLIER = 10;
+// Canonical scoring point values live in `src/ecs/systems/scoring-system.js`
+// (the single source of truth consumed by the scoring runtime). They were
+// previously duplicated here with identical values but never imported from
+// this module; the duplicates were removed (DEAD-02). Import `SCORE_*` from
+// the scoring system if a non-scoring module ever needs a point value.
 
 // --- Power-Up Drop Rates ---
 
 /** Probability map for power-up drops when a destructible wall is destroyed.
- *  Values sum to 1.0. Index aligns with POWER_UP_TYPE enum. */
+ *  Values sum to 1.0. */
 export const POWER_UP_DROP_CHANCES = {
   NONE: 0.85,
   BOMB: 0.05,
   FIRE: 0.05,
   SPEED: 0.05,
-};
-
-/** Power-up type IDs used for drop-rate configuration (POWER_UP_DROP_CHANCES).
- *  This is distinct from PROP_POWER_UP_TYPE in components/props.js, which is
- *  the gameplay-component-level enum (BOMB_PLUS, FIRE_PLUS, SPEED_BOOST).
- *  Do not conflate the two (DEAD-07). */
-export const POWER_UP_TYPE = {
-  NONE: 0,
-  BOMB: 1,
-  FIRE: 2,
-  SPEED: 3,
 };
 
 // --- Map Cell Types ---
@@ -206,7 +204,7 @@ export const VISUAL_FLAGS = {
 // --- Sprite Pool Sizes ---
 
 /** Maximum concurrent bombs on the field (player max bombs + chain reaction headroom). */
-export const POOL_MAX_BOMBS = 10;
+export const POOL_MAX_BOMBS = 5;
 
 /** Maximum fire tiles per bomb explosion (radius * 4 arms + center). */
 export const POOL_FIRE_PER_BOMB = MAX_FIRE_RADIUS * 4 + 1;

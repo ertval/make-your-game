@@ -83,6 +83,34 @@ const PLAYER_SPRITE_CLASSES = [
 ];
 
 /**
+ * Fire-tile spriteId → CSS frame class. Render-collect-system writes spriteId
+ * 0..N-1 based on `burnTimerMs` progress (0 = peak / just detonated, N-1 = embers).
+ * The base `.sprite--fire` class sets sizing + the bright peak fallback so a
+ * missing spriteId still shows a valid sprite.
+ */
+const FIRE_SPRITE_CLASSES = [
+  'sprite--fire--01', // 0 — peak blast
+  'sprite--fire--02', // 1 — bright fade
+  'sprite--fire--03', // 2 — color shift to rust
+  'sprite--fire--04', // 3 — embers / fading out
+];
+
+/**
+ * Bomb spriteId → CSS fuse-frame class. Render-collect-system writes spriteId
+ * 0..N-1 based on `fuseMs` progress (0 = just placed, N-1 = fuse burnt to the
+ * wick just before detonation). A placed bomb is always lit, so the animation
+ * runs through the four fuse frames; the unlit `bomb-idle` sprite is reserved
+ * for the bomb power-up pickup. The base `.sprite--bomb` class supplies sizing +
+ * a fallback so a missing spriteId still shows a valid sprite.
+ */
+const BOMB_SPRITE_CLASSES = [
+  'sprite--bomb--fuse-01', // 0 — freshly placed, fuse lit
+  'sprite--bomb--fuse-02', // 1 — fuse burning down
+  'sprite--bomb--fuse-03', // 2 — fuse near the wick
+  'sprite--bomb--fuse-04', // 3 — about to detonate (bright flash)
+];
+
+/**
  * Ghost type enum → CSS suffix used for the per-personality base sprite. The
  * matching `.sprite--ghost--{type}` classes live in `styles/grid.css` and
  * supply each ghost's idle background-image.
@@ -112,6 +140,65 @@ const GHOST_SPRITE_FRAMES = [
   'walk-right-01', // 8
   'walk-right-02', // 9
 ];
+
+/**
+ * Visual-flag state classes added by applyVisualFlagClasses. Tracked here so the
+ * per-frame reset can remove them alongside the kind/frame classes.
+ */
+const VISUAL_FLAG_CLASSES = [
+  'sprite--ghost--stunned',
+  'sprite--ghost--dead',
+  'sprite--player--speed-boost',
+];
+
+/**
+ * The base class kept on every pooled sprite element (sizing/positioning). It is
+ * never removed during the per-frame reset.
+ */
+const BASE_SPRITE_CLASS = 'sprite';
+
+/**
+ * SEC-08 (#167): The complete, de-duplicated set of every CSS class this system
+ * may add to a sprite element across all kinds, frames, ghost personalities and
+ * visual-flag states — excluding the persistent BASE_SPRITE_CLASS.
+ *
+ * The per-frame reset removes exactly these managed classes instead of calling
+ * `el.className = 'sprite'`, which would clobber any foreign class (e.g. ones
+ * added by tests, debug overlays, or future cross-cutting concerns) sharing the
+ * pooled element. Built from the same source constants the apply-paths use so
+ * the two can never drift.
+ */
+const MANAGED_SPRITE_CLASSES = (() => {
+  const managed = new Set();
+
+  const addClass = (cls) => {
+    if (cls && cls !== BASE_SPRITE_CLASS) {
+      managed.add(cls);
+    }
+  };
+
+  for (const classes of Object.values(KIND_TO_CLASSES)) {
+    for (const cls of classes) {
+      addClass(cls);
+    }
+  }
+
+  for (const cls of PLAYER_SPRITE_CLASSES) addClass(cls);
+  for (const cls of FIRE_SPRITE_CLASSES) addClass(cls);
+  for (const cls of BOMB_SPRITE_CLASSES) addClass(cls);
+  for (const cls of VISUAL_FLAG_CLASSES) addClass(cls);
+
+  for (const typeSuffix of Object.values(GHOST_TYPE_SUFFIX)) {
+    addClass(`sprite--ghost--${typeSuffix}`);
+    for (const frameSuffix of GHOST_SPRITE_FRAMES) {
+      if (frameSuffix) {
+        addClass(`sprite--ghost--${typeSuffix}--${frameSuffix}`);
+      }
+    }
+  }
+
+  return Object.freeze([...managed]);
+})();
 
 /**
  * Convert opacity byte (0-255) to CSS opacity string.
@@ -166,7 +253,27 @@ export function createRenderDomSystem(options = {}) {
         return;
       }
 
-      if (context.world.renderFrame === 0) {
+      // Read the live frame counter from the render context, NOT from
+      // `context.world`. The per-system `world` is the frozen worldView
+      // (see World#createSystemWorldView) which exposes only capability
+      // methods and has no `renderFrame` property — `context.world.renderFrame`
+      // is always `undefined`, so `=== 0` would never match and this restart
+      // cleanup would be dead. The world's render commit puts the live counter
+      // on `context.renderFrame` (baseContext) instead.
+      if (context.renderFrame === 0) {
+        // Restart / level transition: the bootstrap layer flips renderFrame
+        // back to 0 so frame counters start clean. Without releasing the
+        // pool elements first, any sprite tracked from the previous run
+        // (e.g. a ghost that won't be queryable again for several seconds
+        // because its mask is 0 while it waits in the spawn house) stays
+        // stuck at its last on-board transform — a `Map.clear()` only
+        // forgets the entries, it does not return the elements to the pool.
+        // Skipping this also desyncs the pool's active set from the element
+        // map (render-dom reuses a stale map entry without re-acquiring), and
+        // the orphaned element then escapes the next `spritePool.reset()`.
+        for (const info of entityElementMap.values()) {
+          spritePool.release(info.type, info.element);
+        }
         entityElementMap.clear();
       }
 
@@ -197,8 +304,12 @@ export function createRenderDomSystem(options = {}) {
           el = spritePool.acquire(spriteType);
         }
 
-        // Clear previous classes but keep the base sprite class for width/height
-        el.className = 'sprite';
+        // SEC-08 (#167): Reset only the classes this system manages, preserving
+        // the base sprite class (sizing) AND any foreign class on the pooled
+        // element. `el.className = 'sprite'` previously clobbered everything,
+        // wiping classes added by other concerns sharing the pool element.
+        el.classList.remove(...MANAGED_SPRITE_CLASSES);
+        el.classList.add(BASE_SPRITE_CLASS);
 
         if ((classBits & VISUAL_FLAGS.HIDDEN) !== 0) {
           // ARCH-01: hide via offscreen transform (compositor-only) rather
@@ -219,6 +330,14 @@ export function createRenderDomSystem(options = {}) {
         if (kind === RENDERABLE_KIND.PLAYER) {
           const spriteId = buffer.spriteId[i];
           const frameClass = PLAYER_SPRITE_CLASSES[spriteId];
+          if (frameClass) el.classList.add(frameClass);
+        } else if (kind === RENDERABLE_KIND.FIRE) {
+          const spriteId = buffer.spriteId[i];
+          const frameClass = FIRE_SPRITE_CLASSES[spriteId];
+          if (frameClass) el.classList.add(frameClass);
+        } else if (kind === RENDERABLE_KIND.BOMB) {
+          const spriteId = buffer.spriteId[i];
+          const frameClass = BOMB_SPRITE_CLASSES[spriteId];
           if (frameClass) el.classList.add(frameClass);
         } else if (kind === RENDERABLE_KIND.GHOST && ghostStore) {
           const ghostType = ghostStore.type[entityId];

@@ -21,6 +21,7 @@ import {
   DEFAULT_FIRE_RADIUS,
   FIRE_DURATION_MS,
   MAX_CHAIN_DEPTH,
+  MAX_DETONATIONS_PER_TICK,
   POWER_UP_DROP_CHANCES,
 } from '../../../src/ecs/resources/constants.js';
 import { createEventQueue, drain } from '../../../src/ecs/resources/event-queue.js';
@@ -253,6 +254,38 @@ function findActiveFireAtTile(fireSlots, colliderStore, positionStore, row, col)
 }
 
 /**
+ * Read active fire tiles with their source/chain metadata in row/column order.
+ *
+ * Used by the BUG-05 regression to prove the pooled per-tile scratch context is
+ * repopulated correctly for every tile and detonation, with no leaked
+ * source/chain state across the cross-pattern hot loop.
+ *
+ * @param {Array<{ id: number }>} fireSlots - Pooled fire handles.
+ * @param {ColliderStore} colliderStore - Collider component store.
+ * @param {PositionStore} positionStore - Position component store.
+ * @param {FireStore} fireStore - Fire component store.
+ * @returns {Array<{ chainDepth: number, col: number, row: number, sourceBombId: number }>} Active fire metadata.
+ */
+function readActiveFireMetadata(fireSlots, colliderStore, positionStore, fireStore) {
+  const tiles = [];
+
+  for (const fire of fireSlots) {
+    if (colliderStore.type[fire.id] !== COLLIDER_TYPE.FIRE) {
+      continue;
+    }
+
+    tiles.push({
+      chainDepth: fireStore.chainDepth[fire.id],
+      col: Math.round(positionStore.col[fire.id]),
+      row: Math.round(positionStore.row[fire.id]),
+      sourceBombId: fireStore.sourceBombId[fire.id],
+    });
+  }
+
+  return tiles.sort((a, b) => a.row - b.row || a.col - b.col);
+}
+
+/**
  * Queue one bomb detonation request using the B6 chain metadata shape.
  *
  * @param {Array<object>} queue - Mutable bomb detonation queue resource.
@@ -406,6 +439,50 @@ describe('explosion-system geometry and map interaction', () => {
       row: 3,
       col: 5,
     });
+  });
+
+  it('emits a WallDestroyed audio event after BombDetonated when a destructible wall breaks', () => {
+    const {
+      bombDetonationQueue,
+      bombStore,
+      colliderStore,
+      eventQueue,
+      positionStore,
+      system,
+      world,
+    } = createExplosionHarness([[3, 4, CELL_TYPE.DESTRUCTIBLE]]);
+    const bomb = addActiveBomb(world, positionStore, colliderStore, bombStore, 3, 3, 2);
+
+    queueDetonation(bombDetonationQueue, bomb, bombStore);
+    system.update({ dtMs: 0, frame: 0, world });
+
+    const types = drain(eventQueue).map((event) => event.type);
+    // Explosion sound first, then the wall-break cue layered on top.
+    expect(types).toContain(GAMEPLAY_EVENT_TYPE.BOMB_DETONATED);
+    expect(types).toContain('WallDestroyed');
+    expect(types.indexOf(GAMEPLAY_EVENT_TYPE.BOMB_DETONATED)).toBeLessThan(
+      types.indexOf('WallDestroyed'),
+    );
+  });
+
+  it('does not emit WallDestroyed when the explosion breaks no wall', () => {
+    const {
+      bombDetonationQueue,
+      bombStore,
+      colliderStore,
+      eventQueue,
+      positionStore,
+      system,
+      world,
+    } = createExplosionHarness([]);
+    const bomb = addActiveBomb(world, positionStore, colliderStore, bombStore, 3, 3, 2);
+
+    queueDetonation(bombDetonationQueue, bomb, bombStore);
+    system.update({ dtMs: 0, frame: 0, world });
+
+    const types = drain(eventQueue).map((event) => event.type);
+    expect(types).toContain(GAMEPLAY_EVENT_TYPE.BOMB_DETONATED);
+    expect(types).not.toContain('WallDestroyed');
   });
 
   it('lets fire pass through pellets without destroying them', () => {
@@ -641,5 +718,171 @@ describe('explosion-system chain reactions', () => {
         type: GAMEPLAY_EVENT_TYPE.BOMB_DETONATED,
       },
     ]);
+  });
+});
+
+describe('explosion-system per-tick detonation cap (BUG-07)', () => {
+  // Seed N independent root bombs on separate, mutually non-overlapping tiles so
+  // each detonation is its own root (chainDepth 1) and none chains into another.
+  // This isolates the per-tick seed-drain cap from chain-reaction behavior.
+  function seedIndependentDetonations(harness, count) {
+    for (let index = 0; index < count; index += 1) {
+      const row = 1 + index;
+      const bomb = addActiveBomb(
+        harness.world,
+        harness.positionStore,
+        harness.colliderStore,
+        harness.bombStore,
+        row,
+        1,
+        0,
+      );
+
+      queueDetonation(harness.bombDetonationQueue, bomb, harness.bombStore);
+    }
+  }
+
+  it('processes at most MAX_DETONATIONS_PER_TICK seed detonations per tick', () => {
+    const harness = createExplosionHarness();
+    const backlog = MAX_DETONATIONS_PER_TICK + 3;
+
+    seedIndependentDetonations(harness, backlog);
+    harness.system.update({ dtMs: 0, frame: 0, world: harness.world });
+
+    // Exactly the cap was drained this tick; the remainder is carried over.
+    expect(drain(harness.eventQueue)).toHaveLength(MAX_DETONATIONS_PER_TICK);
+    expect(harness.bombDetonationQueue).toHaveLength(backlog - MAX_DETONATIONS_PER_TICK);
+  });
+
+  it('carries the remaining detonations to subsequent ticks in order', () => {
+    const harness = createExplosionHarness();
+    const backlog = MAX_DETONATIONS_PER_TICK + 2;
+
+    seedIndependentDetonations(harness, backlog);
+    const orderedBombIds = harness.bombDetonationQueue.map((request) => request.bombEntityId);
+
+    harness.system.update({ dtMs: 0, frame: 0, world: harness.world });
+    const firstTickIds = drain(harness.eventQueue).map((event) => event.payload.entityId);
+
+    harness.system.update({ dtMs: 0, frame: 1, world: harness.world });
+    const secondTickIds = drain(harness.eventQueue).map((event) => event.payload.entityId);
+
+    // FIFO drain: first MAX_DETONATIONS_PER_TICK on tick 0, then the remainder.
+    expect(firstTickIds).toEqual(orderedBombIds.slice(0, MAX_DETONATIONS_PER_TICK));
+    expect(secondTickIds).toEqual(orderedBombIds.slice(MAX_DETONATIONS_PER_TICK));
+    expect(harness.bombDetonationQueue).toHaveLength(0);
+  });
+
+  it('keeps normal-load detonations (<= cap) unchanged in a single tick', () => {
+    const harness = createExplosionHarness();
+
+    seedIndependentDetonations(harness, MAX_DETONATIONS_PER_TICK);
+    harness.system.update({ dtMs: 0, frame: 0, world: harness.world });
+
+    // A full-but-not-overflowing batch drains entirely with nothing carried.
+    expect(drain(harness.eventQueue)).toHaveLength(MAX_DETONATIONS_PER_TICK);
+    expect(harness.bombDetonationQueue).toHaveLength(0);
+  });
+});
+
+describe('explosion-system per-tile allocation regression (BUG-05)', () => {
+  // BUG-05 replaced the per-tile 16-field object literal in resolveExplosionTile
+  // (allocated for the center plus every arm tile of every detonation, ~28
+  // objects/bomb plus chain reactions) with a single scratch context pooled in
+  // the system closure and repopulated per detonation; only row/col are mutated
+  // per tile. The risk this introduces is leaked per-tile state across the reused
+  // context, so these tests lock in that a heavy chain reaction resolves every
+  // tile with the correct source/chain metadata, and that re-running on the same
+  // system instance does not carry stale state from the previous pass.
+
+  // A(3,1) -> fire reaches B(3,3) -> fire reaches C(3,5): a depth 1/2/3 cascade.
+  // The default harness map is all pass-through cells, so no map mutation or RNG
+  // drop occurs and results are fully deterministic across repeated passes.
+  function addCascadeBombs(world, positionStore, colliderStore, bombStore) {
+    return {
+      rootBomb: addActiveBomb(world, positionStore, colliderStore, bombStore, 3, 1, 2),
+      secondBomb: addActiveBomb(world, positionStore, colliderStore, bombStore, 3, 3, 2),
+      thirdBomb: addActiveBomb(world, positionStore, colliderStore, bombStore, 3, 5, 2),
+    };
+  }
+
+  it('resolves a multi-bomb chain reaction through one pooled tile context', () => {
+    const {
+      bombDetonationQueue,
+      bombStore,
+      colliderStore,
+      eventQueue,
+      fireSlots,
+      fireStore,
+      positionStore,
+      system,
+      world,
+    } = createExplosionHarness();
+    const { rootBomb, secondBomb, thirdBomb } = addCascadeBombs(
+      world,
+      positionStore,
+      colliderStore,
+      bombStore,
+    );
+
+    queueDetonation(bombDetonationQueue, rootBomb, bombStore);
+    system.update({ dtMs: 0, frame: 0, world });
+
+    // Every bomb detonates exactly once at an increasing depth.
+    expect(colliderStore.type[rootBomb.id]).toBe(COLLIDER_TYPE.NONE);
+    expect(colliderStore.type[secondBomb.id]).toBe(COLLIDER_TYPE.NONE);
+    expect(colliderStore.type[thirdBomb.id]).toBe(COLLIDER_TYPE.NONE);
+    expect(drain(eventQueue).map((event) => event.payload.chainDepth)).toEqual([1, 2, 3]);
+
+    // Each tile keeps the metadata of the first detonation that claimed it,
+    // proving the pooled context carried the right row/col/source/depth into
+    // every tile across all three reused-context detonations.
+    expect(readActiveFireMetadata(fireSlots, colliderStore, positionStore, fireStore)).toEqual([
+      { chainDepth: 1, col: 1, row: 1, sourceBombId: rootBomb.id },
+      { chainDepth: 2, col: 3, row: 1, sourceBombId: secondBomb.id },
+      { chainDepth: 3, col: 5, row: 1, sourceBombId: thirdBomb.id },
+      { chainDepth: 1, col: 1, row: 2, sourceBombId: rootBomb.id },
+      { chainDepth: 2, col: 3, row: 2, sourceBombId: secondBomb.id },
+      { chainDepth: 3, col: 5, row: 2, sourceBombId: thirdBomb.id },
+      { chainDepth: 1, col: 1, row: 3, sourceBombId: rootBomb.id },
+      { chainDepth: 1, col: 2, row: 3, sourceBombId: rootBomb.id },
+      { chainDepth: 1, col: 3, row: 3, sourceBombId: rootBomb.id },
+      { chainDepth: 2, col: 4, row: 3, sourceBombId: secondBomb.id },
+      { chainDepth: 2, col: 5, row: 3, sourceBombId: secondBomb.id },
+      { chainDepth: 1, col: 1, row: 4, sourceBombId: rootBomb.id },
+      { chainDepth: 2, col: 3, row: 4, sourceBombId: secondBomb.id },
+      { chainDepth: 3, col: 5, row: 4, sourceBombId: thirdBomb.id },
+      { chainDepth: 1, col: 1, row: 5, sourceBombId: rootBomb.id },
+      { chainDepth: 2, col: 3, row: 5, sourceBombId: secondBomb.id },
+      { chainDepth: 3, col: 5, row: 5, sourceBombId: thirdBomb.id },
+    ]);
+  });
+
+  it('reuses the pooled context across passes without leaking prior-pass state', () => {
+    const {
+      bombDetonationQueue,
+      bombStore,
+      colliderStore,
+      fireSlots,
+      positionStore,
+      system,
+      world,
+    } = createExplosionHarness();
+
+    const firstPass = addCascadeBombs(world, positionStore, colliderStore, bombStore);
+    queueDetonation(bombDetonationQueue, firstPass.rootBomb, bombStore);
+    system.update({ dtMs: 0, frame: 0, world });
+    const firstPassTiles = readActiveFireTiles(fireSlots, colliderStore, positionStore);
+
+    // Expire the first pass so the next detonation starts from a clean board.
+    system.update({ dtMs: FIRE_DURATION_MS, frame: 1, world });
+    expect(readActiveFireTiles(fireSlots, colliderStore, positionStore)).toHaveLength(0);
+
+    // The same system instance reuses its single pooled context for this pass.
+    const secondPass = addCascadeBombs(world, positionStore, colliderStore, bombStore);
+    queueDetonation(bombDetonationQueue, secondPass.rootBomb, bombStore);
+    system.update({ dtMs: 0, frame: 2, world });
+
+    expect(readActiveFireTiles(fireSlots, colliderStore, positionStore)).toEqual(firstPassTiles);
   });
 });

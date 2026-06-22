@@ -7,7 +7,7 @@
 
 import { describe, expect, it, vi } from 'vitest';
 
-import { installUnhandledRejectionHandler } from '../../../src/main.ecs.js';
+import { createGameRuntime, installUnhandledRejectionHandler } from '../../../src/main.ecs.js';
 
 function createWindowStub() {
   const listeners = new Map();
@@ -106,5 +106,72 @@ describe('A-03 runtime critical error handling', () => {
     expect(overlayRoot.textContent).toContain('Critical error: first');
     expect(overlayRoot.textContent).toContain('Critical error: second');
     expect(overlayRoot.textContent).toContain('\n');
+  });
+
+  it('forces quarantine and asserts p95 stays below 20 ms', () => {
+    const windowStub = {
+      addEventListener: vi.fn(),
+      removeEventListener: vi.fn(),
+    };
+    const documentStub = {
+      addEventListener: vi.fn(),
+      removeEventListener: vi.fn(),
+    };
+
+    const clock = { lastFrameTime: 0, isPaused: false, simTimeMs: 0 };
+    const bootstrapStub = {
+      clock,
+      world: { frame: 0 },
+      gameStatus: { currentState: 'PLAYING' },
+      stepFrame: vi.fn(() => {
+        throw new Error('transient game crash');
+      }),
+      eventQueueResourceKey: 'eventQueue',
+      getInputAdapter: () => null,
+      setInputAdapter: () => null,
+    };
+
+    let frameCallback = null;
+    const requestFrame = (cb) => {
+      frameCallback = cb;
+      return 1;
+    };
+    const cancelFrame = vi.fn();
+
+    let currentTime = 1000;
+    const nowProvider = () => currentTime;
+
+    const runtime = createGameRuntime({
+      bootstrap: bootstrapStub,
+      cancelFrame,
+      documentRef: documentStub,
+      frameProbeWarmupFrames: 0,
+      logger: { error: () => {} },
+      nowProvider,
+      requestFrame,
+      runtimeFaultBudget: 2,
+      runtimeFaultCooldownMs: 1500,
+      windowRef: windowStub,
+    });
+
+    runtime.start();
+
+    // Run first frame -> throws, budget = 1
+    frameCallback(currentTime);
+
+    // Run second frame -> throws, budget = 2 -> quarantined!
+    currentTime += 16;
+    frameCallback(currentTime);
+
+    // Advance time past the 1500ms cooldown
+    currentTime += 1600;
+    // This frame runs out of quarantine, and under the old implementation,
+    // it calculates delta from the last recorded frame (1016), resulting in ~1600ms delta!
+    frameCallback(currentTime);
+
+    // Verify stats: p95FrameTime should not include the 1600ms delta
+    const probeStats = windowStub.__MS_GHOSTMAN_FRAME_PROBE__.getStats();
+    expect(probeStats.p95FrameTime).toBeLessThan(20);
+    expect(probeStats.p95FrameTime).toBeGreaterThan(0);
   });
 });

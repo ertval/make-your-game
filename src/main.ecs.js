@@ -36,12 +36,23 @@
  * - startBrowserApplication(options)
  */
 
+import { createAudioLoadingIndicator } from './adapters/dom/audio-loading-indicator.js';
 import { createHudAdapter } from './adapters/dom/hud-adapter.js';
 import { createScreensAdapter } from './adapters/dom/screens-adapter.js';
+import { createAudioQuickToggle } from './adapters/dom/screens-audio-toggle.js';
+import { createAudioAdapter } from './adapters/io/audio-adapter.js';
+import { applyAudioSettings, preloadWithIndicator } from './adapters/io/audio-integration.js';
 import { createInputAdapter } from './adapters/io/input-adapter.js';
-import { getHighScore, saveHighScore } from './adapters/io/storage-adapter.js';
+import {
+  getAudioSettings,
+  getHighScore,
+  getHighScores,
+  saveHighScore,
+  updateAudioSetting,
+} from './adapters/io/storage-adapter.js';
 import { percentileFromSorted, toSortedNumericArray } from './debug/frame-stats.js';
 import { FIXED_DT_MS, MAX_STEPS_PER_FRAME, TOTAL_LEVELS } from './ecs/resources/constants.js';
+import { drain } from './ecs/resources/event-queue.js';
 import { createMapResource } from './ecs/resources/map-resource.js';
 import { createBootstrap } from './game/bootstrap.js';
 import { createSyncMapLoader } from './game/level-loader.js';
@@ -122,9 +133,14 @@ function createFrameProbe(
     };
   }
 
+  function reset() {
+    lastTimestamp = 0;
+  }
+
   return {
     getStats,
     recordFrame,
+    reset,
   };
 }
 
@@ -169,7 +185,9 @@ async function loadDefaultMaps({ fetchImpl } = {}) {
   for (let levelNumber = 1; levelNumber <= TOTAL_LEVELS; levelNumber += 1) {
     preloadTasks.push(
       (async () => {
-        const response = await fetchImpl(`/assets/maps/level-${levelNumber}.json`);
+        const response = await fetchImpl(
+          `${import.meta.env.BASE_URL}assets/maps/level-${levelNumber}.json`,
+        );
         if (!response || response.ok !== true) {
           const status = Number.isFinite(response?.status) ? response.status : 'unknown';
           throw new Error(`Failed to load map asset for level ${levelNumber} (status: ${status}).`);
@@ -195,6 +213,62 @@ async function loadDefaultMaps({ fetchImpl } = {}) {
   }
 
   return Promise.all(preloadTasks);
+}
+
+/**
+ * Build the audio adapter clip manifest from the shipped audio-manifest.json.
+ *
+ * The manifest file is the C-08/C-10 asset list (`{ assets: [{ id, path,
+ * category }] }`); the adapter's loadClips expects it grouped by category as
+ * `{ sfx: { id: url }, music: {...}, ui: {...} }`. Ambience is folded into the
+ * music store because the adapter only owns sfx/music/ui buffer maps.
+ *
+ * @param {{ fetchImpl?: Function, logger?: Console }} [options]
+ * @returns {Promise<{ sfx: object, music: object, ui: object }>} Grouped clip manifest.
+ */
+async function loadAudioClipManifest({ fetchImpl, logger = console } = {}) {
+  const grouped = { sfx: {}, music: {}, ui: {} };
+  // C-09: gameplay-critical SFX cue id -> url, derived from the same single
+  // manifest fetch. Only sfx-category assets flagged `critical: true` qualify;
+  // music/ambience are excluded from preload in this phase.
+  const criticalSfx = {};
+  const result = { grouped, criticalSfx };
+  if (typeof fetchImpl !== 'function') {
+    return result;
+  }
+
+  try {
+    const response = await fetchImpl(
+      `${import.meta.env.BASE_URL}assets/manifests/audio-manifest.json`,
+    );
+    if (!response || response.ok !== true) {
+      return result;
+    }
+
+    const manifest = await response.json();
+    const assets = Array.isArray(manifest?.assets) ? manifest.assets : [];
+    for (const asset of assets) {
+      if (!asset || typeof asset.id !== 'string' || typeof asset.path !== 'string') {
+        continue;
+      }
+      const bucket =
+        asset.category === 'music' || asset.category === 'ambience'
+          ? grouped.music
+          : asset.category === 'ui'
+            ? grouped.ui
+            : grouped.sfx;
+      const normalizedPath = asset.path.startsWith('/') ? asset.path.slice(1) : asset.path;
+      const resolvedUrl = `${import.meta.env.BASE_URL}${normalizedPath}`;
+      bucket[asset.id] = resolvedUrl;
+      if (asset.category === 'sfx' && asset.critical === true) {
+        criticalSfx[asset.id] = resolvedUrl;
+      }
+    }
+  } catch (error) {
+    logger.warn('Audio manifest load failed; continuing without preloaded clips.', error);
+  }
+
+  return result;
 }
 
 export function renderCriticalError(overlayRoot, error) {
@@ -255,6 +329,19 @@ export function createGameRuntime({
   const cancelScheduledFrame =
     cancelFrame || targetWindow?.cancelAnimationFrame?.bind(targetWindow);
   const getNow = nowProvider || (() => targetWindow?.performance?.now?.() ?? Date.now());
+  const setTimeoutImpl = (fn, delay) => {
+    if (targetWindow && typeof targetWindow.setTimeout === 'function') {
+      return targetWindow.setTimeout(fn, delay);
+    }
+    return setTimeout(fn, delay);
+  };
+  const clearTimeoutImpl = (handle) => {
+    if (targetWindow && typeof targetWindow.clearTimeout === 'function') {
+      targetWindow.clearTimeout(handle);
+      return;
+    }
+    clearTimeout(handle);
+  };
   const frameProbe = createFrameProbe(DEFAULT_FRAME_SAMPLE_SIZE, frameProbeWarmupFrames);
 
   if (!bootstrap) {
@@ -305,6 +392,7 @@ export function createGameRuntime({
       state: bootstrap.gameStatus.currentState,
     }),
     getLevelIndex: () => bootstrap.levelLoader.getCurrentLevelIndex(),
+    getWorld: () => bootstrap.world,
     pause: () => bootstrap.gameFlow.pauseGame(),
     restart: () => {
       return bootstrap.gameFlow.restartLevel();
@@ -333,17 +421,34 @@ export function createGameRuntime({
 
     const safeNowMs = normalizeNow(frameNowMs);
 
+    if (quarantinedUntilMs > safeNowMs) {
+      frameHandle = setTimeoutImpl((time) => {
+        if (isRunning) {
+          onAnimationFrame(normalizeNow(time ?? getNow()));
+        }
+      }, 50);
+      return;
+    }
+
     try {
       frameProbe.recordFrame(safeNowMs);
-
-      if (quarantinedUntilMs > safeNowMs) {
-        return;
-      }
 
       bootstrap.stepFrame(safeNowMs, {
         fixedDtMs: FIXED_DT_MS,
         maxStepsPerFrame: MAX_STEPS_PER_FRAME,
       });
+
+      // BUG-01: Drain the event queue each frame so events emitted by
+      // simulation systems do not accumulate unboundedly. The queue is
+      // consumed here in the rAF loop (not in bootstrap.stepFrame) so
+      // integration tests that inspect drained events can still call
+      // stepFrame directly without the automatic clearing.
+      if (bootstrap.world && bootstrap.eventQueueResourceKey) {
+        const eventQueue = bootstrap.world.getResource(bootstrap.eventQueueResourceKey);
+        if (eventQueue) {
+          drain(eventQueue);
+        }
+      }
     } catch (error) {
       // Catch unexpected errors outside the system-dispatch boundary
       // (e.g., tickClock, applyDeferredMutations) so the loop survives.
@@ -354,13 +459,21 @@ export function createGameRuntime({
       if (runtimeFaultTimestamps.length >= boundedRuntimeFaultBudget) {
         quarantinedUntilMs = safeNowMs + boundedRuntimeFaultCooldownMs;
         runtimeFaultTimestamps.length = 0;
+        frameProbe.reset();
         logger.error(
           `Game runtime fault budget exceeded. Quarantining simulation updates for ${boundedRuntimeFaultCooldownMs}ms.`,
         );
       }
     } finally {
-      // Always schedule the next frame, even if this one threw.
-      frameHandle = scheduleFrame(onAnimationFrame);
+      if (quarantinedUntilMs > safeNowMs) {
+        frameHandle = setTimeoutImpl((time) => {
+          if (isRunning) {
+            onAnimationFrame(normalizeNow(time ?? getNow()));
+          }
+        }, 50);
+      } else {
+        frameHandle = scheduleFrame(onAnimationFrame);
+      }
     }
   }
 
@@ -409,6 +522,7 @@ export function createGameRuntime({
     if (typeof cancelScheduledFrame === 'function') {
       cancelScheduledFrame(frameHandle);
     }
+    clearTimeoutImpl(frameHandle);
 
     // Prefer the explicit bootstrap API so the resource slot is cleared and any
     // previously-registered adapter is destroyed through one code path.
@@ -419,6 +533,11 @@ export function createGameRuntime({
       if (adapter && typeof adapter.destroy === 'function') {
         adapter.destroy();
       }
+    }
+
+    // Release the AudioContext through the same explicit-slot path on stop.
+    if (typeof bootstrap.setAudioAdapter === 'function') {
+      bootstrap.setAudioAdapter(null);
     }
 
     if (targetWindow && typeof targetWindow.removeEventListener === 'function') {
@@ -478,11 +597,11 @@ export async function bootstrapApplication({
     throw new Error('Missing #app root.');
   }
 
-  // DEAD-01: render-dom-system (run during runRenderCommit) is the canonical
-  // DOM commit path. The legacy createDomRenderer remains available for non-ECS
-  // tooling (map preview, debug views) but is intentionally NOT registered with
-  // the bootstrap step loop — registering it would cause double DOM writes per
-  // frame and bypass the sprite pool.
+  // DEAD-01 / DEAD-03: render-dom-system (run during runRenderCommit) is the
+  // sole canonical DOM commit path. The legacy `renderer-dom.js` adapter was
+  // removed (DEAD-03 / #139); no separate per-frame DOM renderer is registered
+  // with the bootstrap step loop, which would otherwise cause double DOM writes
+  // per frame and bypass the sprite pool.
 
   const hudSection = targetDocument.getElementById('hud');
   const hudAdapter = hudSection ? createHudAdapter(hudSection) : null;
@@ -525,18 +644,63 @@ export async function bootstrapApplication({
       // Thread the resolved now-source through so onRestart resyncs stay on
       // the same clock as the rAF loop (deterministic for tests).
       nowProvider: getNow,
-      hudElements,
     });
     // Register through the explicit bootstrap API so the adapter contract is
     // validated at injection time and teardown on stop is symmetric.
     bootstrap.setInputAdapter(inputAdapter);
+
+    // UI confirm feedback. Menu/overlay button confirmations are not part of
+    // the deterministic simulation, so they play straight through the audio
+    // adapter resource (resolved lazily so it works once the adapter is wired
+    // below) rather than the gameplay event queue. Resolved via the bootstrap
+    // accessor, not a module import, so the adapter resource contract holds.
+    // A subtle "tick": the confirm cue fires on every menu button, so keep it
+    // quiet (per-call gain, not the UI category volume) to avoid fatigue.
+    const UI_CONFIRM_GAIN = 0.35;
+    const playUiConfirm = () => {
+      bootstrap.getAudioAdapter()?.playSfx('ui-confirm', { gain: UI_CONFIRM_GAIN });
+    };
+
+    // C-11B: forward-declared so the settings handler can keep the persistent
+    // quick-toggle and the Settings overlay in sync after either changes a value.
+    let audioQuickToggle = null;
+
+    // C-11B settings change handler: persist immediately (C-11A storage), apply
+    // the new mix to the live audio adapter, and mirror the change onto whichever
+    // audio UI did not originate it. One funnel keeps the two surfaces consistent.
+    const handleSettingChange = (key, value) => {
+      updateAudioSetting(key, value);
+      // UI sounds share the SFX volume (no separate UI slider): keep uiVolume in
+      // lockstep with sfxVolume so the merged control drives both categories.
+      if (key === 'sfxVolume') {
+        updateAudioSetting('uiVolume', value);
+      }
+      const settings = getAudioSettings();
+      applyAudioSettings(bootstrap.getAudioAdapter(), settings);
+      audioQuickToggle?.sync(settings);
+      screensAdapter?.syncSettingsControls(settings);
+    };
 
     // Create and register the screens adapter with game-flow callbacks.
     const screensAdapter =
       overlayRoot && typeof overlayRoot.querySelector === 'function'
         ? createScreensAdapter(overlayRoot, {
             gameplayElement: boardContainerElement,
+            initialSettings: getAudioSettings(),
+            // C-05: the High Scores overlay reads the persisted top-N scores on open.
+            getHighScores,
+            onSettingChange: handleSettingChange,
+            // Play the confirm cue for EVERY confirmed menu button — start menu,
+            // pause menu (Continue/Settings/High Scores/Restart), and the
+            // Settings/High Scores sub-overlays (which are handled inside the
+            // adapter and never reach onAction). Sliders don't trigger it.
+            onConfirm() {
+              playUiConfirm();
+            },
             onAction(action) {
+              // onAction fires only for forwarded (non-intercepted) actions and
+              // delegates to game-flow. The confirm cue is handled by onConfirm
+              // (above) for ALL buttons, so it is NOT replayed here.
               switch (action) {
                 case 'start-primary':
                 case 'gameover-play-again':
@@ -569,6 +733,79 @@ export async function bootstrapApplication({
       saveHighScore,
       getHighScore,
     });
+
+    // C-11B: bind the persistent top-right audio quick-toggle (always-visible
+    // mute/unmute for music + sfx). It shares the same persistence + apply funnel
+    // as the Settings overlay via handleSettingChange.
+    const quickToggleRoot = targetDocument.getElementById('audio-quick-toggle');
+    audioQuickToggle = quickToggleRoot
+      ? createAudioQuickToggle(quickToggleRoot, {
+          initialSettings: getAudioSettings(),
+          onToggle: handleSettingChange,
+        })
+      : null;
+
+    // Construct the Web Audio boundary at the app edge and register it as the
+    // 'audio' world resource so the render-phase cue system can drive it. Init
+    // failures are non-fatal: the slot stays null and the game loop runs silent.
+    try {
+      const audioFetch =
+        targetWindow?.fetch?.bind(targetWindow) || globalThis.fetch?.bind(globalThis);
+      const audioAdapter = createAudioAdapter({
+        windowTarget: targetWindow,
+        documentTarget: targetDocument,
+        // Lets the adapter resume immediately when the player already pressed
+        // Enter / clicked to start during the async bootstrap, instead of
+        // requiring a second click for audio.
+        navigatorTarget: targetWindow?.navigator ?? null,
+      });
+      // Master headroom (hearing safety + clipping): the adapter defaults every
+      // category to full gain, so overlapping SFX + music would stack toward
+      // 0 dBFS and clip. Master < 1 leaves room for simultaneous cues. Honored
+      // once the gain nodes are created even though set before the AudioContext
+      // exists. Per-category music/sfx/ui levels are owned by the player's
+      // persisted C-11A settings (applied below), not hardcoded here.
+      audioAdapter.setVolume('master', 0.8);
+      // C-11A: restore persisted audio settings and apply them BEFORE the first
+      // playback (loadClips/cue dispatch). getAudioSettings() always returns a
+      // complete, validated object — malformed storage falls back to defaults.
+      applyAudioSettings(audioAdapter, getAudioSettings());
+      bootstrap.setAudioAdapter(audioAdapter);
+      // C-09: a Track C DOM adapter (no ECS→DOM coupling) wired here at the app
+      // boundary. Only appears if the critical-SFX decode crosses the 200ms
+      // threshold and is hidden the instant it completes.
+      const audioLoadingIndicator = overlayRoot ? createAudioLoadingIndicator(overlayRoot) : null;
+      // Single manifest fetch feeds both the full clip load and the C-09
+      // critical-SFX preload. Fire-and-forget so startup is never blocked.
+      loadAudioClipManifest({ fetchImpl: audioFetch, logger }).then(({ grouped, criticalSfx }) => {
+        audioAdapter.loadClips(grouped).catch((error) => {
+          logger.warn('Audio clip preload failed.', error);
+        });
+        const cueIds = Object.keys(criticalSfx);
+        if (cueIds.length === 0) {
+          return;
+        }
+        preloadWithIndicator({
+          audio: audioAdapter,
+          indicator: audioLoadingIndicator,
+          cueIds,
+          preloadOptions: { urls: criticalSfx },
+        })
+          .then(() => {
+            // C-09: surface the real preload timing/cache instrumentation so it
+            // can be captured for the AUDIT-B-05 evidence artifact. This is a
+            // diagnostic log only; it never blocks the game loop.
+            if (typeof audioAdapter.getPreloadStats === 'function') {
+              logger.info?.('[C-09] audio preload stats', audioAdapter.getPreloadStats());
+            }
+          })
+          .catch((error) => {
+            logger.warn('Critical SFX preload failed.', error);
+          });
+      });
+    } catch (error) {
+      logger.warn('Audio initialization failed; continuing without sound.', error);
+    }
 
     installUnhandledRejectionHandler({
       logger,

@@ -10,7 +10,7 @@ Source plan: `docs/implementation/implementation-plan.md` (Section 3)
 - **P1 Visual Prototype**: No new Track C tickets
 - **P2 Playable MVP**: `C-01` to `C-06`
 - **P3 Feature Complete + Hardening**: `C-07`
-- **P4 Polish and Validation**: `C-08` to `C-10`
+- **P4 Polish and Validation**: `C-08` to `C-11`
 
 > Note: `A-11` is referenced for audit traceability only and does not block Track C ticket execution.
 
@@ -87,8 +87,13 @@ C-04 is runtime-integrated. The ECS systems (`pause-input-system`, `pause-system
 **C-04 Status**
 - Scope: ECS system layer + default runtime registration
 - Pause: in-place resource mutation, dispatched once per rAF in the `meta` phase
-- Restart: `levelFlow.pendingRestart` is consumed by the bootstrap restart path, which fully resets gameplay resources, the sprite pool, and intent buffers
-- Level progression: `levelFlow.pendingLevelAdvance` is consumed by the runtime level loader to advance levels and trigger overlays
+- Restart: driven by the screens adapter (`onRestart` → `gameFlow.restartLevel()`), which fully resets gameplay resources, the sprite pool, and intent buffers via the bootstrap restart path
+- Level progression: driven by the runtime level loader (`levelLoader.advanceLevel()`) to advance levels and trigger overlays
+
+> BUG-12/BUG-20 (C-04): the previously documented `levelFlow.pendingRestart` /
+> `levelFlow.pendingLevelAdvance` hand-off flags were dead — written by the ECS
+> systems but read by nobody. The writes were removed; the live restart and
+> level-advance paths above are the actual mechanisms.
 
 **Deliverables**:
 - `src/ecs/systems/pause-system.js` — FSM-only pause, continue, and paused-restart transitions
@@ -189,7 +194,7 @@ This contract is implemented in `src/adapters/io/storage-adapter.js` and defines
 
 **Out of scope for C-06 (covered by later tickets)**:
 - Wiring gameplay events (BombPlaced, PelletCollected, …) to `playSfx` calls and music state across `GAME_STATE` transitions — `C-07`.
-- Producing the actual `.mp3`/`.ogg` asset files — `C-08`.
+- Producing the actual `.mp3` asset files (MP3-only under the C-10 manifest contract) — `C-08`.
 - Lazy/streaming load policy for non-critical audio + perf budgets — `C-09`.
 - Audio manifest JSON Schema + manifest file under `assets/manifests/` — `C-10`.
 
@@ -300,9 +305,23 @@ C-04 / C-05 / B-03 / C-06 handoff pattern):
   - Level complete jingle. Game over sting. Victory fanfare.
 - [ ] Create/export at least one loop-safe level music track (60-120s loop, crossfade handling).
 - [ ] Normalize loudness across categories (gameplay, UI, music).
-- [ ] Export in `.mp3` (primary) and `.ogg` (optional).
+- [ ] Export in `.mp3` only — the C-10 manifest gate accepts `format: "mp3"` exclusively; `.ogg`/`.m4a` are out of scope until the schema and runtime decoder are expanded together.
 - [ ] Keep SFX short (<1s for most, except fuse tick loop).
 - [ ] Verification gate: all SFX/music listed in manifest with correct metadata.
+
+> **Draft status — `chbaikas/integration-C-08`** (production candidates, not final):
+> - ✅ Shipped & registered in `assets/manifests/audio-manifest.json` (12 clips): 11 SFX
+>   (`bomb-place`, `bomb-fuse-loop` [loop], `bomb-explode`, `wall-destroy`, `pellet-collect`,
+>   `power-pellet`, `speed-boost-on`, `ghost-kill`, `player-death`, `level-complete`, `ui-confirm`)
+>   + 1 loop-safe music track (`gameplay-loop`).
+> - ✅ Full pipeline validated end-to-end (C-06 adapter → C-07 runner → C-08 assets) in the
+>   bootstrap loop; `npm run validate:schema` passes for the manifest.
+> - ⏳ Pending before closure: remaining SFX set (chain-reaction, power-up-collect, speed-boost-off,
+>   ghost-stun, ghost-return, player-respawn, menu-navigate, cancel, pause open/close, game-over
+>   sting, victory fanfare), loudness-normalization sign-off, and the
+>   `A-13` P3 audit gate. (Format stays MP3-only under the C-10 contract — no `.ogg`/`.m4a` exports
+>   unless the schema and runtime decoder are expanded together.)
+> - 📄 See `docs/pr-messages/C-08-sound-effects-music-production-pr.md`.
 
 ---
 
@@ -318,13 +337,13 @@ C-04 / C-05 / B-03 / C-06 handoff pattern):
 - Loading state display for slow decode
 - Performance timing evidence artifact
 
-- [ ] Implement preloading strategy during level load:
+- [x] Implement preloading strategy during level load:
   - Decode all gameplay-critical SFX asynchronously using `decodeAudioData()`.
   - Show loading state if decode takes > 200ms.
   - Cache decoded buffers for reuse across levels.
-- [ ] Implement lazy loading for non-critical audio (music, ambience).
-- [ ] Audio decode MUST NOT block the main thread or game loop startup.
-- [ ] Verification gate: evidence artifact shows async decode timing and no main-thread blocking.
+- [-] Defer non-critical audio (music, ambience): excluded from the critical preload path (`criticalSfx` filter); `loadClips` decodes them eagerly but fire-and-forget after the game loop starts. True on-demand lazy loading is out of C-09 scope.
+- [x] Audio decode MUST NOT block the main thread or game loop startup.
+- [x] Verification gate: evidence artifact shows async decode timing and no main-thread blocking.
 
 ---
 
@@ -339,11 +358,49 @@ C-04 / C-05 / B-03 / C-06 handoff pattern):
 - `docs/schemas/audio-manifest.schema.json` (JSON Schema 2020-12)
 - `assets/manifests/audio-manifest.json` — all audio asset entries
 
-- [ ] Finalize `docs/schemas/audio-manifest.schema.json` (JSON Schema 2020-12):
+- [x] Finalize `docs/schemas/audio-manifest.schema.json` (JSON Schema 2020-12):
   - Required fields: `id`, `path`, `category` (sfx|music|ambience|ui), `format`, `durationMs`, `critical`, `loop`.
   - Optional fields: `channels`, `sampleRateHz`, `loudnessLufs`, `maxBytes`, `notes`.
-- [ ] Create `assets/manifests/audio-manifest.json` with all audio asset entries.
-- [ ] Wire manifest schema validation into CI (fails on invalid entries).
-- [ ] Verification gate: CI rejects invalid manifest entries; valid entries pass.
+  - `additionalProperties: false` at both the manifest and per-asset level; `format` and the `path` extension are constrained to the project-supported `mp3` (no fallback decoder exists, so non-mp3 formats are rejected — C-10 constraint).
+- [x] Create `assets/manifests/audio-manifest.json` with all audio asset entries (12 shipped C-08 assets: 10 gameplay SFX `critical: true`, 1 looping gameplay music `critical: false`, 1 UI confirm). Every `path` exists on disk.
+- [x] Wire manifest schema validation into CI (fails on invalid entries). `scripts/validate-schema.mjs` validates the audio manifest via `npm run validate:schema` (also part of `npm run ci`), enforcing schema shape, on-disk file existence, kebab-case naming, `maxBytes` budgets, and unique asset `id`s (new `DUPLICATE_ID` semantic gate — JSON Schema cannot express uniqueness on a derived key). Fail-closed.
+- [x] Verification gate: CI rejects invalid manifest entries; valid entries pass. `tests/integration/gameplay/c-10-audio-manifest-schema.test.js` drives the real validator as a subprocess and locks: real manifest passes; missing required field, invalid category, non-mp3 format, out-of-tree path, non-positive `durationMs`, non-boolean `critical`, unknown field, duplicate `id`, and missing asset file all fail closed.
+
+---
+
+#### C-11: Audio Settings Persistence, Settings Overlay & Fuse Sequencing
+**Priority**: High
+**Phase**: P4 Polish and Validation
+**Depends On**: `C-06` (audio adapter gain API), `C-08` (assets), `C-07` (cue runner)
+**Impacts**: Player experience — audio settings persist across sessions; bomb-place/fuse sounds play sequentially
+**Blocks**: None
+
+**Deliverables**:
+- `src/adapters/io/storage-adapter.js` — `getAudioSettings`, `saveAudioSettings`, `updateAudioSetting` (and module-private `normalizeAudioSettings`)
+- `src/adapters/io/audio-integration.js` — `applyAudioSettings`, `fuseLoopDelay` option in `createAudioCueRunner`
+- `src/adapters/dom/screens-audio-toggle.js` (new) — persistent top-right audio quick-toggle adapter
+- `src/adapters/dom/screens-adapter.js` — Settings overlay (open from Start/Pause, Back navigation, `syncSettingsControls`, `onSettingChange`)
+- `src/game/bootstrap.js` — `fuseLoopDelay` forwarded from `createBootstrap` options to `createAudioCueSystem`
+- Tests: `storage-adapter.test.js`, `screens-settings.test.js`, extended `audio-integration.test.js` and `bomb-explosion-runtime-wiring.test.js`, new `c-11-settings-navigation.spec.js` (e2e)
+- PR message: `docs/pr-messages/C-11-audio-settings-fuse-sequencing-pr.md`
+
+**Sub-features**:
+
+**C-11A — Persisted Audio Settings**:
+- [x] `storage-adapter.js` extended with `AUDIO_SETTINGS_STORAGE_KEY`, `DEFAULT_AUDIO_SETTINGS` (`musicEnabled: true, sfxEnabled: true`, volumes `1.0`), `getAudioSettings()`, `saveAudioSettings(settings)`, `updateAudioSetting(key, value)`. Module-private `normalizeAudioSettings` clamps volumes to `[0, 1]`, coerces booleans, falls back to defaults for corrupt/missing values.
+- [x] `applyAudioSettings(audio, settings)` added to `audio-integration.js`; uses only `audio.setVolume(category, value)` — no play/stop calls.
+- [x] Settings restored from `localStorage` before the first frame and re-applied on every change.
+
+**C-11B — Settings Overlay & Audio Quick-Toggle**:
+- [x] `screens-adapter.js` — `showSettings(origin)` (public) / internal `backFromSettings()` triggered via `settings-back` action dispatch; `syncSettingsControls(settings)` syncs toggle + slider state; `onSettingChange(key, value)` callback for every user action.
+- [x] `screens-audio-toggle.js` (new) — `createAudioQuickToggle(rootElement, options)` binds `[data-audio-toggle]` buttons, manages `aria-pressed` + emoji icon, calls `options.onToggle(key, enabled)`. Tolerates missing DOM nodes.
+- [x] `index.html` / `styles/` — Settings overlay markup and top-right quick-toggle button markup added.
+- [x] `main.ecs.js` — wires both surfaces to `applyAudioSettings` and the storage layer.
+
+**C-11C — Bomb-Place → Fuse-Loop Sequencing**:
+- [x] `createAudioCueRunner` accepts `options.fuseLoopDelay` (ms, default `BOMB_PLACE_SFX_DURATION_MS = 310`) and `options.now` (injectable clock).
+- [x] On rising edge of `bombActive`, runner sets `fuseLoopAllowedAt = now() + fuseLoopDelay`; fuse loop start is held until that timestamp passes.
+- [x] Fuse loop stop path unchanged — stops the instant `bombActive` drops.
+- [x] `createBootstrap` / `createAudioCueSystem` forward `options.fuseLoopDelay` so integration tests can pass `fuseLoopDelay: 0`.
 
 ---

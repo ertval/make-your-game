@@ -68,12 +68,18 @@ Use lower-kebab-case and role-oriented names:
 2. Trim leading/trailing silence for all SFX.
 3. Export music and ambience loops with loop-safe boundaries.
 4. Normalize loudness by category before encoding.
-5. Encode at least one compatibility format and optionally one open/high-efficiency format.
+5. Encode to `.mp3` — the single format the audio manifest contract currently accepts.
 
-Recommended baseline formats:
-
-1. Compatibility: `.mp3` or `.m4a`.
-2. Optional open variant: `.ogg` (Opus).
+Format policy (current contract): **MP3-only.** The C-10 audio-manifest schema
+gate (`docs/schemas/audio-manifest.schema.json`, enforced by `npm run
+validate:schema`) accepts only `format: "mp3"` with a `.mp3` file extension. The
+runtime audio adapter decodes a single shipped format, so `.ogg` (Opus) and
+`.m4a` are **not** enabled by the manifest gate today — an asset in either
+format would fail validation and must not be added to the manifest. Adding
+multi-format / open-variant support is a future change that requires BOTH
+expanding the schema (`format` enum + `path` extension pattern) AND adding the
+matching runtime decoder/fallback selection; until both land, keep all generated
+audio in `.mp3`.
 
 ## 7. Audio Naming Rules
 
@@ -98,12 +104,39 @@ Bootstrap contract:
 3. Runtime lookups use `assetPipeline.getAssetById(id)` and `assetPipeline.hasAsset(id)`.
 4. Duplicate IDs across manifests are rejected during bootstrap to fail fast.
 
+### 8.1 Manifest → renderable mapping & fallback
+
+Each visual-manifest entry carries a `className` resolving its `id` (spriteId) to
+the CSS class the renderer actually applies. This is the D-11 alignment of the
+D-10 source handoff (`assets/source/visual/sprite-handoff.json`) to the real
+classes in `styles/grid.css`, applied by `render-dom-system.js`.
+
+1. **Resolved classes** are `sprite--*` (pooled sprites: player, ghost, bomb,
+   fire, pellet, power-up frames) or `cell-*` (static board cells: walls). The
+   value is the class the runtime applies — e.g. the explosion frames are
+   surfaced through `sprite--fire--0N` (the `sprite--explosion--*` classes exist
+   in CSS but are never applied), so those entries record `sprite--fire--0N`.
+2. **`className: null`** means the asset is produced and shipped but **not yet
+   bound** to a dedicated render class. These are forward-looking frames
+   (non-directional `ghost-*-walk-01/02`, `*-stunned-0N`, `wall-destruct-*`,
+   `power-pellet-0N`, `player-death`, `fire-tile-center`) and the text-rendered
+   HUD icons (`hud-*`). They are intentionally inert, not missing.
+3. **Runtime fallback behavior** (in `render-dom-system.js`): every pooled
+   entity always receives its kind base class (`KIND_TO_CLASSES`), so a sprite
+   with an out-of-range or absent `spriteId` still shows a valid image via the
+   base class's background-image (e.g. `.sprite--bomb` → idle, `.sprite--fire`
+   → peak). `POWER_UP` falls back to the `pellet` pool. WALL kinds are skipped
+   (rendered as static cells).
+4. **Missing-asset safety** is enforced ahead of runtime: the schema validator
+   fails CI if any manifest `path` is absent on disk (see §9.1), so a referenced
+   asset can never 404 at runtime.
+
 ## 9. CI Validation Rules
 
 CI should fail if any of the following occurs:
 
 1. Asset referenced in manifest does not exist.
-2. Required manifest fields are missing (`id`, `path`, `kind`, `format`, `width`, `height`, `tags`, `critical` for visuals; `id`, `path`, `category`, `format`, `durationMs`, `critical`, `loop` for audio).
+2. Required manifest fields are missing (`id`, `path`, `kind`, `format`, `width`, `height`, `tags`, `critical`, `className` for visuals — `className` is `null` when the asset is not bound to a render class; `id`, `path`, `category`, `format`, `durationMs`, `critical`, `loop` for audio).
 3. File exceeds configured size budget.
 4. Naming convention check fails.
 5. Duplicate IDs exist in manifests.
@@ -125,6 +158,10 @@ npx ajv-cli validate -s docs/schemas/visual-manifest.schema.json -d assets/manif
 npx ajv-cli validate -s docs/schemas/audio-manifest.schema.json -d assets/manifests/audio-manifest.json --spec=draft2020
 ```
 
+### 9.2 Raster-to-WebP Deviation
+
+While SVG is the preferred format for sprites and UI elements to support scaling and performance, the player sprites deviate from this preference. They are generated as lossless WebP images (128x128 pixels). This deviation is because the source assets are authored as a raster sprite sheet, and converting them to vectors would not preserve their original artistic style. Lossless WebP provides a high-fidelity, well-optimized alternative that respects the visual layout budget.
+
 ## 10. Suggested Tooling
 
 1. SVG optimization: svgo.
@@ -135,8 +172,12 @@ Example commands:
 
 ```bash
 svgo assets/source/visual -f assets/generated/sprites
+# Audio is MP3-only under the current C-10 manifest contract — encode every cue
+# (SFX, music, ambience, UI) with libmp3lame to a .mp3 target. A libopus/.ogg
+# target would be rejected by `npm run validate:schema` until the schema and the
+# runtime decoder are expanded together (see §6 Format policy).
 ffmpeg -i assets/source/audio/sfx-bomb-explode.wav -c:a libmp3lame -b:a 192k assets/generated/sfx/sfx-bomb-explode.mp3
-ffmpeg -i assets/source/audio/music-level-01.wav -c:a libopus -b:a 128k assets/generated/music/music-level-01-loop.ogg
+ffmpeg -i assets/source/audio/music-level-01.wav -c:a libmp3lame -b:a 128k assets/generated/music/music-level-01-loop.mp3
 ```
 
 ## 11. References

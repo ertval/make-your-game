@@ -45,9 +45,13 @@
   z-index: var(--z-grid);
 }
 
-/** Empty cell (walkable space). */
+/**
+ * Empty cell (walkable space). Transparent so the board floor (`--color-bg`)
+ * shows through — using an opaque color here produces a high-contrast trail
+ * behind the player as pellets are consumed (issue #103).
+ */
 .cell-empty {
-  background: #111122;
+  background: transparent;
 }
 
 /** Indestructible wall cell with brick pattern styling. */
@@ -108,6 +112,42 @@
   background-repeat: no-repeat;
   z-index: var(--z-items);
   animation: pellet-pulse var(--anim-walk-duration) ease-in-out infinite;
+}
+
+/* --- Power-up drops --- */
+
+/**
+ * Power-up tiles dropped when a destructible wall is cleared
+ * (CELL_TYPE.POWER_UP_BOMB/FIRE/SPEED → cell-powerup-bomb/fire/speed). They share
+ * the collectible ::after overlay pattern, sized a touch larger than a pellet and
+ * gently pulsing so the drop reads as a pickable reward against the floor.
+ */
+.cell-powerup-bomb::after,
+.cell-powerup-fire::after,
+.cell-powerup-speed::after {
+  content: "";
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 24px;
+  height: 24px;
+  background-size: 100% 100%;
+  background-repeat: no-repeat;
+  z-index: var(--z-items);
+  animation: pellet-pulse var(--anim-walk-duration) ease-in-out infinite;
+}
+
+.cell-powerup-bomb::after {
+  background-image: url("../assets/generated/visuals/128px/items/powerup-bomb.webp");
+}
+
+.cell-powerup-fire::after {
+  background-image: url("../assets/generated/visuals/128px/items/powerup-fire.webp");
+}
+
+.cell-powerup-speed::after {
+  background-image: url("../assets/generated/visuals/128px/items/powerup-speed.webp");
 }
 
 /* --- Sprite Base Classes --- */
@@ -326,13 +366,15 @@
 }
 
 /**
- * Bomb fuse-cycle frames (idle + 3 ticking states). Layered on top of
+ * Bomb fuse-cycle frames (4 lit ticking states). Layered on top of
  * `.sprite--bomb` to swap the background-image per fuse tick. Mirrors the
  * `.sprite--player--walk-*` per-frame pattern from D-10.
  *
- * Awaiting wiring: a bomb-animation-system + render-dom-system update is
- * required to apply these classes; today the base `.sprite--bomb` class
- * shows only the idle frame.
+ * Wired by render-collect-system (computes the frame index from
+ * `bombStore.fuseMs`) + render-dom-system's `BOMB_SPRITE_CLASSES` table, which
+ * applies the matching class as the fuse counts down toward detonation. The
+ * unlit `.sprite--bomb--idle` frame is reserved for the bomb power-up pickup
+ * (cell-powerup-bomb), so a placed bomb always renders a lit fuse.
  */
 .sprite--bomb--idle {
   background-image: url("../assets/generated/visuals/128px/items/bomb-idle.webp");
@@ -346,6 +388,9 @@
 .sprite--bomb--fuse-03 {
   background-image: url("../assets/generated/visuals/128px/items/bomb-fuse-03.webp");
 }
+.sprite--bomb--fuse-04 {
+  background-image: url("../assets/generated/visuals/128px/items/bomb-fuse-04.webp");
+}
 
 /** Fire tile effect WITHOUT will-change (short-lived effect). */
 .sprite--fire {
@@ -355,6 +400,27 @@
   background-repeat: no-repeat;
   opacity: 0.9;
   /* NO will-change: fire is short-lived, avoid unnecessary layer promotion */
+}
+
+/**
+ * Fire-tile animation frames driven by render-collect-system's
+ * burnTimerMs → spriteId mapping. Frame 01 is the peak blast (fire just
+ * detonated), frame 04 is the fading embers right before the fire tile
+ * expires. render-dom-system applies the matching class via
+ * FIRE_SPRITE_CLASSES; the base `.sprite--fire` rule sets sizing + opacity
+ * + the fallback image so a missing spriteId still shows a valid sprite.
+ */
+.sprite--fire--01 {
+  background-image: url("../assets/generated/visuals/128px/effects/explosion-01.webp");
+}
+.sprite--fire--02 {
+  background-image: url("../assets/generated/visuals/128px/effects/explosion-02.webp");
+}
+.sprite--fire--03 {
+  background-image: url("../assets/generated/visuals/128px/effects/explosion-03.webp");
+}
+.sprite--fire--04 {
+  background-image: url("../assets/generated/visuals/128px/effects/explosion-04.webp");
 }
 
 /**
@@ -441,6 +507,9 @@
   font-size: clamp(19px, 1.7vw + 10px, 26px);
   font-weight: 700;
   line-height: 1.2;
+  --hud-label-font-size: 0.7em;
+  --hud-label-font-weight: 700;
+  --hud-label-letter-spacing: 0.08em;
 }
 
 /** Fixed-overlay HUD variant (class-based) for layouts not using the app-shell grid. */
@@ -489,9 +558,9 @@
 .hud__label {
   color: var(--color-accent);
   text-transform: uppercase;
-  font-size: 0.7em;
-  font-weight: 700;
-  letter-spacing: 0.08em;
+  font-size: var(--hud-label-font-size);
+  font-weight: var(--hud-label-font-weight);
+  letter-spacing: var(--hud-label-letter-spacing);
 }
 
 /** HUD metric value styling — primary emphasis, larger and brighter. */

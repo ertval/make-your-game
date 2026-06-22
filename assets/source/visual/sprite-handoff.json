@@ -1,5 +1,5 @@
 {
-  "note": "D-10 handoff table for D-11 manifest mapping. All sprites at 128px display size. className follows kebab-case spriteId convention — D-11 should align with actual CSS class names used by render-dom-system.",
+  "note": "D-10 source handoff table (historical). The className values below use the kebab-case spriteId convention. D-11 completed the alignment to the real render-dom-system CSS classes in assets/manifests/visual-manifest.json, which is now the authoritative spriteId→className source (validated in CI). See docs/implementation/assets-pipeline.md § Manifest → renderable mapping. Where the manifest className is null, the produced asset is not yet bound to a dedicated render class.",
   "sprites": [
     { "spriteId": "player-idle", "width": 128, "height": 128, "className": "player-idle" },
     { "spriteId": "player-death", "width": 128, "height": 128, "className": "player-death" },

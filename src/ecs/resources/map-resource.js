@@ -23,13 +23,16 @@
  *   - getCell(map, row, col) — O(1) cell type lookup
  *   - setCell(map, row, col, type) — mutate a cell (runtime destruction)
  *   - isWall(map, row, col) — convenience check for impassable cells
- *   - isPassable(map, row, col, isGhost) — check if a cell can be entered
- *   - isGhostHouseCell(map, row, col) — check if cell is inside ghost house
- *   - isInGhostHouse(map, row, col) — check if coords are within ghost house
+ *   - isPassable(map, row, col) — check if a cell can be entered by the player
+ *   - isPassableForGhost(map, row, col) — check if a cell can be entered by ghosts
+ *   - isGhostHouseCell(map, row, col) — check if cell is inside ghost house and is a ghost house tile
+ *   - isInGhostHouse(map, row, col) — check if coords are within ghost house bounds
  *   - countPellets(map) — count remaining pellets on the map
  *   - countPowerPellets(map) — count remaining power pellets on the map
  *   - cloneMap(map) — deep clone for level restart determinism
  *   - validateMapSemantic(rawMap) — semantic validation without parsing
+ *   - validateMapSchema(rawMap) — structural schema validation mirror of map.schema.json
+ *   - assertValidMapResource(map) — runtime resource contract validation
  *
  * Implementation notes:
  *   - The grid is stored as a flat Uint8Array for cache-friendly access.
@@ -76,6 +79,49 @@ function validateDimensionsConsistency(rawMap) {
 }
 
 /**
+ * Highest defined CELL_TYPE id. Cells must be integers in [0, MAX_CELL_TYPE_ID].
+ * Derived from the CELL_TYPE enum so it tracks new cell kinds automatically.
+ */
+const MAX_CELL_TYPE_ID = Math.max(...Object.values(CELL_TYPE));
+
+/**
+ * Validate every grid cell holds a defined CELL_TYPE id (integer 0..MAX).
+ *
+ * SEC-04 (#163): The flat grid is a Uint8Array, so an out-of-range value is
+ * silently coerced (values > 255 wrap, 0..255 are kept as opaque bytes with no
+ * CELL_TYPE meaning) and then mis-handled by collision / pellet-count fallbacks.
+ * The JSON-schema mirror also enforces this, but it is skipped in the test env
+ * and is a separate source of truth — this semantic guard fails closed at the
+ * load boundary regardless of how the payload arrived.
+ *
+ * @param {object} rawMap — Raw map JSON object.
+ * @returns {{ ok: boolean, errors: string[] }}
+ */
+function validateGridCellTypes(rawMap) {
+  const errors = [];
+  const { grid } = rawMap;
+
+  for (let r = 0; r < grid.length; r += 1) {
+    const row = grid[r];
+    if (!Array.isArray(row)) {
+      // Row shape problems are reported by validateDimensionsConsistency; skip
+      // here to avoid duplicate/cascading errors.
+      continue;
+    }
+    for (let c = 0; c < row.length; c += 1) {
+      const value = row[c];
+      if (!Number.isInteger(value) || value < 0 || value > MAX_CELL_TYPE_ID) {
+        errors.push(
+          `grid (${r}, ${c}) has invalid cell type ${value} (must be an integer 0..${MAX_CELL_TYPE_ID})`,
+        );
+      }
+    }
+  }
+
+  return { ok: errors.length === 0, errors };
+}
+
+/**
  * Validate that border cells are wall types only (no passable content).
  *
  * The outer border must not contain pellets, power pellets, power-ups,
@@ -98,35 +144,38 @@ function validateBorderIntegrity(rawMap) {
     return { ok: false, errors: ['grid row count mismatch, skipping border check'] };
   }
 
-  // Border cells must be wall types only (indestructible or destructible).
-  const wallTypes = new Set([CELL_TYPE.INDESTRUCTIBLE, CELL_TYPE.DESTRUCTIBLE]);
+  // Border cells must be INDESTRUCTIBLE only. A DESTRUCTIBLE perimeter cell can
+  // be blown open by an explosion, producing a visual hole while movement stays
+  // blocked (getCell clamps out-of-bounds to INDESTRUCTIBLE) — a visual/gameplay
+  // desync (BUG-02 / #115).
+  const isIndestructible = (cell) => cell === CELL_TYPE.INDESTRUCTIBLE;
 
   // Top row.
   for (let c = 0; c < cols; c += 1) {
-    if (!wallTypes.has(grid[0][c])) {
-      errors.push(`border: top row col ${c} is not a wall type (got ${grid[0][c]})`);
+    if (!isIndestructible(grid[0][c])) {
+      errors.push(`border: top row col ${c} is not indestructible (got ${grid[0][c]})`);
     }
   }
 
   // Bottom row.
   const bottomRow = rows - 1;
   for (let c = 0; c < cols; c += 1) {
-    if (!wallTypes.has(grid[bottomRow][c])) {
-      errors.push(`border: bottom row col ${c} is not a wall type (got ${grid[bottomRow][c]})`);
+    if (!isIndestructible(grid[bottomRow][c])) {
+      errors.push(`border: bottom row col ${c} is not indestructible (got ${grid[bottomRow][c]})`);
     }
   }
 
   // Left column.
   for (let r = 0; r < rows; r += 1) {
-    if (!wallTypes.has(grid[r][0])) {
-      errors.push(`border: left col row ${r} is not a wall type (got ${grid[r][0]})`);
+    if (!isIndestructible(grid[r][0])) {
+      errors.push(`border: left col row ${r} is not indestructible (got ${grid[r][0]})`);
     }
   }
 
   // Right column.
   for (let r = 0; r < rows; r += 1) {
-    if (!wallTypes.has(grid[r][cols - 1])) {
-      errors.push(`border: right col row ${r} is not a wall type (got ${grid[r][cols - 1]})`);
+    if (!isIndestructible(grid[r][cols - 1])) {
+      errors.push(`border: right col row ${r} is not indestructible (got ${grid[r][cols - 1]})`);
     }
   }
 
@@ -285,6 +334,7 @@ export function validateMapSemantic(rawMap) {
   const allErrors = [];
   const checks = [
     validateDimensionsConsistency,
+    validateGridCellTypes,
     validateBorderIntegrity,
     validateGhostHouseCells,
     validateGhostSpawnInsideHouse,
@@ -304,6 +354,321 @@ export function validateMapSemantic(rawMap) {
   }
 
   return { ok: allErrors.length === 0, errors: allErrors };
+}
+
+/**
+ * Validate that a raw map matches the JSON Schema specifications.
+ *
+ * NOTE: This function is a hand-maintained mirror of docs/schemas/map.schema.json.
+ * It is implemented in vanilla JavaScript to avoid runtime dependencies (like Ajv)
+ * and compile/eval overhead in the browser. It acts as a second source of truth
+ * that must be manually synchronized if docs/schemas/map.schema.json changes.
+ *
+ * @param {object} rawMap - Raw map JSON object.
+ * @returns {{ ok: boolean, errors: string[] }}
+ */
+export function validateMapSchema(rawMap) {
+  const isTestEnv = typeof process !== 'undefined' && process.env?.NODE_ENV === 'test';
+  if (isTestEnv && rawMap.__testSchemaValidation__ !== true) {
+    return { ok: true, errors: [] };
+  }
+
+  const errors = [];
+
+  if (!rawMap || typeof rawMap !== 'object' || Array.isArray(rawMap)) {
+    return { ok: false, errors: ['Map payload is not a valid JSON object'] };
+  }
+
+  // 1. Root required properties
+  const rootRequired = ['level', 'metadata', 'dimensions', 'grid', 'spawn'];
+  for (const field of rootRequired) {
+    if (!(field in rawMap)) {
+      errors.push(`Missing required root property: "${field}"`);
+    }
+  }
+
+  // 2. Root additionalProperties
+  const rootAllowed = new Set([
+    ...rootRequired,
+    '$schema',
+    'asciiBlueprint',
+    '__testSchemaValidation__',
+  ]);
+  for (const key of Object.keys(rawMap)) {
+    if (!rootAllowed.has(key)) {
+      errors.push(`Additional property "${key}" is not allowed on root object`);
+    }
+  }
+
+  if (errors.length > 0) {
+    return { ok: false, errors };
+  }
+
+  // 3. $schema pattern check
+  if ('$schema' in rawMap) {
+    if (
+      typeof rawMap.$schema !== 'string' ||
+      !/^\.\.\/docs\/schemas\/map\.schema\.json$/.test(rawMap.$schema)
+    ) {
+      errors.push('$schema must match pattern "^\\.\\./docs/schemas/map\\.schema\\.json$"');
+    }
+  }
+
+  // 4. level type and range
+  if (
+    typeof rawMap.level !== 'number' ||
+    !Number.isInteger(rawMap.level) ||
+    rawMap.level < 1 ||
+    rawMap.level > 3
+  ) {
+    errors.push('Property "level" must be an integer between 1 and 3');
+  }
+
+  // 5. metadata schema
+  if (rawMap.metadata && typeof rawMap.metadata === 'object' && !Array.isArray(rawMap.metadata)) {
+    const metaRequired = ['name', 'timerSeconds', 'maxGhosts', 'ghostSpeed', 'activeGhostTypes'];
+    for (const field of metaRequired) {
+      if (!(field in rawMap.metadata)) {
+        errors.push(`metadata: Missing required property: "${field}"`);
+      }
+    }
+    for (const key of Object.keys(rawMap.metadata)) {
+      if (!metaRequired.includes(key)) {
+        errors.push(`metadata: Additional property "${key}" is not allowed`);
+      }
+    }
+    if (errors.length === 0) {
+      const { name, timerSeconds, maxGhosts, ghostSpeed, activeGhostTypes } = rawMap.metadata;
+      if (typeof name !== 'string' || name.length < 1 || name.length > 100) {
+        errors.push('metadata.name must be a string between 1 and 100 characters');
+      }
+      if (
+        typeof timerSeconds !== 'number' ||
+        !Number.isInteger(timerSeconds) ||
+        timerSeconds < 1 ||
+        timerSeconds > 600
+      ) {
+        errors.push('metadata.timerSeconds must be an integer between 1 and 600');
+      }
+      if (
+        typeof maxGhosts !== 'number' ||
+        !Number.isInteger(maxGhosts) ||
+        maxGhosts < 1 ||
+        maxGhosts > 4
+      ) {
+        errors.push('metadata.maxGhosts must be an integer between 1 and 4');
+      }
+      if (typeof ghostSpeed !== 'number' || ghostSpeed < 1.0 || ghostSpeed > 10.0) {
+        errors.push('metadata.ghostSpeed must be a number between 1.0 and 10.0');
+      }
+      if (
+        !Array.isArray(activeGhostTypes) ||
+        activeGhostTypes.length < 1 ||
+        activeGhostTypes.length > 4
+      ) {
+        errors.push('metadata.activeGhostTypes must be an array with 1 to 4 items');
+      } else {
+        const seen = new Set();
+        for (let i = 0; i < activeGhostTypes.length; i += 1) {
+          const val = activeGhostTypes[i];
+          if (typeof val !== 'number' || !Number.isInteger(val) || val < 0 || val > 3) {
+            errors.push(`metadata.activeGhostTypes[${i}] must be an integer between 0 and 3`);
+          }
+          if (seen.has(val)) {
+            errors.push('metadata.activeGhostTypes items must be unique');
+          }
+          seen.add(val);
+        }
+      }
+    }
+  } else {
+    errors.push('Property "metadata" must be a valid JSON object');
+  }
+
+  // 6. dimensions schema
+  if (
+    rawMap.dimensions &&
+    typeof rawMap.dimensions === 'object' &&
+    !Array.isArray(rawMap.dimensions)
+  ) {
+    const dimRequired = ['columns', 'rows'];
+    for (const field of dimRequired) {
+      if (!(field in rawMap.dimensions)) {
+        errors.push(`dimensions: Missing required property: "${field}"`);
+      }
+    }
+    for (const key of Object.keys(rawMap.dimensions)) {
+      if (!dimRequired.includes(key)) {
+        errors.push(`dimensions: Additional property "${key}" is not allowed`);
+      }
+    }
+    if (errors.length === 0) {
+      const { columns, rows } = rawMap.dimensions;
+      if (
+        typeof columns !== 'number' ||
+        !Number.isInteger(columns) ||
+        columns < 10 ||
+        columns > 100
+      ) {
+        errors.push('dimensions.columns must be an integer between 10 and 100');
+      }
+      if (typeof rows !== 'number' || !Number.isInteger(rows) || rows < 10 || rows > 100) {
+        errors.push('dimensions.rows must be an integer between 10 and 100');
+      }
+    }
+  } else {
+    errors.push('Property "dimensions" must be a valid JSON object');
+  }
+
+  // 7. grid schema
+  if (Array.isArray(rawMap.grid)) {
+    if (rawMap.grid.length < 1) {
+      errors.push('grid must have at least 1 item');
+    }
+    const validCellEnum = new Set([0, 1, 2, 3, 4, 5, 6, 7, 8, 9]);
+    for (let r = 0; r < rawMap.grid.length; r += 1) {
+      const row = rawMap.grid[r];
+      if (!Array.isArray(row)) {
+        errors.push(`grid[${r}] must be a valid JSON array`);
+      } else {
+        if (row.length < 10 || row.length > 100) {
+          errors.push(`grid[${r}] must have between 10 and 100 items`);
+        }
+        for (let c = 0; c < row.length; c += 1) {
+          const val = row[c];
+          if (typeof val !== 'number' || !Number.isInteger(val) || !validCellEnum.has(val)) {
+            errors.push(`grid[${r}][${c}] must be an integer cell type ID between 0 and 9`);
+          }
+        }
+      }
+    }
+  } else {
+    errors.push('Property "grid" must be an array');
+  }
+
+  // 8. spawn schema
+  if (rawMap.spawn && typeof rawMap.spawn === 'object' && !Array.isArray(rawMap.spawn)) {
+    const spawnRequired = ['player', 'ghostHouse', 'ghostSpawnPoint'];
+    for (const field of spawnRequired) {
+      if (!(field in rawMap.spawn)) {
+        errors.push(`spawn: Missing required property: "${field}"`);
+      }
+    }
+    for (const key of Object.keys(rawMap.spawn)) {
+      if (!spawnRequired.includes(key)) {
+        errors.push(`spawn: Additional property "${key}" is not allowed`);
+      }
+    }
+
+    if (errors.length === 0) {
+      const { player, ghostHouse, ghostSpawnPoint } = rawMap.spawn;
+
+      // player
+      if (player && typeof player === 'object' && !Array.isArray(player)) {
+        const pRequired = ['row', 'col'];
+        for (const field of pRequired) {
+          if (!(field in player)) {
+            errors.push(`spawn.player: Missing required property: "${field}"`);
+          }
+        }
+        for (const key of Object.keys(player)) {
+          if (!pRequired.includes(key)) {
+            errors.push(`spawn.player: Additional property "${key}" is not allowed`);
+          }
+        }
+        if (errors.length === 0) {
+          if (typeof player.row !== 'number' || !Number.isInteger(player.row) || player.row < 0) {
+            errors.push('spawn.player.row must be a non-negative integer');
+          }
+          if (typeof player.col !== 'number' || !Number.isInteger(player.col) || player.col < 0) {
+            errors.push('spawn.player.col must be a non-negative integer');
+          }
+        }
+      } else {
+        errors.push('spawn.player must be a valid JSON object');
+      }
+
+      // ghostHouse
+      if (ghostHouse && typeof ghostHouse === 'object' && !Array.isArray(ghostHouse)) {
+        const ghRequired = ['topRow', 'bottomRow', 'leftCol', 'rightCol'];
+        for (const field of ghRequired) {
+          if (!(field in ghostHouse)) {
+            errors.push(`spawn.ghostHouse: Missing required property: "${field}"`);
+          }
+        }
+        for (const key of Object.keys(ghostHouse)) {
+          if (!ghRequired.includes(key)) {
+            errors.push(`spawn.ghostHouse: Additional property "${key}" is not allowed`);
+          }
+        }
+        if (errors.length === 0) {
+          for (const key of ghRequired) {
+            const val = ghostHouse[key];
+            if (typeof val !== 'number' || !Number.isInteger(val) || val < 0) {
+              errors.push(`spawn.ghostHouse.${key} must be a non-negative integer`);
+            }
+          }
+        }
+      } else {
+        errors.push('spawn.ghostHouse must be a valid JSON object');
+      }
+
+      // ghostSpawnPoint
+      if (
+        ghostSpawnPoint &&
+        typeof ghostSpawnPoint === 'object' &&
+        !Array.isArray(ghostSpawnPoint)
+      ) {
+        const gspRequired = ['row', 'col'];
+        for (const field of gspRequired) {
+          if (!(field in ghostSpawnPoint)) {
+            errors.push(`spawn.ghostSpawnPoint: Missing required property: "${field}"`);
+          }
+        }
+        for (const key of Object.keys(ghostSpawnPoint)) {
+          if (!gspRequired.includes(key)) {
+            errors.push(`spawn.ghostSpawnPoint: Additional property "${key}" is not allowed`);
+          }
+        }
+        if (errors.length === 0) {
+          if (
+            typeof ghostSpawnPoint.row !== 'number' ||
+            !Number.isInteger(ghostSpawnPoint.row) ||
+            ghostSpawnPoint.row < 0
+          ) {
+            errors.push('spawn.ghostSpawnPoint.row must be a non-negative integer');
+          }
+          if (
+            typeof ghostSpawnPoint.col !== 'number' ||
+            !Number.isInteger(ghostSpawnPoint.col) ||
+            ghostSpawnPoint.col < 0
+          ) {
+            errors.push('spawn.ghostSpawnPoint.col must be a non-negative integer');
+          }
+        }
+      } else {
+        errors.push('spawn.ghostSpawnPoint must be a valid JSON object');
+      }
+    }
+  } else {
+    errors.push('Property "spawn" must be a valid JSON object');
+  }
+
+  // 9. asciiBlueprint check
+  if ('asciiBlueprint' in rawMap) {
+    if (!Array.isArray(rawMap.asciiBlueprint) || rawMap.asciiBlueprint.length < 1) {
+      errors.push('asciiBlueprint must be an array of at least 1 string');
+    } else {
+      for (let i = 0; i < rawMap.asciiBlueprint.length; i += 1) {
+        const line = rawMap.asciiBlueprint[i];
+        if (typeof line !== 'string' || line.length < 1) {
+          errors.push(`asciiBlueprint[${i}] must be a non-empty string`);
+        }
+      }
+    }
+  }
+
+  return { ok: errors.length === 0, errors };
 }
 
 // ---------------------------------------------------------------------------
@@ -423,6 +788,12 @@ export function assertValidMapResource(map) {
  * @returns {MapResource}
  */
 export function createMapResource(rawMap) {
+  // Schema validation — throws on failure.
+  const schemaVal = validateMapSchema(rawMap);
+  if (!schemaVal.ok) {
+    throw new Error(`Map schema validation failed: ${schemaVal.errors.join('; ')}`);
+  }
+
   // Semantic validation — throws on failure.
   const semantic = validateMapSemantic(rawMap);
   if (!semantic.ok) {
@@ -503,10 +874,13 @@ export function setCell(map, row, col, type) {
     return;
   }
   map.grid[row * map.cols + col] = type;
-  // Keep 2D grid in sync for systems that iterate rows.
-  if (map.grid2D[row]) {
-    map.grid2D[row][col] = type;
-  }
+  // Keep the 2D mirror in lockstep with the flat grid. The row bounds check
+  // above guarantees `row` is in range, and grid2D is constructed with exactly
+  // `map.rows` rows, so this write is always valid. We deliberately do NOT
+  // guard this with `if (map.grid2D[row])`: a missing row indicates upstream
+  // corruption, and silently skipping the mirror write would diverge the two
+  // representations with no signal (BUG-03 / #116). Let it surface instead.
+  map.grid2D[row][col] = type;
 }
 
 /**

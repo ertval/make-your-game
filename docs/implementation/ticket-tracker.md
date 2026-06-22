@@ -58,24 +58,24 @@ All P0 tickets complete. Audit reports published and remediation verified.
 
 ## 🔲 Phase 2 — Playable MVP (P2)
 
-**Status:** In Progress — A-12 (P2 consolidation) remains.
+**Status:** Complete — all P2 tickets done.
 
-- **Audit reports published:** _Pending A-12 completion_
-- **Remediation status:** B-04 ✅, C-02 ✅, C-01 ✅, C-03 ✅, B-05 ✅, A-07 ✅, C-04 ✅, C-05 ✅, C-06 ✅, A-12 ⏳
+- **Audit reports published:** A-12 consolidation complete; per-track P2 fix reports under docs/audit-reports/phase-2/.
+- **Remediation status:** B-04 ✅, C-02 ✅, C-01 ✅, C-03 ✅, B-05 ✅, A-07 ✅, C-04 ✅, C-05 ✅, C-06 ✅, A-12 ✅
 
 ## 🔲 Phase 3 — Feature Complete + Hardening (P3)
 
-**Status:** Not Started — Blocks on P2 completion (A-12).
+**Status:** In Progress — A-13 remains.
 
 - **Audit reports published:** _Pending A-13 completion_
-- **Remediation status:** A-04 ✅, B-06 ⏳, B-07 ⏳, B-08 ⏳, B-09 ⏳, C-07 ✅ (driver), A-05 ⏳, A-06 ⏳, A-08 ⏳, A-13 ⏳
+- **Remediation status:** A-04 ✅, B-06 ✅, B-07 ✅, B-08 ✅, B-09 ✅, C-07 ✅ (driver), A-05 ✅, A-06 ✅, A-08 ✅, A-13 ⏳
 
 ## 🔲 Phase 4 — Polish + Validation (P4)
 
 **Status:** Not Started — Blocks on P3 completion (A-13).
 
 - **Audit reports published:** _Pending A-14 completion_
-- **Remediation status:** C-08 ⏳, C-09 ⏳, C-10 ⏳, D-10 ⏳, D-11 ⏳, A-09 ✅, A-14 ⏳
+- **Remediation status:** C-08 ⏳ (draft: candidate assets shipped + pipeline integration-validated), C-09 ⏳ (implementation complete; A-13 sign-off pending), C-10 ⏳ (implementation complete on PR #219; gated on C-08 + A-13), D-10 ⏳, D-11 ⏳, A-09 ✅, A-14 ⏳
 
 ## 🛣️ Prototype-First Claim Queue (Global)
 
@@ -85,7 +85,7 @@ Use this queue as the default claim order for fastest visual feedback:
 2. **Q1 Visual Prototype First**: D-05, B-02, D-06, D-09, B-03, D-07, D-08
 3. **Q2 Playable MVP Core**: C-03, B-04, C-02, C-01, B-05, C-04, C-05, A-07, C-06
 4. **Q3 Feature Depth + Hardening**: B-06, B-07, B-08, B-09, C-07, A-04, A-05, A-06, A-08
-5. **Q4 Polish + Validation**: C-08, C-09, C-10, D-10, D-11, A-09
+5. **Q4 Polish + Validation**: C-08, C-09, C-10, C-11, D-10, D-11, A-09
 
 Definition of done for Q1 Visual Prototype:
 
@@ -101,7 +101,7 @@ Canonical ticket ID ranges used by policy checks:
 
 - Track A: `A-01` through `A-14` -> **Ownership**: `ekaramet`
 - Track B: `B-01` through `B-09` -> **Ownership**: `asmyrogl`
-- Track C: `C-01` through `C-10` -> **Ownership**: `chbaikas`
+- Track C: `C-01` through `C-11` -> **Ownership**: `chbaikas`
 - Track D: `D-01` through `D-11` -> **Ownership**: `medvall`
 
 ## 📋 Ordered Tickets (Authoritative Claim Order)
@@ -136,11 +136,11 @@ Canonical ticket ID ranges used by policy checks:
 - [x] **C-01** P2 - Scoring System — Runtime-integrated. Collision-driven point awards and the level-clear bonus (`1000 + remainingSeconds × 10`) are live in the default bootstrap via `scoring-system`, with one-shot protection on `scoreState.levelClearBonusAwarded` (re-armed when gameplay returns to PLAYING). Verification: `tests/unit/systems/scoring-system.test.js` + `tests/integration/gameplay/c-01-level-clear-bonus.test.js`. Remaining event-driven scoring scope (explosion events, cross-system event hooks) stays with `B-09` / `C-07` (Depends on: B-04, C-02, D-01, A-11 audit gate, non-blocking) | Blocks: A-05; A-06; A-08; B-09; A-12
 - [x] **C-03** P2 - Spawn System — Implementation complete and within scope. Owns `ghostSpawnState` (absolute stagger timing, FIFO queueing, `mapResource.maxGhosts` cap, `5000ms` respawn). Resource-only by design; ghost-entity creation, AI, and movement are deferred to `B-08 Ghost AI System (Track B, P3)` — not a Track C gap (Depends on: D-01, D-03, A-11 audit gate, non-blocking) | Blocks: A-06; A-08; B-08; A-12
 - [x] **C-04** P2 - Pause & Level Progression Systems — READY_FOR_MAIN: YES. `pause-input-system`, `pause-system`, and `level-progress-system` are registered in the default bootstrap (`meta` + `logic` phases). Pause menu, restart reset/reload, and level-flow advancement are runtime-integrated through the C-05 adapters; covered by `tests/e2e/game-loop.pause.spec.js`, `tests/e2e/c-05-screens-navigation.spec.js`, and `tests/e2e/stress/race-condition.spec.js`. Runtime integration landed in `ekaramet/integration-track-D-C-followups` (Depends on: D-01, D-03, C-02, A-03, A-11 audit gate, non-blocking) | Blocks: A-05; A-06; A-08; B-09; C-05; A-12
-- [x] **C-05** P2 - HUD Adapter & Screen Overlays — READY_FOR_MAIN: YES. `hud-adapter`, `screens-adapter`, and `storage-adapter` are mounted via bootstrap injection slots, with `hud-system` and `screens-system` registered in the default `render` phase. Overlays (start/pause/level-complete/game-over/victory), keyboard-only navigation, focus restore, and validated high-score localStorage reads are live. Verification: `tests/integration/adapters/*`, `tests/integration/gameplay/restart-flow.test.js`, `tests/e2e/c-05-screens-navigation.spec.js`, and `tests/e2e/track-c-integration.spec.js`. Runtime integration landed in `ekaramet/integration-track-D-C-followups` (Depends on: D-05, C-02, C-04, A-11 audit gate, non-blocking) | Blocks: A-05; A-06; A-08; D-11; A-12
+- [x] **C-05** P2 - HUD Adapter & Screen Overlays — READY_FOR_MAIN: YES. `hud-adapter`, `screens-adapter`, and `storage-adapter` are mounted via bootstrap injection slots. Per ARCH-01 (DOM isolation), the HUD is split into a DOM-free `hud-system` producer in the `logic` phase (writes the `hudState` buffer) and a `hud-render-system` consumer in the `render` phase (the sole HUD→DOM boundary, delegating to `hud-adapter`); `screens-system` is registered in the default `render` phase. Overlays (start/pause/level-complete/game-over/victory), keyboard-only navigation, focus restore, and validated high-score localStorage reads are live. Verification: `tests/integration/adapters/*`, `tests/integration/gameplay/restart-flow.test.js`, `tests/e2e/c-05-screens-navigation.spec.js`, and `tests/e2e/track-c-integration.spec.js`. Runtime integration landed in `ekaramet/integration-track-D-C-followups` (Depends on: D-05, C-02, C-04, A-11 audit gate, non-blocking) | Blocks: A-05; A-06; A-08; D-11; A-12
 - [x] **B-05** P2 - Core Gameplay Event Surface (Depends on: B-04, D-01, A-11) | Blocks: A-08; B-09; A-12
 - [x] **A-07** P2 - CI, Schema Validation & Asset Gates (Depends on: A-01, D-03, A-11) | Blocks: A-09, C-10, D-11, A-12
 - [x] **C-06** P2 - Audio Adapter Implementation — Adapter contract complete. `src/adapters/io/audio-adapter.js` owns the Web Audio boundary (autoplay-safe AudioContext unlock on first `pointerdown`/`keydown`, `decodeAudioData` pre-decode + cached `AudioBuffer`s, master/music/sfx/ui gain graph, BufferSource-per-playback for overlapping SFX, missing-clip warn-and-no-op, `visibilitychange` suspend/resume). The adapter docstring specifies that ECS systems MUST consume it via `world.getResource('audio')` and MUST NOT import the module directly. Verification: `tests/integration/adapters/audio-adapter.test.js` (30 deterministic tests across decode flow, buffer caching, overlapping playback, missing-clip fallback, visibility lifecycle, gain updates, music replacement, failed-fetch resilience). Runtime wiring (bootstrap `setAudioAdapter` slot, manifest module, level-load preload, app-boundary construction in `main.ecs.js`) is delivered by a separate Track A integration PR (`ekaramet/integration-track-C-audio-wiring`) because those files are out of Track C ownership scope (Depends on: A-01, D-01, A-11 audit gate, non-blocking) | Blocks: C-07; C-08; C-09; A-12
-- [ ] **A-12** P2 - Consolidate P2 audits + publish 4 deduplicated track fix reports (Depends on: B-04, C-02, C-01, C-03, C-04, C-05, B-05, A-07, C-06) | Blocks: B-06; B-07; B-08; B-09; C-07; A-04; A-05; A-06; A-08
+- [x] **A-12** P2 - Consolidate P2 audits + publish 4 deduplicated track fix reports (Depends on: B-04, C-02, C-01, C-03, C-04, C-05, B-05, A-07, C-06) | Blocks: B-06; B-07; B-08; B-09; C-07; A-04; A-05; A-06; A-08
 
 ### Q3 / P3 Feature Complete + Hardening
 
@@ -150,18 +150,19 @@ Canonical ticket ID ranges used by policy checks:
 - [x] **B-09** P3 - Cross-System Gameplay Event Hooks (Depends on: B-05, B-06, B-08, C-01, C-02, C-04, D-01, A-12) | Blocks: A-05; A-06; A-08; C-07; A-13
 - [x] **C-07** P3 - Audio Cue Mapping & Runtime Integration — Driver contract complete. `src/adapters/io/audio-integration.js` ships the canonical `AUDIO_CUE_MAPPING` event→cue table (11 mappings: `BombPlaced`, `BombDetonated`, `PelletCollected`, `PowerPelletCollected`, `PowerUpCollected`, `LifeLost`, `GhostDefeated`, `GhostStunned`, `LevelCleared`, `GameOver`, `Victory`), the `MUSIC_STATE_MAPPING` game-state→track table, and `createAudioCueRunner({ warnUnknownEvents })` factory. The runner drains the D-01 event queue each tick in deterministic `(frame, order)` sequence, dispatches `audio.playSfx(cueId)` for every mapped event (overlapping playback supported via BufferSource-per-call from C-06), and debounces music transitions across `MENU / PLAYING / PAUSED / LEVEL_COMPLETE / GAME_OVER / VICTORY`. Unknown events warn once per type in dev and drop in production; adapter errors are isolated so the game loop survives. Verification: `tests/integration/adapters/audio-integration.test.js` (20 deterministic tests across mapping coverage, queue-order, overlapping playback, music-state debounce, terminal transitions, malformed events, pre-wiring no-op). Runtime system registration (thin wrapper that resolves world resources and forwards to `runner.tick`) is delivered by the same Track A integration handoff PR that wires C-06's `setAudioAdapter` — out of Track C ownership scope per `scripts/policy-gate/lib/policy-utils.mjs`. Forward-compatible: `LifeLost`, `GhostDefeated`, `GhostStunned`, `LevelCleared`, `GameOver`, `Victory` events depend on `B-09` event emitters before they reach the runner at runtime (Depends on: B-09, C-06, A-12) | Blocks: A-08; A-13
 - [x] **A-04** P3 - Unit Tests - ECS Core & Resources (Depends on: A-02, A-03, D-01, D-03, A-12; Early pull reason: foundational regression gate landed ahead of phase gate) | Blocks: A-13
-- [ ] **A-05** P3 - Integration Tests - Multi-System & Adapter Boundaries (Depends on: A-03, B-03, B-04, B-06, B-09, C-01, C-02, C-04, C-05, D-08, A-12) | Blocks: A-09; A-13
-- [ ] **A-06** P3 - E2E Audit Tests (Playwright) (Depends on: A-03, B-04, B-06, B-07, B-08, B-09, C-01, C-02, C-03, C-04, C-05, A-12) | Blocks: A-09; A-13
-- [ ] **A-08** P3 - Unit Tests - All Gameplay Systems (Depends on: B-01 through B-09, C-01 through C-05, C-07, A-12) | Blocks: A-09; A-13
+- [x] **A-05** P3 - Integration Tests - Multi-System & Adapter Boundaries (Depends on: A-03, B-03, B-04, B-06, B-09, C-01, C-02, C-04, C-05, D-08, A-12) | Blocks: A-09; A-13
+- [x] **A-06** P3 - E2E Audit Tests (Playwright) (Depends on: A-03, B-04, B-06, B-07, B-08, B-09, C-01, C-02, C-03, C-04, C-05, A-12) | Blocks: A-09; A-13
+- [x] **A-08** P3 - Unit Tests - All Gameplay Systems (Depends on: B-01 through B-09, C-01 through C-05, C-07, A-12) | Blocks: A-09; A-13
 - [ ] **A-13** P3 - Consolidate P3 audits + publish 4 deduplicated track fix reports (Depends on: B-06, B-07, B-08, B-09, C-07, A-04, A-05, A-06, A-08) | Blocks: C-08; C-09; C-10; D-10; D-11; A-09
 
 ### Q4 / P4 Polish + Validation
 
-- [ ] **C-08** P4 - Sound Effects & Music Production (Depends on: C-06, A-13) | Blocks: C-09; C-10; A-14
-- [ ] **C-09** P4 - Audio Preloading & Performance (Depends on: C-06, C-08, A-13) | Blocks: A-09; A-14
-- [ ] **C-10** P4 - Audio Manifest Schema & Validation (Depends on: C-08, A-07, A-13) | Blocks: A-14
+- [ ] **C-08** P4 - Sound Effects & Music Production — Draft / integration-validated on `chbaikas/integration-C-08`. 11 SFX + 1 loop-safe music track shipped under `assets/generated/{sfx,music}/` and registered in `assets/manifests/audio-manifest.json`; full audio pipeline (C-06 adapter → C-07 cue runner → C-08 assets) exercised end-to-end in the bootstrap loop and `npm run validate:schema` passes. NOT yet closed: remaining SFX set (chain-reaction, power-up-collect, speed-boost-off, ghost-stun/return, player-respawn, menu-navigate, cancel, pause open/close, game-over sting, victory fanfare), loudness-normalization sign-off, and the `A-13` P3 gate. Format is **MP3-only** — the C-10 manifest gate accepts only `format: "mp3"`, so any non-mp3 (`.ogg`/`.m4a`) variant is out of scope unless the schema and runtime decoder are expanded together. PR message: `docs/pr-messages/C-08-sound-effects-music-production-pr.md` (Depends on: C-06, A-13) | Blocks: C-09; C-10; A-14
+- [-] **C-09** P4 - Audio Preloading & Performance — (1) Preloading infrastructure: `preloadAudioAssets(cueIds, options)` async pre-decodes gameplay-critical SFX (`fetch → arrayBuffer → decodeAudioData`) in parallel into the existing buffer cache, reuses already-decoded buffers, deduplicates concurrent/duplicate requests via an in-flight map, and tolerates decode failures (warn, no crash). Music/ambience are excluded — only `sfx`-category cues are candidates. (2) Loading-state integration: `preloadWithIndicator` (in `audio-integration.js`) times the preload and shows the `audio-loading-indicator` DOM adapter only when it exceeds the 200ms threshold (no flicker for fast loads), hiding it the instant the preload settles; wired at the app boundary in `main.ecs.js` from a single audio-manifest fetch (critical-SFX = `sfx` + `critical:true`). No ECS→DOM coupling; the adapter is not imported into ECS systems; `pointer-events:none` so input is never blocked. (3) Performance timing evidence: `preloadAudioAssets` records real `performance.now()` fetch/decode/total durations + cache-hit/miss/fail counts, exposed via the adapter-boundary `getPreloadStats()` (no ECS access to browser APIs); `main.ecs.js` logs the snapshot after preload. Evidence artifact: `docs/audit-reports/evidence/AUDIT-B-05.preload-timing.md` (async preload/decode timing summary, cache statistics, and non-blocking proof). Verification: `tests/integration/adapters/audio-adapter.test.js` (preload + instrumentation suites: real timing population, cache-hit/miss/fail accounting, async non-blocking, immutable snapshot), `tests/integration/adapters/audio-loading-indicator.test.js` (indicator + orchestrator), `tests/e2e/c-09-audio-loading-indicator.spec.js` (browser fast-vs-slow loading-state). All three C-09 deliverables implemented; final A-13 P3 audit-gate sign-off remains (Depends on: C-06, C-08, A-13) | Blocks: A-09; A-14
+- [-] **C-10** P4 - Audio Manifest Schema & Validation — Implementation complete on `chbaikas/integration-C-10` (PR #219). Strict JSON Schema 2020-12 at `docs/schemas/audio-manifest.schema.json`: required `id`/`path`/`category`/`format`/`durationMs`/`critical`/`loop`, optional `channels`/`sampleRateHz`/`loudnessLufs`/`maxBytes`/`notes`, `additionalProperties:false` at manifest + per-asset level, and `format`/`path`-extension constrained to the project-supported `mp3` (no fallback decoder ships). `assets/manifests/audio-manifest.json` registers all 12 shipped C-08 clips (10 critical SFX, 1 looping music `critical:false`, 1 UI), every path present on disk. Validation wired into CI via `scripts/validate-schema.mjs` + `npm run validate:schema` (also in `npm run ci`): schema shape, on-disk file existence, kebab-case naming, `maxBytes` budgets, and a new fail-closed `DUPLICATE_ID` semantic gate (JSON Schema can't express uniqueness on a derived key). Verification: `tests/integration/gameplay/c-10-audio-manifest-schema.test.js` drives the real validator as a subprocess (real manifest passes; missing required field, invalid category, non-mp3 format, out-of-tree path, non-positive `durationMs`, non-boolean `critical`, unknown field, duplicate `id`, and missing asset file all fail closed). NOT yet closed: final A-13 P3 audit-gate sign-off and C-08 closure remain. PR message: `docs/pr-messages/C-10-audio-manifest-schema-validation-pr.md` (Depends on: C-08, A-07, A-13) | Blocks: A-14
+- [x] **C-11** P4 - Audio Settings Persistence, Settings Overlay & Fuse Sequencing — Complete on `chbaikas/integration-C-11`. Three sub-features: (C-11A) `storage-adapter` extended with persisted `getAudioSettings`/`saveAudioSettings`/`updateAudioSetting` and `applyAudioSettings` added to `audio-integration.js`; (C-11B) Settings overlay in `screens-adapter` (open from Start/Pause, Back nav, keyboard-only, accessible toggle+slider controls) and new `screens-audio-toggle.js` (always-visible top-right music/sfx quick-toggle, `aria-pressed`-driven); (C-11C) `fuseLoopDelay` option in `createAudioCueRunner` (default 310 ms) so `bomb-place.mp3` finishes before the fuse loop starts, with no change to the stop path. PR message: `docs/pr-messages/C-11-audio-settings-fuse-sequencing-pr.md` (Depends on: C-06, C-07, C-08) | Blocks: None
 - [x] **D-10** P4 - Visual Asset Production - Gameplay Sprites (Depends on: D-06, D-08, A-13) | Blocks: D-11; A-14
-- [ ] **D-11** P4 - Visual Assets (UI & Screens) + Visual Manifest & Validation (Depends on: C-05, D-10, A-07, A-13) | Blocks: A-09; A-14
+- [x] **D-11** P4 - Visual Assets (UI & Screens) + Visual Manifest & Validation (Depends on: C-05, D-10, A-07, A-13) | Blocks: A-09; A-14
 - [x] **A-09** P4 - Evidence Aggregation & Final QA Polish (Depends on: A-05, A-06, A-07, A-08, C-09, D-11, A-13) | Blocks: A-14
 - [ ] **A-14** P4 - Consolidate P4 audits + publish 4 deduplicated track fix reports (Depends on: C-08, C-09, C-10, D-10, D-11, A-09) | Blocks: None
 

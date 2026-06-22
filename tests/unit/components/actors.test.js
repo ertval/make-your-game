@@ -142,6 +142,26 @@ describe('actor component stores', () => {
     expect(store.speed[untouchedEntityId]).toBe(2.0);
   });
 
+  it('zeros every ghost field including timerMs so no stun timer leaks across respawn', () => {
+    // BUG-18 guard: resetGhost is the respawn entry point, so it MUST clear every
+    // field. A non-zero timerMs surviving here would let a prior STUNNED timer
+    // leak into the freshly respawned ghost and prematurely flip its state.
+    const store = createGhostStore(4);
+    const entityId = 2;
+
+    store.type[entityId] = GHOST_TYPE.PINKY;
+    store.state[entityId] = GHOST_STATE.STUNNED;
+    store.timerMs[entityId] = 3300;
+    store.speed[entityId] = 6.0;
+
+    resetGhost(store, entityId);
+
+    expect(store.type[entityId]).toBe(UNASSIGNED_GHOST_TYPE);
+    expect(store.state[entityId]).toBe(GHOST_STATE.NORMAL);
+    expect(store.timerMs[entityId]).toBe(0);
+    expect(store.speed[entityId]).toBe(0);
+  });
+
   it('creates an input-state store with one byte flag per input', () => {
     const maxEntities = 3;
     const store = createInputStateStore(maxEntities);

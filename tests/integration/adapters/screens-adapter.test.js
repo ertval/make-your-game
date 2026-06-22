@@ -66,7 +66,7 @@ function getOptionActions(screenKey, optionCount) {
     gameOver: ['gameover-play-again'],
     levelComplete: ['level-next'],
     pause: ['pause-continue', 'pause-restart'],
-    start: ['start-primary', 'start-secondary'],
+    start: ['start-primary', 'open-high-scores'],
     victory: ['victory-play-again'],
   };
 
@@ -365,7 +365,12 @@ describe('screens-adapter', () => {
     triggerKeydown('ArrowDown');
     triggerKeydown('Enter');
 
-    expect(actions).toEqual(['start-secondary']);
+    // The second start option is "open-high-scores", an overlay-to-overlay
+    // action handled inside the adapter (like Settings). It is NOT forwarded to
+    // onAction, and crucially never triggers the pause resume/restart callbacks.
+    expect(actions).not.toContain('resume-callback');
+    expect(actions).not.toContain('restart-callback');
+    expect(actions).toEqual([]);
   });
 
   it('restores the previous selected option when the same screen reopens', () => {

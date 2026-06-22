@@ -20,7 +20,6 @@ import { createHealthStore } from '../../../src/ecs/components/stats.js';
 import { CELL_TYPE, GHOST_STATE } from '../../../src/ecs/resources/constants.js';
 import { createEventQueue, drain } from '../../../src/ecs/resources/event-queue.js';
 import { createMapResource, getCell } from '../../../src/ecs/resources/map-resource.js';
-import { readEntityTile } from '../../../src/ecs/shared/tile-utils.js';
 import {
   emitGameplayEvent,
   GAMEPLAY_EVENT_SOURCE,
@@ -40,6 +39,7 @@ import {
   tileToCellIndex,
 } from '../../../src/ecs/systems/collision-system.js';
 import { World } from '../../../src/ecs/world/world.js';
+import { readEntityTile } from '../../../src/shared/tile-utils.js';
 
 /**
  * Build a compact valid map for collision-system unit tests.
@@ -205,6 +205,27 @@ function addCollisionEntity(world, positionStore, colliderStore, colliderType, r
   return entity;
 }
 
+/**
+ * Mark a set of cell indices dirty on a scratch buffer for reset tests.
+ *
+ * The production write helpers record dirtiness internally; this mirrors that
+ * bookkeeping so unit tests that poke scratch lanes directly can exercise the
+ * same dirty-tracked reset path without exporting the internal mark helper.
+ *
+ * @param {object} scratch - Scratch buffer from createCollisionScratch.
+ * @param {number[]} cellIndices - Cells to record as touched this step.
+ */
+function markScratchCellsDirty(scratch, cellIndices) {
+  for (const cellIndex of cellIndices) {
+    if (scratch.dirtySeen[cellIndex] === 1) {
+      continue;
+    }
+    scratch.dirtySeen[cellIndex] = 1;
+    scratch.dirtyCells[scratch.dirtyCount] = cellIndex;
+    scratch.dirtyCount += 1;
+  }
+}
+
 describe('collision-system contract', () => {
   it('registers as a logic-phase system so it can run after movement', () => {
     const system = createCollisionSystem();
@@ -229,6 +250,7 @@ describe('collision-system contract', () => {
       'ghost',
       'collisionIntents',
       'eventQueue',
+      'bombCellOccupancy',
     ]);
   });
 });
@@ -369,6 +391,10 @@ describe('collision-system helpers', () => {
     scratch.fireByCell[2] = 9;
     scratch.ghostCounts[3] = 2;
     scratch.ghostIds[4] = 10;
+    // BUG-06: reset restores only cells recorded as dirty during the step. The
+    // production write helpers mark cells as they touch lanes; mirror that here
+    // (cells 0-3, plus cell 2 owning ghostIds slot 4 under maxGhostsPerCell=2).
+    markScratchCellsDirty(scratch, [0, 1, 2, 3]);
 
     const returnedScratch = resetCollisionScratch(scratch);
 
@@ -379,6 +405,37 @@ describe('collision-system helpers', () => {
     expect([...scratch.fireByCell]).toEqual([-1, -1, -1, -1]);
     expect([...scratch.ghostCounts]).toEqual([0, 0, 0, 0]);
     expect([...scratch.ghostIds]).toEqual([-1, -1, -1, -1, -1, -1, -1, -1]);
+  });
+
+  it('restores only touched cells and leaves untouched cells untouched after reset', () => {
+    const scratch = createCollisionScratch(4, 2);
+
+    // Touch only cell 1: every lane for that cell gets a non-sentinel value.
+    scratch.playerByCell[1] = 5;
+    scratch.bombByCell[1] = 6;
+    scratch.droppedBombByCell[1] = 6;
+    scratch.fireByCell[1] = 7;
+    scratch.ghostCounts[1] = 1;
+    scratch.ghostIds[1 * 2 + 0] = 8;
+    markScratchCellsDirty(scratch, [1]);
+
+    // Stamp a sentinel-violating value on an UNtouched cell to prove the reset
+    // does not blanket-fill: a full .fill() would wipe this, dirty-tracking won't.
+    scratch.playerByCell[3] = 99;
+
+    resetCollisionScratch(scratch);
+
+    // Touched cell 1 is back to full-fill sentinels.
+    expect(scratch.playerByCell[1]).toBe(-1);
+    expect(scratch.bombByCell[1]).toBe(-1);
+    expect(scratch.droppedBombByCell[1]).toBe(-1);
+    expect(scratch.fireByCell[1]).toBe(-1);
+    expect(scratch.ghostCounts[1]).toBe(0);
+    expect(scratch.ghostIds[1 * 2 + 0]).toBe(-1);
+    // Untouched cell 3 keeps its value because reset skipped it; this proves the
+    // O(dirty) reset never paid for the untouched cells.
+    expect(scratch.playerByCell[3]).toBe(99);
+    expect(scratch.dirtyCount).toBe(0);
   });
 
   it('clears an injected collision intent array in place', () => {
@@ -955,6 +1012,36 @@ describe('collision-system update shell', () => {
       },
     ]);
     expect(ghostStore.state[ghost.id]).toBe(GHOST_STATE.DEAD);
+  });
+
+  it('fire-kill clears a stunned ghost stun timer when marking it dead', () => {
+    // BUG-18: a STUNNED ghost carries a non-zero timerMs. When fire kills it the
+    // timer MUST be cleared so the leftover stun countdown cannot leak across the
+    // DEAD → respawn transition and prematurely revive the ghost to a live state.
+    const { colliderStore, ghostStore, positionStore, system, world } = createCollisionHarness([
+      [1, 2, CELL_TYPE.EMPTY],
+    ]);
+
+    const ghost = addCollisionEntity(
+      world,
+      positionStore,
+      colliderStore,
+      COLLIDER_TYPE.GHOST,
+      1,
+      2,
+    );
+    ghostStore.state[ghost.id] = GHOST_STATE.STUNNED;
+    ghostStore.timerMs[ghost.id] = 4200;
+    addCollisionEntity(world, positionStore, colliderStore, COLLIDER_TYPE.FIRE, 1, 2);
+
+    system.update({
+      dtMs: 16.6667,
+      frame: 0,
+      world,
+    });
+
+    expect(ghostStore.state[ghost.id]).toBe(GHOST_STATE.DEAD);
+    expect(ghostStore.timerMs[ghost.id]).toBe(0);
   });
 
   it('ignores dead ghosts when fire occupies the same tile', () => {
@@ -1634,5 +1721,25 @@ describe('collision-system update shell', () => {
 
     expect(positionStore.row[ghost.id]).toBe(1);
     expect(positionStore.col[ghost.id]).toBe(2);
+  });
+
+  it('populates bombCellOccupancy Set with flat cell indices of active bombs', () => {
+    const { colliderStore, positionStore, system, world } = createCollisionHarness();
+    const bombCellOccupancy = new Set();
+    world.setResource('bombCellOccupancy', bombCellOccupancy);
+
+    // Place a bomb at (1, 2)
+    addCollisionEntity(world, positionStore, colliderStore, COLLIDER_TYPE.BOMB, 1, 2);
+
+    system.update({
+      dtMs: 16.6667,
+      frame: 0,
+      world,
+    });
+
+    const mapResource = world.getResource('mapResource');
+    const expectedCellIndex = 1 * mapResource.cols + 2;
+    expect(bombCellOccupancy.has(expectedCellIndex)).toBe(true);
+    expect(bombCellOccupancy.size).toBe(1);
   });
 });

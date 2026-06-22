@@ -15,16 +15,31 @@
       "minItems": 1,
       "items": {
         "type": "object",
-        "required": ["id", "path", "kind", "format", "width", "height", "tags", "critical"],
+        "required": [
+          "id",
+          "path",
+          "kind",
+          "format",
+          "width",
+          "height",
+          "tags",
+          "critical",
+          "className"
+        ],
         "additionalProperties": false,
         "properties": {
           "id": {
             "type": "string",
             "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$"
           },
+          "className": {
+            "description": "CSS class the renderer applies for this asset (sprite--*/cell-*), or null when the asset is produced but not yet bound to a dedicated render class. See docs/implementation/assets-pipeline.md § Manifest → renderable mapping.",
+            "type": ["string", "null"],
+            "pattern": "^(sprite--|cell-)[a-z0-9-]+$"
+          },
           "path": {
             "type": "string",
-            "pattern": "^(assets/)?generated/(sprites|ui|tiles|effects)/[a-z0-9][a-z0-9-]*\\.(svg|png|webp)$"
+            "pattern": "^(assets/)?generated/(?:(?:sprites|ui|tiles|effects)|visuals/(?:128px|256px|512px)/(?:characters|enemies|environment|items|effects|ui))/[a-z0-9][a-z0-9-]*\\.(svg|png|webp)$"
           },
           "kind": {
             "type": "string",

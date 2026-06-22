@@ -6,14 +6,16 @@
  * the eyes-return path, and seeded determinism of repeated steps.
  */
 
+import { readFileSync } from 'node:fs';
+import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
-
 import { createGhostStore, createPlayerStore } from '../../../src/ecs/components/actors.js';
 import { COMPONENT_MASK } from '../../../src/ecs/components/registry.js';
 import { createPositionStore, createVelocityStore } from '../../../src/ecs/components/spatial.js';
 import {
   CLYDE_DISTANCE_THRESHOLD,
   FIXED_DT_MS,
+  GHOST_DEFAULT_SPEED,
   GHOST_STATE,
   GHOST_STUNNED_SPEED,
   GHOST_TYPE,
@@ -27,15 +29,24 @@ import {
   computeInkyTarget,
   computePinkyTarget,
   createGhostAiSystem,
+  findBlinkyTile,
   GHOST_AI_DIRECTIONS,
   GHOST_AI_REQUIRED_MASK,
   GHOST_DIRECTION_VECTOR,
   resolveGhostSpeed,
   resolveGhostTargetTile,
+  selectDeadGhostReturnDirection,
   selectGhostDirection,
   vectorToDirection,
 } from '../../../src/ecs/systems/ghost-ai-system.js';
 import { World } from '../../../src/ecs/world/world.js';
+
+const LEVEL_1_MAP = JSON.parse(
+  readFileSync(
+    fileURLToPath(new URL('../../../assets/maps/level-1.json', import.meta.url)),
+    'utf8',
+  ),
+);
 
 function createGhostMap() {
   return {
@@ -342,6 +353,28 @@ describe('ghost-ai-system: direction selection', () => {
     expect(direction).not.toBe('left');
   });
 
+  it('treats an empty array bomb-occupancy resource as registered-but-empty (no avoidance, no throw)', () => {
+    // Defensive contract: readBombOccupancyCells must return an empty Set
+    // (not null) for an empty array so the AI can distinguish "resource
+    // registered but no bombs" from "resource not registered" (null). Both
+    // branches result in the same AI behavior (no avoidance) but the null
+    // branch silently disables the lookup, which complicates future debugging.
+    const mapResource = createMapResource(createGhostMap());
+    // All four cardinal neighbors of (1,4) are passable: up=wall(0,4), down=(2,4), left=(1,3), right=(1,5).
+    // The bomb array is empty so the AI picks the closest to target.
+    const direction = selectGhostDirection({
+      ghostTile: { row: 1, col: 4 },
+      targetTile: { row: 1, col: 1 },
+      state: GHOST_STATE.NORMAL,
+      previousVector: null,
+      mapResource,
+      bombCells: new Set(), // equivalent post-parse state of an empty array
+      prefersDistance: false,
+    });
+    // With no previous vector and target (1,1), closest non-reverse direction is 'left'.
+    expect(direction).toBe('left');
+  });
+
   it('vectorToDirection inverts cleanly', () => {
     expect(vectorToDirection(-1, 0)).toBe('up');
     expect(vectorToDirection(1, 0)).toBe('down');
@@ -367,6 +400,63 @@ describe('ghost-ai-system: speed resolution', () => {
 
     ghostStore.speed[0] = 0;
     expect(resolveGhostSpeed(ghostStore, 0, { ghostSpeed: 4.0 })).toBe(4.0);
+  });
+
+  it('fallback speed keeps ghost moving when stored and map speed are missing/non-positive (BUG-17)', () => {
+    // Terminal fallback: when neither the per-entity speed nor the map ghost
+    // speed yields a positive number, resolveGhostSpeed must return the safety
+    // default so the movement guard (speed > 0) never freezes the ghost.
+    const ghostStore = createGhostStore(4);
+    ghostStore.state[0] = GHOST_STATE.NORMAL;
+    ghostStore.speed[0] = 0; // no per-entity speed configured
+
+    expect(resolveGhostSpeed(ghostStore, 0, {})).toBe(GHOST_DEFAULT_SPEED);
+    expect(resolveGhostSpeed(ghostStore, 0, { ghostSpeed: 0 })).toBe(GHOST_DEFAULT_SPEED);
+    expect(resolveGhostSpeed(ghostStore, 0, { ghostSpeed: -1 })).toBe(GHOST_DEFAULT_SPEED);
+    expect(resolveGhostSpeed(ghostStore, 0, { ghostSpeed: Number.NaN })).toBe(GHOST_DEFAULT_SPEED);
+    // A null map resource (resource not registered) must also fall back safely.
+    expect(resolveGhostSpeed(ghostStore, 0, null)).toBe(GHOST_DEFAULT_SPEED);
+  });
+
+  it('stunned ghosts still use stunned speed even when no positive speed is configured', () => {
+    // The terminal default must NOT override the stunned-speed precedence.
+    const ghostStore = createGhostStore(4);
+    ghostStore.state[0] = GHOST_STATE.STUNNED;
+    ghostStore.speed[0] = 0;
+    expect(resolveGhostSpeed(ghostStore, 0, {})).toBe(GHOST_STUNNED_SPEED);
+  });
+});
+
+describe('ghost-ai-system: findBlinkyTile (BUG-22)', () => {
+  it('returns the BLINKY tile when a BLINKY ghost is present', () => {
+    const ghostStore = createGhostStore(4);
+    const positionStore = createPositionStore(4);
+    // Two ghosts: id 0 is Pinky, id 1 is Blinky at (3, 7).
+    ghostStore.type[0] = GHOST_TYPE.PINKY;
+    ghostStore.type[1] = GHOST_TYPE.BLINKY;
+    positionStore.row[1] = 3;
+    positionStore.col[1] = 7;
+    positionStore.targetRow[1] = 3;
+    positionStore.targetCol[1] = 7;
+
+    const reusable = { row: 0, col: 0 };
+    expect(findBlinkyTile(ghostStore, positionStore, [0, 1], reusable)).toEqual({ row: 3, col: 7 });
+  });
+
+  it('returns null when no BLINKY entity is present', () => {
+    const ghostStore = createGhostStore(4);
+    const positionStore = createPositionStore(4);
+    // Only non-Blinky ghosts are active.
+    ghostStore.type[0] = GHOST_TYPE.PINKY;
+    ghostStore.type[1] = GHOST_TYPE.INKY;
+
+    const reusable = { row: 0, col: 0 };
+    expect(findBlinkyTile(ghostStore, positionStore, [0, 1], reusable)).toBeNull();
+  });
+
+  it('returns null when the ghost store is missing', () => {
+    const positionStore = createPositionStore(4);
+    expect(findBlinkyTile(null, positionStore, [0], { row: 0, col: 0 })).toBeNull();
   });
 });
 
@@ -574,5 +664,245 @@ describe('ghost-ai-system: integration', () => {
   it('exposes a stable iteration order for tie-breaking', () => {
     expect(GHOST_AI_DIRECTIONS).toEqual(['up', 'left', 'down', 'right']);
     expect(GHOST_DIRECTION_VECTOR.up).toEqual({ rowDelta: -1, colDelta: 0 });
+  });
+
+  it('released-set scratch reuse does not leak state across consecutive frames (BUG-10)', () => {
+    // The released-ghost lookup uses a module-level scratch Set that is cleared
+    // and refilled each frame. Two consecutive frames with the SAME released set
+    // must produce identical results, proving the scratch reuse never retains a
+    // stale membership across frames.
+    const buildScenario = () => {
+      const harness = createGhostHarness({ ghostCount: 1 });
+      const ghostId = harness.ghostHandles[0].id;
+      placeGhost(
+        harness.positionStore,
+        ghostId,
+        harness.mapResource.ghostSpawnRow,
+        harness.mapResource.ghostSpawnCol,
+      );
+      harness.ghostStore.type[ghostId] = GHOST_TYPE.BLINKY;
+      harness.ghostStore.state[ghostId] = GHOST_STATE.DEAD;
+      harness.ghostStore.speed[ghostId] = 4.0;
+      harness.world.setResource('ghostSpawnState', {
+        elapsedMs: 0,
+        releasedGhostIds: [ghostId],
+        queuedGhostIds: [],
+        respawnQueue: [],
+        activeGhostCap: 4,
+      });
+      return { harness, ghostId };
+    };
+
+    // Run the SAME released set twice on two independent worlds; the first tick
+    // of each must revive the DEAD ghost to NORMAL identically.
+    const a = buildScenario();
+    const systemA = createGhostAiSystem();
+    runUpdate(systemA, a.harness.world, { dtMs: FIXED_DT_MS, frame: 0 });
+    runUpdate(systemA, a.harness.world, { dtMs: FIXED_DT_MS, frame: 1 });
+
+    const b = buildScenario();
+    const systemB = createGhostAiSystem();
+    runUpdate(systemB, b.harness.world, { dtMs: FIXED_DT_MS, frame: 0 });
+    runUpdate(systemB, b.harness.world, { dtMs: FIXED_DT_MS, frame: 1 });
+
+    expect(a.harness.ghostStore.state[a.ghostId]).toBe(b.harness.ghostStore.state[b.ghostId]);
+    expect(a.harness.ghostStore.state[a.ghostId]).toBe(GHOST_STATE.NORMAL);
+  });
+
+  it('an empty released set on a later frame does not revive ghosts from a prior frame (BUG-10)', () => {
+    // Regression guard for the scratch-set fix: frame 1 supplies a released set
+    // containing the ghost (revives it), frame 2 supplies an EMPTY released set.
+    // If the scratch set leaked frame-1 membership into frame 2, a freshly-DEAD
+    // ghost at spawn would be wrongly revived. We assert the cleared scratch is
+    // honored each frame.
+    const { world, ghostStore, positionStore, mapResource, ghostHandles } = createGhostHarness({
+      ghostCount: 1,
+    });
+    const ghostId = ghostHandles[0].id;
+    placeGhost(positionStore, ghostId, mapResource.ghostSpawnRow, mapResource.ghostSpawnCol);
+    ghostStore.type[ghostId] = GHOST_TYPE.BLINKY;
+    ghostStore.state[ghostId] = GHOST_STATE.DEAD;
+    ghostStore.speed[ghostId] = 4.0;
+
+    const spawnState = {
+      elapsedMs: 0,
+      releasedGhostIds: [ghostId],
+      queuedGhostIds: [],
+      respawnQueue: [],
+      activeGhostCap: 4,
+    };
+    world.setResource('ghostSpawnState', spawnState);
+
+    const system = createGhostAiSystem();
+    // Frame 0: ghost is released → revived to NORMAL.
+    runUpdate(system, world, { dtMs: FIXED_DT_MS, frame: 0 });
+    expect(ghostStore.state[ghostId]).toBe(GHOST_STATE.NORMAL);
+
+    // Kill it again at spawn and clear the released set for frame 1.
+    ghostStore.state[ghostId] = GHOST_STATE.DEAD;
+    positionStore.row[ghostId] = mapResource.ghostSpawnRow;
+    positionStore.col[ghostId] = mapResource.ghostSpawnCol;
+    spawnState.releasedGhostIds = [];
+
+    runUpdate(system, world, { dtMs: FIXED_DT_MS, frame: 1 });
+    // With an empty released set, the ghost must stay DEAD.
+    expect(ghostStore.state[ghostId]).toBe(GHOST_STATE.DEAD);
+  });
+
+  it('does not allocate a Set per frame in the update hot path (BUG-10)', () => {
+    // Explicit allocation guard for the scratch-set fix. The module-level scratch
+    // Set is constructed once at import time (before this spy is installed), so any
+    // `new Set()` counted here would come from the per-frame update path itself —
+    // exactly the allocation BUG-10 removed. The harness registers no bomb-occupancy
+    // resource, so readBombOccupancyCells short-circuits without allocating either.
+    const { world, ghostStore, positionStore, mapResource, ghostHandles } = createGhostHarness({
+      ghostCount: 1,
+    });
+    const ghostId = ghostHandles[0].id;
+    placeGhost(positionStore, ghostId, mapResource.ghostSpawnRow, mapResource.ghostSpawnCol);
+    ghostStore.type[ghostId] = GHOST_TYPE.BLINKY;
+    ghostStore.state[ghostId] = GHOST_STATE.NORMAL;
+    ghostStore.speed[ghostId] = 4.0;
+    world.setResource('ghostSpawnState', {
+      elapsedMs: 0,
+      releasedGhostIds: [ghostId],
+      queuedGhostIds: [],
+      respawnQueue: [],
+      activeGhostCap: 4,
+    });
+
+    const system = createGhostAiSystem();
+
+    // Count Set constructions across many stepped frames. The reused scratch keeps
+    // this at zero regardless of frame count; the old `new Set(...)` would scale 1:1.
+    const RealSet = globalThis.Set;
+    let setConstructions = 0;
+    class CountingSet extends RealSet {
+      constructor(...args) {
+        super(...args);
+        setConstructions += 1;
+      }
+    }
+    globalThis.Set = CountingSet;
+    try {
+      for (let frame = 0; frame < 30; frame += 1) {
+        runUpdate(system, world, { dtMs: FIXED_DT_MS, frame });
+      }
+    } finally {
+      globalThis.Set = RealSet;
+    }
+
+    expect(setConstructions).toBe(0);
+  });
+});
+
+describe('dead ghost return-home pathfinding (BUG: eyes trapped in local minima)', () => {
+  const map = createMapResource(LEVEL_1_MAP);
+  const spawn = { row: map.ghostSpawnRow, col: map.ghostSpawnCol };
+
+  // Step a dead ghost tile-by-tile toward home using only the BFS selector,
+  // mirroring how the AI system advances eyes at each tile center.
+  function walkHome(startRow, startCol, bombCells = null, maxSteps = 200) {
+    let row = startRow;
+    let col = startCol;
+    const visited = [];
+    for (let step = 0; step < maxSteps; step += 1) {
+      if (row === spawn.row && col === spawn.col) {
+        return { reached: true, steps: step, visited };
+      }
+      const direction = selectDeadGhostReturnDirection({
+        mapResource: map,
+        ghostTile: { row, col },
+        targetTile: spawn,
+        bombCells,
+      });
+      if (!direction) {
+        return { reached: false, steps: step, visited, stuckAt: { row, col } };
+      }
+      const vector = GHOST_DIRECTION_VECTOR[direction];
+      row += vector.rowDelta;
+      col += vector.colDelta;
+      visited.push([row, col]);
+    }
+    return { reached: false, steps: maxSteps, visited, stuckAt: { row, col } };
+  }
+
+  it('does not oscillate at the (3,11)/(4,11) tie-break trap greedy falls into', () => {
+    // Greedy return-home traps eyes in column 11: at (4,11) the up neighbour
+    // (3,11) and down neighbour (5,11) are equidistant from spawn (both score
+    // 17), so the up/left/down/right tie-break picks 'up'; at (3,11) the down
+    // neighbour wins again — an endless (3,11)<->(4,11) loop. BFS instead steps
+    // 'down' along the only real route toward the spawn column.
+    const direction = selectDeadGhostReturnDirection({
+      mapResource: map,
+      ghostTile: { row: 4, col: 11 },
+      targetTile: spawn,
+      bombCells: null,
+    });
+    expect(direction).toBe('down'); // 'up' is the greedy trap step
+  });
+
+  it('escapes the upper-right trap and reaches home without revisiting tiles', () => {
+    // Enter from the top-right corridor (1,11), which greedy funnels into the
+    // (3,11)<->(4,11) oscillation.
+    const result = walkHome(1, 11);
+    expect(result.reached).toBe(true);
+    // A BFS shortest path never revisits a tile; a revisit would signal exactly
+    // the kind of oscillation this fix removes.
+    const unique = new Set(result.visited.map(([r, c]) => `${r},${c}`));
+    expect(unique.size).toBe(result.visited.length);
+  });
+
+  it('returns home from every passable upper-right tile', () => {
+    for (let row = 1; row <= 3; row += 1) {
+      for (let col = 9; col <= 13; col += 1) {
+        if (map.grid[row * map.cols + col] === 1 || map.grid[row * map.cols + col] === 2) {
+          continue; // skip walls
+        }
+        const result = walkHome(row, col);
+        expect(
+          result.reached,
+          `eyes from (${row},${col}) failed to reach spawn: ${JSON.stringify(result.stuckAt)}`,
+        ).toBe(true);
+      }
+    }
+  });
+
+  it('routes around bomb cells when an alternative path exists', () => {
+    // From (5,9) two routes reach spawn (4,7): up column 9, or left along
+    // row 5. Bomb the column-9 route at (4,9); BFS must take the row-5 detour.
+    const bombCells = new Set([4 * map.cols + 9]);
+    const result = walkHome(5, 9, bombCells);
+    expect(result.reached).toBe(true);
+    expect(result.visited).not.toContainEqual([4, 9]);
+  });
+
+  it('falls back to ignoring transient bombs rather than stranding eyes', () => {
+    // Fully wall off the spawn with bombs on all four sides: the bomb-avoiding
+    // pass finds nothing, so the selector must still return a step (ignore-bomb
+    // pass) toward home rather than null.
+    const bombCells = new Set([
+      (spawn.row - 1) * map.cols + spawn.col,
+      (spawn.row + 1) * map.cols + spawn.col,
+      spawn.row * map.cols + (spawn.col - 1),
+      spawn.row * map.cols + (spawn.col + 1),
+    ]);
+    const direction = selectDeadGhostReturnDirection({
+      mapResource: map,
+      ghostTile: { row: 1, col: 11 },
+      targetTile: spawn,
+      bombCells,
+    });
+    expect(direction).not.toBeNull();
+  });
+
+  it('returns null when the eye is already at the spawn point', () => {
+    const direction = selectDeadGhostReturnDirection({
+      mapResource: map,
+      ghostTile: { row: spawn.row, col: spawn.col },
+      targetTile: spawn,
+      bombCells: null,
+    });
+    expect(direction).toBeNull();
   });
 });

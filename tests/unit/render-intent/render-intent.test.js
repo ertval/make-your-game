@@ -8,6 +8,7 @@
  */
 
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { MAX_RENDER_INTENTS } from '../../../src/ecs/resources/constants.js';
 import {
   appendRenderIntent,
   appendRenderIntentDirect,
@@ -15,8 +16,7 @@ import {
   getRenderIntentView,
   RENDER_INTENT_VERSION,
   resetRenderIntentBuffer,
-} from '../../../src/ecs/render-intent.js';
-import { MAX_RENDER_INTENTS } from '../../../src/ecs/resources/constants.js';
+} from '../../../src/ecs/resources/render-intent.js';
 
 vi.mock('../../../src/shared/env.js', () => ({
   isDevelopment: vi.fn(() => true),
@@ -147,6 +147,7 @@ describe('appendRenderIntent', () => {
 
   it('silently drops entries when the buffer is full', () => {
     const buf = createRenderIntentBuffer(2);
+    const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
 
     appendRenderIntent(buf, { entityId: 1, kind: RENDERABLE_KIND.PLAYER });
     appendRenderIntent(buf, { entityId: 2, kind: RENDERABLE_KIND.GHOST });
@@ -155,6 +156,7 @@ describe('appendRenderIntent', () => {
     expect(buf._count).toBe(2);
     expect(buf.entityId[0]).toBe(1);
     expect(buf.entityId[1]).toBe(2);
+    warnSpy.mockRestore();
   });
 });
 

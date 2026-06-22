@@ -24,11 +24,11 @@
  *   with no browser coupling.
  */
 
+import { readEntityTile } from '../../shared/tile-utils.js';
 import { resetInputState } from '../components/actors.js';
 import { resetPosition, resetVelocity } from '../components/spatial.js';
 import { INVINCIBILITY_MS, PLAYER_START_LIVES } from '../resources/constants.js';
 import { canTransition, GAME_STATE, transitionTo } from '../resources/game-status.js';
-import { readEntityTile } from '../shared/tile-utils.js';
 import {
   emitGameplayEvent,
   GAME_OVER_CAUSE,
@@ -208,6 +208,7 @@ export function createLifeSystem(options = {}) {
     resourceCapabilities: {
       read: [
         collisionIntentsResourceKey,
+        eventQueueResourceKey,
         gameStatusResourceKey,
         inputStateResourceKey,
         mapResourceKey,
@@ -275,7 +276,9 @@ export function createLifeSystem(options = {}) {
       // LifeLost is a spatial event; only emit when we have a concrete entity at
       // a finite tile (the validator rejects NaN tiles, and a throw inside a
       // system update would quarantine it). emitGameplayEvent is itself a no-op
-      // when the queue is absent.
+      // when the queue is absent. The C-07/C-08 audio cue runner maps this same
+      // 'LifeLost' event to sfx-player-hit, so one canonical emission drives both
+      // gameplay-event consumers and audio.
       if (deathTile && Number.isFinite(deathTile.row) && Number.isFinite(deathTile.col)) {
         emitGameplayEvent(
           eventQueue,

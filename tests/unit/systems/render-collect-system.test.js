@@ -14,12 +14,12 @@ import {
   createVisualStateStore,
   RENDERABLE_KIND,
 } from '../../../src/ecs/components/visual.js';
+import { BOMB_FUSE_MS, VISUAL_FLAGS } from '../../../src/ecs/resources/constants.js';
 import {
   createRenderIntentBuffer,
   getRenderIntentView,
   resetRenderIntentBuffer,
-} from '../../../src/ecs/render-intent.js';
-import { VISUAL_FLAGS } from '../../../src/ecs/resources/constants.js';
+} from '../../../src/ecs/resources/render-intent.js';
 import {
   createRenderCollectSystem,
   RENDER_COLLECT_REQUIRED_MASK,
@@ -256,6 +256,224 @@ describe('render-collect-system', () => {
       const system = createRenderCollectSystem();
       expect(() => system.update({ world, alpha: 1 })).not.toThrow();
       expect(getRenderIntentView(buffer)).toHaveLength(0);
+    });
+  });
+
+  describe('bomb / fire store scanning (issue #84)', () => {
+    /**
+     * Bombs and fires are placed by Track B systems (bomb-tick-system,
+     * explosion-system) that don't set the RENDERABLE component bit. They DO
+     * populate the position store + their own dedicated stores. The render
+     * collect system must scan those stores directly so the corresponding
+     * sprite-pool elements get an on-board transform — otherwise the bomb
+     * sprite stays at translate(-9999px) and is invisible (issue #84).
+     *
+     * CANONICAL ACTIVE MARKER: `colliderStore.type[id]`. The gameplay
+     * systems flip the collider type between COLLIDER_TYPE.BOMB / FIRE and
+     * COLLIDER_TYPE.NONE on activation / detonation. `bombStore.ownerId` and
+     * `fireStore.sourceBombId` are NOT reset on detonation, so using them
+     * as an activity check leaves stale bomb/fire sprites stuck on the board.
+     */
+
+    /** Build a minimal collider store. NONE (0) is the default inactive marker. */
+    function makeColliderStore(slots = 4) {
+      return { type: new Uint8Array(slots) };
+    }
+
+    function makeBombStore(slots = 4) {
+      return {
+        ownerId: new Int32Array(slots).fill(-1),
+        // Mirror the real store: fuseMs counts DOWN from BOMB_FUSE_MS so a
+        // freshly-placed bomb starts on frame 0 (idle).
+        fuseMs: new Float64Array(slots).fill(BOMB_FUSE_MS),
+        row: new Int32Array(slots),
+        col: new Int32Array(slots),
+      };
+    }
+
+    function makeFireStore(slots = 4) {
+      return {
+        sourceBombId: new Int32Array(slots).fill(-1),
+        burnTimerMs: new Float64Array(slots),
+        row: new Int32Array(slots),
+        col: new Int32Array(slots),
+      };
+    }
+
+    // COLLIDER_TYPE.{NONE,BOMB,FIRE} = 0, 3, 4 — see src/ecs/components/spatial.js.
+    const COLLIDER_BOMB = 3;
+    const COLLIDER_FIRE = 4;
+
+    it('emits no BOMB intents when no collider slot is COLLIDER_TYPE.BOMB', () => {
+      const { buffer, run, world } = createHarness();
+      world.setResource('collider', makeColliderStore(8));
+      world.setResource('bomb', makeBombStore(8));
+      run();
+      const intents = getRenderIntentView(buffer);
+      expect(intents.filter((i) => i.kind === RENDERABLE_KIND.BOMB)).toHaveLength(0);
+    });
+
+    it('emits a BOMB intent for every collider slot marked COLLIDER_TYPE.BOMB', () => {
+      const { buffer, run, world } = createHarness();
+      const colliders = makeColliderStore(4);
+      const bombs = makeBombStore(4);
+      // Activate bomb at slot 0 (position 3,5) and slot 2 (position 7,1).
+      colliders.type[0] = COLLIDER_BOMB;
+      bombs.ownerId[0] = 1;
+      bombs.row[0] = 3;
+      bombs.col[0] = 5;
+      colliders.type[2] = COLLIDER_BOMB;
+      bombs.ownerId[2] = 1;
+      bombs.row[2] = 7;
+      bombs.col[2] = 1;
+      world.setResource('collider', colliders);
+      world.setResource('bomb', bombs);
+
+      run();
+      const bombIntents = getRenderIntentView(buffer).filter(
+        (i) => i.kind === RENDERABLE_KIND.BOMB,
+      );
+      expect(bombIntents).toHaveLength(2);
+      expect(bombIntents[0]).toMatchObject({ entityId: 0, x: 5, y: 3 });
+      expect(bombIntents[1]).toMatchObject({ entityId: 2, x: 1, y: 7 });
+    });
+
+    it('stops emitting BOMB intents once the collider type is reset to NONE', () => {
+      // Regression for the stuck-bomb screenshot: bombStore.ownerId stays set
+      // after detonation, but colliderStore.type drops back to NONE.
+      const { run, world } = createHarness();
+      const colliders = makeColliderStore(4);
+      const bombs = makeBombStore(4);
+      colliders.type[1] = COLLIDER_BOMB;
+      bombs.ownerId[1] = 1;
+      bombs.row[1] = 0;
+      bombs.col[1] = 0;
+      world.setResource('collider', colliders);
+      world.setResource('bomb', bombs);
+
+      // Frame 1: bomb visible.
+      expect(run().filter((i) => i.kind === RENDERABLE_KIND.BOMB)).toHaveLength(1);
+
+      // Detonate: explosion-system flips collider.type back to NONE but
+      // intentionally leaves bombStore.ownerId in place (slot data is kept
+      // for the BombPlaced event payload contract).
+      colliders.type[1] = 0;
+      // bombs.ownerId[1] === 1 still! Old impl would still emit a BOMB intent.
+
+      // Frame 2: no BOMB intent because collider type is NONE.
+      expect(run().filter((i) => i.kind === RENDERABLE_KIND.BOMB)).toHaveLength(0);
+    });
+
+    it('advances the BOMB spriteId from 0 toward N-1 as the fuse burns down', () => {
+      // The fuse animation mirrors the fire tile: fuseMs counts DOWN from
+      // BOMB_FUSE_MS to 0, and spriteId = clamp(floor((1 - fuse/dur) * 4), 0, 3).
+      const { buffer, run, world } = createHarness();
+      const colliders = makeColliderStore(4);
+      const bombs = makeBombStore(4);
+      colliders.type[0] = COLLIDER_BOMB;
+      bombs.ownerId[0] = 1;
+      bombs.row[0] = 0;
+      bombs.col[0] = 0;
+      world.setResource('collider', colliders);
+      world.setResource('bomb', bombs);
+
+      const bombSpriteId = () =>
+        getRenderIntentView(buffer).find((i) => i.kind === RENDERABLE_KIND.BOMB).spriteId;
+
+      // Full fuse → first lit frame 0.
+      bombs.fuseMs[0] = BOMB_FUSE_MS;
+      run();
+      expect(bombSpriteId()).toBe(0);
+
+      // Just past the first quarter → frame 1.
+      bombs.fuseMs[0] = BOMB_FUSE_MS * 0.7;
+      run();
+      expect(bombSpriteId()).toBe(1);
+
+      // Halfway → frame 2.
+      bombs.fuseMs[0] = BOMB_FUSE_MS * 0.4;
+      run();
+      expect(bombSpriteId()).toBe(2);
+
+      // Almost detonated → final frame 3 (and clamped at the boundary).
+      bombs.fuseMs[0] = 0;
+      run();
+      expect(bombSpriteId()).toBe(3);
+    });
+
+    it('emits a FIRE intent for every collider slot marked COLLIDER_TYPE.FIRE', () => {
+      const { buffer, run, world } = createHarness();
+      const colliders = makeColliderStore(4);
+      const fires = makeFireStore(4);
+      // slot 0: active fire at (2, 2)
+      colliders.type[0] = COLLIDER_FIRE;
+      fires.sourceBombId[0] = 0;
+      fires.burnTimerMs[0] = 250;
+      fires.row[0] = 2;
+      fires.col[0] = 2;
+      // slot 1: collider NONE — must skip even though sourceBombId is set.
+      // slot 3: active fire at (4, 9)
+      colliders.type[3] = COLLIDER_FIRE;
+      fires.sourceBombId[3] = 0;
+      fires.burnTimerMs[3] = 100;
+      fires.row[3] = 4;
+      fires.col[3] = 9;
+      world.setResource('collider', colliders);
+      world.setResource('fire', fires);
+
+      run();
+      const fireIntents = getRenderIntentView(buffer).filter(
+        (i) => i.kind === RENDERABLE_KIND.FIRE,
+      );
+      expect(fireIntents).toHaveLength(2);
+      expect(fireIntents[0]).toMatchObject({ entityId: 0, x: 2, y: 2 });
+      expect(fireIntents[1]).toMatchObject({ entityId: 3, x: 9, y: 4 });
+    });
+
+    it('stops emitting FIRE intents once the collider type is reset to NONE', () => {
+      // Regression for stuck-fire-tiles: fireStore.sourceBombId is not reset
+      // after the burn timer expires; only colliderStore.type drops to NONE.
+      const { run, world } = createHarness();
+      const colliders = makeColliderStore(4);
+      const fires = makeFireStore(4);
+      colliders.type[2] = COLLIDER_FIRE;
+      fires.sourceBombId[2] = 0;
+      fires.burnTimerMs[2] = 250;
+      fires.row[2] = 5;
+      fires.col[2] = 5;
+      world.setResource('collider', colliders);
+      world.setResource('fire', fires);
+
+      expect(run().filter((i) => i.kind === RENDERABLE_KIND.FIRE)).toHaveLength(1);
+
+      colliders.type[2] = 0;
+      // fires.sourceBombId[2] === 0 still — but collider type is now NONE.
+
+      expect(run().filter((i) => i.kind === RENDERABLE_KIND.FIRE)).toHaveLength(0);
+    });
+
+    it('coexists with the existing POSITION+RENDERABLE entity query', () => {
+      const { addRenderableEntity, run, world } = createHarness();
+      addRenderableEntity({ kind: RENDERABLE_KIND.PLAYER, row: 1, col: 1 });
+      const colliders = makeColliderStore(4);
+      const bombs = makeBombStore(4);
+      colliders.type[0] = COLLIDER_BOMB;
+      bombs.ownerId[0] = 1;
+      bombs.row[0] = 5;
+      bombs.col[0] = 6;
+      world.setResource('collider', colliders);
+      world.setResource('bomb', bombs);
+
+      const intents = run();
+      const kinds = intents.map((i) => i.kind).sort((a, b) => a - b);
+      expect(kinds).toContain(RENDERABLE_KIND.PLAYER);
+      expect(kinds).toContain(RENDERABLE_KIND.BOMB);
+    });
+
+    it('does nothing extra when neither collider nor bomb/fire stores are registered', () => {
+      const { addRenderableEntity, run } = createHarness();
+      addRenderableEntity({ kind: RENDERABLE_KIND.PLAYER });
+      expect(run()).toHaveLength(1);
     });
   });
 });

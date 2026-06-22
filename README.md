@@ -159,6 +159,7 @@ graph TB
 make-your-game/
 ├── .github/                        # 🔧 GitHub Actions and repository workflow files
 │   └── workflows/
+│       ├── deploy.yml               # GitHub Pages deployment workflow
 │       └── policy-gate.yml         # PR merge gate workflow
 ├── assets/                         # 🎨 Static and generated asset roots
 │   ├── generated/                  # Build-time generated sprite/UI/audio outputs
@@ -232,9 +233,9 @@ make-your-game/
 
 ## 🚀 Deployment
 
-GitHub Pages can host this project only after the repository contains a static site entry point or a generated build artifact. See [docs/deployment/github-pages.md](docs/deployment/github-pages.md) for the deployment options and the current repository constraints.
+The project is configured for automated continuous deployment (CD) via GitHub Actions. Any push to the `main` branch builds the production assets and deploys them directly to GitHub Pages.
 
-For a free GitHub account, the repository must be public to publish a Pages site.
+For detailed information on the pipeline, Vite base path configurations, and dynamic asset path handling, see the [GitHub Pages Deployment Guide](docs/deployment/github-pages.md).
 
 ---
 

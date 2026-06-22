@@ -131,6 +131,7 @@ export function createBombExplosionLogicSystems(options = {}) {
       bombDetonationQueueResourceKey,
       bombResourceKey,
       colliderResourceKey,
+      eventQueueResourceKey,
       inputStateResourceKey,
       mapResourceKey,
       playerResourceKey,
@@ -193,4 +194,64 @@ export function initializeBombExplosionResources(world, options = {}) {
     POOL_FIRE,
     COMPONENT_MASK.FIRE | COMPONENT_MASK.POSITION | COMPONENT_MASK.COLLIDER,
   );
+}
+
+/**
+ * Deactivate every active bomb and fire pool slot without destroying the pooled
+ * entities.
+ *
+ * Restart rebuilds the pools from scratch because it destroys all entities, but
+ * a level transition keeps the same entities alive and only reloads the map. A
+ * bomb placed just before clearing the exit would otherwise survive into the
+ * next level with its fuse still counting down and detonate there. This resets
+ * each pooled slot to inactive (collider type NONE), clears the pending
+ * detonation queue, and drops the looping fuse-SFX flag so the new level starts
+ * with no live ordnance.
+ *
+ * @param {World} world - ECS world owning the bomb/fire pools.
+ * @param {object} [options] - Optional resource-key overrides.
+ */
+export function deactivateAllBombsAndFire(world, options = {}) {
+  const colliderResourceKey = options.colliderResourceKey || DEFAULT_COLLIDER_RESOURCE_KEY;
+  const bombResourceKey = options.bombResourceKey || DEFAULT_BOMB_RESOURCE_KEY;
+  const fireResourceKey = options.fireResourceKey || DEFAULT_FIRE_RESOURCE_KEY;
+  const bombPoolResourceKey = options.bombPoolResourceKey || DEFAULT_BOMB_POOL_RESOURCE_KEY;
+  const firePoolResourceKey = options.firePoolResourceKey || DEFAULT_FIRE_POOL_RESOURCE_KEY;
+  const bombDetonationQueueResourceKey =
+    options.bombDetonationQueueResourceKey || DEFAULT_BOMB_DETONATION_QUEUE_RESOURCE_KEY;
+  const bombAudioActiveResourceKey = options.bombAudioActiveResourceKey || 'bombAudioActive';
+
+  const colliderStore = world.getResource(colliderResourceKey);
+  const bombStore = world.getResource(bombResourceKey);
+  const fireStore = world.getResource(fireResourceKey);
+  const bombPool = world.getResource(bombPoolResourceKey);
+  const firePool = world.getResource(firePoolResourceKey);
+
+  if (colliderStore && bombStore && Array.isArray(bombPool)) {
+    for (const handle of bombPool) {
+      const id = handle.id;
+      colliderStore.type[id] = COLLIDER_TYPE.NONE;
+      bombStore.fuseMs[id] = 0;
+      bombStore.ownerId[id] = -1;
+    }
+  }
+
+  if (colliderStore && fireStore && Array.isArray(firePool)) {
+    for (const handle of firePool) {
+      const id = handle.id;
+      colliderStore.type[id] = COLLIDER_TYPE.NONE;
+      fireStore.burnTimerMs[id] = 0;
+      fireStore.sourceBombId[id] = -1;
+      fireStore.chainDepth[id] = 0;
+    }
+  }
+
+  const detonationQueue = world.getResource(bombDetonationQueueResourceKey);
+  if (Array.isArray(detonationQueue)) {
+    detonationQueue.length = 0;
+  }
+
+  if (world.hasResource(bombAudioActiveResourceKey)) {
+    world.setResource(bombAudioActiveResourceKey, false);
+  }
 }

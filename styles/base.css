@@ -130,6 +130,30 @@ body {
   display: none;
 }
 
+/* C-09 audio-loading indicator — hidden by default, toggled by the
+   audio-loading-indicator adapter. Only appears when SFX preload exceeds the
+   200ms threshold; it never blocks gameplay input (pointer-events: none). */
+.audio-loading {
+  position: absolute;
+  bottom: var(--space-md);
+  right: var(--space-md);
+  padding: var(--space-sm, 8px) var(--space-md);
+  background: var(--color-surface, rgba(0, 0, 0, 0.75));
+  color: var(--color-text, #fff);
+  border-radius: var(--radius-md, 8px);
+  font-size: 0.85rem;
+  z-index: 1;
+  pointer-events: none;
+}
+
+.audio-loading.is-screen-hidden {
+  display: none;
+}
+
+.audio-loading.is-screen-visible {
+  display: block;
+}
+
 /* Screen overlays — hidden by default, shown via adapter class toggle */
 .screen-overlay {
   position: absolute;
@@ -167,6 +191,31 @@ body {
   color: var(--color-accent, #ffb703);
 }
 
+/* High Scores overlay leaderboard (C-05): a top-N list above the actions */
+.high-scores__list {
+  list-style: none;
+  margin: 0 0 var(--space-md, 16px);
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xs, 4px);
+  font-variant-numeric: tabular-nums;
+}
+
+.high-scores__row {
+  display: flex;
+  justify-content: center;
+  font-size: 1.1rem;
+  font-weight: 600;
+  color: var(--color-text, #f5f5f5);
+  letter-spacing: 0.05em;
+}
+
+.high-scores__empty {
+  font-style: italic;
+  color: var(--color-text-muted, #9aa0b4);
+}
+
 .overlay__actions {
   display: flex;
   flex-direction: column;
@@ -198,4 +247,122 @@ body {
   margin: var(--space-sm, 8px) 0;
   font-size: 0.9rem;
   opacity: 0.8;
+}
+
+/* C-11B: audio quick-toggle — compact HUD chips aligned with score/lives/etc. */
+.audio-quick-toggle {
+  display: inline-flex;
+  align-items: baseline;
+  flex: 0 0 auto;
+  gap: calc(var(--space-sm, 8px) + var(--space-xs, 4px));
+  margin-left: var(--space-md, 16px);
+  padding-block: 0;
+  white-space: nowrap;
+}
+
+.audio-quick-toggle__button {
+  display: inline-flex;
+  align-items: baseline;
+  justify-content: center;
+  gap: calc(var(--space-xs, 4px) + 3px);
+  min-height: calc(var(--hud-label-font-size, 0.7em) * 1.2 + 2px);
+  padding: 1px var(--space-xs, 4px) 0;
+  font-family: inherit;
+  font-size: var(--hud-label-font-size, 0.7em);
+  font-weight: var(--hud-label-font-weight, 700);
+  letter-spacing: var(--hud-label-letter-spacing, 0.08em);
+  text-transform: uppercase;
+  line-height: 1.2;
+  background: transparent;
+  color: var(--color-accent, #ffb703);
+  border: 1px solid color-mix(in srgb, var(--color-accent, #ffb703) 30%, transparent 70%);
+  border-radius: var(--radius-sm, 4px);
+  cursor: pointer;
+  opacity: 0.88;
+}
+
+.audio-quick-toggle__button[aria-pressed="true"] {
+  border-color: color-mix(in srgb, var(--color-accent, #ffb703) 32%, transparent 68%);
+}
+
+.audio-quick-toggle__button[aria-pressed="true"] .audio-quick-toggle__state {
+  display: none;
+}
+
+.audio-quick-toggle__icon {
+  flex: 0 0 auto;
+  align-self: baseline;
+  width: 1em;
+  font-size: 1em;
+  line-height: 1;
+  text-align: center;
+}
+
+.audio-quick-toggle__text {
+  line-height: 1.2;
+}
+
+.audio-quick-toggle__button[aria-pressed="false"] {
+  color: color-mix(in srgb, var(--color-ink, #f5f5f5) 70%, #000 30%);
+  opacity: 0.68;
+  border-style: dashed;
+}
+
+.audio-quick-toggle__button:hover {
+  filter: brightness(1.12);
+  opacity: 1;
+}
+
+.audio-quick-toggle__button:focus-visible {
+  outline: 2px solid #fff;
+  outline-offset: 2px;
+}
+
+/* C-11B: Settings overlay controls (toggles + volume sliders). */
+.overlay__actions--settings {
+  min-width: 18rem;
+}
+
+.overlay__actions--settings button[aria-pressed] {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-sm, 8px);
+}
+
+.overlay__actions--settings button[aria-pressed="false"] {
+  background: color-mix(
+    in srgb,
+    var(--color-accent, #ffb703) 45%,
+    var(--color-surface, #1d2333) 55%
+  );
+}
+
+.settings__icon {
+  font-size: 1.1rem;
+  line-height: 1;
+}
+
+.settings__slider-row {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xs, 4px);
+  text-align: left;
+}
+
+.settings__slider-label {
+  font-size: 0.85rem;
+  color: var(--color-ink, #f5f5f5);
+}
+
+.settings__slider-row input[type="range"] {
+  width: 100%;
+  cursor: pointer;
+  accent-color: var(--color-accent, #ffb703);
+}
+
+.settings__slider-row input[type="range"][data-active="true"],
+.settings__slider-row input[type="range"]:focus-visible {
+  outline: 2px solid #fff;
+  outline-offset: 2px;
 }

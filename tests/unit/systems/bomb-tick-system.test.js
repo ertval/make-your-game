@@ -21,15 +21,16 @@ import {
   BOMB_FUSE_MS,
   DEFAULT_FIRE_RADIUS,
   FIXED_DT_MS,
+  MAX_DETONATION_QUEUE,
 } from '../../../src/ecs/resources/constants.js';
 import { createMapResource } from '../../../src/ecs/resources/map-resource.js';
-import { readEntityTile } from '../../../src/ecs/shared/tile-utils.js';
 import {
   BOMB_TICK_BOMB_REQUIRED_MASK,
   BOMB_TICK_PLAYER_REQUIRED_MASK,
   createBombTickSystem,
 } from '../../../src/ecs/systems/bomb-tick-system.js';
 import { World } from '../../../src/ecs/world/world.js';
+import { readEntityTile } from '../../../src/shared/tile-utils.js';
 
 /**
  * Build a compact valid map for bomb ticking and placement tests.
@@ -199,7 +200,15 @@ describe('bomb-tick-system contract', () => {
     expect(system.phase).toBe('logic');
     expect(system.resourceCapabilities).toEqual({
       read: ['mapResource', 'player', 'inputState'],
-      write: ['position', 'collider', 'bomb', 'bombDetonationQueue', 'eventQueue'],
+      write: [
+        'position',
+        'collider',
+        'bomb',
+        'bombDetonationQueue',
+        // B-09 'BombPlaced' events + the C-08 looping-fuse active flag.
+        'eventQueue',
+        'bombAudioActive',
+      ],
     });
   });
 });
@@ -352,6 +361,59 @@ describe('bomb-tick-system fuse countdown', () => {
     system.update({ dtMs: 1, frame: 1, world });
 
     expect(bombDetonationQueue).toHaveLength(1);
+  });
+});
+
+describe('bomb-tick-system detonation-queue bound (BUG-07)', () => {
+  it('never grows the shared queue beyond MAX_DETONATION_QUEUE while explosion-system is quarantined', () => {
+    // Simulate quarantine by never draining the queue (the explosion system is
+    // simply not run). Re-prime and expire bomb slots every tick so far more
+    // detonations are pushed than the queue cap can hold.
+    const { bombDetonationQueue, bombStore, bombs, colliderStore, system, world } =
+      createBombTickHarness();
+    const ticksToOverflow = MAX_DETONATION_QUEUE * 3;
+
+    for (let frame = 0; frame < ticksToOverflow; frame += 1) {
+      for (const bomb of bombs) {
+        colliderStore.type[bomb.id] = COLLIDER_TYPE.BOMB;
+        bombStore.fuseMs[bomb.id] = 1;
+      }
+
+      system.update({ dtMs: 1, frame, world });
+
+      // The bound must hold after every single tick, not just at the end.
+      expect(bombDetonationQueue.length).toBeLessThanOrEqual(MAX_DETONATION_QUEUE);
+    }
+
+    expect(bombDetonationQueue.length).toBe(MAX_DETONATION_QUEUE);
+  });
+
+  it('still deactivates an expired bomb even when its detonation request is dropped', () => {
+    const { bombDetonationQueue, bombStore, bombs, colliderStore, system, world } =
+      createBombTickHarness();
+
+    // Pre-fill the shared queue to the cap so the next push is dropped.
+    for (let index = 0; index < MAX_DETONATION_QUEUE; index += 1) {
+      bombDetonationQueue.push({
+        bombEntityId: -1,
+        chainDepth: 1,
+        frame: 0,
+        radius: 0,
+        row: 0,
+        col: 0,
+      });
+    }
+
+    const bomb = bombs[0];
+    colliderStore.type[bomb.id] = COLLIDER_TYPE.BOMB;
+    bombStore.fuseMs[bomb.id] = 1;
+
+    system.update({ dtMs: 1, frame: 0, world });
+
+    // Drain-to-waste: the request was not enqueued, but the bomb is deactivated
+    // so it cannot re-enqueue on the next step.
+    expect(bombDetonationQueue.length).toBe(MAX_DETONATION_QUEUE);
+    expect(colliderStore.type[bomb.id]).toBe(COLLIDER_TYPE.NONE);
   });
 });
 

@@ -27,8 +27,10 @@ import {
   CELL_TYPE,
   FIRE_DURATION_MS,
   MAX_CHAIN_DEPTH,
+  MAX_DETONATIONS_PER_TICK,
   POWER_UP_DROP_CHANCES,
 } from '../resources/constants.js';
+import { enqueue } from '../resources/event-queue.js';
 import { getCell, setCell } from '../resources/map-resource.js';
 import { nextChance } from '../resources/rng.js';
 import {
@@ -394,7 +396,7 @@ function resolveMapHit(mapResource, rng, row, col) {
 
   if (cellType === CELL_TYPE.DESTRUCTIBLE) {
     setCell(mapResource, row, col, resolvePowerUpDropCellType(readDropChance(rng)));
-    return { createFire: true, continuePropagation: false };
+    return { createFire: true, continuePropagation: false, destroyedWall: true };
   }
 
   if (
@@ -496,44 +498,59 @@ function queueChainedBombAtTile({
 /**
  * Resolve one explosion tile, including map mutation, fire activation, and chain detection.
  *
- * @param {object} params - Tile resolution dependencies grouped for readability.
- * @param {number[]} params.bombEntityIds - Queried pooled bomb entity ids.
- * @param {BombStore} params.bombStore - Bomb component store.
- * @param {ColliderStore} params.colliderStore - Mutable collider component store.
- * @param {number[]} params.fireEntityIds - Queried pooled fire entity ids.
- * @param {FireStore} params.fireStore - Mutable fire component store.
- * @param {MapResource} params.mapResource - Mutable map resource.
- * @param {PositionStore} params.positionStore - Mutable position component store.
- * @param {RNG | null | undefined} params.rng - Seeded RNG resource.
- * @param {Array<object>} params.workQueue - Local iterative detonation queue.
- * @param {Set<number>} params.queuedBombIds - Bomb ids already queued this pass.
- * @param {Set<number>} params.processedBombIds - Bomb ids already processed this pass.
- * @param {number} params.row - Tile row.
- * @param {number} params.col - Tile column.
- * @param {number} params.chainDepth - Current chain depth.
- * @param {number} params.sourceBombId - Bomb entity that produced this fire tile.
- * @param {number} params.frame - Fixed-step frame index.
+ * The pooled scratch context is repopulated by the caller per tile (only `row`
+ * and `col` change between tiles) instead of allocating a fresh per-tile object
+ * literal in the cross-pattern hot loop (BUG-05). The same context is forwarded
+ * to {@link queueChainedBombAtTile}, whose fields are a subset, so no per-tile
+ * allocation occurs even when a tile spawns fire.
+ *
+ * @param {object} context - Pooled tile-resolution context; mutated per tile.
+ * @param {number[]} context.bombEntityIds - Queried pooled bomb entity ids.
+ * @param {BombStore} context.bombStore - Bomb component store.
+ * @param {ColliderStore} context.colliderStore - Mutable collider component store.
+ * @param {number[]} context.fireEntityIds - Queried pooled fire entity ids.
+ * @param {FireStore} context.fireStore - Mutable fire component store.
+ * @param {MapResource} context.mapResource - Mutable map resource.
+ * @param {PositionStore} context.positionStore - Mutable position component store.
+ * @param {RNG | null | undefined} context.rng - Seeded RNG resource.
+ * @param {Array<object>} context.workQueue - Local iterative detonation queue.
+ * @param {Set<number>} context.queuedBombIds - Bomb ids already queued this pass.
+ * @param {Set<number>} context.processedBombIds - Bomb ids already processed this pass.
+ * @param {number} context.row - Tile row.
+ * @param {number} context.col - Tile column.
+ * @param {number} context.chainDepth - Current chain depth.
+ * @param {number} context.sourceBombId - Bomb entity that produced this fire tile.
+ * @param {number} context.frame - Fixed-step frame index.
  * @returns {boolean} True when the explosion arm may keep propagating.
  */
-function resolveExplosionTile({
-  bombEntityIds,
-  bombStore,
-  chainDepth,
-  col,
-  colliderStore,
-  fireEntityIds,
-  fireStore,
-  frame,
-  mapResource,
-  positionStore,
-  processedBombIds,
-  queuedBombIds,
-  rng,
-  row,
-  sourceBombId,
-  workQueue,
-}) {
+function resolveExplosionTile(context) {
+  const {
+    chainDepth,
+    col,
+    colliderStore,
+    eventQueue,
+    fireEntityIds,
+    fireStore,
+    frame,
+    mapResource,
+    positionStore,
+    rng,
+    row,
+    sourceBombId,
+  } = context;
   const result = resolveMapHit(mapResource, rng, row, col);
+
+  if (result.destroyedWall) {
+    // Audio-only event for the C-07 cue runner (→ sfx-wall-destroy). Enqueued
+    // after the bomb's BombDetonated event (emitted upstream in the same
+    // detonation), so the wall-break cue layers on top of the explosion.
+    enqueue(
+      eventQueue,
+      'WallDestroyed',
+      { sourceSystem: 'explosion-system', tile: { row, col } },
+      frame,
+    );
+  }
 
   if (result.createFire) {
     ensureFireAtTile(
@@ -546,18 +563,7 @@ function resolveExplosionTile({
       sourceBombId,
       chainDepth,
     );
-    queueChainedBombAtTile({
-      bombEntityIds,
-      bombStore,
-      chainDepth,
-      col,
-      colliderStore,
-      frame,
-      processedBombIds,
-      queuedBombIds,
-      row,
-      workQueue,
-    });
+    queueChainedBombAtTile(context);
   }
 
   return result.continuePropagation;
@@ -583,6 +589,7 @@ function resolveExplosionTile({
  * @param {Array<object>} params.workQueue - Local iterative detonation queue.
  * @param {Set<number>} params.queuedBombIds - Bomb ids already queued this pass.
  * @param {Set<number>} params.processedBombIds - Bomb ids already processed this pass.
+ * @param {object} params.tileContext - Pooled scratch context reused for every tile.
  */
 function resolveDetonationGeometry({
   bombEntityIds,
@@ -590,6 +597,7 @@ function resolveDetonationGeometry({
   chainDepth,
   colliderStore,
   detonation,
+  eventQueue,
   fireEntityIds,
   fireStore,
   mapResource,
@@ -597,51 +605,40 @@ function resolveDetonationGeometry({
   processedBombIds,
   queuedBombIds,
   rng,
+  tileContext,
   workQueue,
 }) {
   const radius = Math.max(0, Math.floor(Number(detonation.radius) || 0));
 
-  resolveExplosionTile({
-    bombEntityIds,
-    bombStore,
-    chainDepth,
-    col: detonation.col,
-    colliderStore,
-    fireEntityIds,
-    fireStore,
-    frame: detonation.frame,
-    mapResource,
-    positionStore,
-    processedBombIds,
-    queuedBombIds,
-    rng,
-    row: detonation.row,
-    sourceBombId: detonation.bombEntityId,
-    workQueue,
-  });
+  // Repopulate the pooled scratch context once per detonation; the per-tile
+  // loops below only mutate `row`/`col`, avoiding a fresh object literal per
+  // tile in the cross-pattern hot loop (BUG-05).
+  tileContext.bombEntityIds = bombEntityIds;
+  tileContext.bombStore = bombStore;
+  tileContext.chainDepth = chainDepth;
+  tileContext.colliderStore = colliderStore;
+  tileContext.eventQueue = eventQueue;
+  tileContext.fireEntityIds = fireEntityIds;
+  tileContext.fireStore = fireStore;
+  tileContext.frame = detonation.frame;
+  tileContext.mapResource = mapResource;
+  tileContext.positionStore = positionStore;
+  tileContext.processedBombIds = processedBombIds;
+  tileContext.queuedBombIds = queuedBombIds;
+  tileContext.rng = rng;
+  tileContext.sourceBombId = detonation.bombEntityId;
+  tileContext.workQueue = workQueue;
+
+  tileContext.row = detonation.row;
+  tileContext.col = detonation.col;
+  resolveExplosionTile(tileContext);
 
   for (const direction of EXPLOSION_DIRECTIONS) {
     for (let distance = 1; distance <= radius; distance += 1) {
-      const shouldContinue = resolveExplosionTile({
-        bombEntityIds,
-        bombStore,
-        chainDepth,
-        col: detonation.col + direction.colDelta * distance,
-        colliderStore,
-        fireEntityIds,
-        fireStore,
-        frame: detonation.frame,
-        mapResource,
-        positionStore,
-        processedBombIds,
-        queuedBombIds,
-        rng,
-        row: detonation.row + direction.rowDelta * distance,
-        sourceBombId: detonation.bombEntityId,
-        workQueue,
-      });
+      tileContext.row = detonation.row + direction.rowDelta * distance;
+      tileContext.col = detonation.col + direction.colDelta * distance;
 
-      if (!shouldContinue) {
+      if (!resolveExplosionTile(tileContext)) {
         break;
       }
     }
@@ -649,10 +646,16 @@ function resolveDetonationGeometry({
 }
 
 /**
- * Drain queued detonations into a local iterative work queue.
+ * Seed the local iterative work queue from the shared detonation queue.
  *
- * Clearing the shared queue before processing prevents stale requests from
- * being processed again if a later system inspects the same resource.
+ * At most MAX_DETONATIONS_PER_TICK requests are drained per tick (BUG-07); any
+ * remainder is left at the head of the shared queue and processed on subsequent
+ * ticks. This smooths a post-quarantine backlog so it cannot all fire in one
+ * tick, which could otherwise starve the fire pool or spike a frame. Drained
+ * requests are removed from the shared queue so a later system inspecting the
+ * same resource never reprocesses them. Chain-reaction detonations are appended
+ * to the local work queue (not the shared queue), so the per-tick cap applies
+ * only to this seed drain and never throttles or breaks chain reactions.
  *
  * @param {Array<object>} bombDetonationQueue - Shared detonation queue resource.
  * @param {Array<object>} workQueue - Reusable local work queue scratch array.
@@ -661,11 +664,20 @@ function resolveDetonationGeometry({
 function takeDetonationWorkQueue(bombDetonationQueue, workQueue) {
   workQueue.length = 0;
 
-  for (const detonation of bombDetonationQueue) {
-    workQueue.push(detonation);
+  const seedCount = Math.min(bombDetonationQueue.length, MAX_DETONATIONS_PER_TICK);
+
+  for (let index = 0; index < seedCount; index += 1) {
+    workQueue.push(bombDetonationQueue[index]);
   }
 
-  bombDetonationQueue.length = 0;
+  // Drop the drained head while preserving the order of any carried remainder.
+  // Compact in place (no Array#splice / slice) so no result array is allocated
+  // on the tick path; only the carried remainder is shifted down by seedCount.
+  const remainder = bombDetonationQueue.length - seedCount;
+  for (let index = 0; index < remainder; index += 1) {
+    bombDetonationQueue[index] = bombDetonationQueue[index + seedCount];
+  }
+  bombDetonationQueue.length = remainder;
   return workQueue;
 }
 
@@ -687,6 +699,7 @@ function takeDetonationWorkQueue(bombDetonationQueue, workQueue) {
  * @param {Set<number>} params.processedBombIds - Reusable processed bomb scratch set.
  * @param {Set<number>} params.queuedBombIds - Reusable queued bomb scratch set.
  * @param {RNG | null | undefined} params.rng - Seeded RNG resource.
+ * @param {object} params.tileContext - Pooled scratch context reused for every tile.
  * @param {Array<object>} params.workQueue - Local detonation work queue.
  */
 function processDetonationWorkQueue({
@@ -701,6 +714,7 @@ function processDetonationWorkQueue({
   processedBombIds,
   queuedBombIds,
   rng,
+  tileContext,
   workQueue,
 }) {
   processedBombIds.clear();
@@ -729,6 +743,7 @@ function processDetonationWorkQueue({
       chainDepth,
       colliderStore,
       detonation,
+      eventQueue,
       fireEntityIds,
       fireStore,
       mapResource,
@@ -736,6 +751,7 @@ function processDetonationWorkQueue({
       processedBombIds,
       queuedBombIds,
       rng,
+      tileContext,
       workQueue,
     });
   }
@@ -773,6 +789,7 @@ export function createExplosionSystem(options = {}) {
   const reusableWorkQueue = [];
   const processedBombIds = new Set();
   const queuedBombIds = new Set();
+  const reusableTileContext = {};
 
   return {
     name: 'explosion-system',
@@ -832,6 +849,7 @@ export function createExplosionSystem(options = {}) {
         processedBombIds,
         queuedBombIds,
         rng,
+        tileContext: reusableTileContext,
         workQueue: takeDetonationWorkQueue(bombDetonationQueue, reusableWorkQueue),
       });
     },

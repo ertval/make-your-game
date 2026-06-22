@@ -17,7 +17,10 @@ import {
   createVisualStateStore,
   RENDERABLE_KIND,
 } from '../../../src/ecs/components/visual.js';
-import { createRenderIntentBuffer, getRenderIntentView } from '../../../src/ecs/render-intent.js';
+import {
+  createRenderIntentBuffer,
+  getRenderIntentView,
+} from '../../../src/ecs/resources/render-intent.js';
 import {
   createRenderCollectSystem,
   RENDER_COLLECT_REQUIRED_MASK,

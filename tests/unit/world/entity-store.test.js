@@ -59,4 +59,12 @@ describe('EntityStore', () => {
     expect(store.getActiveIds()).toEqual([h1.id, h3.id]);
     expect(store.getActiveHandles()).toEqual([h1, h3]);
   });
+
+  it('getActiveIds returns a frozen array to prevent mutation', () => {
+    const store = new EntityStore();
+    store.create();
+    const activeIds = store.getActiveIds();
+    expect(Object.isFrozen(activeIds)).toBe(true);
+    expect(() => activeIds.push(999)).toThrow();
+  });
 });

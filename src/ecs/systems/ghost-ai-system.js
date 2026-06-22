@@ -18,6 +18,8 @@
  * - computePinkyTarget(playerTile, playerVector): four tiles ahead of player.
  * - computeInkyTarget(playerTile, playerVector, blinkyTile): doubled-vector flank.
  * - computeClydeTarget(playerTile, ghostTile, mapResource): chase/retreat toggle.
+ * - findBlinkyTile(ghostStore, positionStore, ghostEntityIds, reusableTile):
+ *   Blinky's tile, or null when no BLINKY ghost is active.
  * - resolveGhostTargetTile(ghostType, context): canonical target for a ghost type.
  * - selectGhostDirection(context): pick a passable direction this step.
  * - resolveGhostSpeed(ghostStore, ghostId, mapResource): effective speed.
@@ -45,9 +47,11 @@
  *   guard keeps the AI consistent if the systems are wired independently.
  */
 
+import { readEntityTile } from '../../shared/tile-utils.js';
 import { COMPONENT_MASK } from '../components/registry.js';
 import {
   CLYDE_DISTANCE_THRESHOLD,
+  GHOST_DEFAULT_SPEED,
   GHOST_STATE,
   GHOST_STUNNED_SPEED,
   GHOST_TYPE,
@@ -56,7 +60,6 @@ import {
 } from '../resources/constants.js';
 import { GAME_STATE } from '../resources/game-status.js';
 import { isInGhostHouse, isPassableForGhost } from '../resources/map-resource.js';
-import { readEntityTile } from '../shared/tile-utils.js';
 
 const DEFAULT_GAME_STATUS_RESOURCE_KEY = 'gameStatus';
 const DEFAULT_GHOST_RESOURCE_KEY = 'ghost';
@@ -70,6 +73,18 @@ const DEFAULT_RNG_RESOURCE_KEY = 'rng';
 
 const MAX_DELTA_MS = 1000;
 const MOVEMENT_EPSILON = 1e-9;
+
+/**
+ * Module-level scratch set for the released-ghost lookup. Reused (cleared +
+ * refilled) every frame instead of allocating `new Set(...)` per tick, which
+ * created steady GC pressure in the hot simulation loop (BUG-10). It is safe as
+ * a module singleton even if multiple ghost-ai systems exist in one world: each
+ * system's `update` runs synchronously start-to-finish, refilling the set from
+ * its own spawn state and consuming it within the same tick before any other
+ * system can touch it. It is never retained across frames or read after the
+ * loop, so determinism is unchanged.
+ */
+const releasedGhostScratch = new Set();
 
 /**
  * Canonical component query for ghost AI.
@@ -249,7 +264,10 @@ export function resolveGhostSpeed(ghostStore, ghostId, mapResource) {
     return mapSpeed;
   }
 
-  return 0;
+  // Terminal fallback: a missing/non-positive stored AND map speed must never
+  // resolve to 0, or the movement guard (speed > 0) would freeze the ghost on
+  // its tile permanently (BUG-17). Mirrors the PLAYER_BASE_SPEED safety net.
+  return GHOST_DEFAULT_SPEED;
 }
 
 /**
@@ -302,6 +320,125 @@ function isGhostTilePassable(
   }
 
   return true;
+}
+
+/**
+ * Test whether a dead ghost (eyes) may occupy a tile while returning home.
+ * Eyes ignore the one-way house gate but still respect walls and bomb cells.
+ *
+ * @param {object} mapResource - Map resource.
+ * @param {number} row - Tile row.
+ * @param {number} col - Tile col.
+ * @param {Set<number> | null} bombCells - Optional bomb-occupied cell set.
+ * @returns {boolean} True when an eye may enter the tile.
+ */
+function isDeadGhostTileEnterable(mapResource, row, col, bombCells) {
+  if (!isPassableForGhost(mapResource, row, col)) {
+    return false;
+  }
+  if (bombCells && typeof mapResource?.cols === 'number') {
+    if (bombCells.has(row * mapResource.cols + col)) {
+      return false;
+    }
+  }
+  return true;
+}
+
+/**
+ * Choose the next step for a dead ghost (eyes) using a breadth-first search to
+ * the ghost spawn point. Greedy distance minimisation can trap eyes in local
+ * minima — e.g. on level-1 column 11, (4,11) and (3,11) each have an
+ * equidistant neighbour the up/left/down/right tie-break keeps re-selecting, so
+ * the eyes oscillate (3,11)<->(4,11) forever and never reach home. BFS returns
+ * the first step of a true shortest path, so any reachable spawn point is
+ * always reached.
+ *
+ * Neighbours expand in {@link GHOST_AI_DIRECTIONS} order for deterministic
+ * tie-breaking. Bomb cells are avoided when possible; if they fully block the
+ * route, a second pass ignores them so transient explosions never strand eyes.
+ *
+ * @param {{
+ *   mapResource: object,
+ *   ghostTile: { row: number, col: number },
+ *   targetTile: { row: number, col: number },
+ *   bombCells: Set<number> | null,
+ * }} context - Selection context.
+ * @returns {'up' | 'left' | 'down' | 'right' | null} First step toward home, or
+ *   null when the ghost is already home or no path exists.
+ */
+export function selectDeadGhostReturnDirection(context) {
+  const { mapResource, ghostTile, targetTile, bombCells = null } = context;
+  if (
+    !mapResource ||
+    typeof mapResource.rows !== 'number' ||
+    typeof mapResource.cols !== 'number'
+  ) {
+    return null;
+  }
+  if (ghostTile.row === targetTile.row && ghostTile.col === targetTile.col) {
+    return null;
+  }
+
+  const search = (avoidBombs) => {
+    const { rows, cols } = mapResource;
+    const startIndex = ghostTile.row * cols + ghostTile.col;
+    const goalIndex = targetTile.row * cols + targetTile.col;
+    // cameFromDir[index] records the direction taken to reach that tile, so the
+    // path can be unwound back to the start to find the very first step.
+    const cameFromDir = new Map();
+    const queue = [startIndex];
+    cameFromDir.set(startIndex, null);
+    let head = 0;
+
+    while (head < queue.length) {
+      const index = queue[head];
+      head += 1;
+      if (index === goalIndex) {
+        break;
+      }
+      const row = Math.floor(index / cols);
+      const col = index - row * cols;
+      for (const direction of GHOST_AI_DIRECTIONS) {
+        const vector = GHOST_DIRECTION_VECTOR[direction];
+        const nextRow = row + vector.rowDelta;
+        const nextCol = col + vector.colDelta;
+        if (nextRow < 0 || nextRow >= rows || nextCol < 0 || nextCol >= cols) {
+          continue;
+        }
+        const nextIndex = nextRow * cols + nextCol;
+        if (cameFromDir.has(nextIndex)) {
+          continue;
+        }
+        if (
+          !isDeadGhostTileEnterable(mapResource, nextRow, nextCol, avoidBombs ? bombCells : null)
+        ) {
+          continue;
+        }
+        cameFromDir.set(nextIndex, direction);
+        queue.push(nextIndex);
+      }
+    }
+
+    if (!cameFromDir.has(goalIndex)) {
+      return null;
+    }
+    // Unwind from the goal back to the start; the last direction we step over
+    // (the one leaving the start tile) is the move to make this step.
+    let index = goalIndex;
+    let firstDirection = null;
+    while (index !== startIndex) {
+      const direction = cameFromDir.get(index);
+      if (!direction) {
+        break;
+      }
+      firstDirection = direction;
+      const vector = GHOST_DIRECTION_VECTOR[direction];
+      index -= vector.rowDelta * cols + vector.colDelta;
+    }
+    return firstDirection;
+  };
+
+  return search(true) ?? search(false);
 }
 
 /**
@@ -447,7 +584,11 @@ function readBombOccupancyCells(resource, mapResource) {
         cells.add(Math.floor(entry.row) * mapResource.cols + Math.floor(entry.col));
       }
     }
-    return cells.size > 0 ? cells : null;
+    // Always return the (possibly empty) Set so the caller can distinguish
+    // "resource registered but empty" from "resource not registered" (null).
+    // `bombCells.has(idx)` on an empty Set is always false, so the AI behavior
+    // is unchanged for the empty case, but the defensive contract is clearer.
+    return cells;
   }
 
   return null;
@@ -462,19 +603,35 @@ function readPlayerVector(velocityStore, playerEntityId) {
   return { rowDelta, colDelta };
 }
 
-function findBlinkyTile(ghostStore, positionStore, ghostEntityIds, reusableTile) {
+/**
+ * Find the current tile of the BLINKY ghost, if one is active.
+ *
+ * Returns `null` when no BLINKY entity is present (BUG-22). Callers MUST treat a
+ * null result as "Blinky absent" and route Inky through a direct chase instead
+ * of the doubled-vector flank — a previous `{ row: 0, col: 0 }` fallback made
+ * Inky silently flank off the map origin.
+ *
+ * @param {{ type?: Uint8Array } | null} ghostStore - Ghost component store.
+ * @param {object | null} positionStore - Position component store.
+ * @param {Iterable<number>} ghostEntityIds - Active ghost entity slots.
+ * @param {{ row: number, col: number }} reusableTile - Scratch tile reused to
+ *   avoid per-call allocation while reading the position store.
+ * @returns {{ row: number, col: number } | null} Blinky's tile, or null when no
+ *   BLINKY entity is active.
+ */
+export function findBlinkyTile(ghostStore, positionStore, ghostEntityIds, reusableTile) {
   if (!ghostStore || !positionStore) {
-    return { row: 0, col: 0 };
+    return null;
   }
 
   for (const ghostId of ghostEntityIds) {
     if (ghostStore.type?.[ghostId] === GHOST_TYPE.BLINKY) {
       const tile = readEntityTile(positionStore, ghostId, reusableTile);
-      return tile ? { row: tile.row, col: tile.col } : { row: 0, col: 0 };
+      return tile ? { row: tile.row, col: tile.col } : null;
     }
   }
 
-  return { row: 0, col: 0 };
+  return null;
 }
 
 function snapGhostToTarget(positionStore, velocityStore, ghostId) {
@@ -635,9 +792,18 @@ export function createGhostAiSystem(options = {}) {
         ? readBombOccupancyCells(world.getResource(bombOccupancyResourceKey), mapResource)
         : null;
       const spawnState = spawnResourceKey ? world.getResource(spawnResourceKey) : null;
-      const releasedGhostSet = spawnState?.releasedGhostIds
-        ? new Set(spawnState.releasedGhostIds)
-        : null;
+      // Reuse the module-level scratch set to avoid a per-frame `new Set()`
+      // allocation in this hot loop (BUG-10). Keep the original null-vs-empty
+      // semantics: a missing `releasedGhostIds` yields a null set (revive branch
+      // disabled), while a present-but-empty list yields a cleared scratch set.
+      let releasedGhostSet = null;
+      if (spawnState?.releasedGhostIds) {
+        releasedGhostScratch.clear();
+        for (const releasedId of spawnState.releasedGhostIds) {
+          releasedGhostScratch.add(releasedId);
+        }
+        releasedGhostSet = releasedGhostScratch;
+      }
 
       const playerEntityId =
         playerEntity && Number.isInteger(playerEntity.id) && playerEntity.id >= 0
@@ -655,10 +821,15 @@ export function createGhostAiSystem(options = {}) {
       const ghostEntityIds = typeof world.query === 'function' ? world.query(requiredMask) : [];
 
       // Resolve Blinky's tile once per step so Inky's targeting stays
-      // deterministic across the iteration order.
+      // deterministic across the iteration order. When Blinky is absent
+      // (not in activeGhostTypes), the snapshot is null: Inky must NOT flank off
+      // a bogus (0,0) tile, so it falls back to a direct chase below (BUG-22).
       const blinkySnapshot = findBlinkyTile(ghostStore, positionStore, ghostEntityIds, blinkyTile);
-      blinkyTile.row = blinkySnapshot.row;
-      blinkyTile.col = blinkySnapshot.col;
+      const hasBlinky = blinkySnapshot !== null;
+      if (hasBlinky) {
+        blinkyTile.row = blinkySnapshot.row;
+        blinkyTile.col = blinkySnapshot.col;
+      }
 
       const deltaSeconds = readDeltaMs(context) / 1000;
 
@@ -726,6 +897,11 @@ export function createGhostAiSystem(options = {}) {
               row: mapResource.ghostSpawnRow ?? currentTile.row,
               col: mapResource.ghostSpawnCol ?? currentTile.col,
             };
+          } else if (ghostType === GHOST_TYPE.INKY && !hasBlinky) {
+            // Inky's flank target depends on Blinky's tile; with Blinky absent
+            // there is no valid reference, so chase the player directly like
+            // Blinky instead of flanking off a bogus origin tile (BUG-22).
+            targetTile = computeBlinkyTarget(playerTile);
           } else {
             targetTile = resolveGhostTargetTile(ghostType, {
               ghostTile: currentTile,
@@ -736,15 +912,29 @@ export function createGhostAiSystem(options = {}) {
             });
           }
 
-          const chosenDirection = selectGhostDirection({
-            ghostTile: currentTile,
-            targetTile,
-            state,
-            previousVector,
-            mapResource,
-            bombCells: bombOccupancy,
-            prefersDistance,
-          });
+          // Eyes return home via BFS shortest path; greedy distance selection
+          // can trap them in concave map pockets (local minima). Fall back to
+          // greedy only if BFS finds no path (e.g. fully walled-in by bombs).
+          let chosenDirection = null;
+          if (state === GHOST_STATE.DEAD) {
+            chosenDirection = selectDeadGhostReturnDirection({
+              mapResource,
+              ghostTile: currentTile,
+              targetTile,
+              bombCells: bombOccupancy,
+            });
+          }
+          if (chosenDirection == null) {
+            chosenDirection = selectGhostDirection({
+              ghostTile: currentTile,
+              targetTile,
+              state,
+              previousVector,
+              mapResource,
+              bombCells: bombOccupancy,
+              prefersDistance,
+            });
+          }
 
           if (!chosenDirection) {
             // No legal move: stay put for this step.

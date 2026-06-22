@@ -56,6 +56,7 @@ function createFixture(options = {}) {
     height: 64,
     critical: true,
     tags: ['player', 'idle'],
+    className: 'sprite--player--idle',
     maxBytes: options.visualMaxBytes || 32768,
   };
 
@@ -152,5 +153,12 @@ describe('validate-schema asset gates', () => {
     } finally {
       fs.rmSync(tempRoot, { force: true, recursive: true });
     }
+  });
+
+  it('uses strict Ajv mode to reject unknown schema keywords', () => {
+    const scriptPath = path.join(repoRoot, 'scripts/validate-schema.mjs');
+    const scriptContent = fs.readFileSync(scriptPath, 'utf8');
+    expect(scriptContent).toContain('strict: true');
+    expect(scriptContent).not.toContain('strict: false');
   });
 });

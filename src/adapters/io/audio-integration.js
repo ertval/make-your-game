@@ -23,6 +23,11 @@
  * - resolveCueForEvent(eventType): map a gameplay event type to a cue id.
  * - resolveMusicForState(gameState): map a game state to a music track id.
  * - createAudioCueRunner(options): factory returning the runtime driver.
+ * - applyAudioSettings(audio, settings): push persisted C-11A settings into the
+ *   adapter using only `audio.setVolume(category, value)`.
+ * - preloadWithIndicator(params): C-09 — orchestrate critical-SFX preload with a
+ *   flicker-free loading indicator (DOM-free; indicator + adapter are injected).
+ * - AUDIO_PRELOAD_INDICATOR_THRESHOLD_MS: slow-preload threshold (200ms).
  *
  * Asset provenance:
  *   The cue ids in `AUDIO_CUE_MAPPING` and the track ids in
@@ -60,6 +65,7 @@
 
 import { drain } from '../../ecs/resources/event-queue.js';
 import { GAME_STATE } from '../../ecs/resources/game-status.js';
+import { isDevelopment } from '../../shared/env.js';
 
 /**
  * Canonical event type → SFX cue id table.
@@ -69,6 +75,11 @@ import { GAME_STATE } from '../../ecs/resources/game-status.js';
  * Track B / Track C systems once the matching event surfaces land). Keeping
  * this table data-driven lets new events join the audio loop without changing
  * runner code or sprinkling `playSfx` calls across gameplay systems.
+ *
+ * A value may be a single cue id OR an array of cue ids when one event should
+ * trigger several overlapping SFX (e.g. the power pellet plays both the pickup
+ * blip and the power-mode activation sting). Use `resolveCuesForEvent` to read
+ * the normalized cue list.
  */
 export const AUDIO_CUE_MAPPING = Object.freeze({
   // Track B emitters: these strings are the canonical
@@ -77,7 +88,12 @@ export const AUDIO_CUE_MAPPING = Object.freeze({
   // string literals to avoid an adapter→systems import.
   BombPlaced: 'sfx-bomb-place',
   BombDetonated: 'sfx-bomb-explode',
+  WallDestroyed: 'sfx-wall-destroy',
   PelletCollected: 'sfx-pellet-collect',
+  // The power pellet pickup fires only the pickup blip here. The power-mode
+  // "frenzy" sting (sfx-speed-boost-on) is NOT a one-shot — it loops for as
+  // long as the frenzy/stun window is active, driven by simulation state in
+  // reconcilePowerPelletLoop (see POWER_PELLET_LOOP_CUE), not this event.
   PowerPelletCollected: 'sfx-power-pellet-collect',
   PowerUpCollected: 'sfx-powerup-collect',
   // Higher-level events emitted (or planned) by Track B/C systems.
@@ -96,9 +112,15 @@ export const AUDIO_CUE_MAPPING = Object.freeze({
  * into that state. PAUSED maps to `null` because the adapter only exposes
  * `playMusic` / `stopMusic`; suspending the AudioContext is handled by the
  * adapter's own `visibilitychange` integration, not by this driver.
+ *
+ * MENU maps to `null` (silence): there is no menu music asset in the manifest
+ * (only `music-gameplay`), and the runtime now rests in MENU until the player
+ * presses Start, so mapping it to a missing track only spammed a warn-per-load.
+ * Music begins on the PLAYING transition, when the Start click has unlocked the
+ * AudioContext.
  */
 export const MUSIC_STATE_MAPPING = Object.freeze({
-  [GAME_STATE.MENU]: 'music-menu',
+  [GAME_STATE.MENU]: null,
   [GAME_STATE.PLAYING]: 'music-gameplay',
   [GAME_STATE.PAUSED]: null,
   [GAME_STATE.LEVEL_COMPLETE]: null,
@@ -107,16 +129,54 @@ export const MUSIC_STATE_MAPPING = Object.freeze({
 });
 
 /**
- * Resolve a gameplay event type to its mapped cue id.
+ * Looping SFX cue for the bomb fuse. Unlike the event-mapped cues, the fuse is
+ * driven by live simulation state (any bomb active) rather than a one-shot
+ * gameplay event: it loops while a bomb is ticking during PLAYING and stops the
+ * moment none remain (detonation, level reset, leaving PLAYING).
+ */
+const FUSE_LOOP_CUE = 'sfx-bomb-fuse';
+
+/**
+ * Looping SFX cue for the power-pellet "frenzy" window. Like the fuse, it is
+ * driven by live simulation state (the stun timer started by a power pellet)
+ * rather than a one-shot event: it loops while ghosts are frenzied/stunned
+ * during PLAYING and stops the instant that window ends.
+ */
+const POWER_PELLET_LOOP_CUE = 'sfx-speed-boost-on';
+
+/**
+ * Resolve a gameplay event type to its raw mapping value.
+ *
+ * The value may be a single cue id or an array of cue ids (see
+ * AUDIO_CUE_MAPPING). Prefer `resolveCuesForEvent` for playback; this raw
+ * accessor is kept for inspection/back-compat.
  *
  * @param {string} eventType
- * @returns {string | null} The cue id, or null when no mapping exists.
+ * @returns {string | string[] | null} The mapped cue id(s), or null when no mapping exists.
  */
 export function resolveCueForEvent(eventType) {
   if (typeof eventType !== 'string' || eventType.length === 0) {
     return null;
   }
   return Object.hasOwn(AUDIO_CUE_MAPPING, eventType) ? AUDIO_CUE_MAPPING[eventType] : null;
+}
+
+/**
+ * Resolve a gameplay event type to its normalized list of cue ids.
+ *
+ * Single-cue mappings become a one-element array; multi-cue mappings are
+ * returned as-is; unknown events yield an empty array. This is the shape the
+ * runner iterates so one event can fire several overlapping SFX.
+ *
+ * @param {string} eventType
+ * @returns {string[]} Cue ids to play (empty when no mapping exists).
+ */
+export function resolveCuesForEvent(eventType) {
+  const mapped = resolveCueForEvent(eventType);
+  if (mapped === null) {
+    return [];
+  }
+  return Array.isArray(mapped) ? mapped : [mapped];
 }
 
 /**
@@ -136,14 +196,48 @@ export function resolveMusicForState(gameState) {
   return Object.hasOwn(MUSIC_STATE_MAPPING, gameState) ? MUSIC_STATE_MAPPING[gameState] : null;
 }
 
-function isDev() {
-  // Detect Node / Vitest dev-mode without crashing in browser bundles where
-  // `process` is undefined.
-  try {
-    return typeof process !== 'undefined' && process.env && process.env.NODE_ENV !== 'production';
-  } catch {
+/**
+ * Apply persisted C-11A audio settings to the adapter.
+ *
+ * Per the C-11A contract, the ONLY adapter call used here is
+ * `audio.setVolume(category, value)` — there is no enable/mute method on the
+ * adapter, so a disabled category is expressed as a volume of `0`. The effective
+ * per-category volume is therefore `enabled ? volume : 0` for music and sfx; the
+ * UI category has no enable flag and uses `uiVolume` directly. Values are passed
+ * through to the adapter, which clamps them to the [0, 1] gain range.
+ *
+ * Settings are normalized by the storage adapter before they reach here, but
+ * this helper still tolerates a null/partial object so it never throws at the
+ * app edge.
+ *
+ * @param {{ setVolume?: Function } | null | undefined} audio - Audio adapter.
+ * @param {{ musicEnabled?: boolean, sfxEnabled?: boolean, musicVolume?: number, sfxVolume?: number, uiVolume?: number } | null | undefined} settings - Persisted audio settings.
+ * @returns {boolean} True when settings were applied, false when the adapter was unusable.
+ */
+export function applyAudioSettings(audio, settings) {
+  if (!audio || typeof audio.setVolume !== 'function') {
     return false;
   }
+  const s = settings && typeof settings === 'object' ? settings : {};
+  const musicVolume = s.musicEnabled === false ? 0 : numberOrZero(s.musicVolume);
+  const sfxVolume = s.sfxEnabled === false ? 0 : numberOrZero(s.sfxVolume);
+  const uiVolume = numberOrZero(s.uiVolume);
+
+  audio.setVolume('music', musicVolume);
+  audio.setVolume('sfx', sfxVolume);
+  audio.setVolume('ui', uiVolume);
+  return true;
+}
+
+/**
+ * Coerce a settings volume to a finite number, defaulting to 0. The adapter
+ * clamps the final value, so we only need to strip non-numbers here.
+ *
+ * @param {unknown} value - Candidate volume.
+ * @returns {number} A finite number (0 when invalid).
+ */
+function numberOrZero(value) {
+  return typeof value === 'number' && Number.isFinite(value) ? value : 0;
 }
 
 /**
@@ -167,13 +261,30 @@ function isDev() {
  *   reset: () => void,
  * }}
  */
+// Duration of the bomb-place one-shot SFX (ms). The fuse loop is held off for
+// this long after bomb placement so the two sounds play sequentially rather
+// than simultaneously. Matches the length of assets/generated/sfx/bomb-place.mp3.
+const BOMB_PLACE_SFX_DURATION_MS = 310;
+
 export function createAudioCueRunner(options = {}) {
   const warnUnknownEvents = options.warnUnknownEvents !== false;
+  // How many ms to wait after bomb placement before starting the fuse loop.
+  const fuseLoopDelay =
+    typeof options.fuseLoopDelay === 'number' ? options.fuseLoopDelay : BOMB_PLACE_SFX_DURATION_MS;
+  // Testable clock: defaults to performance.now, injectable via options.now.
+  const now = typeof options.now === 'function' ? options.now : () => performance.now();
   const warnedUnknown = new Set();
   let lastState = null;
+  // Whether each looping SFX is currently playing, so we only start/stop on
+  // edges instead of re-issuing the call every frame.
+  let fusePlaying = false;
+  let powerPelletLoopPlaying = false;
+  // Timestamp (performance.now()) after which the fuse loop may start. Set on
+  // the rising edge of bombActive to give bomb-place.mp3 time to finish first.
+  let fuseLoopAllowedAt = 0;
 
   function maybeWarnUnknown(type) {
-    if (!warnUnknownEvents || !isDev()) {
+    if (!warnUnknownEvents || !isDevelopment()) {
       return;
     }
     if (warnedUnknown.has(type)) {
@@ -200,21 +311,24 @@ export function createAudioCueRunner(options = {}) {
       if (!event || typeof event.type !== 'string') {
         continue;
       }
-      const cueId = resolveCueForEvent(event.type);
-      if (cueId === null) {
+      const cueIds = resolveCuesForEvent(event.type);
+      if (cueIds.length === 0) {
         maybeWarnUnknown(event.type);
         continue;
       }
       // Each playSfx allocates a fresh AudioBufferSourceNode (see
-      // audio-adapter.js), so chained pellets / overlapping explosions
-      // overlap naturally without us serializing playback.
-      try {
-        audio.playSfx(cueId);
-      } catch (error) {
-        // The adapter's own contract is "warn + no-op"; if a downstream
-        // adapter swap throws, we still must not crash the game loop.
-        // eslint-disable-next-line no-console
-        console.warn(`audio-integration: playSfx("${cueId}") threw`, error);
+      // audio-adapter.js), so chained pellets / overlapping explosions / the
+      // power pellet's twin cues overlap naturally without us serializing
+      // playback.
+      for (const cueId of cueIds) {
+        try {
+          audio.playSfx(cueId);
+        } catch (error) {
+          // The adapter's own contract is "warn + no-op"; if a downstream
+          // adapter swap throws, we still must not crash the game loop.
+          // eslint-disable-next-line no-console
+          console.warn(`audio-integration: playSfx("${cueId}") threw`, error);
+        }
       }
     }
   }
@@ -233,16 +347,32 @@ export function createAudioCueRunner(options = {}) {
         // Transitioning into a "silent" state (PAUSED, terminal, etc.):
         // stop any active track; stopMusic is idempotent on the adapter.
         audio.stopMusic();
-      } else if (
+        lastState = currentState;
+        return;
+      }
+
+      if (
         typeof audio.getActiveMusicId === 'function' &&
         audio.getActiveMusicId() === desiredTrack
       ) {
         // Same track already playing — do nothing (covers cases where the
         // runner is replayed after a stale lastState reset).
-      } else {
-        // playMusic stops the previous track internally before swapping in
-        // the new one, so we do not need to call stopMusic first.
-        audio.playMusic(desiredTrack, { loop: true });
+        lastState = currentState;
+        return;
+      }
+
+      // playMusic stops the previous track internally before swapping in the
+      // new one, so we do not need to call stopMusic first. It returns null
+      // when the track buffer has not been decoded yet or the AudioContext is
+      // still suspended (pre user-gesture). In that case we deliberately do
+      // NOT advance lastState, so the runner retries the start on the next
+      // tick until playback actually begins. This matters because the runtime
+      // can transition into PLAYING at frame 0 — long before a large music
+      // clip finishes decoding — and the music must still start once it is
+      // ready rather than being lost to a single failed attempt.
+      const started = audio.playMusic(desiredTrack, { loop: true });
+      if (started) {
+        lastState = currentState;
       }
     } catch (error) {
       // eslint-disable-next-line no-console
@@ -250,8 +380,35 @@ export function createAudioCueRunner(options = {}) {
         `audio-integration: music reconciliation for state "${currentState}" threw`,
         error,
       );
+      // On a hard adapter error, advance anyway so the runner does not spin
+      // on the same failing transition every frame.
+      lastState = currentState;
     }
-    lastState = currentState;
+  }
+
+  // Start/stop a state-driven looping cue on edges only. Returns the next
+  // "playing" state. When starting, playSfxLoop returns null while the clip is
+  // still decoding (or the context is suspended), so we stay false and retry on
+  // the next tick until playback actually begins. On a hard error we keep the
+  // previous state so the runner does not spin on the same failing transition.
+  function reconcileLoop(audio, cueId, shouldPlay, isPlaying) {
+    if (shouldPlay === isPlaying) {
+      return isPlaying;
+    }
+    try {
+      if (shouldPlay) {
+        const started = typeof audio.playSfxLoop === 'function' ? audio.playSfxLoop(cueId) : null;
+        return Boolean(started);
+      }
+      if (typeof audio.stopSfxLoop === 'function') {
+        audio.stopSfxLoop(cueId);
+      }
+      return false;
+    } catch (error) {
+      // eslint-disable-next-line no-console
+      console.warn(`audio-integration: loop reconciliation for "${cueId}" threw`, error);
+      return isPlaying;
+    }
   }
 
   function tick(context) {
@@ -260,14 +417,129 @@ export function createAudioCueRunner(options = {}) {
       // tick silently — gameplay continues without audio feedback.
       return;
     }
+    const isPlaying = context.gameStatus?.currentState === GAME_STATE.PLAYING;
     consumeEvents(context.audio, context.eventQueue);
     reconcileMusic(context.audio, context.gameStatus);
+    // Both loops only sound during live play (silent on pause / overlays / end).
+    const bombWantsLoop = context.bombActive === true && isPlaying;
+    // On the rising edge of bombActive, delay the fuse loop so bomb-place.mp3
+    // finishes before bomb-fuse-loop.mp3 starts (sequential, not simultaneous).
+    if (bombWantsLoop && !fusePlaying && fuseLoopAllowedAt === 0) {
+      fuseLoopAllowedAt = now() + fuseLoopDelay;
+    }
+    if (!bombWantsLoop) {
+      fuseLoopAllowedAt = 0;
+    }
+    const fuseReady = bombWantsLoop && now() >= fuseLoopAllowedAt;
+    fusePlaying = reconcileLoop(context.audio, FUSE_LOOP_CUE, fuseReady, fusePlaying);
+    powerPelletLoopPlaying = reconcileLoop(
+      context.audio,
+      POWER_PELLET_LOOP_CUE,
+      context.powerPelletActive === true && isPlaying,
+      powerPelletLoopPlaying,
+    );
   }
 
   function reset() {
     warnedUnknown.clear();
     lastState = null;
+    fusePlaying = false;
+    powerPelletLoopPlaying = false;
+    fuseLoopAllowedAt = 0;
   }
 
   return { tick, reset };
+}
+
+/**
+ * C-09: default slow-preload threshold. The audio-loading indicator only
+ * appears when preloading the gameplay-critical SFX exceeds this many ms, so
+ * fast loads never flash a spinner.
+ */
+export const AUDIO_PRELOAD_INDICATOR_THRESHOLD_MS = 200;
+
+/**
+ * C-09: orchestrate gameplay-critical SFX preloading with a flicker-free
+ * loading indicator.
+ *
+ * Runs `audio.preloadAudioAssets(cueIds, ...)` and, *only if* the preload is
+ * still running after `thresholdMs`, shows the injected indicator — then hides
+ * it the instant the preload settles. A fast preload (≤ threshold) clears the
+ * timer before it fires, so the indicator is never shown and there is no
+ * show→immediately-hide flicker.
+ *
+ * This helper is DOM-free and framework-free: the indicator is injected (it is
+ * the Track C `audio-loading-indicator` adapter at the app boundary), and the
+ * audio adapter is injected too — nothing here imports DOM or the adapter
+ * module. Startup is never blocked: callers fire-and-forget the returned
+ * promise; the game loop keeps running while the decode proceeds.
+ *
+ * Preload failures are swallowed (the underlying adapter already warns per
+ * cue), so a bad clip never rejects startup. The indicator is always hidden in
+ * a `finally`, even if preloading throws.
+ *
+ * @param {{
+ *   audio: { preloadAudioAssets?: Function } | null | undefined,
+ *   indicator?: { show?: Function, hide?: Function } | null,
+ *   cueIds: string[],
+ *   preloadOptions?: object,
+ *   thresholdMs?: number,
+ *   setTimeoutImpl?: typeof setTimeout,
+ *   clearTimeoutImpl?: typeof clearTimeout,
+ *   now?: () => number,
+ * }} params
+ * @returns {Promise<{ shown: boolean, durationMs: number, report: object | null }>}
+ *   Resolves after preload settles and the indicator is hidden.
+ */
+export async function preloadWithIndicator({
+  audio,
+  indicator = null,
+  cueIds,
+  preloadOptions = {},
+  thresholdMs = AUDIO_PRELOAD_INDICATOR_THRESHOLD_MS,
+  setTimeoutImpl = typeof setTimeout === 'function' ? setTimeout : null,
+  clearTimeoutImpl = typeof clearTimeout === 'function' ? clearTimeout : null,
+  now = () =>
+    typeof performance !== 'undefined' && typeof performance.now === 'function'
+      ? performance.now()
+      : Date.now(),
+}) {
+  const result = { shown: false, durationMs: 0, report: null };
+
+  if (!audio || typeof audio.preloadAudioAssets !== 'function') {
+    return result;
+  }
+  if (!Array.isArray(cueIds) || cueIds.length === 0) {
+    return result;
+  }
+
+  const startedAt = now();
+  let timerHandle = null;
+
+  // Arm a deferred show: it fires only if the preload is still in flight when
+  // the threshold elapses. A fast preload clears it first → never shown.
+  if (setTimeoutImpl && indicator && typeof indicator.show === 'function') {
+    timerHandle = setTimeoutImpl(() => {
+      result.shown = true;
+      indicator.show();
+    }, thresholdMs);
+  }
+
+  try {
+    result.report = await audio.preloadAudioAssets(cueIds, preloadOptions);
+  } catch {
+    // preloadAudioAssets already warns per cue; never reject startup.
+    result.report = null;
+  } finally {
+    if (timerHandle !== null && clearTimeoutImpl) {
+      clearTimeoutImpl(timerHandle);
+    }
+    // Hide immediately on completion; safe to call even if never shown.
+    if (indicator && typeof indicator.hide === 'function') {
+      indicator.hide();
+    }
+    result.durationMs = now() - startedAt;
+  }
+
+  return result;
 }

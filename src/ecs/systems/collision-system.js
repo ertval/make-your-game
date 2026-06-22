@@ -35,6 +35,7 @@
  *   in B-05.
  */
 
+import { readEntityTile } from '../../shared/tile-utils.js';
 import { COMPONENT_MASK } from '../components/registry.js';
 import { COLLIDER_TYPE } from '../components/spatial.js';
 import { CELL_TYPE, GHOST_STATE } from '../resources/constants.js';
@@ -44,7 +45,6 @@ import {
   isPassableForGhost,
   setCell,
 } from '../resources/map-resource.js';
-import { readEntityTile } from '../shared/tile-utils.js';
 import {
   emitGameplayEvent,
   GAMEPLAY_EVENT_SOURCE,
@@ -137,7 +137,34 @@ export function createCollisionScratch(cellCount, maxGhostsPerCell = DEFAULT_GHO
     // Ghosts need a compact fan-out lane because multiple ghosts can share one tile.
     ghostCounts: new Uint8Array(cellCount),
     ghostIds: new Int32Array(cellCount * maxGhostsPerCell).fill(-1),
+    // BUG-06: dirty-cell tracking so resetCollisionScratch restores only the
+    // cells touched last step instead of re-filling all six lanes every step.
+    // dirtyCells is a preallocated stack of touched cell indices; dirtyCount is
+    // its length; dirtySeen dedupes so each cell is pushed at most once. All are
+    // reused in place across steps to avoid hot-path allocation (AGENTS.md).
+    dirtyCells: new Int32Array(cellCount),
+    dirtyCount: 0,
+    dirtySeen: new Uint8Array(cellCount),
   };
+}
+
+/**
+ * Record that a cell lane was written this step so reset can restore just it.
+ *
+ * Deduping through dirtySeen keeps the dirty stack bounded by cellCount even
+ * when several lanes of the same cell are written (e.g. fire + ghost + player).
+ *
+ * @param {CollisionScratch} scratch - Reusable occupancy scratch buffer.
+ * @param {number} cellIndex - Flat cell index that was just written.
+ */
+function markCollisionCellDirty(scratch, cellIndex) {
+  if (scratch.dirtySeen[cellIndex] === 1) {
+    return;
+  }
+
+  scratch.dirtySeen[cellIndex] = 1;
+  scratch.dirtyCells[scratch.dirtyCount] = cellIndex;
+  scratch.dirtyCount += 1;
 }
 
 /**
@@ -147,12 +174,26 @@ export function createCollisionScratch(cellCount, maxGhostsPerCell = DEFAULT_GHO
  * @returns {CollisionScratch} The same scratch object for call chaining.
  */
 export function resetCollisionScratch(scratch) {
-  scratch.playerByCell.fill(-1);
-  scratch.bombByCell.fill(-1);
-  scratch.droppedBombByCell.fill(-1);
-  scratch.fireByCell.fill(-1);
-  scratch.ghostCounts.fill(0);
-  scratch.ghostIds.fill(-1);
+  const { dirtyCells, dirtyCount, maxGhostsPerCell } = scratch;
+  // Restore only the cells that were written last step. Every touched cell is
+  // returned to the exact sentinel a full fill would leave (-1 for the Int32
+  // lanes, 0 for ghostCounts), so determinism is preserved while skipping the
+  // O(cellCount) blanket fill on untouched cells.
+  for (let i = 0; i < dirtyCount; i += 1) {
+    const cellIndex = dirtyCells[i];
+    scratch.playerByCell[cellIndex] = -1;
+    scratch.bombByCell[cellIndex] = -1;
+    scratch.droppedBombByCell[cellIndex] = -1;
+    scratch.fireByCell[cellIndex] = -1;
+    scratch.ghostCounts[cellIndex] = 0;
+    const ghostBase = cellIndex * maxGhostsPerCell;
+    for (let k = 0; k < maxGhostsPerCell; k += 1) {
+      scratch.ghostIds[ghostBase + k] = -1;
+    }
+    // Clear the dedupe flag so this cell can be marked dirty again next step.
+    scratch.dirtySeen[cellIndex] = 0;
+  }
+  scratch.dirtyCount = 0;
   return scratch;
 }
 
@@ -242,6 +283,8 @@ function pushGhostOccupancy(scratch, cellIndex, entityId) {
 
   scratch.ghostIds[cellIndex * scratch.maxGhostsPerCell + ghostCount] = entityId;
   scratch.ghostCounts[cellIndex] = ghostCount + 1;
+  // Record the touched cell so reset restores its ghost lanes and count.
+  markCollisionCellDirty(scratch, cellIndex);
 }
 
 /**
@@ -329,11 +372,15 @@ function buildHazardOccupancy(
     const colliderType = colliderStore.type[entityId];
     if (colliderType === COLLIDER_TYPE.FIRE) {
       scratch.fireByCell[cellIndex] = entityId;
+      // Record the touched cell so reset restores its fire lane.
+      markCollisionCellDirty(scratch, cellIndex);
       continue;
     }
 
     if (colliderType === COLLIDER_TYPE.BOMB) {
       scratch.bombByCell[cellIndex] = entityId;
+      // Record the touched cell so reset restores its bomb lanes.
+      markCollisionCellDirty(scratch, cellIndex);
       const previousTile = readPreviousEntityTile(positionStore, entityId, reusablePreviousTile);
       if (hasTileChanged(currentTile, previousTile)) {
         scratch.droppedBombByCell[cellIndex] = entityId;
@@ -698,6 +745,8 @@ function buildActorOccupancy(
     const colliderType = colliderStore.type[entityId];
     if (colliderType === COLLIDER_TYPE.PLAYER) {
       scratch.playerByCell[cellIndex] = entityId;
+      // Record the touched cell so reset restores its player lane.
+      markCollisionCellDirty(scratch, cellIndex);
       continue;
     }
 
@@ -805,9 +854,10 @@ function resolveDynamicCellCollisions(
       });
 
       // B-09: publish the cross-system GhostDefeated fact so the scoring combo
-      // multiplier (C-01) and audio/visual consumers observe the same ordered
-      // event. chainDepth defaults to the root explosion depth when the fire
-      // store does not expose chain metadata (older/partial harnesses).
+      // multiplier (C-01), the C-07/C-08 audio cue runner (→ sfx-ghost-kill),
+      // and visual consumers observe the same ordered event. chainDepth defaults
+      // to the root explosion depth when the fire store does not expose chain
+      // metadata (older/partial harnesses).
       emitGameplayEvent(
         eventContext?.eventQueue,
         GAMEPLAY_EVENT_TYPE.GHOST_DEFEATED,
@@ -826,6 +876,12 @@ function resolveDynamicCellCollisions(
       // tile from emitting duplicate death intents on subsequent fixed steps.
       if (ghostStore?.state) {
         ghostStore.state[ghostId] = GHOST_STATE.DEAD;
+        // BUG-18: a STUNNED ghost carries a non-zero timerMs; clear it here so the
+        // leftover stun timer cannot leak across the DEAD → respawn transition and
+        // prematurely flip the ghost back to a normal state after revival.
+        if (ghostStore.timerMs) {
+          ghostStore.timerMs[ghostId] = 0;
+        }
       }
     }
 
@@ -897,6 +953,7 @@ export function createCollisionSystem(options = {}) {
   const fireResourceKey = options.fireResourceKey || 'fire';
   const collisionIntentsResourceKey = options.collisionIntentsResourceKey || 'collisionIntents';
   const eventQueueResourceKey = options.eventQueueResourceKey || 'eventQueue';
+  const bombOccupancyResourceKey = options.bombOccupancyResourceKey || 'bombCellOccupancy';
   const requiredMask = options.requiredMask ?? COLLISION_ENTITY_REQUIRED_MASK;
   const maxGhostsPerCell = options.maxGhostsPerCell ?? DEFAULT_GHOST_SLOTS_PER_CELL;
   let scratch = null;
@@ -906,18 +963,24 @@ export function createCollisionSystem(options = {}) {
   const reusableTravelVector = { rowDelta: 0, colDelta: 0 };
   const reusableCandidateTile = { row: 0, col: 0 };
 
+  const writeCapabilities = [
+    mapResourceKey,
+    positionResourceKey,
+    ghostResourceKey,
+    collisionIntentsResourceKey,
+    eventQueueResourceKey,
+  ];
+  // Declare write capability for bombCellOccupancy so the ECS scheduler can trace it.
+  if (bombOccupancyResourceKey) {
+    writeCapabilities.push(bombOccupancyResourceKey);
+  }
+
   return {
     name: 'collision-system',
     phase: 'logic',
     resourceCapabilities: {
       read: [colliderResourceKey, playerResourceKey, healthResourceKey, fireResourceKey],
-      write: [
-        mapResourceKey,
-        positionResourceKey,
-        ghostResourceKey,
-        collisionIntentsResourceKey,
-        eventQueueResourceKey,
-      ],
+      write: writeCapabilities,
     },
     update(context) {
       const world = context.world;
@@ -963,6 +1026,49 @@ export function createCollisionSystem(options = {}) {
         reusableTile,
         reusablePreviousTile,
       );
+
+      // Populate bombCellOccupancy so the ghost-ai-system in the physics phase has access to bomb coordinates.
+      // Phase-ordering note: DEFAULT_PHASE_ORDER = ['meta', 'input', 'physics', 'logic', 'render'], so
+      // the physics-phase ghost-ai-system runs BEFORE this logic-phase publication on the same fixed
+      // step. Ghost AI therefore sees frame N-1's occupancy at frame N. This is acceptable because
+      //   1. bombs placed on frame N are visible to ghost AI from frame N+1 onward, which breaks the
+      //      infinite oscillation against a bomb tile that the pre-fix code suffered (bug #107);
+      //   2. same-frame walk-ins are still blocked by `shouldBlockGhostFromBombCell` below
+      //      (lines 466-472 / 541-547), so a ghost never actually sits on a bomb tile.
+      if (bombOccupancyResourceKey) {
+        let bombOccupancy = world.getResource(bombOccupancyResourceKey);
+        // Initialize the resource to a Set if it has not been registered in the world.
+        if (bombOccupancy === undefined || bombOccupancy === null) {
+          bombOccupancy = new Set();
+          world.setResource(bombOccupancyResourceKey, bombOccupancy);
+        }
+        // Support Set, Map, and Array targets dynamically so any system/test setup harness format is parsed.
+        if (bombOccupancy instanceof Set) {
+          bombOccupancy.clear();
+          for (let cellIndex = 0; cellIndex < scratch.cellCount; cellIndex += 1) {
+            if (scratch.bombByCell[cellIndex] !== -1) {
+              bombOccupancy.add(cellIndex);
+            }
+          }
+        } else if (bombOccupancy instanceof Map) {
+          bombOccupancy.clear();
+          for (let cellIndex = 0; cellIndex < scratch.cellCount; cellIndex += 1) {
+            const bombEntityId = scratch.bombByCell[cellIndex];
+            if (bombEntityId !== -1) {
+              bombOccupancy.set(cellIndex, bombEntityId);
+            }
+          }
+        } else if (Array.isArray(bombOccupancy)) {
+          bombOccupancy.length = 0;
+          for (let cellIndex = 0; cellIndex < scratch.cellCount; cellIndex += 1) {
+            if (scratch.bombByCell[cellIndex] !== -1) {
+              const row = Math.floor(cellIndex / mapResource.cols);
+              const col = cellIndex % mapResource.cols;
+              bombOccupancy.push({ row, col, cellIndex });
+            }
+          }
+        }
+      }
       enforceOccupancyConstraints(
         entityIds,
         mapResource,

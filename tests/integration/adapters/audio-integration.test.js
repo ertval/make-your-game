@@ -22,9 +22,11 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import {
   AUDIO_CUE_MAPPING,
+  applyAudioSettings,
   createAudioCueRunner,
   MUSIC_STATE_MAPPING,
   resolveCueForEvent,
+  resolveCuesForEvent,
   resolveMusicForState,
 } from '../../../src/adapters/io/audio-integration.js';
 import { createEventQueue, enqueue } from '../../../src/ecs/resources/event-queue.js';
@@ -33,15 +35,28 @@ import { createGameStatus, GAME_STATE } from '../../../src/ecs/resources/game-st
 function createAudioAdapterSpy() {
   const calls = {
     playSfx: [],
+    playSfxLoop: [],
+    stopSfxLoop: [],
     playMusic: [],
     stopMusic: 0,
+    setVolume: [],
   };
   let activeMusicId = null;
   return {
     calls,
+    setVolume(category, value) {
+      calls.setVolume.push({ category, value });
+    },
     playSfx(cueId) {
       calls.playSfx.push(cueId);
       return { __spy: true, cueId };
+    },
+    playSfxLoop(cueId) {
+      calls.playSfxLoop.push(cueId);
+      return { __spy: true, cueId, loop: true };
+    },
+    stopSfxLoop(cueId) {
+      calls.stopSfxLoop.push(cueId);
     },
     playMusic(trackId, options = {}) {
       calls.playMusic.push({ trackId, options });
@@ -66,6 +81,81 @@ beforeEach(() => {
 
 afterEach(() => {
   consoleWarnSpy.mockRestore();
+  vi.unstubAllGlobals();
+});
+
+describe('audio-integration: applyAudioSettings (C-11A)', () => {
+  function volumeFor(audio, category) {
+    const entry = audio.calls.setVolume.find((c) => c.category === category);
+    return entry ? entry.value : undefined;
+  }
+
+  it('applies enabled categories at their stored volume via setVolume only', () => {
+    const audio = createAudioAdapterSpy();
+
+    const applied = applyAudioSettings(audio, {
+      musicEnabled: true,
+      sfxEnabled: true,
+      musicVolume: 0.4,
+      sfxVolume: 0.7,
+      uiVolume: 0.6,
+    });
+
+    expect(applied).toBe(true);
+    // Only setVolume is used (no other adapter method called).
+    expect(audio.calls.playSfx).toEqual([]);
+    expect(audio.calls.playMusic).toEqual([]);
+    expect(volumeFor(audio, 'music')).toBe(0.4);
+    expect(volumeFor(audio, 'sfx')).toBe(0.7);
+    expect(volumeFor(audio, 'ui')).toBe(0.6);
+  });
+
+  it('maps a disabled category to volume 0 (no mute method on the adapter)', () => {
+    const audio = createAudioAdapterSpy();
+
+    applyAudioSettings(audio, {
+      musicEnabled: false,
+      sfxEnabled: false,
+      musicVolume: 0.9,
+      sfxVolume: 0.9,
+      uiVolume: 0.5,
+    });
+
+    expect(volumeFor(audio, 'music')).toBe(0);
+    expect(volumeFor(audio, 'sfx')).toBe(0);
+    // ui has no enable flag and is applied directly.
+    expect(volumeFor(audio, 'ui')).toBe(0.5);
+  });
+
+  it('sets all three categories exactly once', () => {
+    const audio = createAudioAdapterSpy();
+
+    applyAudioSettings(audio, {
+      musicEnabled: true,
+      sfxEnabled: true,
+      musicVolume: 1,
+      sfxVolume: 1,
+      uiVolume: 1,
+    });
+
+    const categories = audio.calls.setVolume.map((c) => c.category);
+    expect(categories.sort()).toEqual(['music', 'sfx', 'ui']);
+  });
+
+  it('returns false and does not throw when the adapter is missing or unusable', () => {
+    expect(applyAudioSettings(null, { musicVolume: 1 })).toBe(false);
+    expect(applyAudioSettings({}, { musicVolume: 1 })).toBe(false);
+  });
+
+  it('tolerates a null/partial settings object without throwing', () => {
+    const audio = createAudioAdapterSpy();
+
+    expect(applyAudioSettings(audio, null)).toBe(true);
+    // Missing fields coerce to 0 rather than crashing.
+    expect(volumeFor(audio, 'music')).toBe(0);
+    expect(volumeFor(audio, 'sfx')).toBe(0);
+    expect(volumeFor(audio, 'ui')).toBe(0);
+  });
 });
 
 describe('audio-integration: cue mapping table', () => {
@@ -101,6 +191,154 @@ describe('audio-integration: cue mapping table', () => {
     expect(resolveCueForEvent(undefined)).toBeNull();
     expect(resolveCueForEvent(123)).toBeNull();
   });
+
+  it('resolveCuesForEvent normalizes single-cue mappings to a one-element array', () => {
+    expect(resolveCuesForEvent('BombPlaced')).toEqual(['sfx-bomb-place']);
+    expect(resolveCuesForEvent('PowerPelletCollected')).toEqual(['sfx-power-pellet-collect']);
+    expect(resolveCuesForEvent('NotARealEvent')).toEqual([]);
+  });
+});
+
+describe('audio-integration: bomb fuse loop', () => {
+  // Use fuseLoopDelay: 0 to bypass the bomb-place sequencing delay in unit
+  // tests — the delay behaviour is covered by the dedicated sequencing suite.
+  it('starts the fuse loop while a bomb is active during PLAYING', () => {
+    const audio = createAudioAdapterSpy();
+    const eventQueue = createEventQueue();
+    const gameStatus = createGameStatus(GAME_STATE.PLAYING);
+    const runner = createAudioCueRunner({ fuseLoopDelay: 0 });
+
+    runner.tick({ audio, eventQueue, gameStatus, bombActive: true });
+
+    expect(audio.calls.playSfxLoop).toEqual(['sfx-bomb-fuse']);
+    expect(audio.calls.stopSfxLoop).toEqual([]);
+  });
+
+  it('stops the fuse loop once no bomb is active', () => {
+    const audio = createAudioAdapterSpy();
+    const eventQueue = createEventQueue();
+    const gameStatus = createGameStatus(GAME_STATE.PLAYING);
+    const runner = createAudioCueRunner({ fuseLoopDelay: 0 });
+
+    runner.tick({ audio, eventQueue, gameStatus, bombActive: true });
+    runner.tick({ audio, eventQueue, gameStatus, bombActive: false });
+
+    expect(audio.calls.playSfxLoop).toEqual(['sfx-bomb-fuse']);
+    expect(audio.calls.stopSfxLoop).toEqual(['sfx-bomb-fuse']);
+  });
+
+  it('does not loop the fuse outside PLAYING even with an active bomb', () => {
+    const audio = createAudioAdapterSpy();
+    const eventQueue = createEventQueue();
+    const gameStatus = createGameStatus(GAME_STATE.PAUSED);
+    const runner = createAudioCueRunner({ fuseLoopDelay: 0 });
+
+    runner.tick({ audio, eventQueue, gameStatus, bombActive: true });
+
+    expect(audio.calls.playSfxLoop).toEqual([]);
+  });
+
+  it('retries starting the fuse loop until the clip is ready', () => {
+    const audio = createAudioAdapterSpy();
+    let ready = false;
+    audio.playSfxLoop = (cueId) => {
+      audio.calls.playSfxLoop.push(cueId);
+      return ready ? { __spy: true, cueId } : null;
+    };
+    const eventQueue = createEventQueue();
+    const gameStatus = createGameStatus(GAME_STATE.PLAYING);
+    const runner = createAudioCueRunner({ fuseLoopDelay: 0 });
+
+    runner.tick({ audio, eventQueue, gameStatus, bombActive: true });
+    ready = true;
+    runner.tick({ audio, eventQueue, gameStatus, bombActive: true });
+
+    expect(audio.calls.playSfxLoop).toEqual(['sfx-bomb-fuse', 'sfx-bomb-fuse']);
+  });
+
+  it('holds the fuse loop for fuseLoopDelay ms after bomb placement', () => {
+    const audio = createAudioAdapterSpy();
+    const eventQueue = createEventQueue();
+    const gameStatus = createGameStatus(GAME_STATE.PLAYING);
+    let fakeNow = 1000;
+    const runner = createAudioCueRunner({ fuseLoopDelay: 500, now: () => fakeNow });
+
+    // Tick at t=1000 — delay window [1000, 1500), fuse should not start yet.
+    runner.tick({ audio, eventQueue, gameStatus, bombActive: true });
+    expect(audio.calls.playSfxLoop).toEqual([]);
+
+    // Advance clock past the delay window.
+    fakeNow = 1500;
+    runner.tick({ audio, eventQueue, gameStatus, bombActive: true });
+
+    expect(audio.calls.playSfxLoop).toEqual(['sfx-bomb-fuse']);
+  });
+
+  it('resets the delay when bombActive drops and rises again', () => {
+    const audio = createAudioAdapterSpy();
+    const eventQueue = createEventQueue();
+    const gameStatus = createGameStatus(GAME_STATE.PLAYING);
+    const runner = createAudioCueRunner({ fuseLoopDelay: 0 });
+
+    runner.tick({ audio, eventQueue, gameStatus, bombActive: true });
+    runner.tick({ audio, eventQueue, gameStatus, bombActive: false });
+    runner.tick({ audio, eventQueue, gameStatus, bombActive: true });
+
+    // playSfxLoop called twice (once per rising edge), stopSfxLoop once.
+    expect(audio.calls.playSfxLoop).toEqual(['sfx-bomb-fuse', 'sfx-bomb-fuse']);
+    expect(audio.calls.stopSfxLoop).toEqual(['sfx-bomb-fuse']);
+  });
+});
+
+describe('audio-integration: power-pellet frenzy loop', () => {
+  it('plays only the pickup blip on PowerPelletCollected (frenzy SFX is not a one-shot)', () => {
+    const audio = createAudioAdapterSpy();
+    const eventQueue = createEventQueue();
+    const gameStatus = createGameStatus(GAME_STATE.PLAYING);
+    const runner = createAudioCueRunner();
+
+    enqueue(eventQueue, 'PowerPelletCollected', {}, 0);
+    runner.tick({ audio, eventQueue, gameStatus });
+
+    expect(audio.calls.playSfx).toEqual(['sfx-power-pellet-collect']);
+    expect(audio.calls.playSfx).not.toContain('sfx-speed-boost-on');
+  });
+
+  it('loops the frenzy SFX while the power pellet is active during PLAYING', () => {
+    const audio = createAudioAdapterSpy();
+    const eventQueue = createEventQueue();
+    const gameStatus = createGameStatus(GAME_STATE.PLAYING);
+    const runner = createAudioCueRunner();
+
+    runner.tick({ audio, eventQueue, gameStatus, powerPelletActive: true });
+
+    expect(audio.calls.playSfxLoop).toEqual(['sfx-speed-boost-on']);
+    expect(audio.calls.stopSfxLoop).toEqual([]);
+  });
+
+  it('stops the frenzy loop once the power pellet window ends', () => {
+    const audio = createAudioAdapterSpy();
+    const eventQueue = createEventQueue();
+    const gameStatus = createGameStatus(GAME_STATE.PLAYING);
+    const runner = createAudioCueRunner();
+
+    runner.tick({ audio, eventQueue, gameStatus, powerPelletActive: true });
+    runner.tick({ audio, eventQueue, gameStatus, powerPelletActive: false });
+
+    expect(audio.calls.playSfxLoop).toEqual(['sfx-speed-boost-on']);
+    expect(audio.calls.stopSfxLoop).toEqual(['sfx-speed-boost-on']);
+  });
+
+  it('does not loop the frenzy SFX outside PLAYING even when active', () => {
+    const audio = createAudioAdapterSpy();
+    const eventQueue = createEventQueue();
+    const gameStatus = createGameStatus(GAME_STATE.PAUSED);
+    const runner = createAudioCueRunner();
+
+    runner.tick({ audio, eventQueue, gameStatus, powerPelletActive: true });
+
+    expect(audio.calls.playSfxLoop).toEqual([]);
+  });
 });
 
 describe('audio-integration: music state mapping', () => {
@@ -110,8 +348,8 @@ describe('audio-integration: music state mapping', () => {
     }
   });
 
-  it('plays gameplay music during PLAYING and silences PAUSED / terminal states', () => {
-    expect(resolveMusicForState(GAME_STATE.MENU)).toBe('music-menu');
+  it('plays gameplay music during PLAYING and silences MENU / PAUSED / terminal states', () => {
+    expect(resolveMusicForState(GAME_STATE.MENU)).toBeNull();
     expect(resolveMusicForState(GAME_STATE.PLAYING)).toBe('music-gameplay');
     expect(resolveMusicForState(GAME_STATE.PAUSED)).toBeNull();
     expect(resolveMusicForState(GAME_STATE.LEVEL_COMPLETE)).toBeNull();
@@ -134,7 +372,9 @@ describe('audio-integration: cue runner — event consumption', () => {
 
     runner.tick({ audio, eventQueue, gameStatus });
 
-    const expectedCues = mappedEvents.map((type) => AUDIO_CUE_MAPPING[type]);
+    // Multi-cue events (e.g. PowerPelletCollected) expand to several playSfx
+    // calls, so flatten the mapping to the normalized cue list.
+    const expectedCues = mappedEvents.flatMap((type) => resolveCuesForEvent(type));
     expect(audio.calls.playSfx).toEqual(expectedCues);
   });
 
@@ -198,6 +438,12 @@ describe('audio-integration: cue runner — event consumption', () => {
   });
 
   it('drops unknown event types without throwing and warns once per type in dev', () => {
+    // The unknown-event warning is gated behind the shared isDevelopment()
+    // probe, which is true only when NODE_ENV is explicitly 'development'.
+    // Stub it here so the test asserts dev-only warning behavior regardless of
+    // the ambient NODE_ENV the runner happens to execute under.
+    vi.stubGlobal('process', { env: { NODE_ENV: 'development' } });
+
     const audio = createAudioAdapterSpy();
     const eventQueue = createEventQueue();
     const gameStatus = createGameStatus(GAME_STATE.PLAYING);
@@ -334,7 +580,7 @@ describe('audio-integration: cue runner — music state transitions', () => {
     }
   });
 
-  it('plays menu music on entry into MENU', () => {
+  it('keeps MENU silent (no menu music asset) and stops any active track', () => {
     const audio = createAudioAdapterSpy();
     const eventQueue = createEventQueue();
     const gameStatus = createGameStatus(GAME_STATE.MENU);
@@ -342,7 +588,8 @@ describe('audio-integration: cue runner — music state transitions', () => {
 
     runner.tick({ audio, eventQueue, gameStatus });
 
-    expect(audio.calls.playMusic).toEqual([{ trackId: 'music-menu', options: { loop: true } }]);
+    expect(audio.calls.playMusic).toHaveLength(0);
+    expect(audio.calls.stopMusic).toBe(1);
   });
 
   it('reset() clears lastState so a transition to a different state re-issues music', () => {
@@ -361,10 +608,12 @@ describe('audio-integration: cue runner — music state transitions', () => {
     runner.tick({ audio, eventQueue, gameStatus });
     expect(audio.calls.playMusic).toHaveLength(1);
 
-    // A genuine state change after reset still triggers playMusic.
+    // A genuine state change after reset still reconciles music: MENU is a
+    // silent state, so it stops the active track rather than playing a new one.
     gameStatus.previousState = gameStatus.currentState;
     gameStatus.currentState = GAME_STATE.MENU;
     runner.tick({ audio, eventQueue, gameStatus });
-    expect(audio.calls.playMusic.map((c) => c.trackId)).toEqual(['music-gameplay', 'music-menu']);
+    expect(audio.calls.playMusic.map((c) => c.trackId)).toEqual(['music-gameplay']);
+    expect(audio.calls.stopMusic).toBe(1);
   });
 });

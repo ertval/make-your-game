@@ -26,7 +26,14 @@
  *
  * Adapter methods:
  * - loadClips(manifest): fetch + decodeAudioData each clip in the manifest.
- * - playSfx(cueId): play a one-shot SFX cue (overlapping playback supported).
+ * - preloadAudioAssets(cueIds, options): C-09 — async pre-decode gameplay-critical
+ *   SFX into the buffer cache (parallel, deduplicated, failure-tolerant; music/
+ *   ambience excluded). Records real performance.now() fetch/decode timings.
+ * - getPreloadStats(): C-09 — snapshot of cumulative preload instrumentation
+ *   (fetch/decode/total durations + cache-hit/miss/fail counts) for AUDIT-B-05.
+ * - playSfx(cueId, { gain? }): play a one-shot SFX cue (overlapping playback supported);
+ *   optional per-call gain [0,1] attenuates just that playback.
+ * - playSfxLoop(cueId) / stopSfxLoop(cueId): start/stop a looping SFX cue (e.g. bomb fuse).
  * - playMusic(trackId, options): play a music track, replacing any previous one.
  * - stopMusic(): stop the currently playing music track.
  * - setVolume(category, value): set linear gain for master/music/sfx/ui.
@@ -71,6 +78,187 @@ function clampGain(value) {
   return value;
 }
 
+/**
+ * Nudge a loop boundary toward the quietest sample within a small window so the
+ * loop wraps as close to zero amplitude as possible. This shaves the faint
+ * click that remains when a trim boundary lands mid-waveform (a zero-crossing
+ * snap). Returns the original index when no quieter sample is nearby.
+ *
+ * @param {Float32Array} data - Channel PCM samples.
+ * @param {number} fromIndex - Starting sample index.
+ * @param {number} direction - +1 to search forward, -1 to search backward.
+ * @param {number} window - Maximum samples to search.
+ * @returns {number} Index of the quietest sample found (or fromIndex).
+ */
+function snapToQuietestSample(data, fromIndex, direction, window) {
+  let bestIndex = fromIndex;
+  let bestAbs = Math.abs(data[fromIndex]);
+  for (let step = 1; step <= window; step += 1) {
+    const i = fromIndex + direction * step;
+    if (i < 0 || i >= data.length) {
+      break;
+    }
+    const abs = Math.abs(data[i]);
+    if (abs < bestAbs) {
+      bestAbs = abs;
+      bestIndex = i;
+    }
+  }
+  return bestIndex;
+}
+
+/**
+ * Find the seamless loop region of a decoded buffer by trimming near-silent
+ * edges and snapping the boundaries toward zero-crossings. MP3 encoder
+ * delay/padding decodes to a few ms of leading/trailing silence; with
+ * `source.loop = true` that silence replays every iteration and is heard as a
+ * gap. Looping only the non-silent region (with zero-snapped edges) removes the
+ * gap and minimizes the loop-wrap click.
+ *
+ * Defensive: any buffer that does not expose PCM data (e.g. test mocks) falls
+ * back to looping the whole buffer.
+ *
+ * @param {AudioBuffer} buffer - Decoded audio buffer.
+ * @returns {{ loopStart: number, loopEnd: number }} Loop region in seconds.
+ */
+function computeLoopRegion(buffer) {
+  const duration = Number.isFinite(buffer?.duration) ? buffer.duration : 0;
+  const fallback = { loopStart: 0, loopEnd: duration };
+  const length = Number.isInteger(buffer?.length) ? buffer.length : 0;
+  const sampleRate = buffer?.sampleRate;
+
+  if (typeof buffer?.getChannelData !== 'function' || length <= 0 || !sampleRate) {
+    return fallback;
+  }
+
+  // ~ -56 dBFS: treats encoder padding / dead air as silence without trimming
+  // an audible loop body.
+  const SILENCE_THRESHOLD = 0.0015;
+  const channelCount = buffer.numberOfChannels || 1;
+  let firstNonSilent = length;
+  let lastNonSilent = -1;
+
+  for (let channel = 0; channel < channelCount; channel += 1) {
+    const data = buffer.getChannelData(channel);
+    for (let i = 0; i < length; i += 1) {
+      if (Math.abs(data[i]) > SILENCE_THRESHOLD) {
+        if (i < firstNonSilent) {
+          firstNonSilent = i;
+        }
+        break;
+      }
+    }
+    for (let i = length - 1; i >= 0; i -= 1) {
+      if (Math.abs(data[i]) > SILENCE_THRESHOLD) {
+        if (i > lastNonSilent) {
+          lastNonSilent = i;
+        }
+        break;
+      }
+    }
+  }
+
+  if (lastNonSilent <= firstNonSilent) {
+    return fallback;
+  }
+
+  // Snap each edge toward the nearest near-zero sample (≤10 ms in, bounded so we
+  // never cross the midpoint) to shave the residual loop-wrap click.
+  const channel0 = buffer.getChannelData(0);
+  const snapWindow = Math.max(
+    0,
+    Math.min(Math.round(sampleRate * 0.01), Math.floor((lastNonSilent - firstNonSilent) / 2)),
+  );
+  const loopStartSample = snapToQuietestSample(channel0, firstNonSilent, 1, snapWindow);
+  const loopEndSample = snapToQuietestSample(channel0, lastNonSilent, -1, snapWindow);
+
+  return {
+    loopStart: loopStartSample / sampleRate,
+    loopEnd: (loopEndSample + 1) / sampleRate,
+  };
+}
+
+/**
+ * Pre-render a seamless looping buffer by crossfading the loop region's tail
+ * back into its head. `computeLoopRegion` removes encoder padding and snaps to
+ * zero-crossings, but the loop *body* itself may not be musically continuous —
+ * the phrase at `loopEnd` rarely resolves back into the phrase at `loopStart`,
+ * so a plain `source.loop = true` splice can still be heard as a "gap" where the
+ * pattern restarts. Mixing the last `fade` samples (faded out) into the first
+ * `fade` samples (faded in) with an equal-power curve blends the end of one
+ * iteration into the start of the next, masking that restart regardless of how
+ * the source clip was authored. The returned buffer loops cleanly over its full
+ * `0..duration` range.
+ *
+ * Equal-power (cos/sin) rather than linear so the summed loudness stays
+ * constant through the fade — a linear crossfade would dip ~3 dB at the midpoint
+ * and be heard as a pulse. Done once per cue and cached; not on the hot path.
+ *
+ * Defensive: returns null when PCM data or `createBuffer` is unavailable (test
+ * mocks) or the region is too short to fade, so callers fall back to the
+ * original buffer + loopStart/loopEnd splice.
+ *
+ * @param {BaseAudioContext} context - Context used to allocate the new buffer.
+ * @param {AudioBuffer} buffer - Decoded source buffer.
+ * @param {{ loopStart: number, loopEnd: number }} region - Loop region (seconds).
+ * @param {number} fadeSeconds - Target crossfade length in seconds.
+ * @returns {AudioBuffer | null} Crossfaded loop buffer, or null to fall back.
+ */
+function buildSeamlessLoopBuffer(context, buffer, region, fadeSeconds) {
+  if (
+    typeof buffer?.getChannelData !== 'function' ||
+    typeof context?.createBuffer !== 'function' ||
+    !Number.isFinite(buffer?.sampleRate)
+  ) {
+    return null;
+  }
+
+  const sampleRate = buffer.sampleRate;
+  const startSample = Math.max(0, Math.round(region.loopStart * sampleRate));
+  const endSample = Math.min(buffer.length, Math.round(region.loopEnd * sampleRate));
+  const regionLength = endSample - startSample;
+
+  // Fade must fit inside the region and never exceed half of it (the head and
+  // tail fade windows must not overlap). Bail on regions too short to matter.
+  const fade = Math.min(Math.round(fadeSeconds * sampleRate), Math.floor(regionLength / 2));
+  if (regionLength <= 0 || fade <= 0) {
+    return null;
+  }
+
+  // The looped buffer is the region minus the tail we fold back into the head.
+  const loopLength = regionLength - fade;
+  const channelCount = buffer.numberOfChannels || 1;
+
+  let out;
+  try {
+    out = context.createBuffer(channelCount, loopLength, sampleRate);
+  } catch (error) {
+    console.warn('audio-adapter: createBuffer for seamless loop failed', error);
+    return null;
+  }
+
+  for (let channel = 0; channel < channelCount; channel += 1) {
+    const src = buffer.getChannelData(channel);
+    const dst = out.getChannelData(channel);
+    // Copy the loop body verbatim.
+    for (let i = 0; i < loopLength; i += 1) {
+      dst[i] = src[startSample + i];
+    }
+    // Crossfade: the first `fade` samples are the head fading in while the tail
+    // (the `fade` samples just past loopLength) fades out, summed equal-power.
+    for (let i = 0; i < fade; i += 1) {
+      const t = (i + 0.5) / fade; // sample-centred so the curve is symmetric
+      const fadeIn = Math.sin((t * Math.PI) / 2);
+      const fadeOut = Math.cos((t * Math.PI) / 2);
+      const head = src[startSample + i];
+      const tail = src[startSample + loopLength + i];
+      dst[i] = head * fadeIn + tail * fadeOut;
+    }
+  }
+
+  return out;
+}
+
 function resolveAudioContextCtor(windowTarget, override) {
   if (typeof override === 'function') {
     return override;
@@ -94,12 +282,41 @@ function resolveFetch(windowTarget, override) {
   return null;
 }
 
+function resolveNavigator(windowTarget, override) {
+  if (override) {
+    return override;
+  }
+  if (windowTarget?.navigator) {
+    return windowTarget.navigator;
+  }
+  return typeof navigator !== 'undefined' ? navigator : null;
+}
+
+/**
+ * Whether the page has already received a user gesture this document lifetime.
+ *
+ * The audio adapter is constructed asynchronously (after the map load), but the
+ * input adapter binds keystrokes immediately — so the player can press Enter to
+ * start the game (an accepted gesture) before the unlock listeners exist. In
+ * that race the gesture is gone, but `navigator.userActivation.hasBeenActive`
+ * still reports it, letting us resume the context on construction instead of
+ * waiting for the player to click. (Pure arrow movement does NOT grant audio
+ * activation in Firefox, so this only helps once an accepted gesture occurred.)
+ *
+ * @param {Navigator | null} navigatorTarget - Navigator (or test stub) to probe.
+ * @returns {boolean} True when a prior gesture is recorded.
+ */
+function hasPriorUserActivation(navigatorTarget) {
+  return navigatorTarget?.userActivation?.hasBeenActive === true;
+}
+
 /**
  * Create the runtime audio adapter.
  *
  * @param {{
  *   windowTarget?: (Window & typeof globalThis) | null,
  *   documentTarget?: Document | null,
+ *   navigatorTarget?: Navigator | null,
  *   audioContextCtor?: typeof AudioContext | null,
  *   fetchImpl?: typeof fetch | null,
  *   autoUnlock?: boolean,
@@ -110,9 +327,22 @@ export function createAudioAdapter(options = {}) {
   const windowTarget = options.windowTarget || (typeof window !== 'undefined' ? window : null);
   const documentTarget =
     options.documentTarget || (typeof document !== 'undefined' ? document : null);
+  const navigatorTarget = resolveNavigator(windowTarget, options.navigatorTarget);
   const AudioContextCtor = resolveAudioContextCtor(windowTarget, options.audioContextCtor);
   const fetchImpl = resolveFetch(windowTarget, options.fetchImpl);
   const autoUnlock = options.autoUnlock !== false;
+  // C-09: monotonic clock for preload instrumentation. Defaults to
+  // performance.now() (high-resolution, monotonic); injectable for tests so the
+  // accounting can be asserted deterministically. Never falls back to Date.now
+  // for measured durations to avoid mixing unrelated clock origins.
+  const nowImpl =
+    typeof options.nowImpl === 'function'
+      ? options.nowImpl
+      : windowTarget?.performance?.now
+        ? () => windowTarget.performance.now()
+        : typeof performance !== 'undefined' && typeof performance.now === 'function'
+          ? () => performance.now()
+          : () => 0;
 
   /** @type {AudioContext | null} */
   let audioContext = null;
@@ -124,11 +354,44 @@ export function createAudioAdapter(options = {}) {
   const musicBuffers = new Map();
   /** @type {Map<string, { category: string, buffers: Map<string, AudioBuffer> }>} */
   const clipIndex = new Map();
+  // C-09: cue id -> { category, url }. Populated by loadClips and used by
+  // preloadAudioAssets to resolve a fetch URL for a cue id without re-passing
+  // the manifest. Music/ambience entries are recorded but never preloaded.
+  /** @type {Map<string, { category: string, url: string }>} */
+  const urlIndex = new Map();
+  // C-09: in-flight decode promises keyed by cue id so a second preload request
+  // for the same cue reuses the pending decode instead of issuing a duplicate
+  // fetch/decode. Cleared once the decode settles.
+  /** @type {Map<string, Promise<boolean>>} */
+  const inFlightDecodes = new Map();
+  // C-09 deliverable #3: real-runtime preload instrumentation. Every value here
+  // is accumulated from performance.now() measurements taken during the actual
+  // fetch/decode — no synthetic or hardcoded timings. Exposed via
+  // getPreloadStats() so the app boundary can emit an AUDIT-B-05 evidence
+  // artifact without ECS systems ever touching browser timing APIs.
+  const preloadStats = {
+    runs: 0,
+    assetsRequested: 0,
+    assetsPreloaded: 0,
+    cacheHits: 0,
+    cacheMisses: 0,
+    failedDecodes: 0,
+    totalFetchMs: 0,
+    totalDecodeMs: 0,
+    totalPreloadMs: 0,
+    lastRunMs: 0,
+  };
   const volumes = { ...DEFAULT_VOLUMES };
   const warnedMissing = new Set();
   /** @type {AudioBufferSourceNode | null} */
   let activeMusicSource = null;
   let activeMusicId = null;
+  /** @type {Map<string, AudioBufferSourceNode>} Active looping SFX by cue id. */
+  const loopSfxSources = new Map();
+  /** @type {Map<string, { loopStart: number, loopEnd: number }>} Cached seamless loop regions. */
+  const loopRegions = new Map();
+  /** @type {Map<string, AudioBuffer>} Cached crossfaded loop buffers (per cue). */
+  const loopBuffers = new Map();
   let destroyed = false;
   let unlockBound = false;
 
@@ -169,12 +432,32 @@ export function createAudioAdapter(options = {}) {
 
   function unlockContext() {
     const context = ensureContext();
-    if (context && context.state === 'suspended' && typeof context.resume === 'function') {
-      context.resume().catch((error) => {
+    if (!context) {
+      return;
+    }
+    if (context.state !== 'suspended') {
+      removeUnlockListeners();
+      return;
+    }
+    if (typeof context.resume !== 'function') {
+      return;
+    }
+    // Detach the listeners only once resume() actually leaves the suspended
+    // state. Firefox silently keeps the context suspended for gestures it does
+    // not accept as audio activation (notably arrow keys — Space/Enter/click are
+    // accepted), so a one-shot listener would be consumed by a rejected arrow
+    // press and never retry. Keeping the listeners bound until success means the
+    // first accepted gesture still unlocks audio.
+    context
+      .resume()
+      .then(() => {
+        if (context.state !== 'suspended') {
+          removeUnlockListeners();
+        }
+      })
+      .catch((error) => {
         console.warn('audio-adapter: context resume failed', error);
       });
-    }
-    removeUnlockListeners();
   }
 
   function removeUnlockListeners() {
@@ -196,8 +479,19 @@ export function createAudioAdapter(options = {}) {
       return;
     }
     unlockBound = true;
-    windowTarget.addEventListener('pointerdown', unlockContext, { once: true });
-    windowTarget.addEventListener('keydown', unlockContext, { once: true });
+    // Not { once: true }: a single gesture may be rejected by the browser
+    // autoplay policy, so the listeners must survive to retry on the next
+    // gesture. unlockContext() detaches them itself once the context is running.
+    windowTarget.addEventListener('pointerdown', unlockContext);
+    windowTarget.addEventListener('keydown', unlockContext);
+
+    // Race guard: the player may have already pressed Enter / clicked to start
+    // the game before this (async-constructed) adapter bound its listeners. If
+    // the browser still records that activation, unlock now instead of waiting
+    // for another click.
+    if (hasPriorUserActivation(navigatorTarget)) {
+      unlockContext();
+    }
   }
 
   function onVisibilityChange() {
@@ -242,6 +536,35 @@ export function createAudioAdapter(options = {}) {
   }
 
   /**
+   * C-09: timed variant of decodeClip — measures real fetch and decode
+   * durations with the injected monotonic clock (no synthetic timings). The
+   * fetch span covers `fetch` + `arrayBuffer()`; the decode span is
+   * `decodeAudioData` alone.
+   *
+   * @param {AudioContext} context
+   * @param {string} url
+   * @returns {Promise<{ buffer: AudioBuffer, fetchMs: number, decodeMs: number }>}
+   */
+  async function decodeClipTimed(context, url) {
+    if (!fetchImpl) {
+      throw new Error('no fetch implementation available');
+    }
+    const fetchStart = nowImpl();
+    const response = await fetchImpl(url);
+    if (!response || (typeof response.ok === 'boolean' && !response.ok)) {
+      throw new Error(`failed to fetch ${url}`);
+    }
+    const arrayBuffer = await response.arrayBuffer();
+    const fetchMs = nowImpl() - fetchStart;
+
+    const decodeStart = nowImpl();
+    const buffer = await context.decodeAudioData(arrayBuffer);
+    const decodeMs = nowImpl() - decodeStart;
+
+    return { buffer, fetchMs, decodeMs };
+  }
+
+  /**
    * Pre-decode every clip described by the manifest and index it by cue id.
    *
    * The manifest is shaped as:
@@ -273,14 +596,24 @@ export function createAudioAdapter(options = {}) {
       }
       for (const [cueId, url] of Object.entries(section)) {
         entries.push({ category, cueId, url });
+        // C-09: remember where each cue id lives so preloadAudioAssets can
+        // resolve a URL by cue id alone after the manifest is registered.
+        urlIndex.set(cueId, { category, url });
       }
     }
 
     await Promise.all(
       entries.map(async ({ category, cueId, url }) => {
+        // Skip cues already decoded (e.g. by a concurrent preloadAudioAssets
+        // call). The preload path populates the same buffer stores, so a cache
+        // hit here avoids a duplicate fetch/decode race on the same URL.
+        const store = bufferStoreForCategory(category);
+        if (store.has(cueId)) {
+          report.loaded.push(cueId);
+          return;
+        }
         try {
           const buffer = await decodeClip(context, url);
-          const store = bufferStoreForCategory(category);
           store.set(cueId, buffer);
           clipIndex.set(cueId, { category, buffers: store });
           report.loaded.push(cueId);
@@ -292,6 +625,176 @@ export function createAudioAdapter(options = {}) {
     );
 
     return report;
+  }
+
+  /**
+   * Resolve the fetch URL for a single cue id from the registered url index or
+   * an explicit override map.
+   *
+   * @param {string} cueId - Cue id to resolve.
+   * @param {Record<string, string> | null | undefined} urls - Optional explicit
+   *   cue id -> url overrides (takes precedence over the registered manifest).
+   * @returns {{ category: string, url: string } | null} Resolved entry, or null.
+   */
+  function resolvePreloadTarget(cueId, urls) {
+    if (urls && typeof urls === 'object' && typeof urls[cueId] === 'string') {
+      const indexed = urlIndex.get(cueId);
+      return { category: indexed?.category || 'sfx', url: urls[cueId] };
+    }
+    return urlIndex.get(cueId) || null;
+  }
+
+  /**
+   * C-09: Pre-decode gameplay-critical SFX into the existing buffer cache.
+   *
+   * Decoding runs asynchronously (`fetch → arrayBuffer → decodeAudioData`) and
+   * in parallel across cues; nothing here is synchronous and no call blocks the
+   * game loop. Already-decoded buffers are reused (skipped), concurrent requests
+   * for the same cue share one in-flight decode (deduplicated), and a failed
+   * decode logs a warning without rejecting so startup never crashes.
+   *
+   * Only `sfx`-category cues are eligible — music and ambience are intentionally
+   * excluded in this phase (they are lazy-loaded by later work). Cues whose URL
+   * cannot be resolved (unknown id, no manifest registered) are skipped with a
+   * warning.
+   *
+   * Instrumentation (C-09 deliverable #3): every decoded cue records real
+   * `performance.now()` fetch and decode durations; per-run and lifetime totals,
+   * plus cache-hit / cache-miss / failed-decode counts, are accumulated into the
+   * adapter's preload stats (see `getPreloadStats`). The returned report also
+   * carries a `timings` array and a `durationMs` for this run.
+   *
+   * @param {string[]} cueIds - Gameplay-critical SFX cue ids to preload.
+   * @param {{ urls?: Record<string, string> }} [preloadOptions={}] - Optional
+   *   explicit cue id -> url overrides when no manifest has been registered.
+   * @returns {Promise<{ preloaded: string[], cached: string[], skipped: string[], failed: string[], timings: Array<{ cueId: string, fetchMs: number, decodeMs: number }>, durationMs: number }>}
+   *   Report of which cues were decoded, already cached, skipped, or failed,
+   *   plus per-cue timings and the total wall-clock duration of this run.
+   */
+  async function preloadAudioAssets(cueIds, preloadOptions = {}) {
+    const report = {
+      preloaded: [],
+      cached: [],
+      skipped: [],
+      failed: [],
+      timings: [],
+      durationMs: 0,
+    };
+    if (!Array.isArray(cueIds) || cueIds.length === 0) {
+      return report;
+    }
+
+    const urls = preloadOptions && typeof preloadOptions === 'object' ? preloadOptions.urls : null;
+
+    // De-duplicate the incoming list so the same id passed twice in one call is
+    // only processed once.
+    const uniqueCueIds = [
+      ...new Set(cueIds.filter((id) => typeof id === 'string' && id.length > 0)),
+    ];
+
+    const runStart = nowImpl();
+    preloadStats.runs += 1;
+    preloadStats.assetsRequested += uniqueCueIds.length;
+
+    const context = ensureContext();
+    if (!context) {
+      console.warn('audio-adapter: cannot preload audio without an AudioContext');
+      for (const cueId of uniqueCueIds) {
+        report.skipped.push(cueId);
+      }
+      report.durationMs = nowImpl() - runStart;
+      preloadStats.lastRunMs = report.durationMs;
+      preloadStats.totalPreloadMs += report.durationMs;
+      return report;
+    }
+
+    await Promise.all(
+      uniqueCueIds.map(async (cueId) => {
+        const target = resolvePreloadTarget(cueId, urls);
+
+        // Music/ambience are out of scope for this phase; only gameplay-critical
+        // SFX are preload candidates.
+        if (!target || target.category !== 'sfx') {
+          console.warn(`audio-adapter: skipping non-preloadable cue "${cueId}"`);
+          report.skipped.push(cueId);
+          return;
+        }
+
+        // Reuse already-decoded buffers (cache hit — no fetch/decode).
+        if (sfxBuffers.has(cueId)) {
+          report.cached.push(cueId);
+          preloadStats.cacheHits += 1;
+          return;
+        }
+
+        // Prevent duplicate preload requests: share any in-flight decode.
+        let decodePromise = inFlightDecodes.get(cueId);
+        if (!decodePromise) {
+          // Cache miss: this cue is decoded for real now.
+          preloadStats.cacheMisses += 1;
+          decodePromise = (async () => {
+            const { buffer, fetchMs, decodeMs } = await decodeClipTimed(context, target.url);
+            sfxBuffers.set(cueId, buffer);
+            clipIndex.set(cueId, { category: 'sfx', buffers: sfxBuffers });
+            return { fetchMs, decodeMs };
+          })().finally(() => {
+            inFlightDecodes.delete(cueId);
+          });
+          inFlightDecodes.set(cueId, decodePromise);
+          try {
+            const { fetchMs, decodeMs } = await decodePromise;
+            report.preloaded.push(cueId);
+            report.timings.push({ cueId, fetchMs, decodeMs });
+            preloadStats.assetsPreloaded += 1;
+            preloadStats.totalFetchMs += fetchMs;
+            preloadStats.totalDecodeMs += decodeMs;
+          } catch (error) {
+            console.warn(`audio-adapter: failed to preload cue "${cueId}"`, error);
+            report.failed.push(cueId);
+            preloadStats.failedDecodes += 1;
+          }
+          return;
+        }
+
+        // A decode for this cue is already running (started by an earlier item in
+        // this same batch or a concurrent preload call); await its result. This
+        // is a cache hit on the in-flight decode — no extra fetch/decode work.
+        preloadStats.cacheHits += 1;
+        try {
+          await decodePromise;
+          report.cached.push(cueId);
+        } catch {
+          report.failed.push(cueId);
+        }
+      }),
+    );
+
+    report.durationMs = nowImpl() - runStart;
+    preloadStats.lastRunMs = report.durationMs;
+    preloadStats.totalPreloadMs += report.durationMs;
+    return report;
+  }
+
+  /**
+   * C-09: snapshot of the cumulative preload instrumentation. All durations are
+   * real performance.now() measurements; counts are exact. Returns a plain
+   * object copy (callers cannot mutate adapter state) suitable for building the
+   * AUDIT-B-05 evidence artifact. Derived averages are included for convenience.
+   *
+   * @returns {{
+   *   runs: number, assetsRequested: number, assetsPreloaded: number,
+   *   cacheHits: number, cacheMisses: number, failedDecodes: number,
+   *   totalFetchMs: number, totalDecodeMs: number, totalPreloadMs: number,
+   *   lastRunMs: number, averageFetchMs: number, averageDecodeMs: number
+   * }}
+   */
+  function getPreloadStats() {
+    const decoded = preloadStats.assetsPreloaded;
+    return {
+      ...preloadStats,
+      averageFetchMs: decoded > 0 ? preloadStats.totalFetchMs / decoded : 0,
+      averageDecodeMs: decoded > 0 ? preloadStats.totalDecodeMs / decoded : 0,
+    };
   }
 
   function lookupBuffer(cueId, expectedCategory) {
@@ -324,10 +827,17 @@ export function createAudioAdapter(options = {}) {
    * Each call creates a brand-new AudioBufferSourceNode so overlapping
    * playback is safe. Missing cues warn once and no-op.
    *
+   * An optional per-call `gain` (linear, clamped to [0, 1]) attenuates just this
+   * playback by inserting a GainNode before the category destination — useful
+   * for a softer cue (e.g. a subtle UI confirm click) without changing the
+   * category volume or the player's persisted settings. Defaults to 1 (no
+   * attenuation), so existing callers are unaffected.
+   *
    * @param {string} cueId - Cue identifier from the loaded manifest.
+   * @param {{ gain?: number }} [playbackOptions] - Optional per-call attenuation.
    * @returns {AudioBufferSourceNode | null} The started source, or null when no playback occurred.
    */
-  function playSfx(cueId) {
+  function playSfx(cueId, playbackOptions = {}) {
     if (typeof cueId !== 'string' || !cueId) {
       return null;
     }
@@ -352,15 +862,137 @@ export function createAudioAdapter(options = {}) {
       return null;
     }
 
+    const perCallGain = clampGain(
+      typeof playbackOptions.gain === 'number' ? playbackOptions.gain : 1,
+    );
+
     try {
       const source = context.createBufferSource();
       source.buffer = buffer;
-      source.connect(destination);
+      // Insert a per-call gain stage only when attenuating, so the common path
+      // (full volume) keeps the original direct source→category wiring.
+      if (perCallGain < 1 && typeof context.createGain === 'function') {
+        const gainNode = context.createGain();
+        gainNode.gain.value = perCallGain;
+        source.connect(gainNode);
+        gainNode.connect(destination);
+      } else {
+        source.connect(destination);
+      }
       source.start(0);
       return source;
     } catch (error) {
       console.warn(`audio-adapter: playSfx("${cueId}") failed`, error);
       return null;
+    }
+  }
+
+  /**
+   * Start a looping SFX cue (e.g. a bomb fuse) routed through the sfx/ui gain.
+   *
+   * Idempotent per cue: if the cue is already looping, the existing source is
+   * returned rather than layering a second loop. Returns null (warn-once) when
+   * the clip is missing or no AudioContext is available, so callers can retry.
+   *
+   * @param {string} cueId - Cue identifier from the loaded manifest.
+   * @returns {AudioBufferSourceNode | null} The looping source, or null when no playback occurred.
+   */
+  function playSfxLoop(cueId) {
+    if (typeof cueId !== 'string' || !cueId) {
+      return null;
+    }
+    const existing = loopSfxSources.get(cueId);
+    if (existing) {
+      return existing;
+    }
+    const context = ensureContext();
+    if (!context) {
+      return null;
+    }
+    const entry = clipIndex.get(cueId);
+    if (entry && entry.category === 'music') {
+      warnMissing(cueId, 'sfx');
+      return null;
+    }
+    const buffer = entry ? entry.buffers.get(cueId) : sfxBuffers.get(cueId);
+    if (!buffer) {
+      warnMissing(cueId, 'sfx');
+      return null;
+    }
+    const destination = categoryDestinationFor(cueId);
+    if (!destination) {
+      return null;
+    }
+
+    let region = loopRegions.get(cueId);
+    if (!region) {
+      region = computeLoopRegion(buffer);
+      loopRegions.set(cueId, region);
+    }
+
+    // Crossfade the loop tail into its head once, then loop the whole rendered
+    // buffer — this masks the restart "gap" even when the clip body is not
+    // musically continuous. Cached per cue; null means fall back to the splice.
+    let loopBuffer = loopBuffers.get(cueId);
+    if (loopBuffer === undefined) {
+      // ~30 ms: long enough to mask a discontinuity, short enough not to smear
+      // a percussive loop body. Clamped to half the region inside the builder.
+      loopBuffer = buildSeamlessLoopBuffer(context, buffer, region, 0.03);
+      loopBuffers.set(cueId, loopBuffer);
+    }
+
+    try {
+      const source = context.createBufferSource();
+      if (loopBuffer) {
+        // The rendered buffer already excludes padding and is wrap-continuous,
+        // so loop its full range from the start.
+        source.buffer = loopBuffer;
+        source.loop = true;
+      } else {
+        source.buffer = buffer;
+        source.loop = true;
+        // Fallback: loop only the non-silent region so MP3 encoder padding does
+        // not play a gap on every wrap. Starting at loopStart drops the
+        // first-pass gap.
+        source.loopStart = region.loopStart;
+        source.loopEnd = region.loopEnd;
+      }
+      source.connect(destination);
+      source.onended = () => {
+        if (loopSfxSources.get(cueId) === source) {
+          loopSfxSources.delete(cueId);
+        }
+      };
+      source.start(0, loopBuffer ? 0 : region.loopStart);
+      loopSfxSources.set(cueId, source);
+      return source;
+    } catch (error) {
+      console.warn(`audio-adapter: playSfxLoop("${cueId}") failed`, error);
+      return null;
+    }
+  }
+
+  /**
+   * Stop a looping SFX cue started by playSfxLoop. Idempotent.
+   *
+   * @param {string} cueId - Cue identifier to stop.
+   */
+  function stopSfxLoop(cueId) {
+    const source = loopSfxSources.get(cueId);
+    if (!source) {
+      return;
+    }
+    loopSfxSources.delete(cueId);
+    try {
+      source.onended = null;
+      source.stop(0);
+    } catch {
+      // Already stopped / never started — safe to ignore.
+    }
+    try {
+      source.disconnect();
+    } catch {
+      // Already disconnected.
     }
   }
 
@@ -377,6 +1009,16 @@ export function createAudioAdapter(options = {}) {
     }
     const context = ensureContext();
     if (!context) {
+      return null;
+    }
+    // Pre user-gesture the context is still suspended: starting a source here
+    // would schedule silent playback yet return a truthy node, which leads the
+    // music reconciler (audio-integration.js) to advance lastState and never
+    // retry. Return null so the documented contract holds — the reconciler keeps
+    // retrying each tick and music starts on the first accepted gesture (the
+    // unlock listeners resume the context) without a pause/unpause cycle. We do
+    // NOT resume here: autoplay unlock stays owned by the gesture listeners.
+    if (context.state === 'suspended') {
       return null;
     }
     const buffer = lookupBuffer(trackId, 'music') || musicBuffers.get(trackId) || null;
@@ -506,9 +1148,14 @@ export function createAudioAdapter(options = {}) {
       documentTarget.removeEventListener('visibilitychange', onVisibilityChange);
     }
     stopMusic();
+    for (const cueId of [...loopSfxSources.keys()]) {
+      stopSfxLoop(cueId);
+    }
     sfxBuffers.clear();
     musicBuffers.clear();
     clipIndex.clear();
+    loopRegions.clear();
+    loopBuffers.clear();
     gainNodes.clear();
     if (audioContext && typeof audioContext.close === 'function') {
       try {
@@ -545,7 +1192,11 @@ export function createAudioAdapter(options = {}) {
 
   return {
     loadClips,
+    preloadAudioAssets,
+    getPreloadStats,
     playSfx,
+    playSfxLoop,
+    stopSfxLoop,
     playMusic,
     stopMusic,
     setVolume,
