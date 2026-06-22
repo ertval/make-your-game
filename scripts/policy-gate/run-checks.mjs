@@ -126,6 +126,18 @@ function deriveTicketContext() {
 
 // Association checks enforce one-track ownership so cross-track branches are split before review.
 function assertTicketAssociation() {
+  if (branchName === 'main') {
+    return {
+      branchTicketIds: [],
+      commitTicketIds: [],
+      ticketIds: [],
+      trackCode: 'GENERAL',
+      processMode: true,
+      processMarkerDetected: false,
+      bugfixMode: false,
+    };
+  }
+
   const context = deriveTicketContext();
 
   function createProcessFallback(
@@ -1038,30 +1050,35 @@ if (checkSet === 'repo' || checkSet === 'all') {
 
 if (checkSet === 'pr' || checkSet === 'all') {
   const ticketContext = assertTicketAssociation();
-  const effectiveTrack = ticketContext.processMode
-    ? branchOwnerTrack || ticketContext.trackCode
-    : ticketContext.trackCode;
-  console.log(
-    describePolicyResolution({
-      auditMode: ticketContext.processMode ? 'GENERAL_DOCS_PROCESS' : 'TICKET',
-      branchTicketIds: ticketContext.branchTicketIds,
-      commitTicketIds: ticketContext.commitTicketIds,
-      owner: branchOwner,
-      ownerTrack: branchOwnerTrack,
-      processMarkerDetected: ticketContext.processMarkerDetected,
-      selectedPath: ticketContext.processMode
-        ? 'owner-scoped process checks'
-        : 'ticketed ownership checks',
-      ticketIds: ticketContext.ticketIds,
-      trackCode: effectiveTrack,
-    }),
-  );
-  if (ticketContext.processMode) {
-    assertOwnerScopedOwnership(effectiveTrack, ticketContext.ticketIds);
+  if (branchName === 'main') {
+    console.log(`${GATE_PASS} — Main branch: skip track ownership and ticket association checks.`);
+    scanSecurityAndArchitectureBoundaries();
   } else {
-    assertTrackOwnership(ticketContext.trackCode, ticketContext.ticketIds);
+    const effectiveTrack = ticketContext.processMode
+      ? branchOwnerTrack || ticketContext.trackCode
+      : ticketContext.trackCode;
+    console.log(
+      describePolicyResolution({
+        auditMode: ticketContext.processMode ? 'GENERAL_DOCS_PROCESS' : 'TICKET',
+        branchTicketIds: ticketContext.branchTicketIds,
+        commitTicketIds: ticketContext.commitTicketIds,
+        owner: branchOwner,
+        ownerTrack: branchOwnerTrack,
+        processMarkerDetected: ticketContext.processMarkerDetected,
+        selectedPath: ticketContext.processMode
+          ? 'owner-scoped process checks'
+          : 'ticketed ownership checks',
+        ticketIds: ticketContext.ticketIds,
+        trackCode: effectiveTrack,
+      }),
+    );
+    if (ticketContext.processMode) {
+      assertOwnerScopedOwnership(effectiveTrack, ticketContext.ticketIds);
+    } else {
+      assertTrackOwnership(ticketContext.trackCode, ticketContext.ticketIds);
+    }
+    scanSecurityAndArchitectureBoundaries();
   }
-  scanSecurityAndArchitectureBoundaries();
 }
 
 console.log(`${GATE_PASS} — Policy checks completed for ${checkSet} checks.`);
