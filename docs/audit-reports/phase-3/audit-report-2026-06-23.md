@@ -55,6 +55,8 @@ No high-severity runtime bugs found. Codebase has been well-hardened through doc
 
 **Tests to add:** Visual determinism test: all ghosts should eventually show both walk frames in a seeded run.
 
+**Audit Verification (2026-06-23):** *FALSE POSITIVE*. Shared `frameIndex` is intentional design. Ghost animation system file L21 explicitly documents: "Frame index is global across all ghosts so the walk-cycle stays in sync."
+
 ### BUG-02: Player animation direction ambiguity on combined zero-velocity ⬆ LOW
 **Origin:** 1. Bugs & Logic Errors
 **Files:** Ownership: Track D (Tickets: D-10)
@@ -67,6 +69,8 @@ No high-severity runtime bugs found. Codebase has been well-hardened through doc
 **Fix:** Track `intendedDirection` from input-state component (separate from velocity) and use that for idle sprite facing.
 
 **Tests to add:** Unit test: player stops facing direction of last non-zero input, not last velocity direction.
+
+**Audit Verification (2026-06-23):** *FALSE POSITIVE*. Persisting `lastDirection` on idle is an explicit design choice. Player animation system file L14-15 documents: "When the player is idle (speed === 0), spriteId is held at frame 1 of the last direction so the player visibly faces where they were last moving."
 
 ---
 
@@ -166,6 +170,8 @@ No high-severity runtime bugs found. Codebase has been well-hardened through doc
 
 **Action:** Unexport (remove `export` keyword).
 
+**Audit Verification (2026-06-23):** *PARTIAL DRIFT*. Exporting `KEYBOARD_CODE_BINDINGS` and `KEYBOARD_KEY_BINDINGS` is a documented public API intent per JSDoc, rather than an accidental leak.
+
 ### DEAD-11: `*_STORE_RUNTIME_STATUS` (4 objects) — Unnecessary exports ⬆ LOW
 **Origin:** 2. Dead Code & Unused References
 **Files:** Ownership: Track B/D (Tickets: B-01, D-04)
@@ -178,6 +184,8 @@ No high-severity runtime bugs found. Codebase has been well-hardened through doc
 
 **Action:** Guard with `if (isDevelopment())` or export from a dedicated test-harness file.
 
+**Audit Verification (2026-06-23):** *PARTIAL DRIFT*. Test-only exports are explicitly annotated as `@internal` in JSDoc for testing component-store interfaces and contracts, making it an intentional design choice.
+
 ### DEAD-12: `assets/source/visual/sprite-handoff.json` — Source-only tracked artifact ⬆ LOW
 **Origin:** 2. Dead Code & Unused References
 **Files:** Ownership: Track A/D (Tickets: A-01, D-11)
@@ -186,6 +194,8 @@ No high-severity runtime bugs found. Codebase has been well-hardened through doc
 **What:** 6KB JSON referenced only in JSDoc comments. Not loaded at runtime.
 
 **Action:** Keep as design document; relocate to `docs/`.
+
+**Audit Verification (2026-06-23):** *PARTIAL DRIFT*. Although superseded by `visual-manifest.json`, the asset is still referenced in docs and comments, serving as a historical design record rather than dead file.
 
 ---
 
@@ -344,6 +354,8 @@ while (true) {
 
 **Fix:** Add steps for `npm run test:integration`, `npm run test:coverage`, and `npx playwright test tests/e2e --pass-with-no-tests` to `policy-gate.yml`.
 
+**Audit Verification (2026-06-23):** *PARTIAL DRIFT*. The CI pipeline runs E2E and coverage checks indirectly via the `policy` check script. However, it still lacks an explicit, direct step for `test:integration` or `test:audit`.
+
 ### CI-02: Deploy workflow also misses integration + e2e gates ⬆ HIGH
 **Origin:** 5. Tests & CI Gaps
 **Files:** Ownership: Track A (Tickets: A-07)
@@ -362,6 +374,8 @@ while (true) {
 **Problem:** Coverage thresholds defined (85/85/90/90) but CI never runs `npm run test:coverage`. Thresholds advisory only.
 
 **Fix:** Add `npm run test:coverage` step to CI.
+
+**Audit Verification (2026-06-23):** *PARTIAL DRIFT*. Coverage thresholds are now enforced in the CI policy gate checks through the `policy:quality` sub-gate.
 
 ### CI-04: Branch coverage dangerously close to aggregate floor ⬆ MEDIUM
 **Origin:** 5. Tests & CI Gaps
@@ -384,6 +398,8 @@ while (true) {
 
 **Fix:** Replace with state-driven `waitForFunction` or `expect.poll` checking concrete game-state conditions. Example: `await expect.poll(() => getGameState()).toBe('EXPLODING')`.
 
+**Audit Verification (2026-06-23):** *PARTIAL DRIFT*. The number of `waitForTimeout` calls is actually 13 across 4 files (rather than 25 across 6). While the count is lower than reported, these remaining fixed-timeout waits are still targets for flakiness refactoring.
+
 ### CI-06: Ghost stagger E2E test has excessive wall-clock duration ⬆ MEDIUM
 **Origin:** 5. Tests & CI Gaps
 **Files:** Ownership: Track A (Tickets: A-06)
@@ -392,6 +408,8 @@ while (true) {
 **Problem:** Sequential waits totaling ~30s for ghost stagger assertions. Risks CI timeout.
 
 **Fix:** Compress test — check final state after 15s rather than incremental waits. Or move to integration/unit with fast-forward clock.
+
+**Audit Verification (2026-06-23):** *PARTIAL DRIFT*. The test uses state-based polling via `page.waitForFunction` rather than a fixed `waitForTimeout`. However, the test's total wall-clock execution duration (~15 seconds) is still a valid speed concern for CI.
 
 ### CI-07: CI thresholds too relaxed for semi-automatable audits ⬆ LOW
 **Origin:** 5. Tests & CI Gaps
