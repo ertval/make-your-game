@@ -119,6 +119,7 @@ function createFrameProbe(
 
   function getStats() {
     const values = toSortedNumericArray(deltas, count);
+    const p50FrameTime = percentileFromSorted(values, 50);
     const p95FrameTime = percentileFromSorted(values, 95);
     const p99FrameTime = percentileFromSorted(values, 99);
 
@@ -126,6 +127,7 @@ function createFrameProbe(
       averageFrameTime:
         values.length > 0 ? values.reduce((sum, value) => sum + value, 0) / values.length : 0,
       latestFrameTime: values.length > 0 ? latestDelta : 0,
+      p50FrameTime,
       p95Fps: p95FrameTime > 0 ? 1000 / p95FrameTime : 0,
       p95FrameTime,
       p99FrameTime,
