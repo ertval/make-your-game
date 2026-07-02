@@ -1,13 +1,52 @@
 # 🎮 Ms. Ghostman — ECS Edition
 
+[![JavaScript](https://img.shields.io/badge/JavaScript-ES2026-F7DF1E?style=flat-square&logo=javascript&logoColor=black)]()
+[![Vite](https://img.shields.io/badge/Vite-6-646CFF?style=flat-square&logo=vite&logoColor=white)]()
+[![Biome](https://img.shields.io/badge/Biome-1-60A5FA?style=flat-square&logo=biome&logoColor=white)]()
+[![Vitest](https://img.shields.io/badge/Vitest-3-6E9F18?style=flat-square&logo=vitest&logoColor=white)]()
+[![License](https://img.shields.io/badge/License-GPLv3-blue?style=flat-square)]()
+[![CI](https://img.shields.io/github/actions/workflow/status/ertval/make-your-game/deploy.yml?style=flat-square&logo=github&logoColor=white)]()
+[![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen?style=flat-square)]()
+
+A pure-JS Entity-Component-System game engine demonstrating data-oriented browser architecture. Built as an educational reference for ECS patterns — no canvas, no frameworks, 60 FPS DOM rendering with strict performance budgets.
+
 > **Pac-Man × Bomberman** — Eat every pellet. Bomb every wall. Survive every ghost. Built purely with **Entity-Component-System (ECS)** architecture. 
 
-A single-player browser game built with **pure JavaScript, HTML, and CSS** — no canvas, no frameworks. Navigate a haunted maze, drop bombs to clear destructible walls, eliminate ghosts, and collect every pellet to clear each level. This implementation leverages a strict **Data-Oriented ECS** architecture to guarantee 60 FPS performance, stable system passes, and modular logic boundaries.
+---
+
+## 🏁 Getting Started
+
+The repository includes the current runtime/build toolchain, so the commands below are ready to use after installing dependencies.
+
+### Prerequisites
+
+- **Node.js** ≥ 24.0.0
+- **npm** ≥ 10.x
+
+### Installation
+
+```bash
+# Clone the repository
+git clone https://github.com/ertval/make-your-game.git
+cd make-your-game
+
+# Install dependencies
+npm ci
+```
+
+### Run the Development Server
+
+```bash
+npm run dev
+```
+
+Open `http://localhost:5173` in your browser. Vite serves the app with hot-reload.
 
 ---
 
 ## 📖 Table of Contents
 
+- [Getting Started](#-getting-started)
 - [Overview](#-overview)
 - [Gameplay](#-gameplay)
 - [Architecture Overview](#-architecture-overview)
@@ -15,13 +54,13 @@ A single-player browser game built with **pure JavaScript, HTML, and CSS** — n
 - [Deployment](#-deployment)
 - [Frame Pipeline](#-frame-pipeline)
 - [Rendering & Performance](#-rendering--performance-targets)
-- [Getting Started](#-getting-started)
 - [Scripts & Commands](#-scripts--commands)
 - [Development Workflow](#-development-workflow)
 - [Documentation Flow](#-documentation-flow)
 - [Testing & Verification](#-testing--verification)
 - [Tech Stack & Constraints](#-tech-stack--constraints)
 - [Contributing](#-contributing)
+- [Related](#-related)
 - [License](#-license)
 
 ---
@@ -292,35 +331,7 @@ For detailed information on the pipeline, Vite base path configurations, and dyn
 
 ---
 
-## 🏁 Getting Started
 
-The repository includes the current runtime/build toolchain, so the commands below are ready to use after installing dependencies.
-
-### Prerequisites
-
-- **Node.js** ≥ 24.0.0
-- **npm** ≥ 10.x
-
-### Installation
-
-```bash
-# Clone the repository
-git clone <repo-url>
-cd make-your-game
-
-# Install dependencies
-npm ci
-```
-
-### Run the Development Server
-
-```bash
-npm run dev
-```
-
-Open `http://localhost:5173` in your browser. Vite serves the app with hot-reload.
-
----
 
 ## 📜 Scripts & Commands
 
@@ -355,12 +366,10 @@ For day-to-day development, use these core commands:
 
 The project is split into **4 parallel workflow tracks** to enable multiple developers to work simultaneously with absolute ECS decoupling:
 
-| Track | Dev | Scope | Key Systems & Files |
-|---|---|---|---|
-| **Track A** | Dev 1 | Core Engine, CI, Schema, Testing, QA, and Evidence Wiring | `src/ecs/world/*`, `src/ecs/resources/*`, `main.ecs.js`, `tests/**/*`, `vitest.config.js`, `playwright.config.js` |
-| **Track B** | Dev 2 | Physics, Input, and Gameplay Logic & Rules | `input-system.js`, `player-move-system.js`, `ghost-ai-system.js`, `collision-system.js` |
-| **Track C** | Dev 3 | Scoring, timer, lives, pause and progression, HUD and overlays, storage flow, and audio integration | `scoring-system.js`, `timer-system.js`, `life-system.js`, `pause-system.js`, `level-progress-system.js`, `hud-adapter.js`, `screens-adapter.js`, `audio-adapter.js` |
-| **Track D** | Dev 4 | Rendering, DOM Batching, and Visual Production and Integration | `render-collect-system.js`, `render-dom-system.js`, Adapters |
+- **Track A** (Dev 1 — Core Engine, CI, Schema, Testing, QA, and Evidence Wiring): `src/ecs/world/*`, `src/ecs/resources/*`, `main.ecs.js`, `tests/**/*`, `vitest.config.js`, `playwright.config.js`
+- **Track B** (Dev 2 — Physics, Input, and Gameplay Logic & Rules): `input-system.js`, `player-move-system.js`, `ghost-ai-system.js`, `collision-system.js`
+- **Track C** (Dev 3 — Scoring, timer, lives, pause and progression, HUD and overlays, storage flow, and audio integration): `scoring-system.js`, `timer-system.js`, `life-system.js`, `pause-system.js`, `level-progress-system.js`, `hud-adapter.js`, `screens-adapter.js`, `audio-adapter.js`
+- **Track D** (Dev 4 — Rendering, DOM Batching, and Visual Production and Integration): `render-collect-system.js`, `render-dom-system.js`, Adapters
 
 > **Note**: For the full integration milestone breakdown, check `docs/implementation/implementation-plan.md`.
 > **Execution tracking**: Update `docs/implementation/ticket-tracker.md` as tickets move from `[ ]` -> `[-]` -> `[x]`.
@@ -444,30 +453,26 @@ tests/
 
 ### Used
 
-| Technology | Purpose |
-|---|---|
-| **JavaScript (ES2026)** | Game logic, DOM manipulation |
-| **HTML5** | Semantic page structure |
-| **CSS3** | Grid layout, animations, styling |
-| **Vite** | Dev server, bundler |
-| **Biome** | Check + fix (linting + formatting) |
-| **Vitest** | Unit testing |
-| **SVG** | Sprites and visual assets |
-| **Web Workers (profiling-gated)** | Optional offload for heavy computations only when profiling shows > 4 ms/frame main-thread impact |
-| **Trusted Types / CSP** | DOM Security enforcement |
-| **JSON Schema 2020-12** | Map data validation in CI |
+- **JavaScript (ES2026)**: Game logic, DOM manipulation
+- **HTML5**: Semantic page structure
+- **CSS3**: Grid layout, animations, styling
+- **Vite**: Dev server, bundler
+- **Biome**: Check + fix (linting + formatting)
+- **Vitest**: Unit testing
+- **SVG**: Sprites and visual assets
+- **Web Workers (profiling-gated)**: Optional offload for heavy computations only when profiling shows > 4 ms/frame main-thread impact
+- **Trusted Types / CSP**: DOM Security enforcement
+- **JSON Schema 2020-12**: Map data validation in CI
 
 ### Explicitly NOT Used (by requirement)
 
-| Technology | Reason |
-|---|---|
-| `<canvas>` | Project requirement — DOM/SVG only |
-| React / Vue / Angular | No frameworks allowed |
-| Game engines (Phaser, etc.) | Must build custom ECS engine |
-| jQuery | Vanilla JS only |
-| `var` | ES2026 standard — `const`/`let` only |
-| CommonJS (`require`) | ES Modules only |
-| `innerHTML` | XSS prevention by construction |
+- **`<canvas>`**: Project requirement — DOM/SVG only
+- **React / Vue / Angular**: No frameworks allowed
+- **Game engines (Phaser, etc.)**: Must build custom ECS engine
+- **jQuery**: Vanilla JS only
+- **`var`**: ES2026 standard — `const`/`let` only
+- **CommonJS (`require`)**: ES Modules only
+- **`innerHTML`**: XSS prevention by construction
 
 ---
 
@@ -487,6 +492,11 @@ tests/
 12. Request review at integration milestones.
 
 ---
+
+## 🔗 Related
+
+- [social-network](https://github.com/ertval/social-network) — Go + Next.js vertical-slice social platform
+- [CV / Portfolio](https://ertval.com)
 
 ## 📄 License
 
