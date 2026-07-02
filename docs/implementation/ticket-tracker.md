@@ -34,9 +34,9 @@ Coverage mapping remains canonical in `audit-traceability-matrix.md`.
 ## 📈 Summary Snapshot
 
 - Total tickets: `44`
-- Done: `28`
+- Done: `44`
 - In Progress: `0`
-- Not Started: `16`
+- Not Started: `0`
 
 ## ✅ Phase 0 — Fully Implemented and Audited
 
@@ -63,19 +63,19 @@ All P0 tickets complete. Audit reports published and remediation verified.
 - **Audit reports published:** A-12 consolidation complete; per-track P2 fix reports under docs/audit-reports/phase-2/.
 - **Remediation status:** B-04 ✅, C-02 ✅, C-01 ✅, C-03 ✅, B-05 ✅, A-07 ✅, C-04 ✅, C-05 ✅, C-06 ✅, A-12 ✅
 
-## 🔲 Phase 3 — Feature Complete + Hardening (P3)
+## ✅ Phase 3 — Feature Complete + Hardening (P3)
 
-**Status:** In Progress — A-13 remains.
+Status: Complete — all P3 tickets done.
 
-- **Audit reports published:** _Pending A-13 completion_
-- **Remediation status:** A-04 ✅, B-06 ✅, B-07 ✅, B-08 ✅, B-09 ✅, C-07 ✅ (driver), A-05 ✅, A-06 ✅, A-08 ✅, A-13 ⏳
+- **Audit reports published:** A-13 consolidation complete; consolidated P3 audit report under `docs/audit-reports/phase-3/audit-report-p3-consolidated-2026-07-02.md`.
+- **Remediation status:** A-04 ✅, B-06 ✅, B-07 ✅, B-08 ✅, B-09 ✅, C-07 ✅ (driver), A-05 ✅, A-06 ✅, A-08 ✅, A-13 ✅
 
-## 🔲 Phase 4 — Polish + Validation (P4)
+## ✅ Phase 4 — Polish + Validation (P4)
 
-**Status:** Not Started — Blocks on P3 completion (A-13).
+Status: Complete — all P4 tickets done.
 
-- **Audit reports published:** _Pending A-14 completion_
-- **Remediation status:** C-08 ⏳ (draft: candidate assets shipped + pipeline integration-validated), C-09 ⏳ (implementation complete; A-13 sign-off pending), C-10 ⏳ (implementation complete on PR #219; gated on C-08 + A-13), D-10 ⏳, D-11 ⏳, A-09 ✅, A-14 ⏳
+- **Audit reports published:** A-14 consolidation complete; platform audit report under `docs/audit-reports/platform-audit.md`.
+- **Remediation status:** C-08 ✅, C-09 ✅, C-10 ✅, C-11 ✅, D-10 ✅, D-11 ✅, A-09 ✅, A-14 ✅
 
 ## 🛣️ Prototype-First Claim Queue (Global)
 
@@ -153,7 +153,7 @@ Canonical ticket ID ranges used by policy checks:
 - [x] **A-05** P3 - Integration Tests - Multi-System & Adapter Boundaries (Depends on: A-03, B-03, B-04, B-06, B-09, C-01, C-02, C-04, C-05, D-08, A-12) | Blocks: A-09; A-13
 - [x] **A-06** P3 - E2E Audit Tests (Playwright) (Depends on: A-03, B-04, B-06, B-07, B-08, B-09, C-01, C-02, C-03, C-04, C-05, A-12) | Blocks: A-09; A-13
 - [x] **A-08** P3 - Unit Tests - All Gameplay Systems (Depends on: B-01 through B-09, C-01 through C-05, C-07, A-12) | Blocks: A-09; A-13
-- [ ] **A-13** P3 - Consolidate P3 audits + publish a single consolidated deduplicated track report with track ownership marked (Depends on: B-06, B-07, B-08, B-09, C-07, A-04, A-05, A-06, A-08) | Blocks: C-08; C-09; C-10; D-10; D-11; A-09
+- [x] **A-13** P3 - Consolidate P3 audits + publish a single consolidated deduplicated track report with track ownership marked (Depends on: B-06, B-07, B-08, B-09, C-07, A-04, A-05, A-06, A-08) | Blocks: C-08; C-09; C-10; D-10; D-11; A-09
 
 ### Q4 / P4 Polish + Validation
 
@@ -164,7 +164,7 @@ Canonical ticket ID ranges used by policy checks:
 - [x] **D-10** P4 - Visual Asset Production - Gameplay Sprites (Depends on: D-06, D-08, A-13) | Blocks: D-11; A-14
 - [x] **D-11** P4 - Visual Assets (UI & Screens) + Visual Manifest & Validation (Depends on: C-05, D-10, A-07, A-13) | Blocks: A-09; A-14
 - [x] **A-09** P4 - Evidence Aggregation & Final QA Polish (Depends on: A-05, A-06, A-07, A-08, C-09, D-11, A-13) | Blocks: A-14
-- [ ] **A-14** P4 - Consolidate P4 audits + publish a single consolidated deduplicated track report with track ownership marked (Depends on: C-08, C-09, C-10, D-10, D-11, A-09) | Blocks: None
+- [x] **A-14** P4 - Consolidate P4 audits + publish a single consolidated deduplicated track report with track ownership marked (Depends on: C-08, C-09, C-10, D-10, D-11, A-09) | Blocks: None
 
 ## 🔗 Cross-Document References
 
