@@ -11,7 +11,7 @@ Coverage mapping remains canonical in `audit-traceability-matrix.md`.
 3. Do not set `[x]` unless the ticket verification gate in the relevant track file is satisfied.
 4. Treat this tracker as the canonical source for `Depends on` and `Blocks`; track files may summarize or lag, but phase gating and policy checks must follow this tracker.
 5. Keep each line free of branch metadata.
-6. At each phase end, require all tracks to run prompt `codebase-analysis-audit` (repository prompt file: `.github/prompts/code-analysis-audit.prompt.md`), then require Track A to run `.github/prompts/phase-deduplicate-track-audits.prompt.md` and publish 4 deduplicated track reports before phase closure.
+6. At each phase end, require all tracks to run prompt `codebase-analysis-audit` (repository prompt file: `.github/prompts/code-analysis-audit.prompt.md`), then require Track A to run `.github/prompts/phase-deduplicate-track-audits.prompt.md` and publish a single consolidated deduplicated track report before phase closure.
 7. A phase is not considered closed until each track has resolved every issue assigned in its deduplicated track report.
 
 ## 🗂️ Status Legend
@@ -153,7 +153,7 @@ Canonical ticket ID ranges used by policy checks:
 - [x] **A-05** P3 - Integration Tests - Multi-System & Adapter Boundaries (Depends on: A-03, B-03, B-04, B-06, B-09, C-01, C-02, C-04, C-05, D-08, A-12) | Blocks: A-09; A-13
 - [x] **A-06** P3 - E2E Audit Tests (Playwright) (Depends on: A-03, B-04, B-06, B-07, B-08, B-09, C-01, C-02, C-03, C-04, C-05, A-12) | Blocks: A-09; A-13
 - [x] **A-08** P3 - Unit Tests - All Gameplay Systems (Depends on: B-01 through B-09, C-01 through C-05, C-07, A-12) | Blocks: A-09; A-13
-- [ ] **A-13** P3 - Consolidate P3 audits + publish 4 deduplicated track fix reports (Depends on: B-06, B-07, B-08, B-09, C-07, A-04, A-05, A-06, A-08) | Blocks: C-08; C-09; C-10; D-10; D-11; A-09
+- [ ] **A-13** P3 - Consolidate P3 audits + publish a single consolidated deduplicated track report with track ownership marked (Depends on: B-06, B-07, B-08, B-09, C-07, A-04, A-05, A-06, A-08) | Blocks: C-08; C-09; C-10; D-10; D-11; A-09
 
 ### Q4 / P4 Polish + Validation
 
@@ -164,7 +164,7 @@ Canonical ticket ID ranges used by policy checks:
 - [x] **D-10** P4 - Visual Asset Production - Gameplay Sprites (Depends on: D-06, D-08, A-13) | Blocks: D-11; A-14
 - [x] **D-11** P4 - Visual Assets (UI & Screens) + Visual Manifest & Validation (Depends on: C-05, D-10, A-07, A-13) | Blocks: A-09; A-14
 - [x] **A-09** P4 - Evidence Aggregation & Final QA Polish (Depends on: A-05, A-06, A-07, A-08, C-09, D-11, A-13) | Blocks: A-14
-- [ ] **A-14** P4 - Consolidate P4 audits + publish 4 deduplicated track fix reports (Depends on: C-08, C-09, C-10, D-10, D-11, A-09) | Blocks: None
+- [ ] **A-14** P4 - Consolidate P4 audits + publish a single consolidated deduplicated track report with track ownership marked (Depends on: C-08, C-09, C-10, D-10, D-11, A-09) | Blocks: None
 
 ## 🔗 Cross-Document References
 
