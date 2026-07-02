@@ -304,4 +304,43 @@ describe('security gate contracts', () => {
     expect(result.status).toBe(0);
     expect((result.stdout || '').trim()).toBe('');
   });
+
+  it('exempts main branch from ticket format and track ownership checks', () => {
+    const tempMetaPath = path.join(repoRoot, `.policy-pr-meta.main-test.${Date.now()}.json`);
+    const tempChangedPath = path.join(repoRoot, `.changed-files.main-test.${Date.now()}.txt`);
+
+    fs.writeFileSync(
+      tempMetaPath,
+      JSON.stringify({
+        number: 1,
+        author: 'ekaramet',
+        body: '',
+        branchName: 'main',
+        baseRef: 'origin/main',
+        headRef: 'HEAD',
+        commitMessages: 'feat: dummy commit\n',
+        ticketIds: [],
+        processMode: false,
+      }),
+      'utf8',
+    );
+
+    fs.writeFileSync(tempChangedPath, 'src/main.js\n', 'utf8');
+
+    try {
+      const result = runNodeScript([
+        path.join(repoRoot, 'scripts/policy-gate/run-checks.mjs'),
+        '--check-set=pr',
+        '--require-branch-ticket=true',
+        `--meta-file=${path.basename(tempMetaPath)}`,
+        `--changed-file=${path.basename(tempChangedPath)}`,
+        '--branch-name=main',
+      ]);
+
+      expect(result.status).toBe(0);
+    } finally {
+      fs.rmSync(tempMetaPath, { force: true });
+      fs.rmSync(tempChangedPath, { force: true });
+    }
+  });
 });
