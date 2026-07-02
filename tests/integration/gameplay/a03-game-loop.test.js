@@ -264,6 +264,7 @@ describe('game loop and runtime', () => {
     const stats = windowStub.__MS_GHOSTMAN_FRAME_PROBE__.getStats();
     expect(stats.sampleCount).toBe(3);
     expect(stats.latestFrameTime).toBeCloseTo(17, 5);
+    expect(stats.p50FrameTime).toBeCloseTo(17, 5);
     expect(stats.p95FrameTime).toBeCloseTo(17, 5);
     expect(stats.p99FrameTime).toBeCloseTo(17, 5);
 
