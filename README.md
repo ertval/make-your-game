@@ -324,91 +324,30 @@ Open `http://localhost:5173` in your browser. Vite serves the app with hot-reloa
 
 ## 📜 Scripts & Commands
 
-> These commands are the current workflow entry points.
->
-> The fastest way to understand any command is to follow the implementation path: `package.json` defines the npm alias, and the underlying behavior lives in `scripts/policy-gate/*.mjs`.
+> [!TIP]
+> The unified pre-PR validation gate is the most critical workflow checkpoint. All other checks are automatically orchestrated by it.
 
-### Command Hierarchy
+### The Policy Gate: `npm run policy`
 
-The command graph is easiest to read from the top down:
+The `npm run policy` command is the main pre-PR gate. It must pass successfully before any changes can be merged into `main`. The gate automatically collects local/branch metadata and enforces the following checks:
 
-```text
-policy command family
-├── PR all-in-one gate (single command before opening a PR)
-│   └── npm run policy
-├── Repo-only gate
-│   └── npm run policy:repo
-└── Narrow reruns
-    ├── npm run policy:quality
-    ├── npm run policy:checks:local
-    ├── npm run policy:checks
-    ├── npm run policy:forbidden
-    ├── npm run policy:header
-    ├── npm run policy:approve
-    ├── npm run policy:forbiddenrepo
-    ├── npm run policy:headerrepo
-    └── npm run policy:trace
-```
+- **Project Quality:** Runs Biome formatting and linting, Vitest tests, test coverage metrics, JSON Schema validations for game maps, and lockfile-paired SBOM generation.
+- **Track & Ownership Boundaries:** Enforces single-track ownership. Developers may only modify files within their assigned track scopes (unless using an `<owner>/bugfix-<slug>` or `<owner>/integration<slug>` branch prefix to bypass).
+- **Forbidden Tech Scan:** Inspects changed files to ensure they do not introduce forbidden technologies (such as `<canvas>`, WebGL, WebGPU, or external UI/rendering frameworks) as prohibited by [AGENTS.md](file:///home/ertval/code/zone-modules/make-your-game/AGENTS.md).
+- **Source Headers Check:** Verifies that all newly created or modified source files start with the required top-of-file block comment documenting the file's purpose, public API, and constraints.
+- **Traceability Gate:** Validates the consistency of the requirement-to-audit traceability matrix and that all audit questions map correctly to active tests.
+- **Approval Check:** Verifies PR approval requirements when executing in a CI or PR-review context.
 
-Use the broadest command first, then drop to the narrower command below if you need to isolate a failure.
+### Essential Development Scripts
 
-### What Each Command Does
+For day-to-day development, use these core commands:
 
 | Command | Purpose |
-|---|---|
-| `npm run policy` | Runs the full pre-PR gate: project quality, ticket/track ownership checks from branch name or commits, changed-file forbidden-tech scan, changed-file header scan, approval check, and repo traceability scans. If branch/commit ticket metadata is missing but a `process` marker is present, the gate treats the branch as GENERAL_DOCS_PROCESS; otherwise it falls back to repo-wide checks. |
-| `npm run policy:repo` | Runs the repo-wide gate: repository forbidden-tech scan, repository header scan, and repo integrity/traceability checks. |
-| `npm run policy:quality` | Runs the project quality gate: Biome, tests, coverage, schema validation, and SBOM. |
-| `npm run policy:checks:local` | Local helper for policy checks debugging. Runs `policy:prep` before `policy:checks` so metadata context is ready. |
-| `npm run policy:checks` | Validates ticket association from branch name or commits, or a `process` marker for GENERAL_DOCS_PROCESS branches, plus single-track ownership boundaries. |
-| `npm run policy:forbidden` | Scans only the changed files for forbidden tech or patterns. |
-| `npm run policy:header` | Checks only the changed files for required source headers. |
-| `npm run policy:approve` | Verifies the PR approval / human-review requirement. |
-| `npm run policy:forbiddenrepo` | Scans the entire repository for forbidden tech or patterns. |
-| `npm run policy:headerrepo` | Checks the entire repository for required source headers. |
-| `npm run policy:trace` | Verifies requirement-to-audit traceability and dependency pairing across the repository. |
-
-| If this fails | Re-run this narrower command | What it checks |
-|---|---|---|
-| `npm run policy` | `npm run policy:quality` | Biome, tests, coverage, schema validation, and SBOM via the project quality gate |
-| `npm run policy` | `npm run policy:checks:local` | Local rerun for ticket association and ownership checks with metadata preparation (`policy:prep` + `policy:checks`) |
-| `npm run policy` | `npm run policy:forbidden` | Forbidden tech in changed files only |
-| `npm run policy` | `npm run policy:header` | Source headers in changed files only |
-| `npm run policy` | `npm run policy:approve` | Human approval/review requirement |
-| `npm run policy` | `npm run policy:repo` | Repo-wide scans and traceability/dependency pairing |
-| `npm run policy:repo` | `npm run policy:forbiddenrepo` | Forbidden tech across the repository |
-| `npm run policy:repo` | `npm run policy:headerrepo` | Source headers across the repository |
-| `npm run policy:repo` | `npm run policy:trace` | Requirement/audit matrix coverage and dependency pairing |
-
-### Where To Read The Implementation
-
-- `package.json` shows the npm alias graph and the names of the narrow troubleshooting commands.
-- `scripts/policy-gate/run-all.mjs` orchestrates the PR/repo umbrella gates and prints the step-level failure hints.
-- `scripts/policy-gate/run-checks.mjs` validates branch-or-commit ticket association, ticket list membership, track ownership boundaries, traceability coverage, and the GENERAL_DOCS_PROCESS process-marker fallback.
-- `scripts/policy-gate/run-project-gate.mjs` runs the quality gate (`check`, `test`, coverage, SBOM).
-- `scripts/policy-gate/check-forbidden.mjs` is the narrow forbidden-tech scan.
-- `scripts/policy-gate/check-source-headers.mjs` is the narrow source-header scan.
-- `scripts/policy-gate/lib/policy-utils.mjs` holds the shared checklist labels and traceability rules.
-
-### Quick Script Map
-
-| Command | Description |
-|---|---|
-| `npm run dev` | Start Vite dev server with HMR |
-| `npm run build` | Production build to `dist/` |
-| `npm run preview` | Serve production build locally |
-| `npm run ci` | Run the local quality gate: check, tests, coverage, schema validation, and SBOM |
-| `npm run test` | Run all unit tests (Vitest) |
-| `npm run test:watch` | Run tests in watch mode |
-| `npm run test:unit` | Run unit tests only |
-| `npm run test:integration` | Run integration tests only; passes when no integration files exist yet |
-| `npm run test:e2e` | Run Playwright browser tests (top-level `tests/e2e`). For audit tests run `npm run test:audit` |
-| `npm run test:audit` | Run the audit inventory suite |
-| `npm run test:coverage` | Generate test coverage report |
-| `npm run check` | Run all Biome checks (lint, format, and import sorting) |
-| `npm run fix` | Run all Biome checks and apply safe fixes automatically |
-| `npm run validate:schema` | Run JSON Schema 2020-12 validation for maps |
-| `npm run sbom` | Generate SPDX SBOM for dependency auditing. Note: `sbom.json` is a committed artifact managed by the CI workflow policy gates to ensure lockfile integrity. |
+| :--- | :--- |
+| `npm run dev` | Start the Vite development server with Hot Module Replacement (HMR) at `http://localhost:5173`. |
+| `npm run build` | Compile and bundle the game for production, outputting static files to `dist/`. |
+| `npm run test` | Run the Vitest unit and integration test suite once. |
+| `npm run test:audit` | Run the full Playwright and Vitest E2E audit suite to verify all acceptance criteria. |
 
 ---
 
