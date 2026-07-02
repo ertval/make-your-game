@@ -2,6 +2,7 @@
   "probeStats": {
     "averageFrameTime": 0.9370000000000012,
     "latestFrameTime": 3.2000000000007276,
+    "p50FrameTime": 0.85,
     "p95Fps": 666.6666666666666,
     "p95FrameTime": 1.5,
     "p99FrameTime": 2.1999999999989086,

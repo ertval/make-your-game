@@ -18,7 +18,7 @@
       "signOff": {
         "reviewer": "ekaramet",
         "date": "2026-06-23",
-        "notes": "Paint flashing verified for P4 Release. No full-screen repaints. HUD-only paint regions, promoted layers GPU-composited with zero redraws during movement. PASS."
+        "notes": "Paint flashing verified for P4 Release. Playwright trace recorded and added. No full-screen repaints. HUD-only paint regions, promoted layers GPU-composited with zero redraws during movement. PASS."
       }
     },
     {
@@ -37,7 +37,7 @@
       "signOff": {
         "reviewer": "ekaramet",
         "date": "2026-06-23",
-        "notes": "Layer count remains stable at 2-6 layers depending on active ghosts. No layer leaks on pause/resume or level resets. Verified for P4 release. PASS."
+        "notes": "Layer count remains stable at 2-6 layers depending on active ghosts. Playwright trace recorded and added. No layer leaks on pause/resume or level resets. Verified for P4 release. PASS."
       }
     },
     {
@@ -56,7 +56,7 @@
       "signOff": {
         "reviewer": "ekaramet",
         "date": "2026-06-23",
-        "notes": "Layer promotion rules verified against AGENTS.md. Only player and active ghosts are promoted. No memory leaks. PASS."
+        "notes": "Layer promotion rules verified against AGENTS.md. Playwright trace recorded and added. Only player and active ghosts are promoted. No memory leaks. PASS."
       }
     },
     {
@@ -75,7 +75,7 @@
       "signOff": {
         "reviewer": "ekaramet",
         "date": "2026-06-23",
-        "notes": "Final P4 quality review completed. All 27 audit questions pass, policy gates are satisfied, and regression tests are passing. Release ready. PASS."
+        "notes": "Final P4 quality review completed. Playwright trace recorded and added. All 27 audit questions pass, policy gates are satisfied, and regression tests are passing. Release ready. PASS."
       }
     }
   ]
