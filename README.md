@@ -353,12 +353,10 @@ The `npm run policy` command is the main pre-PR gate. It must pass successfully 
 
 For day-to-day development, use these core commands:
 
-| Command | Purpose |
-| :--- | :--- |
-| `npm run dev` | Start the Vite development server with Hot Module Replacement (HMR) at `http://localhost:5173`. |
-| `npm run build` | Compile and bundle the game for production, outputting static files to `dist/`. |
-| `npm run test` | Run the Vitest unit and integration test suite once. |
-| `npm run test:audit` | Run the full Playwright and Vitest E2E audit suite to verify all acceptance criteria. |
+- **`npm run dev`**: Start the Vite development server with Hot Module Replacement (HMR) at `http://localhost:5173`.
+- **`npm run build`**: Compile and bundle the game for production, outputting static files to `dist/`.
+- **`npm run test`**: Run the Vitest unit and integration test suite once.
+- **`npm run test:audit`**: Run the full Playwright and Vitest E2E audit suite to verify all acceptance criteria.
 
 ---
 
@@ -492,11 +490,6 @@ tests/
 12. Request review at integration milestones.
 
 ---
-
-## 🔗 Related
-
-- [social-network](https://github.com/ertval/social-network) — Go + Next.js vertical-slice social platform
-- [CV / Portfolio](https://ertval.com)
 
 ## 📄 License
 
