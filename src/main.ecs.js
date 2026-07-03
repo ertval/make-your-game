@@ -271,6 +271,37 @@ async function loadAudioClipManifest({ fetchImpl, logger = console } = {}) {
   return result;
 }
 
+/**
+ * AGENTS.md performance budget: "DOM Elements ≤ 500 total after level load.
+ * Assert in dev-mode startup." Transient rendering uses fixed object pools, so
+ * an over-budget count signals a pool leak or an unpooled per-frame element.
+ */
+export const DOM_ELEMENT_BUDGET = 500;
+
+/**
+ * Dev-mode DOM budget guard. Counts live elements and throws a descriptive
+ * error when the count exceeds the budget so an over-budget load fails loudly
+ * during local development. Callers gate this behind `isDevelopment()`; the
+ * startup try/catch routes the throw through `renderCriticalError`, making the
+ * failure visible (not just a silent console line).
+ *
+ * @param {{ documentRef?: Document, limit?: number }} [options]
+ * @returns {number} The observed element count (when within budget).
+ */
+export function assertDomElementBudget({
+  documentRef = typeof document !== 'undefined' ? document : null,
+  limit = DOM_ELEMENT_BUDGET,
+} = {}) {
+  const count = documentRef?.querySelectorAll?.('*')?.length ?? 0;
+  if (count > limit) {
+    throw new Error(
+      `DOM element budget exceeded: ${count} elements after level load (limit ${limit}). ` +
+        'Transient rendering must use fixed object pools (AGENTS.md performance budget).',
+    );
+  }
+  return count;
+}
+
 export function renderCriticalError(overlayRoot, error) {
   if (!overlayRoot) {
     return;
@@ -821,6 +852,14 @@ export async function bootstrapApplication({
     });
 
     runtime.start();
+
+    // #285 / CI-13: the initial level's board is in the DOM by now, so assert
+    // the AGENTS.md DOM budget in development. A breach throws and is surfaced
+    // by the catch below (renderCriticalError), catching pool leaks locally.
+    if (isDevelopment()) {
+      assertDomElementBudget({ documentRef: targetDocument });
+    }
+
     return runtime;
   } catch (error) {
     if (inputAdapter && typeof inputAdapter.destroy === 'function') {
