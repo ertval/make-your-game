@@ -224,3 +224,10 @@ export const POOL_GHOSTS = 4;
  *  for larger maps. Once D-02 defines canonical map dimensions, this can be
  *  tightened to the exact maximum wall count. */
 export const MAX_RENDER_INTENTS = POOL_GHOSTS + POOL_MAX_BOMBS + POOL_FIRE + POOL_PELLETS + 1 + 200;
+
+/** Grid tile size in CSS pixels — the single source of truth for the fixed
+ *  gameplay coordinate grid (#260). Mirrored by the `--tile-size` CSS custom
+ *  property in `styles/variables.css`; consumed by render-dom-system (tile→pixel
+ *  conversion) and the renderer adapter's board-fit fallback. Keep the CSS var
+ *  in sync if this changes. */
+export const TILE_SIZE_PX = 32;

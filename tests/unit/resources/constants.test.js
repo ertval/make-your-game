@@ -40,6 +40,7 @@ import {
   SPEED_BOOST_MS,
   SPEED_BOOST_MULTIPLIER,
   STUN_MS,
+  TILE_SIZE_PX,
   TOTAL_LEVELS,
   VISUAL_FLAGS,
 } from '../../../src/ecs/resources/constants.js';
@@ -155,5 +156,10 @@ describe('constants', () => {
     expect(MAX_RENDER_INTENTS).toBeGreaterThanOrEqual(
       POOL_GHOSTS + POOL_MAX_BOMBS + POOL_FIRE + POOL_PELLETS + 1,
     );
+  });
+
+  it('defines TILE_SIZE_PX as the single source of truth for the 32px grid (#260)', () => {
+    expect(TILE_SIZE_PX).toBe(32);
+    expect(Number.isInteger(TILE_SIZE_PX)).toBe(true);
   });
 });

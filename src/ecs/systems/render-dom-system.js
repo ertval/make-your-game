@@ -26,13 +26,11 @@
  */
 
 import { RENDERABLE_KIND, VISUAL_FLAGS } from '../components/visual.js';
-import { GHOST_TYPE } from '../resources/constants.js';
+import { GHOST_TYPE, TILE_SIZE_PX } from '../resources/constants.js';
 
 const DEFAULT_RENDER_INTENT_RESOURCE_KEY = 'renderIntent';
 const DEFAULT_SPRITE_POOL_RESOURCE_KEY = 'spritePool';
 const DEFAULT_GHOST_RESOURCE_KEY = 'ghost';
-
-const TILE_SIZE_PX = 32;
 
 const OFFSCREEN_TRANSFORM = 'translate(-9999px, -9999px)';
 
