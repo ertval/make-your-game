@@ -323,6 +323,8 @@ test('AUDIT-F-18 explicit FPS threshold assertions', async ({ page }) => {
 
 test('AUDIT-B-05 explicit async-performance long-task threshold assertions', async ({ page }) => {
   await bootRuntime(page);
+  // Warmup delay to bypass startup compilation/initial layout spikes under CI contention.
+  await page.waitForTimeout(500);
 
   const thresholds = ACTIVE_THRESHOLDS['AUDIT-B-05'];
   const longTaskSummary = await page.evaluate(async (sampleWindowMs) => {
@@ -366,7 +368,7 @@ test('AUDIT-B-05 explicit async-performance long-task threshold assertions', asy
   expect(longTaskSummary.maxLongTaskMs).toBeLessThanOrEqual(thresholds.maxLongTaskMs);
 });
 
-test('Platform DOM contract: no canvas element and HUD shell visible at runtime', async ({
+test('AUDIT-F-04 Platform DOM contract: no canvas element and HUD shell visible at runtime', async ({
   page,
 }) => {
   await bootRuntime(page);

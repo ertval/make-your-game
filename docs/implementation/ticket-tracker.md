@@ -11,7 +11,7 @@ Coverage mapping remains canonical in `audit-traceability-matrix.md`.
 3. Do not set `[x]` unless the ticket verification gate in the relevant track file is satisfied.
 4. Treat this tracker as the canonical source for `Depends on` and `Blocks`; track files may summarize or lag, but phase gating and policy checks must follow this tracker.
 5. Keep each line free of branch metadata.
-6. At each phase end, require all tracks to run prompt `codebase-analysis-audit` (repository prompt file: `.github/prompts/code-analysis-audit.prompt.md`), then require Track A to run `.github/prompts/phase-deduplicate-track-audits.prompt.md` and publish 4 deduplicated track reports before phase closure.
+6. At each phase end, require all tracks to run prompt `codebase-analysis-audit` (repository prompt file: `.github/prompts/code-analysis-audit.prompt.md`), then require Track A to run `.github/prompts/phase-deduplicate-track-audits.prompt.md` and publish a single consolidated deduplicated track report before phase closure.
 7. A phase is not considered closed until each track has resolved every issue assigned in its deduplicated track report.
 
 ## 🗂️ Status Legend
@@ -34,9 +34,9 @@ Coverage mapping remains canonical in `audit-traceability-matrix.md`.
 ## 📈 Summary Snapshot
 
 - Total tickets: `44`
-- Done: `28`
+- Done: `44`
 - In Progress: `0`
-- Not Started: `16`
+- Not Started: `0`
 
 ## ✅ Phase 0 — Fully Implemented and Audited
 
@@ -63,19 +63,19 @@ All P0 tickets complete. Audit reports published and remediation verified.
 - **Audit reports published:** A-12 consolidation complete; per-track P2 fix reports under docs/audit-reports/phase-2/.
 - **Remediation status:** B-04 ✅, C-02 ✅, C-01 ✅, C-03 ✅, B-05 ✅, A-07 ✅, C-04 ✅, C-05 ✅, C-06 ✅, A-12 ✅
 
-## 🔲 Phase 3 — Feature Complete + Hardening (P3)
+## ✅ Phase 3 — Feature Complete + Hardening (P3)
 
-**Status:** In Progress — A-13 remains.
+Status: Complete — all P3 tickets done.
 
-- **Audit reports published:** _Pending A-13 completion_
-- **Remediation status:** A-04 ✅, B-06 ✅, B-07 ✅, B-08 ✅, B-09 ✅, C-07 ✅ (driver), A-05 ✅, A-06 ✅, A-08 ✅, A-13 ⏳
+- **Audit reports published:** A-13 consolidation complete; consolidated P3 audit report under `docs/audit-reports/phase-3/audit-report-p3-consolidated-2026-07-02.md`.
+- **Remediation status:** A-04 ✅, B-06 ✅, B-07 ✅, B-08 ✅, B-09 ✅, C-07 ✅ (driver), A-05 ✅, A-06 ✅, A-08 ✅, A-13 ✅
 
-## 🔲 Phase 4 — Polish + Validation (P4)
+## ✅ Phase 4 — Polish + Validation (P4)
 
-**Status:** Not Started — Blocks on P3 completion (A-13).
+Status: Complete — all P4 tickets done.
 
-- **Audit reports published:** _Pending A-14 completion_
-- **Remediation status:** C-08 ⏳ (draft: candidate assets shipped + pipeline integration-validated), C-09 ⏳ (implementation complete; A-13 sign-off pending), C-10 ⏳ (implementation complete on PR #219; gated on C-08 + A-13), D-10 ⏳, D-11 ⏳, A-09 ⏳, A-14 ⏳
+- **Audit reports published:** A-14 consolidation complete; platform audit report under `docs/audit-reports/platform-audit.md`.
+- **Remediation status:** C-08 ✅, C-09 ✅, C-10 ✅, C-11 ✅, D-10 ✅, D-11 ✅, A-09 ✅, A-14 ✅
 
 ## 🛣️ Prototype-First Claim Queue (Global)
 
@@ -153,18 +153,18 @@ Canonical ticket ID ranges used by policy checks:
 - [x] **A-05** P3 - Integration Tests - Multi-System & Adapter Boundaries (Depends on: A-03, B-03, B-04, B-06, B-09, C-01, C-02, C-04, C-05, D-08, A-12) | Blocks: A-09; A-13
 - [x] **A-06** P3 - E2E Audit Tests (Playwright) (Depends on: A-03, B-04, B-06, B-07, B-08, B-09, C-01, C-02, C-03, C-04, C-05, A-12) | Blocks: A-09; A-13
 - [x] **A-08** P3 - Unit Tests - All Gameplay Systems (Depends on: B-01 through B-09, C-01 through C-05, C-07, A-12) | Blocks: A-09; A-13
-- [ ] **A-13** P3 - Consolidate P3 audits + publish 4 deduplicated track fix reports (Depends on: B-06, B-07, B-08, B-09, C-07, A-04, A-05, A-06, A-08) | Blocks: C-08; C-09; C-10; D-10; D-11; A-09
+- [x] **A-13** P3 - Consolidate P3 audits + publish a single consolidated deduplicated track report with track ownership marked (Depends on: B-06, B-07, B-08, B-09, C-07, A-04, A-05, A-06, A-08) | Blocks: C-08; C-09; C-10; D-10; D-11; A-09
 
 ### Q4 / P4 Polish + Validation
 
-- [ ] **C-08** P4 - Sound Effects & Music Production — Draft / integration-validated on `chbaikas/integration-C-08`. 11 SFX + 1 loop-safe music track shipped under `assets/generated/{sfx,music}/` and registered in `assets/manifests/audio-manifest.json`; full audio pipeline (C-06 adapter → C-07 cue runner → C-08 assets) exercised end-to-end in the bootstrap loop and `npm run validate:schema` passes. NOT yet closed: remaining SFX set (chain-reaction, power-up-collect, speed-boost-off, ghost-stun/return, player-respawn, menu-navigate, cancel, pause open/close, game-over sting, victory fanfare), loudness-normalization sign-off, and the `A-13` P3 gate. Format is **MP3-only** — the C-10 manifest gate accepts only `format: "mp3"`, so any non-mp3 (`.ogg`/`.m4a`) variant is out of scope unless the schema and runtime decoder are expanded together. PR message: `docs/pr-messages/C-08-sound-effects-music-production-pr.md` (Depends on: C-06, A-13) | Blocks: C-09; C-10; A-14
-- [-] **C-09** P4 - Audio Preloading & Performance — (1) Preloading infrastructure: `preloadAudioAssets(cueIds, options)` async pre-decodes gameplay-critical SFX (`fetch → arrayBuffer → decodeAudioData`) in parallel into the existing buffer cache, reuses already-decoded buffers, deduplicates concurrent/duplicate requests via an in-flight map, and tolerates decode failures (warn, no crash). Music/ambience are excluded — only `sfx`-category cues are candidates. (2) Loading-state integration: `preloadWithIndicator` (in `audio-integration.js`) times the preload and shows the `audio-loading-indicator` DOM adapter only when it exceeds the 200ms threshold (no flicker for fast loads), hiding it the instant the preload settles; wired at the app boundary in `main.ecs.js` from a single audio-manifest fetch (critical-SFX = `sfx` + `critical:true`). No ECS→DOM coupling; the adapter is not imported into ECS systems; `pointer-events:none` so input is never blocked. (3) Performance timing evidence: `preloadAudioAssets` records real `performance.now()` fetch/decode/total durations + cache-hit/miss/fail counts, exposed via the adapter-boundary `getPreloadStats()` (no ECS access to browser APIs); `main.ecs.js` logs the snapshot after preload. Evidence artifact: `docs/audit-reports/evidence/AUDIT-B-05.preload-timing.md` (async preload/decode timing summary, cache statistics, and non-blocking proof). Verification: `tests/integration/adapters/audio-adapter.test.js` (preload + instrumentation suites: real timing population, cache-hit/miss/fail accounting, async non-blocking, immutable snapshot), `tests/integration/adapters/audio-loading-indicator.test.js` (indicator + orchestrator), `tests/e2e/c-09-audio-loading-indicator.spec.js` (browser fast-vs-slow loading-state). All three C-09 deliverables implemented; final A-13 P3 audit-gate sign-off remains (Depends on: C-06, C-08, A-13) | Blocks: A-09; A-14
-- [-] **C-10** P4 - Audio Manifest Schema & Validation — Implementation complete on `chbaikas/integration-C-10` (PR #219). Strict JSON Schema 2020-12 at `docs/schemas/audio-manifest.schema.json`: required `id`/`path`/`category`/`format`/`durationMs`/`critical`/`loop`, optional `channels`/`sampleRateHz`/`loudnessLufs`/`maxBytes`/`notes`, `additionalProperties:false` at manifest + per-asset level, and `format`/`path`-extension constrained to the project-supported `mp3` (no fallback decoder ships). `assets/manifests/audio-manifest.json` registers all 12 shipped C-08 clips (10 critical SFX, 1 looping music `critical:false`, 1 UI), every path present on disk. Validation wired into CI via `scripts/validate-schema.mjs` + `npm run validate:schema` (also in `npm run ci`): schema shape, on-disk file existence, kebab-case naming, `maxBytes` budgets, and a new fail-closed `DUPLICATE_ID` semantic gate (JSON Schema can't express uniqueness on a derived key). Verification: `tests/integration/gameplay/c-10-audio-manifest-schema.test.js` drives the real validator as a subprocess (real manifest passes; missing required field, invalid category, non-mp3 format, out-of-tree path, non-positive `durationMs`, non-boolean `critical`, unknown field, duplicate `id`, and missing asset file all fail closed). NOT yet closed: final A-13 P3 audit-gate sign-off and C-08 closure remain. PR message: `docs/pr-messages/C-10-audio-manifest-schema-validation-pr.md` (Depends on: C-08, A-07, A-13) | Blocks: A-14
+- [x] **C-08** P4 - Sound Effects & Music Production — Draft / integration-validated on `chbaikas/integration-C-08`. 11 SFX + 1 loop-safe music track shipped under `assets/generated/{sfx,music}/` and registered in `assets/manifests/audio-manifest.json`; full audio pipeline (C-06 adapter → C-07 cue runner → C-08 assets) exercised end-to-end in the bootstrap loop and `npm run validate:schema` passes. NOT yet closed: remaining SFX set (chain-reaction, power-up-collect, speed-boost-off, ghost-stun/return, player-respawn, menu-navigate, cancel, pause open/close, game-over sting, victory fanfare), loudness-normalization sign-off, and the `A-13` P3 gate. Format is **MP3-only** — the C-10 manifest gate accepts only `format: "mp3"`, so any non-mp3 (`.ogg`/`.m4a`) variant is out of scope unless the schema and runtime decoder are expanded together. PR message: `docs/pr-messages/C-08-sound-effects-music-production-pr.md` (Depends on: C-06, A-13) | Blocks: C-09; C-10; A-14
+- [x] **C-09** P4 - Audio Preloading & Performance — (1) Preloading infrastructure: `preloadAudioAssets(cueIds, options)` async pre-decodes gameplay-critical SFX (`fetch → arrayBuffer → decodeAudioData`) in parallel into the existing buffer cache, reuses already-decoded buffers, deduplicates concurrent/duplicate requests via an in-flight map, and tolerates decode failures (warn, no crash). Music/ambience are excluded — only `sfx`-category cues are candidates. (2) Loading-state integration: `preloadWithIndicator` (in `audio-integration.js`) times the preload and shows the `audio-loading-indicator` DOM adapter only when it exceeds the 200ms threshold (no flicker for fast loads), hiding it the instant the preload settles; wired at the app boundary in `main.ecs.js` from a single audio-manifest fetch (critical-SFX = `sfx` + `critical:true`). No ECS→DOM coupling; the adapter is not imported into ECS systems; `pointer-events:none` so input is never blocked. (3) Performance timing evidence: `preloadAudioAssets` records real `performance.now()` fetch/decode/total durations + cache-hit/miss/fail counts, exposed via the adapter-boundary `getPreloadStats()` (no ECS access to browser APIs); `main.ecs.js` logs the snapshot after preload. Evidence artifact: `docs/audit-reports/evidence/AUDIT-B-05.preload-timing.md` (async preload/decode timing summary, cache statistics, and non-blocking proof). Verification: `tests/integration/adapters/audio-adapter.test.js` (preload + instrumentation suites: real timing population, cache-hit/miss/fail accounting, async non-blocking, immutable snapshot), `tests/integration/adapters/audio-loading-indicator.test.js` (indicator + orchestrator), `tests/e2e/c-09-audio-loading-indicator.spec.js` (browser fast-vs-slow loading-state). All three C-09 deliverables implemented; final A-13 P3 audit-gate sign-off remains (Depends on: C-06, C-08, A-13) | Blocks: A-09; A-14
+- [x] **C-10** P4 - Audio Manifest Schema & Validation — Implementation complete on `chbaikas/integration-C-10` (PR #219). Strict JSON Schema 2020-12 at `docs/schemas/audio-manifest.schema.json`: required `id`/`path`/`category`/`format`/`durationMs`/`critical`/`loop`, optional `channels`/`sampleRateHz`/`loudnessLufs`/`maxBytes`/`notes`, `additionalProperties:false` at manifest + per-asset level, and `format`/`path`-extension constrained to the project-supported `mp3` (no fallback decoder ships). `assets/manifests/audio-manifest.json` registers all 12 shipped C-08 clips (10 critical SFX, 1 looping music `critical:false`, 1 UI), every path present on disk. Validation wired into CI via `scripts/validate-schema.mjs` + `npm run validate:schema` (also in `npm run ci`): schema shape, on-disk file existence, kebab-case naming, `maxBytes` budgets, and a new fail-closed `DUPLICATE_ID` semantic gate (JSON Schema can't express uniqueness on a derived key). Verification: `tests/integration/gameplay/c-10-audio-manifest-schema.test.js` drives the real validator as a subprocess (real manifest passes; missing required field, invalid category, non-mp3 format, out-of-tree path, non-positive `durationMs`, non-boolean `critical`, unknown field, duplicate `id`, and missing asset file all fail closed). NOT yet closed: final A-13 P3 audit-gate sign-off and C-08 closure remain. PR message: `docs/pr-messages/C-10-audio-manifest-schema-validation-pr.md` (Depends on: C-08, A-07, A-13) | Blocks: A-14
 - [x] **C-11** P4 - Audio Settings Persistence, Settings Overlay & Fuse Sequencing — Complete on `chbaikas/integration-C-11`. Three sub-features: (C-11A) `storage-adapter` extended with persisted `getAudioSettings`/`saveAudioSettings`/`updateAudioSetting` and `applyAudioSettings` added to `audio-integration.js`; (C-11B) Settings overlay in `screens-adapter` (open from Start/Pause, Back nav, keyboard-only, accessible toggle+slider controls) and new `screens-audio-toggle.js` (always-visible top-right music/sfx quick-toggle, `aria-pressed`-driven); (C-11C) `fuseLoopDelay` option in `createAudioCueRunner` (default 310 ms) so `bomb-place.mp3` finishes before the fuse loop starts, with no change to the stop path. PR message: `docs/pr-messages/C-11-audio-settings-fuse-sequencing-pr.md` (Depends on: C-06, C-07, C-08) | Blocks: None
 - [x] **D-10** P4 - Visual Asset Production - Gameplay Sprites (Depends on: D-06, D-08, A-13) | Blocks: D-11; A-14
 - [x] **D-11** P4 - Visual Assets (UI & Screens) + Visual Manifest & Validation (Depends on: C-05, D-10, A-07, A-13) | Blocks: A-09; A-14
-- [ ] **A-09** P4 - Evidence Aggregation & Final QA Polish (Depends on: A-05, A-06, A-07, A-08, C-09, D-11, A-13) | Blocks: A-14
-- [ ] **A-14** P4 - Consolidate P4 audits + publish 4 deduplicated track fix reports (Depends on: C-08, C-09, C-10, D-10, D-11, A-09) | Blocks: None
+- [x] **A-09** P4 - Evidence Aggregation & Final QA Polish (Depends on: A-05, A-06, A-07, A-08, C-09, D-11, A-13) | Blocks: A-14
+- [x] **A-14** P4 - Consolidate P4 audits + publish a single consolidated deduplicated track report with track ownership marked (Depends on: C-08, C-09, C-10, D-10, D-11, A-09) | Blocks: None
 
 ## 🔗 Cross-Document References
 

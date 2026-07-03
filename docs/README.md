@@ -76,9 +76,9 @@ Gate command reference:
 > **Important Instruction:**
 > Every time a phase is finished, all tracks MUST run prompt `codebase-analysis-audit` (repository prompt file: [code-analysis-audit.prompt.md](../.github/prompts/code-analysis-audit.prompt.md)) against the whole codebase and merge those reports.
 >
-> Then Track A MUST run [phase-deduplicate-track-audits.prompt.md](../.github/prompts/phase-deduplicate-track-audits.prompt.md) to produce four deduplicated fix reports (one per track A/B/C/D) under `docs/audit-reports/<phase>/`.
+> Then Track A MUST run [phase-deduplicate-track-audits.prompt.md](../.github/prompts/phase-deduplicate-track-audits.prompt.md) to produce a single consolidated deduplicated track report (with track ownership marked) under `docs/audit-reports/<phase>/`.
 >
-> After report publication, each track MUST fix all issues assigned to its report before the phase is considered closed.
+> After report publication, each track MUST fix all issues assigned to it in the consolidated report before the phase is considered closed.
 
 ## Actions Setup and Verification
 
