@@ -7,8 +7,10 @@
  * - isAlive(handle): validates handles against generation and active state.
  */
 
+import { MAX_ENTITIES } from '../resources/constants.js';
+
 export class EntityStore {
-  constructor({ maxEntities = 550 } = {}) {
+  constructor({ maxEntities = MAX_ENTITIES } = {}) {
     this.maxEntities = maxEntities;
     this.generations = [];
     this.activeFlags = [];

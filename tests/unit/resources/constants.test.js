@@ -7,6 +7,7 @@
 
 import { describe, expect, it } from 'vitest';
 
+import { EntityStore } from '../../../src/ecs/world/entity-store.js';
 import {
   BOMB_FUSE_MS,
   CELL_TYPE,
@@ -23,6 +24,7 @@ import {
   INVINCIBILITY_MS,
   LEVEL_TIMERS,
   MAX_CHAIN_DEPTH,
+  MAX_ENTITIES,
   MAX_FIRE_RADIUS,
   MAX_RENDER_INTENTS,
   MAX_STEPS_PER_FRAME,
@@ -161,5 +163,13 @@ describe('constants', () => {
   it('defines TILE_SIZE_PX as the single source of truth for the 32px grid (#260)', () => {
     expect(TILE_SIZE_PX).toBe(32);
     expect(Number.isInteger(TILE_SIZE_PX)).toBe(true);
+  });
+
+  it('sizes the render-intent buffer to cover the entity-store capacity (#263)', () => {
+    // MAX_RENDER_INTENTS must be >= the max number of entities that can exist,
+    // or renderable entities beyond the buffer silently drop (vanishing sprites).
+    const defaultEntityCapacity = new EntityStore().maxEntities;
+    expect(MAX_ENTITIES).toBe(defaultEntityCapacity);
+    expect(MAX_RENDER_INTENTS).toBeGreaterThanOrEqual(MAX_ENTITIES);
   });
 });
