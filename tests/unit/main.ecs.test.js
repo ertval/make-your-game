@@ -277,6 +277,7 @@ describe('main.ecs.js', () => {
 
       const stats = probeWindow.__MS_GHOSTMAN_FRAME_PROBE__.getStats();
       expect(stats.sampleCount).toBe(5);
+      expect(stats.p50FrameTime).toBeCloseTo(16, 5);
       expect(stats.p95FrameTime).toBeCloseTo(16, 5);
       expect(stats.p99FrameTime).toBeCloseTo(16, 5);
       expect(stats.p95Fps).toBeCloseTo(62.5, 1);

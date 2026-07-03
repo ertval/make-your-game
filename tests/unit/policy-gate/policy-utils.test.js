@@ -461,3 +461,15 @@ describe('policy-utils forbidden variable sink regex', () => {
     expect(regex.test('function varName() {}')).toBe(false);
   });
 });
+
+describe('DEAD-04: policy-utils helper exports', () => {
+  it('does not export internal helpers', async () => {
+    const policyUtils = await import('../../../scripts/policy-gate/lib/policy-utils.mjs');
+    expect(policyUtils.TICKET_ID_PATTERN).toBeUndefined();
+    expect(policyUtils.escapeRegex).toBeUndefined();
+    expect(policyUtils.normalizePolicyPath).toBeUndefined();
+    expect(policyUtils.extractTicketIds).toBeUndefined();
+    expect(policyUtils.pathMatchesPattern).toBeUndefined();
+    expect(policyUtils.commandSucceeded).toBeUndefined();
+  });
+});

@@ -13,7 +13,6 @@ import {
   drain,
   enqueue,
   peek,
-  resetOrderCounter,
 } from '../../../src/ecs/resources/event-queue.js';
 
 describe('event-queue', () => {
@@ -83,12 +82,9 @@ describe('event-queue', () => {
     expect(queue.orderCounter).toBe(3);
   });
 
-  it('resetOrderCounter resets the counter without affecting events', () => {
-    const queue = createEventQueue();
-    enqueue(queue, 'Test', {}, 1);
-    resetOrderCounter(queue);
-    expect(queue.orderCounter).toBe(0);
-    expect(queue.events).toHaveLength(1);
+  it('does not export resetOrderCounter', async () => {
+    const eventQueue = await import('../../../src/ecs/resources/event-queue.js');
+    expect(eventQueue.resetOrderCounter).toBeUndefined();
   });
 
   it('resets orderCounter on drain to prevent unbounded growth (BUG-10)', () => {
