@@ -389,6 +389,11 @@ function createDefaultSystemsByPhase(options = {}) {
         playerEntityResourceKey,
         playerResourceKey,
       }),
+      // BUG-09: level-progress-system must run before timer-system so a
+      // last-pellet clear and a timer expiry on the same step resolve to
+      // LEVEL_COMPLETE/VICTORY rather than timer-system winning the race and
+      // transitioning to GAME_OVER first.
+      createLevelProgressSystem({ eventQueueResourceKey, mapResourceKey }),
       createTimerSystem({ eventQueueResourceKey }),
       createScoringSystem(),
       createLifeSystem({
@@ -400,7 +405,6 @@ function createDefaultSystemsByPhase(options = {}) {
         positionResourceKey,
         velocityResourceKey,
       }),
-      createLevelProgressSystem({ eventQueueResourceKey, mapResourceKey }),
       createSpawnSystem(),
       // The release-bridge must run after createSpawnSystem so it observes the
       // freshly updated releasedGhostIds list before the next physics phase.
