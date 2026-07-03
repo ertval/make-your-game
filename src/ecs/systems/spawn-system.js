@@ -28,11 +28,13 @@
  *   provides a deterministic ghost entity ordering resource.
  */
 
+import { peek } from '../resources/event-queue.js';
 import {
   GHOST_RESPAWN_MS as CANONICAL_GHOST_RESPAWN_MS,
   GHOST_SPAWN_DELAYS as CANONICAL_GHOST_SPAWN_DELAYS,
 } from '../resources/constants.js';
 import { GAME_STATE } from '../resources/game-status.js';
+import { GAMEPLAY_EVENT_TYPE } from './collision-gameplay-events.js';
 
 const FALLBACK_GHOST_SPAWN_DELAYS = Object.freeze([0, 5000, 10000, 15000]);
 const FALLBACK_GHOST_RESPAWN_MS = 5000;
@@ -44,6 +46,7 @@ const MAX_DELTA_MS = 1000;
 const DEFAULT_GAME_STATUS_RESOURCE_KEY = 'gameStatus';
 const DEFAULT_MAP_RESOURCE_KEY = 'mapResource';
 const DEFAULT_GHOST_IDS_RESOURCE_KEY = 'ghostIds';
+const DEFAULT_EVENT_QUEUE_RESOURCE_KEY = 'eventQueue';
 export const DEFAULT_DEAD_GHOST_IDS_RESOURCE_KEY = 'deadGhostIds';
 export const DEFAULT_SPAWN_RESOURCE_KEY = 'ghostSpawnState';
 
@@ -63,6 +66,17 @@ function createSpawnScratch() {
     queued: new Set(),
     released: new Set(),
     respawning: new Set(),
+    // BUG-01: highest (frame, order) GhostDefeated event already bridged into
+    // deadGhostIds, so peeking the same still-undrained event on a later tick
+    // never re-schedules a respawn for a ghost that has already returned.
+    lastSeenGhostDefeated: { frame: -1, order: -1 },
+    // Identity of the eventQueue object the watermark above was computed
+    // against. Restart replaces eventQueue with a brand new instance whose
+    // frame/order counters restart from zero (see bootstrap.js's onRestart),
+    // so a stale watermark from the previous run would reject every
+    // post-restart event as "not newer". Detecting the identity swap lets the
+    // watermark reset alongside it.
+    lastSeenEventQueue: null,
   };
 }
 
@@ -400,11 +414,83 @@ function consumeDeadGhostIds(spawnState, deadGhostIds) {
   }
 }
 
+function isNewerEventEnvelope(event, watermark) {
+  const frame = Number(event?.frame);
+  const order = Number(event?.order);
+  if (!Number.isFinite(frame) || !Number.isFinite(order)) {
+    return false;
+  }
+
+  // frame is monotonically increasing for the queue's lifetime, but order
+  // resets to 0 on every drain() — so frame must dominate the comparison, or
+  // a fresh low-order event after a drain would look "older" than a stale
+  // high-order event from before it.
+  if (frame !== watermark.frame) {
+    return frame > watermark.frame;
+  }
+
+  return order > watermark.order;
+}
+
+/**
+ * Read GhostDefeated gameplay events not yet bridged into deadGhostIds,
+ * without draining the shared queue (BUG-01).
+ *
+ * collision-system marks a fire-killed ghost DEAD and emits GhostDefeated on
+ * the shared eventQueue, but nothing wrote that ghost's id into deadGhostIds
+ * for spawn-system's respawn pipeline to pick up — the kill never scheduled a
+ * respawn. `peek()` is deliberately used instead of `drain()`: the queue's
+ * single canonical drain point is the render-phase audio-cue-system (see
+ * event-queue.js's D-01 contract), and this system runs earlier in the logic
+ * phase, so draining here would delete events other consumers still need to
+ * see this frame.
+ *
+ * Peeking alone is not enough: an event lingers in the queue until that
+ * later drain happens, so a naive peek would re-schedule the same ghost's
+ * respawn on every subsequent tick until the drain runs — including after
+ * the ghost has already come back, incorrectly resetting its respawn timer
+ * (observed as `readyAtMs` jumping forward well past `GHOST_RESPAWN_MS`).
+ * `scratch.lastSeenGhostDefeated` tracks the highest (frame, order) envelope
+ * already bridged so the same event is only ever consumed once, regardless
+ * of how many ticks pass before the shared queue is actually drained.
+ *
+ * @param {{ events: Array<{ frame: number, order: number, type: string, payload: object }> } | null | undefined} eventQueue - Shared gameplay event queue.
+ * @param {{ frame: number, order: number }} watermark - Highest (frame, order) envelope already bridged; mutated in place.
+ * @returns {number[]} Newly observed ghost entity ids from GhostDefeated events.
+ */
+function peekGhostDefeatedIds(eventQueue, watermark) {
+  if (!eventQueue) {
+    return [];
+  }
+
+  const ghostIds = [];
+  for (const event of peek(eventQueue)) {
+    if (!isNewerEventEnvelope(event, watermark)) {
+      continue;
+    }
+
+    watermark.frame = event.frame;
+    watermark.order = event.order;
+
+    if (event.type !== GAMEPLAY_EVENT_TYPE.GHOST_DEFEATED) {
+      continue;
+    }
+
+    const ghostId = Number(event.payload?.entityId);
+    if (Number.isFinite(ghostId)) {
+      ghostIds.push(Math.floor(ghostId));
+    }
+  }
+
+  return ghostIds;
+}
+
 export function createSpawnSystem(options = {}) {
   const gameStatusResourceKey = options.gameStatusResourceKey || DEFAULT_GAME_STATUS_RESOURCE_KEY;
   const ghostIdsResourceKey = options.ghostIdsResourceKey || DEFAULT_GHOST_IDS_RESOURCE_KEY;
   const deadGhostIdsResourceKey =
     options.deadGhostIdsResourceKey || DEFAULT_DEAD_GHOST_IDS_RESOURCE_KEY;
+  const eventQueueResourceKey = options.eventQueueResourceKey || DEFAULT_EVENT_QUEUE_RESOURCE_KEY;
   const mapResourceKey = options.mapResourceKey || DEFAULT_MAP_RESOURCE_KEY;
   const spawnResourceKey = options.spawnResourceKey || DEFAULT_SPAWN_RESOURCE_KEY;
 
@@ -420,11 +506,14 @@ export function createSpawnSystem(options = {}) {
         gameStatusResourceKey,
         ghostIdsResourceKey,
         deadGhostIdsResourceKey,
+        eventQueueResourceKey,
         mapResourceKey,
         spawnResourceKey,
       ],
       // `deadGhostIds` is consumed as an event queue, so the system clears it
       // after reading to avoid replaying stale death intents on later ticks.
+      // eventQueue is read-only here (peeked, never drained) — see
+      // peekGhostDefeatedIds for why.
       write: [deadGhostIdsResourceKey, spawnResourceKey],
     },
     update(context) {
@@ -432,6 +521,7 @@ export function createSpawnSystem(options = {}) {
       const gameStatus = world.getResource(gameStatusResourceKey);
       const ghostIds = world.getResource(ghostIdsResourceKey);
       const deadGhostIds = world.getResource(deadGhostIdsResourceKey) || [];
+      const eventQueue = world.getResource(eventQueueResourceKey);
       const mapResource = world.getResource(mapResourceKey);
       const existingSpawnState = world.getResource(spawnResourceKey);
 
@@ -445,8 +535,22 @@ export function createSpawnSystem(options = {}) {
         spawnState.elapsedMs += getDeltaMs(context);
       }
 
-      if (deadGhostIds.length > 0) {
-        consumeDeadGhostIds(spawnState, deadGhostIds);
+      // BUG-01: collision-system marks fire-killed ghosts DEAD but never
+      // writes their ids into deadGhostIds itself; bridge that gap here from
+      // the GhostDefeated events it already emits on the shared queue.
+      if (eventQueue !== scratch.lastSeenEventQueue) {
+        // A new eventQueue instance (restart) resets frame/order to zero, so
+        // a watermark from the previous instance must not carry over.
+        scratch.lastSeenEventQueue = eventQueue;
+        scratch.lastSeenGhostDefeated.frame = -1;
+        scratch.lastSeenGhostDefeated.order = -1;
+      }
+      const bridgedDeadGhostIds = peekGhostDefeatedIds(eventQueue, scratch.lastSeenGhostDefeated);
+      const allDeadGhostIds =
+        bridgedDeadGhostIds.length > 0 ? deadGhostIds.concat(bridgedDeadGhostIds) : deadGhostIds;
+
+      if (allDeadGhostIds.length > 0) {
+        consumeDeadGhostIds(spawnState, allDeadGhostIds);
         // Death intents are edge-triggered. Clear them once consumed so the
         // same death cannot be re-applied after the queued respawn releases.
         world.setResource(deadGhostIdsResourceKey, []);
