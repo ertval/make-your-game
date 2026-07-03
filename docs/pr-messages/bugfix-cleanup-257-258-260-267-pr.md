@@ -27,14 +27,16 @@
 - Removed the 22 `className: null` manifest entries + their 128px `.webp` files (non-directional ghost walk frames, stun-0N, wall-destruct-*, power-pellet-0N, `player-death`, `fire-tile-center`, text-rendered HUD icons). `validate:schema` stays green.
 - The `player-death` id also names a collision-intent event type — that string usage is unrelated and untouched.
 
-### #267 (ARCH-03) — remove unused higher-res tiers
-- Removed `assets/generated/visuals/256px/` (1.9M) and `512px/` (4.9M) — unreferenced by manifest/code/build; only the 128px tier ships (~6.8M saved).
+### #267 (ARCH-03) — remove orphaned/unused assets
+- Removed the orphan `assets/generated/ui/ui-confirm.mp3` (the audio manifest references the `sfx/` copy) — the duplicate audio file this issue explicitly names.
+- Removed the orphaned packed-atlas `assets/generated/visuals/128px/spritesheet.{webp,json,css}` (296K): never imported (`base.css` pulls in only variables/grid/animations), single-dash classes that the renderer never applies.
+- Removed the unused `assets/generated/visuals/256px/` (1.9M) and `512px/` (4.9M) tiers — unreferenced; only the 128px tier ships. **~7.1M total saved.**
 
 ## Owner scoping decisions (intentional partials)
 
 - **Retained** the `removed_background/`, `v5`/no-background, and `original/` source-image folders (owner keeps them for future re-wiring).
 - **Retained** `assets/generated/sprites/*.svg`: deleting them fails the Track A SVG-asset-pipeline audit gate (`audit.e2e.test.js` asserts an `.svg` exists under `assets/generated/`). Whether that assertion is still meaningful (gameplay is webp; only the favicon is SVG) is a Track A audit-contract question, raised separately.
-- **Did not touch** the orphan `assets/generated/ui/ui-confirm.mp3` — it is a Track C audio asset, out of Track D scope even under the bugfix bypass.
+- The `ui-confirm.mp3` removal is a Track C audio asset carried under the `bugfix-*` ownership bypass — justified because #267 is assigned to this owner and explicitly lists it as the "duplicate audio file" to remove.
 
 ## Tests
 
