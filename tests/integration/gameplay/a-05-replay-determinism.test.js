@@ -118,7 +118,7 @@ describe('Replay Determinism Integration', () => {
     }
 
     const trace = recorder.trace;
-    expect(trace.length).toBe(191);
+    expect(trace.length).toBe(190);
 
     // 2. Play back trace on a fresh world with the same seed (bootstrap A)
     const bootstrapA = createBootstrap({

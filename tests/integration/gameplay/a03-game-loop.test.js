@@ -393,9 +393,9 @@ describe('game loop and runtime', () => {
       now: 0,
     });
 
-    expect(bootstrap.world.systemsByPhase.get('meta').map((entry) => entry.system.name)).toContain(
-      'input-system',
-    );
+    expect(
+      bootstrap.world.systemsByPhase.get('physics').map((entry) => entry.system.name),
+    ).toContain('input-system');
     expect(
       bootstrap.world.systemsByPhase.get('physics').map((entry) => entry.system.name),
     ).toContain('player-move-system');
@@ -841,5 +841,53 @@ describe('game loop and runtime', () => {
     expect(windowStub.addEventListener).toHaveBeenCalledWith('focus', expect.any(Function));
 
     runtime.stop();
+  });
+
+  it('processes input events exactly once per simulation step during a multi-step catch-up frame', () => {
+    const bootstrap = createBootstrap({
+      loadMapForLevel: () => createMovementMapResource(),
+      now: 0,
+    });
+
+    const documentStub = createDocumentStub();
+    const windowStub = createWindowStub();
+    const inputAdapter = createInputAdapter({
+      documentTarget: documentStub,
+      eventTarget: windowStub,
+      windowTarget: windowStub,
+    });
+
+    bootstrap.setInputAdapter(inputAdapter);
+    bootstrap.gameFlow.startGame();
+
+    // Stub the inputs on the created input adapter
+    const heldKeys = new Set();
+    const pressedKeys = new Set(['bomb']);
+    inputAdapter.getHeldKeys = () => heldKeys;
+    inputAdapter.drainPressedKeys = () => {
+      const drained = new Set(pressedKeys);
+      pressedKeys.clear();
+      return drained;
+    };
+
+    // Force a catch-up frame with 2 fixed steps (2 * FIXED_DT_MS)
+    const inputState = bootstrap.world.getResource('inputState');
+    const playerHandle = bootstrap.world.getResource('playerEntity');
+    const bombIntents = [];
+
+    bootstrap.world.registerSystem({
+      name: 'test-input-monitor',
+      phase: 'logic',
+      update: () => {
+        bombIntents.push(inputState.bomb[playerHandle.id]);
+      },
+    });
+
+    const result = bootstrap.stepFrame(FIXED_DT_MS * 2);
+    expect(result.steps).toBe(2);
+
+    // On the unfixed codebase, this is [1, 1] because the meta phase ran once before the steps, and the same snapshot was read.
+    // On the fixed codebase, it must be exactly [1, 0].
+    expect(bombIntents).toEqual([1, 0]);
   });
 });

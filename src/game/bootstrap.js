@@ -338,6 +338,21 @@ function createDefaultSystemsByPhase(options = {}) {
     write: [inputStateResourceKey],
   };
 
+  const metaInputSystem = {
+    name: 'meta-input-system',
+    phase: 'meta',
+    resourceCapabilities: {
+      read: [adapterResourceKey, inputStateResourceKey, 'clock'],
+      write: [inputStateResourceKey],
+    },
+    update(context) {
+      const clock = context.world.getResource('clock');
+      if (!clock || clock.isPaused) {
+        inputSystem.update(context);
+      }
+    },
+  };
+
   // The player-move system declares its own resourceCapabilities (including
   // the conditional `write` capability on the event queue when wired), so we
   // pass the keys in and trust the system's own declaration.
@@ -358,8 +373,8 @@ function createDefaultSystemsByPhase(options = {}) {
   });
 
   return {
-    meta: [inputSystem, createPauseInputSystem(), createPauseSystem()],
-    physics: [playerMoveSystem, createGhostAiSystem()],
+    meta: [metaInputSystem, createPauseInputSystem(), createPauseSystem()],
+    physics: [inputSystem, playerMoveSystem, createGhostAiSystem()],
     render: [
       // ARCH-01: hud-render-system is the only HUD→DOM boundary; it reads the
       // data-only hudState buffer produced by hud-system in the logic phase.

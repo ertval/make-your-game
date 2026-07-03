@@ -19,9 +19,11 @@ import {
   inferTicketIdsFromSources,
   isBugfixBranch,
   isIntegrationBranch,
+  matchesOwnership,
   resolveBranchName,
   resolveOwnerTrackFromBranch,
   resolvePrPolicyPath,
+  SHARED_OWNERSHIP_PATTERNS,
   TRACK_OWNERSHIP_RULES,
 } from '../../../scripts/policy-gate/lib/policy-utils.mjs';
 
@@ -268,6 +270,65 @@ describe('policy-utils ticket and process detection', () => {
     }
 
     expect(missingConcretePaths).toEqual([]);
+  });
+
+  it('asserts that the intersection of A, B, C, and D ownership maps is empty unless explicitly listed under the shared rules', () => {
+    const allFiles = [];
+    const scanDir = (dir) => {
+      if (!fs.existsSync(dir)) return;
+      const entries = fs.readdirSync(dir, { withFileTypes: true });
+      for (const entry of entries) {
+        const fullPath = `${dir}/${entry.name}`;
+        if (entry.isDirectory()) {
+          if (
+            entry.name !== 'node_modules' &&
+            entry.name !== '.git' &&
+            entry.name !== 'dist' &&
+            entry.name !== '.agents'
+          ) {
+            scanDir(fullPath);
+          }
+        } else {
+          allFiles.push(fullPath);
+        }
+      }
+    };
+    scanDir('src');
+    scanDir('tests');
+    scanDir('assets');
+    scanDir('scripts');
+    scanDir('docs');
+    const topEntries = fs.readdirSync('.', { withFileTypes: true });
+    for (const entry of topEntries) {
+      if (!entry.isDirectory()) {
+        allFiles.push(entry.name);
+      }
+    }
+
+    const overlappingFiles = [];
+    for (const file of allFiles) {
+      const normalizedPath = file.replace(/^\.\//, '');
+      if (normalizedPath.startsWith('tests/')) {
+        continue;
+      }
+      if (matchesOwnership(normalizedPath, SHARED_OWNERSHIP_PATTERNS)) {
+        continue;
+      }
+
+      const matchingTracks = [];
+      for (const [trackCode, rule] of Object.entries(TRACK_OWNERSHIP_RULES)) {
+        const allowedPatterns = [...(rule.patterns || []), ...(rule.testPatterns || [])];
+        if (matchesOwnership(normalizedPath, allowedPatterns)) {
+          matchingTracks.push(trackCode);
+        }
+      }
+
+      if (matchingTracks.length > 1) {
+        overlappingFiles.push({ file: normalizedPath, tracks: matchingTracks });
+      }
+    }
+
+    expect(overlappingFiles).toEqual([]);
   });
 });
 
