@@ -605,5 +605,103 @@ describe('main.ecs.js', () => {
         runtime?.stop();
       }
     });
+
+    it('SEC-04: installs unhandledrejection handler before fetching maps', async () => {
+      const order = [];
+      mockWindow.addEventListener = vi.fn((type, _handler) => {
+        if (type === 'unhandledrejection') {
+          order.push('handlerInstalled');
+        }
+      });
+      mockWindow.fetch = vi.fn(() => {
+        order.push('fetchCalled');
+        return Promise.resolve({ ok: true, json: () => Promise.resolve({}) });
+      });
+
+      try {
+        await bootstrapApplication({
+          documentRef: mockDocument,
+          windowRef: mockWindow,
+          logger: { warn: vi.fn(), error: vi.fn() },
+          overlayRoot: mockOverlayRoot,
+        });
+      } catch {
+        // ignore errors
+      }
+
+      const handlerIdx = order.indexOf('handlerInstalled');
+      const fetchIdx = order.indexOf('fetchCalled');
+      expect(handlerIdx).toBeGreaterThan(-1);
+      expect(fetchIdx).toBeGreaterThan(-1);
+      expect(handlerIdx).toBeLessThan(fetchIdx);
+    });
+
+    it('SEC-03: rejects oversized map payloads under chunked transfer (no Content-Length)', async () => {
+      const chunks = [
+        new TextEncoder().encode('a'.repeat(250 * 1024)),
+        new TextEncoder().encode('b'.repeat(260 * 1024)), // total 510KB > 500KB limit
+      ];
+
+      const mockStream = {
+        getReader() {
+          let index = 0;
+          return {
+            async read() {
+              if (index >= chunks.length) {
+                return { done: true, value: undefined };
+              }
+              const val = chunks[index++];
+              return { done: false, value: val };
+            },
+            async cancel() {
+              // noop
+            },
+          };
+        },
+      };
+
+      mockWindow.fetch.mockResolvedValue({
+        ok: true,
+        headers: {
+          get: () => null, // No Content-Length header
+        },
+        body: mockStream,
+        json: () =>
+          Promise.resolve({
+            level: 1,
+            dimensions: { rows: 5, columns: 5 },
+            grid: [
+              [1, 1, 1, 1, 1],
+              [1, 3, 3, 3, 1],
+              [1, 3, 3, 3, 1],
+              [1, 3, 3, 5, 1],
+              [1, 1, 1, 1, 1],
+            ],
+            spawn: {
+              player: { row: 2, col: 2 },
+              ghostSpawnPoint: { row: 3, col: 3 },
+              ghostHouse: { topRow: 3, bottomRow: 3, leftCol: 3, rightCol: 3 },
+            },
+            metadata: {
+              name: 'test',
+              activeGhostTypes: [0],
+              ghostSpeed: 1,
+              maxGhosts: 1,
+              timerSeconds: 60,
+            },
+          }),
+      });
+
+      const logger = { error: vi.fn(), warn: vi.fn() };
+
+      await expect(
+        bootstrapApplication({
+          documentRef: mockDocument,
+          windowRef: mockWindow,
+          logger,
+          overlayRoot: mockOverlayRoot,
+        }),
+      ).rejects.toThrow(/exceeds/);
+    });
   });
 });

@@ -206,7 +206,47 @@ async function loadDefaultMaps({ fetchImpl } = {}) {
           }
         }
 
-        const rawMap = await response.json();
+        let rawMapText = '';
+        if (response.body && typeof response.body.getReader === 'function') {
+          const reader = response.body.getReader();
+          const decoder = new TextDecoder('utf-8');
+          let totalBytes = 0;
+          try {
+            while (true) {
+              const { done, value } = await reader.read();
+              if (done) {
+                break;
+              }
+              if (value) {
+                totalBytes += value.byteLength;
+                if (totalBytes > MAX_MAP_SIZE_BYTES) {
+                  throw new Error(
+                    `Map asset for level ${levelNumber} exceeds the ${MAX_MAP_SIZE_BYTES}-byte limit.`,
+                  );
+                }
+                rawMapText += decoder.decode(value, { stream: true });
+              }
+            }
+            rawMapText += decoder.decode(); // flush
+          } catch (err) {
+            try {
+              await reader.cancel();
+            } catch {
+              // ignore reader cancel errors
+            }
+            throw err;
+          }
+        } else if (typeof response.text === 'function') {
+          rawMapText = await response.text();
+          const textLength = new TextEncoder().encode(rawMapText).length;
+          if (textLength > MAX_MAP_SIZE_BYTES) {
+            throw new Error(
+              `Map asset for level ${levelNumber} exceeds the ${MAX_MAP_SIZE_BYTES}-byte limit.`,
+            );
+          }
+        }
+
+        const rawMap = rawMapText ? JSON.parse(rawMapText) : await response.json();
         return createMapResource(rawMap);
       })(),
     );
@@ -593,6 +633,12 @@ export async function bootstrapApplication({
   const overlayRoot = targetDocument.getElementById('overlay-root');
   const boardContainerElement = targetDocument.getElementById('game-board');
 
+  installUnhandledRejectionHandler({
+    logger,
+    overlayRoot,
+    windowRef: targetWindow,
+  });
+
   if (!appRoot) {
     throw new Error('Missing #app root.');
   }
@@ -806,12 +852,6 @@ export async function bootstrapApplication({
     } catch (error) {
       logger.warn('Audio initialization failed; continuing without sound.', error);
     }
-
-    installUnhandledRejectionHandler({
-      logger,
-      overlayRoot,
-      windowRef: targetWindow,
-    });
 
     const runtime = createGameRuntime({
       bootstrap,

@@ -119,7 +119,7 @@ export const SECURITY_SINK_RULES = Object.freeze([
   { name: 'eval call', pattern: /\beval\s*\(/ },
   { name: 'Function constructor', pattern: /\bnew\s+Function\s*\(/ },
   { name: 'CommonJS require', pattern: /\brequire\s*\(/ },
-  { name: 'var declaration', pattern: /^\s*var\s+[A-Za-z_$][\w$]*/m },
+  { name: 'var declaration', pattern: /(?:^|[;(){}\s])var\s+[A-Za-z_$]/m },
   { name: 'XMLHttpRequest API', pattern: /\bnew\s+XMLHttpRequest\s*\(/ },
   { name: 'string setTimeout', pattern: /setTimeout\s*\(\s*['"]/ },
   { name: 'string setInterval', pattern: /setInterval\s*\(\s*['"]/ },
