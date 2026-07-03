@@ -6,8 +6,6 @@
  */
 
 import { describe, expect, it } from 'vitest';
-
-import { EntityStore } from '../../../src/ecs/world/entity-store.js';
 import {
   BOMB_FUSE_MS,
   CELL_TYPE,
@@ -46,6 +44,7 @@ import {
   TOTAL_LEVELS,
   VISUAL_FLAGS,
 } from '../../../src/ecs/resources/constants.js';
+import { EntityStore } from '../../../src/ecs/world/entity-store.js';
 
 describe('constants', () => {
   it('defines correct simulation timestep', () => {
