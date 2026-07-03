@@ -15,7 +15,6 @@
  * - getPlayerMoveSpeed(playerStore, entityId): resolve base vs boosted speed.
  * - hasReachedTarget(positionStore, entityId): compare current and target cell.
  * - canStartMove(mapResource, row, col, direction): check adjacent tile passability.
- * - startMoveTowardDirection(positionStore, velocityStore, entityId, row, col, direction): arm one move.
  * - advanceTowardTarget(positionStore, velocityStore, entityId, distanceTiles): move and snap deterministically.
  * - createPlayerMoveSystem(options): create the physics-phase ECS system shell.
  *
@@ -175,14 +174,7 @@ export function canStartMove(mapResource, row, col, direction) {
  * @param {number} col - Current tile col.
  * @param {'up' | 'left' | 'down' | 'right'} direction - Chosen move direction.
  */
-export function startMoveTowardDirection(
-  positionStore,
-  velocityStore,
-  entityId,
-  row,
-  col,
-  direction,
-) {
+function startMoveTowardDirection(positionStore, velocityStore, entityId, row, col, direction) {
   const vector = PLAYER_MOVE_DIRECTION_VECTOR[direction];
 
   // Starting from the exact tile center prevents drift accumulation across cells.
@@ -201,7 +193,7 @@ export function startMoveTowardDirection(
  * @param {VelocityStore} velocityStore - Mutable velocity component store.
  * @param {number} entityId - Entity slot to mutate.
  */
-export function stopAtCurrentTarget(positionStore, velocityStore, entityId) {
+function stopAtCurrentTarget(positionStore, velocityStore, entityId) {
   // Snapping to the target removes tiny floating-point leftovers before stopping.
   positionStore.row[entityId] = positionStore.targetRow[entityId];
   positionStore.col[entityId] = positionStore.targetCol[entityId];

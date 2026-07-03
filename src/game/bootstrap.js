@@ -764,7 +764,7 @@ function createGhostReleaseSystem(options = {}) {
   };
 }
 
-export function registerSystemsByPhase(world, systemsByPhase = {}) {
+function registerSystemsByPhase(world, systemsByPhase = {}) {
   for (const phase of DEFAULT_PHASE_ORDER) {
     const registrations = Array.isArray(systemsByPhase[phase]) ? systemsByPhase[phase] : [];
 

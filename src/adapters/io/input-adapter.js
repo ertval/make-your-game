@@ -8,8 +8,6 @@
  *
  * Public API:
  * - INPUT_INTENT: canonical normalized input names.
- * - KEYBOARD_CODE_BINDINGS: canonical KeyboardEvent.code -> intent mapping.
- * - KEYBOARD_KEY_BINDINGS: fallback KeyboardEvent.key -> intent mapping.
  * - normalizeKeyboardIntent(event): normalize one keyboard event into an intent.
  * - assertValidInputAdapter(adapter): runtime contract guard for system-facing adapters.
  * - createInputAdapter(options): create an adapter with held-key and pressed-key state.
@@ -47,7 +45,7 @@ export const INPUT_INTENT = Object.freeze({
  * Canonical KeyboardEvent.code bindings.
  * `code` is preferred because it is layout-stable for the supported controls.
  */
-export const KEYBOARD_CODE_BINDINGS = Object.freeze({
+const KEYBOARD_CODE_BINDINGS = Object.freeze({
   ArrowUp: INPUT_INTENT.UP,
   ArrowDown: INPUT_INTENT.DOWN,
   ArrowLeft: INPUT_INTENT.LEFT,
@@ -61,7 +59,7 @@ export const KEYBOARD_CODE_BINDINGS = Object.freeze({
 /**
  * Fallback KeyboardEvent.key bindings for tests or environments without `code`.
  */
-export const KEYBOARD_KEY_BINDINGS = Object.freeze({
+const KEYBOARD_KEY_BINDINGS = Object.freeze({
   ArrowUp: INPUT_INTENT.UP,
   ArrowDown: INPUT_INTENT.DOWN,
   ArrowLeft: INPUT_INTENT.LEFT,

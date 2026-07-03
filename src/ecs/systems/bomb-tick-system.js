@@ -10,7 +10,6 @@
  * - BOMB_TICK_PLAYER_REQUIRED_MASK: query mask for bomb-capable player entities.
  * - BOMB_TICK_BOMB_REQUIRED_MASK: query mask for pooled bomb entities.
  * - isActiveBomb(colliderStore, entityId): check whether a pooled bomb slot is live.
- * - createBombDetonationRequest(bombStore, entityId, frame): build queue payload.
  * - createBombTickSystem(options): create the logic-phase ECS system.
  *
  * Implementation notes:
@@ -381,7 +380,7 @@ function emitBombPlacedEvent(eventQueue, bombStore, bombEntityId, frame) {
  * @param {number} frame - Fixed-step frame index.
  * @returns {{ bombEntityId: number, chainDepth: number, frame: number, radius: number, row: number, col: number }}
  */
-export function createBombDetonationRequest(bombStore, entityId, frame) {
+function createBombDetonationRequest(bombStore, entityId, frame) {
   return {
     bombEntityId: entityId,
     chainDepth: 1,

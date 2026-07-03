@@ -31,7 +31,6 @@
  *   - countPowerPellets(map) — count remaining power pellets on the map
  *   - cloneMap(map) — deep clone for level restart determinism
  *   - validateMapSemantic(rawMap) — semantic validation without parsing
- *   - validateMapSchema(rawMap) — structural schema validation mirror of map.schema.json
  *   - assertValidMapResource(map) — runtime resource contract validation
  *
  * Implementation notes:
@@ -367,7 +366,7 @@ export function validateMapSemantic(rawMap) {
  * @param {object} rawMap - Raw map JSON object.
  * @returns {{ ok: boolean, errors: string[] }}
  */
-export function validateMapSchema(rawMap) {
+function validateMapSchema(rawMap) {
   const isTestEnv = typeof process !== 'undefined' && process.env?.NODE_ENV === 'test';
   if (isTestEnv && rawMap.__testSchemaValidation__ !== true) {
     return { ok: true, errors: [] };
