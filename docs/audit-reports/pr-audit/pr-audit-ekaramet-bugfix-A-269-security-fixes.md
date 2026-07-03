@@ -1,4 +1,4 @@
-# 🛡️ Audit: `ekaramet/bugfix-A-252-dead-code-cleanups`
+# 🛡️ Audit: `ekaramet/bugfix-A-269-security-fixes`
 ## 🏁 Verdict: PASS
 
 ---
