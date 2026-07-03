@@ -172,12 +172,7 @@ const GHOST_RUNTIME_MASK =
 /**
  * Resolve the input adapter resource key from bootstrap options.
  *
- * Both `inputAdapterResourceKey` and the older `adapterResourceKey` names are
- * honored so callers that wire the system directly do not silently break while
- * we migrate everything to the explicit bootstrap API.
- *
  * @internal
- * @deprecated Legacy option fallback
  * @param {object} [options={}] - Bootstrap options.
  * @returns {string} Resolved resource key for the input adapter slot.
  */
@@ -187,10 +182,6 @@ function resolveInputAdapterResourceKey(options = {}) {
     options.inputAdapterResourceKey.length > 0
   ) {
     return options.inputAdapterResourceKey;
-  }
-
-  if (typeof options.adapterResourceKey === 'string' && options.adapterResourceKey.length > 0) {
-    return options.adapterResourceKey;
   }
 
   return DEFAULT_INPUT_ADAPTER_RESOURCE_KEY;

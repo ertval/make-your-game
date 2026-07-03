@@ -152,7 +152,7 @@ if (scope === 'pr' || scope === 'all') {
     isIntegrationMode,
   });
 
-  // The describePolicyResolution call was removed from here because run-checks.mjs
+  // The describePolicyResolution call was removed from here because run-checks.mjs already performs this logging internally for PR-scope checks, preventing duplicate output.
   if (policyPath.shouldRunPrChecks) {
     runStep(
       'PR checklist and traceability checks',

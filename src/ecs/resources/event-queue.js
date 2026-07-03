@@ -15,7 +15,6 @@
  *   - drain(queue) — return all events in insertion order and clear the queue.
  *   - peek(queue) — return all events without clearing (for read-only inspection).
  *   - clear(queue) — discard all pending events (used on level reset).
- *   - resetOrderCounter(queue) — @deprecated test-only; drain() auto-resets.
  *
  * Implementation notes:
  *   - The queue is a plain object with an internal array and order counter.
@@ -130,32 +129,5 @@ export function peek(queue) {
  */
 export function clear(queue) {
   queue.events.length = 0;
-  queue.orderCounter = 0;
-}
-
-/**
- * Reset the monotonic order counter without draining events.
- *
- * @deprecated Test-only escape hatch. Production code should use drain(),
- * which auto-resets the counter. Calling this with undrained events can
- * produce order-index collisions across frames (ARCH-07, DEAD-04).
- *
- * @internal
- * @param {EventQueue} queue — Mutable event queue record.
- */
-export function resetOrderCounter(queue) {
-  if (queue.events.length > 0) {
-    // Surface misuse: resetting the counter while events are still queued
-    // means subsequent enqueues will collide with existing order indices.
-    try {
-      if (process.env.NODE_ENV === 'development') {
-        console.warn(
-          '[event-queue] resetOrderCounter called with undrained events. Use drain() instead.',
-        );
-      }
-    } catch {
-      /* process not defined in browser bundle — ignore */
-    }
-  }
   queue.orderCounter = 0;
 }
