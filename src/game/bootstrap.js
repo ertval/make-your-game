@@ -87,7 +87,7 @@ import { createRenderDomSystem } from '../ecs/systems/render-dom-system.js';
 import { createDefaultScoreState, createScoringSystem } from '../ecs/systems/scoring-system.js';
 import { createScreensSystem } from '../ecs/systems/screens-system.js';
 import { createInitialSpawnState, createSpawnSystem } from '../ecs/systems/spawn-system.js';
-import { createTimerSystem } from '../ecs/systems/timer-system.js';
+import { createTimerSystem, getLevelDurationSeconds } from '../ecs/systems/timer-system.js';
 import { DEFAULT_PHASE_ORDER, World } from '../ecs/world/world.js';
 import { isDevelopment } from '../shared/env.js';
 import { createGameFlow } from './game-flow.js';
@@ -922,7 +922,22 @@ export function createBootstrap(options = {}) {
 
       // C-05: Reset gameplay stats so a new game/restart doesn't leak old data.
       world.setResource('scoreState', createDefaultScoreState());
-      world.setResource('levelTimer', { remainingSeconds: 0, activeLevel: -1 });
+      // BUG-16: reset remainingSeconds explicitly to the current level's
+      // canonical duration rather than relying on the activeLevel sentinel
+      // below to force timer-system's next-tick reinitialization branch — a
+      // same-level restart that preserved activeLevel would otherwise leave
+      // remainingSeconds stuck at a stale value.
+      const restartLevelIndex =
+        typeof levelLoader?.getCurrentLevelIndex === 'function'
+          ? levelLoader.getCurrentLevelIndex()
+          : 0;
+      const restartLevelNumber = Math.max(1, Math.floor(restartLevelIndex) + 1);
+      const restartDurationSeconds = getLevelDurationSeconds(restartLevelNumber);
+      world.setResource('levelTimer', {
+        activeLevel: restartLevelNumber,
+        durationSeconds: restartDurationSeconds,
+        remainingSeconds: restartDurationSeconds,
+      });
       world.setResource('playerLife', {
         lives: 3,
         isInvincible: false,
