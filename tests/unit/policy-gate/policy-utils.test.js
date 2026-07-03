@@ -461,9 +461,7 @@ describe('policy-utils TRACK_OWNERSHIP_RULES full-repo coverage (ARCH-01)', () =
     const srcRoot = `${repoRoot}src`;
     const allPatterns = [
       ...SHARED_OWNERSHIP_PATTERNS,
-      ...Object.values(TRACK_OWNERSHIP_RULES).flatMap(
-        (rule) => rule.patterns || [],
-      ),
+      ...Object.values(TRACK_OWNERSHIP_RULES).flatMap((rule) => rule.patterns || []),
     ];
 
     const srcFiles = listJsFilesRecursively(srcRoot).map((filePath) =>
