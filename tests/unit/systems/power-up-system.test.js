@@ -247,18 +247,19 @@ describe('power-up-system', () => {
     expect(playerStore.speedBoostMs[playerEntity.id]).toBe(400);
   });
 
-  it('clamps spike deltas above the safety ceiling instead of underflowing timers', () => {
+  it('applies large deltas without clamping, expiring the stun outright', () => {
     const { ghostEntities, ghostStore, world } = setupHarness({ ghostCount: 1 });
     ghostStore.state[ghostEntities[0].id] = GHOST_STATE.STUNNED;
     ghostStore.timerMs[ghostEntities[0].id] = STUN_MS;
 
     const system = createPowerUpSystem();
-    // A 60s spike (e.g. tab throttling) is clamped to the safety ceiling so
-    // the timer drains predictably instead of underflowing in a single tick.
+    // The fixed-step loop never produces deltas this large, but a delta that
+    // exceeds the remaining stun duration should expire it immediately rather
+    // than being clamped to a smaller, arbitrary per-tick ceiling.
     runUpdate(system, world, { dtMs: 60_000, frame: 0 });
 
-    expect(ghostStore.state[ghostEntities[0].id]).toBe(GHOST_STATE.STUNNED);
-    expect(ghostStore.timerMs[ghostEntities[0].id]).toBe(STUN_MS - 1000);
+    expect(ghostStore.state[ghostEntities[0].id]).toBe(GHOST_STATE.NORMAL);
+    expect(ghostStore.timerMs[ghostEntities[0].id]).toBe(0);
   });
 
   it('does not refresh the HUD stun window when no ghosts were eligible', () => {
