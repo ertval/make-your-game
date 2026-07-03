@@ -19,9 +19,11 @@ import {
   inferTicketIdsFromSources,
   isBugfixBranch,
   isIntegrationBranch,
+  matchesOwnership,
   resolveBranchName,
   resolveOwnerTrackFromBranch,
   resolvePrPolicyPath,
+  SHARED_OWNERSHIP_PATTERNS,
   TRACK_OWNERSHIP_RULES,
 } from '../../../scripts/policy-gate/lib/policy-utils.mjs';
 
@@ -434,5 +436,42 @@ describe('policy-utils integration branch detection', () => {
     expect(result.shouldRunPrChecks).toBe(true);
     expect(result.auditMode).toBe('BUGFIX');
     expect(result.selectedPath).toBe('cross-track integration checks');
+  });
+});
+
+describe('policy-utils TRACK_OWNERSHIP_RULES full-repo coverage (ARCH-01)', () => {
+  function listJsFilesRecursively(dir) {
+    const entries = fs.readdirSync(dir, { withFileTypes: true });
+    const files = [];
+
+    for (const entry of entries) {
+      const entryPath = `${dir}/${entry.name}`;
+      if (entry.isDirectory()) {
+        files.push(...listJsFilesRecursively(entryPath));
+      } else if (/\.(js|mjs|cjs)$/.test(entry.name)) {
+        files.push(entryPath);
+      }
+    }
+
+    return files;
+  }
+
+  it('maps every JavaScript file under src/ to at least one track ownership rule or shared rule', () => {
+    const repoRoot = new URL('../../../', import.meta.url).pathname;
+    const srcRoot = `${repoRoot}src`;
+    const allPatterns = [
+      ...SHARED_OWNERSHIP_PATTERNS,
+      ...Object.values(TRACK_OWNERSHIP_RULES).flatMap(
+        (rule) => rule.patterns || [],
+      ),
+    ];
+
+    const srcFiles = listJsFilesRecursively(srcRoot).map((filePath) =>
+      filePath.slice(repoRoot.length),
+    );
+
+    const unmatched = srcFiles.filter((filePath) => !matchesOwnership(filePath, allPatterns));
+
+    expect(unmatched).toEqual([]);
   });
 });
