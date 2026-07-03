@@ -2,18 +2,6 @@
   "version": "v1.0",
   "assets": [
     {
-      "id": "player-death",
-      "path": "assets/generated/visuals/128px/characters/player-death.webp",
-      "kind": "sprite",
-      "format": "webp",
-      "width": 128,
-      "height": 128,
-      "critical": false,
-      "className": null,
-      "tags": ["characters", "death"],
-      "maxBytes": 32768
-    },
-    {
       "id": "player-idle",
       "path": "assets/generated/visuals/128px/characters/player-idle.webp",
       "kind": "sprite",
@@ -170,18 +158,6 @@
       "maxBytes": 32768
     },
     {
-      "id": "fire-tile-center",
-      "path": "assets/generated/visuals/128px/effects/fire-tile-center.webp",
-      "kind": "effect",
-      "format": "webp",
-      "width": 128,
-      "height": 128,
-      "critical": false,
-      "className": null,
-      "tags": ["effects", "fire", "tile", "center"],
-      "maxBytes": 32768
-    },
-    {
       "id": "fire-tile",
       "path": "assets/generated/visuals/128px/effects/fire-tile.webp",
       "kind": "effect",
@@ -203,30 +179,6 @@
       "critical": true,
       "className": "sprite--ghost--blinky",
       "tags": ["enemies", "blinky", "normal"],
-      "maxBytes": 32768
-    },
-    {
-      "id": "ghost-blinky-walk-01",
-      "path": "assets/generated/visuals/128px/enemies/ghost-blinky-walk-01.webp",
-      "kind": "sprite",
-      "format": "webp",
-      "width": 128,
-      "height": 128,
-      "critical": false,
-      "className": null,
-      "tags": ["enemies", "blinky", "walk", "01"],
-      "maxBytes": 32768
-    },
-    {
-      "id": "ghost-blinky-walk-02",
-      "path": "assets/generated/visuals/128px/enemies/ghost-blinky-walk-02.webp",
-      "kind": "sprite",
-      "format": "webp",
-      "width": 128,
-      "height": 128,
-      "critical": false,
-      "className": null,
-      "tags": ["enemies", "blinky", "walk", "02"],
       "maxBytes": 32768
     },
     {
@@ -335,30 +287,6 @@
       "critical": true,
       "className": "sprite--ghost--clyde",
       "tags": ["enemies", "clyde", "normal"],
-      "maxBytes": 32768
-    },
-    {
-      "id": "ghost-clyde-walk-01",
-      "path": "assets/generated/visuals/128px/enemies/ghost-clyde-walk-01.webp",
-      "kind": "sprite",
-      "format": "webp",
-      "width": 128,
-      "height": 128,
-      "critical": false,
-      "className": null,
-      "tags": ["enemies", "clyde", "walk", "01"],
-      "maxBytes": 32768
-    },
-    {
-      "id": "ghost-clyde-walk-02",
-      "path": "assets/generated/visuals/128px/enemies/ghost-clyde-walk-02.webp",
-      "kind": "sprite",
-      "format": "webp",
-      "width": 128,
-      "height": 128,
-      "critical": false,
-      "className": null,
-      "tags": ["enemies", "clyde", "walk", "02"],
       "maxBytes": 32768
     },
     {
@@ -482,30 +410,6 @@
       "maxBytes": 32768
     },
     {
-      "id": "ghost-inky-walk-01",
-      "path": "assets/generated/visuals/128px/enemies/ghost-inky-walk-01.webp",
-      "kind": "sprite",
-      "format": "webp",
-      "width": 128,
-      "height": 128,
-      "critical": false,
-      "className": null,
-      "tags": ["enemies", "inky", "walk", "01"],
-      "maxBytes": 32768
-    },
-    {
-      "id": "ghost-inky-walk-02",
-      "path": "assets/generated/visuals/128px/enemies/ghost-inky-walk-02.webp",
-      "kind": "sprite",
-      "format": "webp",
-      "width": 128,
-      "height": 128,
-      "critical": false,
-      "className": null,
-      "tags": ["enemies", "inky", "walk", "02"],
-      "maxBytes": 32768
-    },
-    {
       "id": "ghost-inky-walk-down-01",
       "path": "assets/generated/visuals/128px/enemies/ghost-inky-walk-down-01.webp",
       "kind": "sprite",
@@ -614,30 +518,6 @@
       "maxBytes": 32768
     },
     {
-      "id": "ghost-pinky-walk-01",
-      "path": "assets/generated/visuals/128px/enemies/ghost-pinky-walk-01.webp",
-      "kind": "sprite",
-      "format": "webp",
-      "width": 128,
-      "height": 128,
-      "critical": false,
-      "className": null,
-      "tags": ["enemies", "pinky", "walk", "01"],
-      "maxBytes": 32768
-    },
-    {
-      "id": "ghost-pinky-walk-02",
-      "path": "assets/generated/visuals/128px/enemies/ghost-pinky-walk-02.webp",
-      "kind": "sprite",
-      "format": "webp",
-      "width": 128,
-      "height": 128,
-      "critical": false,
-      "className": null,
-      "tags": ["enemies", "pinky", "walk", "02"],
-      "maxBytes": 32768
-    },
-    {
       "id": "ghost-pinky-walk-down-01",
       "path": "assets/generated/visuals/128px/enemies/ghost-pinky-walk-down-01.webp",
       "kind": "sprite",
@@ -734,30 +614,6 @@
       "maxBytes": 32768
     },
     {
-      "id": "ghost-stunned-01",
-      "path": "assets/generated/visuals/128px/enemies/ghost-stunned-01.webp",
-      "kind": "sprite",
-      "format": "webp",
-      "width": 128,
-      "height": 128,
-      "critical": true,
-      "className": null,
-      "tags": ["enemies", "stunned", "01"],
-      "maxBytes": 32768
-    },
-    {
-      "id": "ghost-stunned-02",
-      "path": "assets/generated/visuals/128px/enemies/ghost-stunned-02.webp",
-      "kind": "sprite",
-      "format": "webp",
-      "width": 128,
-      "height": 128,
-      "critical": false,
-      "className": null,
-      "tags": ["enemies", "stunned", "02"],
-      "maxBytes": 32768
-    },
-    {
       "id": "ghost-stunned",
       "path": "assets/generated/visuals/128px/enemies/ghost-stunned.webp",
       "kind": "sprite",
@@ -767,42 +623,6 @@
       "critical": true,
       "className": "sprite--ghost--stunned",
       "tags": ["enemies", "stunned"],
-      "maxBytes": 32768
-    },
-    {
-      "id": "wall-destruct-01",
-      "path": "assets/generated/visuals/128px/environment/wall-destruct-01.webp",
-      "kind": "tile",
-      "format": "webp",
-      "width": 128,
-      "height": 128,
-      "critical": false,
-      "className": null,
-      "tags": ["environment", "destruct", "01"],
-      "maxBytes": 32768
-    },
-    {
-      "id": "wall-destruct-cracked",
-      "path": "assets/generated/visuals/128px/environment/wall-destruct-cracked.webp",
-      "kind": "tile",
-      "format": "webp",
-      "width": 128,
-      "height": 128,
-      "critical": false,
-      "className": null,
-      "tags": ["environment", "destruct", "cracked"],
-      "maxBytes": 32768
-    },
-    {
-      "id": "wall-destruct-shattered",
-      "path": "assets/generated/visuals/128px/environment/wall-destruct-shattered.webp",
-      "kind": "tile",
-      "format": "webp",
-      "width": 128,
-      "height": 128,
-      "critical": false,
-      "className": null,
-      "tags": ["environment", "destruct", "shattered"],
       "maxBytes": 32768
     },
     {
@@ -902,42 +722,6 @@
       "maxBytes": 32768
     },
     {
-      "id": "power-pellet-01",
-      "path": "assets/generated/visuals/128px/items/power-pellet-01.webp",
-      "kind": "sprite",
-      "format": "webp",
-      "width": 76,
-      "height": 76,
-      "critical": false,
-      "className": null,
-      "tags": ["items", "power", "pellet", "01"],
-      "maxBytes": 32768
-    },
-    {
-      "id": "power-pellet-02",
-      "path": "assets/generated/visuals/128px/items/power-pellet-02.webp",
-      "kind": "sprite",
-      "format": "webp",
-      "width": 83,
-      "height": 83,
-      "critical": false,
-      "className": null,
-      "tags": ["items", "power", "pellet", "02"],
-      "maxBytes": 32768
-    },
-    {
-      "id": "power-pellet",
-      "path": "assets/generated/visuals/128px/items/power-pellet.webp",
-      "kind": "sprite",
-      "format": "webp",
-      "width": 64,
-      "height": 64,
-      "critical": true,
-      "className": null,
-      "tags": ["items", "power", "pellet"],
-      "maxBytes": 32768
-    },
-    {
       "id": "powerup-bomb",
       "path": "assets/generated/visuals/128px/items/powerup-bomb.webp",
       "kind": "sprite",
@@ -971,54 +755,6 @@
       "critical": true,
       "className": "cell-powerup-speed",
       "tags": ["items", "speed"],
-      "maxBytes": 32768
-    },
-    {
-      "id": "hud-bomb-icon",
-      "path": "assets/generated/visuals/128px/ui/hud-bomb-icon.webp",
-      "kind": "ui",
-      "format": "webp",
-      "width": 64,
-      "height": 64,
-      "critical": false,
-      "className": null,
-      "tags": ["ui", "bomb", "icon"],
-      "maxBytes": 32768
-    },
-    {
-      "id": "hud-fire-radius",
-      "path": "assets/generated/visuals/128px/ui/hud-fire-radius.webp",
-      "kind": "ui",
-      "format": "webp",
-      "width": 64,
-      "height": 64,
-      "critical": false,
-      "className": null,
-      "tags": ["ui", "fire", "radius"],
-      "maxBytes": 32768
-    },
-    {
-      "id": "hud-heart-empty",
-      "path": "assets/generated/visuals/128px/ui/hud-heart-empty.webp",
-      "kind": "ui",
-      "format": "webp",
-      "width": 64,
-      "height": 64,
-      "critical": true,
-      "className": null,
-      "tags": ["ui", "heart", "empty"],
-      "maxBytes": 32768
-    },
-    {
-      "id": "hud-heart-full",
-      "path": "assets/generated/visuals/128px/ui/hud-heart-full.webp",
-      "kind": "ui",
-      "format": "webp",
-      "width": 128,
-      "height": 128,
-      "critical": true,
-      "className": null,
-      "tags": ["ui", "heart", "full"],
       "maxBytes": 32768
     }
   ]
