@@ -195,19 +195,20 @@
 /** Disable non-gameplay animations when user prefers reduced motion. */
 @media (prefers-reduced-motion: reduce) {
   /**
-   * Universal safety net (AGENTS.md MUST): neutralize every animation and
-   * transition so compliance never depends on a specific selector being kept
-   * in sync below, nor on incidental quirks (e.g. an unused `.overlay`
-   * transition or a malformed transition-duration). The targeted rules that
-   * follow still provide simplified *static* appearances (opacity/shadow tints).
+   * Zero out all animation/transition durations via the custom properties
+   * that every animation declaration references. This cascades naturally
+   * without needing !important — the specific animation :none rules below
+   * still provide simplified static appearances.
    */
-  *,
-  *::before,
-  *::after {
-    animation-duration: 0s !important;
-    animation-delay: 0s !important;
-    transition-duration: 0s !important;
-    transition-delay: 0s !important;
+  :root {
+    --anim-walk-duration: 0s;
+    --anim-bomb-fuse-duration: 0s;
+    --anim-fire-duration: 0s;
+    --anim-stun-flash-duration: 0s;
+    --anim-invincible-blink-duration: 0s;
+    --anim-speed-trail-duration: 0s;
+    --anim-menu-transition-duration: 0s;
+    --anim-overlay-fade-duration: 0s;
   }
 
   /** Pellet pulse: disable pulsing, keep static appearance. */

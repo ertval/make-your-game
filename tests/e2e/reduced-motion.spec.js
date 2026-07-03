@@ -17,10 +17,17 @@ import { bootRuntime, startGameAndWait } from './helpers/game-helpers.js';
 // duration found under `root`, with a human-readable offender label.
 function scanMotion(rootSelector) {
   const durs = (value) =>
-    Math.max(0, ...String(value).split(',').map((v) => Number.parseFloat(v) || 0));
+    Math.max(
+      0,
+      ...String(value)
+        .split(',')
+        .map((v) => Number.parseFloat(v) || 0),
+    );
   const label = (el) =>
     el.tagName.toLowerCase() +
-    (typeof el.className === 'string' && el.className ? `.${el.className.trim().split(/\s+/).join('.')}` : '');
+    (typeof el.className === 'string' && el.className
+      ? `.${el.className.trim().split(/\s+/).join('.')}`
+      : '');
 
   const root = rootSelector ? document.querySelector(rootSelector) : document;
   const els = root ? root.querySelectorAll('*') : [];
