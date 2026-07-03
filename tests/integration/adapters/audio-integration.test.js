@@ -29,7 +29,7 @@ import {
   resolveCuesForEvent,
   resolveMusicForState,
 } from '../../../src/adapters/io/audio-integration.js';
-import { createEventQueue, enqueue } from '../../../src/ecs/resources/event-queue.js';
+import { createEventQueue, drain, enqueue } from '../../../src/ecs/resources/event-queue.js';
 import { createGameStatus, GAME_STATE } from '../../../src/ecs/resources/game-status.js';
 
 function createAudioAdapterSpy() {
@@ -423,7 +423,7 @@ describe('audio-integration: cue runner — event consumption', () => {
     expect(explodeCalls).toHaveLength(3);
   });
 
-  it('drains the queue so events are not replayed on the next tick', () => {
+  it('peeks the queue so events are not cleared by the runner, allowing external drain', () => {
     const audio = createAudioAdapterSpy();
     const eventQueue = createEventQueue();
     const gameStatus = createGameStatus(GAME_STATE.PLAYING);
@@ -431,10 +431,17 @@ describe('audio-integration: cue runner — event consumption', () => {
 
     enqueue(eventQueue, 'PelletCollected', {}, 1);
     runner.tick({ audio, eventQueue, gameStatus });
-    runner.tick({ audio, eventQueue, gameStatus });
 
     expect(audio.calls.playSfx).toEqual(['sfx-pellet-collect']);
+    expect(eventQueue.events).toHaveLength(1); // not cleared!
+
+    // Manually drain (simulates frame boundary drain)
+    const drained = drain(eventQueue);
+    expect(drained).toHaveLength(1);
     expect(eventQueue.events).toHaveLength(0);
+
+    runner.tick({ audio, eventQueue, gameStatus });
+    expect(audio.calls.playSfx).toEqual(['sfx-pellet-collect']); // no new SFX
   });
 
   it('drops unknown event types without throwing and warns once per type in dev', () => {
