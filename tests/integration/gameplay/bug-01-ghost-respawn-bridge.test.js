@@ -30,7 +30,10 @@ import {
   COLLISION_ENTITY_REQUIRED_MASK,
   createCollisionSystem,
 } from '../../../src/ecs/systems/collision-system.js';
-import { createInitialSpawnState, createSpawnSystem } from '../../../src/ecs/systems/spawn-system.js';
+import {
+  createInitialSpawnState,
+  createSpawnSystem,
+} from '../../../src/ecs/systems/spawn-system.js';
 import { World } from '../../../src/ecs/world/world.js';
 
 function createGhostRespawnRawMap() {

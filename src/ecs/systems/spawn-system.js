@@ -28,11 +28,11 @@
  *   provides a deterministic ghost entity ordering resource.
  */
 
-import { peek } from '../resources/event-queue.js';
 import {
   GHOST_RESPAWN_MS as CANONICAL_GHOST_RESPAWN_MS,
   GHOST_SPAWN_DELAYS as CANONICAL_GHOST_SPAWN_DELAYS,
 } from '../resources/constants.js';
+import { peek } from '../resources/event-queue.js';
 import { GAME_STATE } from '../resources/game-status.js';
 import { GAMEPLAY_EVENT_TYPE } from './collision-gameplay-events.js';
 

@@ -581,18 +581,14 @@ describe('spawn-system', () => {
       // A stale watermark from the first queue (frame: 5) would reject every
       // post-restart event (frame: 0) as "not newer" — ghost 3 must still be
       // bridged and scheduled for respawn.
-      expect(
-        getSpawnState(world).respawnQueue.some((entry) => entry.ghostId === 3),
-      ).toBe(true);
+      expect(getSpawnState(world).respawnQueue.some((entry) => entry.ghostId === 3)).toBe(true);
     });
 
     it('does not throw and behaves as before when no eventQueue resource is present', () => {
       const { spawnSystem, world } = createSpawnHarness({ deadGhostIds: [7] });
 
       expect(() => updateSpawn(spawnSystem, world, 0)).not.toThrow();
-      expect(
-        getSpawnState(world).respawnQueue.some((entry) => entry.ghostId === 7),
-      ).toBe(true);
+      expect(getSpawnState(world).respawnQueue.some((entry) => entry.ghostId === 7)).toBe(true);
     });
   });
 });
