@@ -400,7 +400,7 @@ describe('life-system', () => {
     });
   });
 
-  it('caps large dtMs spikes while counting down invincibility', () => {
+  it('applies large dtMs spikes without clamping, since the fixed-step loop never produces them', () => {
     const world = new World();
     const lifeSystem = createLifeSystem();
 
@@ -417,8 +417,8 @@ describe('life-system', () => {
 
     expect(world.getResource('playerLife')).toEqual({
       lives: 2,
-      isInvincible: true,
-      invincibilityRemainingMs: 500,
+      isInvincible: false,
+      invincibilityRemainingMs: 0,
     });
   });
 
