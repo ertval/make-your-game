@@ -1,6 +1,6 @@
 /**
  * C-11B integration tests for the Settings overlay behavior of the Track C
- * screens adapter, plus the persistent audio quick-toggle adapter.
+ * screens adapter.
  *
  * Uses a small purpose-built fake DOM (no jsdom dependency, runs in the node
  * environment like the other adapter suites) that faithfully models the exact
@@ -15,13 +15,14 @@
  * - accessibility: aria-pressed toggles, aria-valuenow sliders
  * - onSettingChange forwards booleans (toggles) and 0..1 volumes (sliders)
  * - initialSettings + syncSettingsControls reflect persisted state
- * - quick-toggle adapter: aria-pressed + emoji icon + onToggle callback
+ *
+ * The persistent audio quick-toggle adapter has its own dedicated suite:
+ * tests/integration/adapters/screens-audio-toggle.test.js (CI-12).
  */
 
 import { describe, expect, it, vi } from 'vitest';
 
 import { createScreensAdapter } from '../../../src/adapters/dom/screens-adapter.js';
-import { createAudioQuickToggle } from '../../../src/adapters/dom/screens-audio-toggle.js';
 
 // ---- minimal DOM ----------------------------------------------------------
 
@@ -568,102 +569,5 @@ describe('screens-adapter: onConfirm cue fires for every confirmed button', () =
     keydown(root, 'ArrowDown'); // index 1 = music volume slider
     keydown(root, 'ArrowRight'); // adjust slider — not a confirm
     expect(onConfirm).not.toHaveBeenCalledWith('settings-volume-music');
-  });
-});
-
-describe('screens-audio-toggle: persistent quick-toggle (C-11B)', () => {
-  function buildToggleRoot(initial = { musicEnabled: true, sfxEnabled: true }) {
-    const root = createElement('div');
-    const music = createElement('button', {
-      'data-audio-toggle': 'musicEnabled',
-      'data-icon-on': '🎵',
-      'data-icon-off': '🔇',
-      'aria-pressed': 'true',
-    });
-    music.append(
-      (() => {
-        const i = createElement('span', { 'data-audio-toggle-icon': '' });
-        i.textContent = '🎵';
-        return i;
-      })(),
-    );
-    const sfx = createElement('button', {
-      'data-audio-toggle': 'sfxEnabled',
-      'data-icon-on': '🔊',
-      'data-icon-off': '🔇',
-      'aria-pressed': 'true',
-    });
-    sfx.append(
-      (() => {
-        const i = createElement('span', { 'data-audio-toggle-icon': '' });
-        i.textContent = '🔊';
-        return i;
-      })(),
-    );
-    root.append(music, sfx);
-    return { root, music, sfx, initial };
-  }
-
-  it('flips aria-pressed + emoji and reports the new state on click', () => {
-    const { root, music } = buildToggleRoot();
-    const onToggle = vi.fn();
-    createAudioQuickToggle(root, { onToggle });
-
-    music.click();
-
-    expect(music.getAttribute('aria-pressed')).toBe('false');
-    expect(music.querySelector('[data-audio-toggle-icon]').textContent).toBe('🔇');
-    expect(onToggle).toHaveBeenCalledWith('musicEnabled', false);
-  });
-
-  it('seeds button state from initialSettings without firing onToggle', () => {
-    const { root, music, sfx } = buildToggleRoot();
-    const onToggle = vi.fn();
-    createAudioQuickToggle(root, {
-      onToggle,
-      initialSettings: { musicEnabled: false, sfxEnabled: true },
-    });
-
-    expect(music.getAttribute('aria-pressed')).toBe('false');
-    expect(music.querySelector('[data-audio-toggle-icon]').textContent).toBe('🔇');
-    expect(sfx.getAttribute('aria-pressed')).toBe('true');
-    expect(onToggle).not.toHaveBeenCalled();
-  });
-
-  it("uses each button's own data-icon-on / data-icon-off (music 🎵, sfx 🔊)", () => {
-    const { root, music, sfx } = buildToggleRoot();
-    createAudioQuickToggle(root, {});
-
-    // Off then back on: each button restores its distinct enabled icon.
-    music.click();
-    expect(music.querySelector('[data-audio-toggle-icon]').textContent).toBe('🔇');
-    music.click();
-    expect(music.querySelector('[data-audio-toggle-icon]').textContent).toBe('🎵');
-
-    sfx.click();
-    expect(sfx.querySelector('[data-audio-toggle-icon]').textContent).toBe('🔇');
-    sfx.click();
-    expect(sfx.querySelector('[data-audio-toggle-icon]').textContent).toBe('🔊');
-  });
-
-  it('sync() reflects external changes; destroy() detaches listeners', () => {
-    const { root, music } = buildToggleRoot();
-    const onToggle = vi.fn();
-    const toggle = createAudioQuickToggle(root, { onToggle });
-
-    toggle.sync({ musicEnabled: false, sfxEnabled: true });
-    expect(music.getAttribute('aria-pressed')).toBe('false');
-
-    toggle.destroy();
-    music.click();
-    // No further callbacks after destroy (the click handler was removed).
-    expect(onToggle).not.toHaveBeenCalled();
-  });
-
-  it('tolerates a missing root without throwing', () => {
-    expect(() => createAudioQuickToggle(null, {})).not.toThrow();
-    const noop = createAudioQuickToggle(null, {});
-    expect(() => noop.sync({ musicEnabled: false })).not.toThrow();
-    expect(() => noop.destroy()).not.toThrow();
   });
 });
