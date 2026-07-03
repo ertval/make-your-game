@@ -194,6 +194,22 @@
 
 /** Disable non-gameplay animations when user prefers reduced motion. */
 @media (prefers-reduced-motion: reduce) {
+  /**
+   * Universal safety net (AGENTS.md MUST): neutralize every animation and
+   * transition so compliance never depends on a specific selector being kept
+   * in sync below, nor on incidental quirks (e.g. an unused `.overlay`
+   * transition or a malformed transition-duration). The targeted rules that
+   * follow still provide simplified *static* appearances (opacity/shadow tints).
+   */
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0s !important;
+    animation-delay: 0s !important;
+    transition-duration: 0s !important;
+    transition-delay: 0s !important;
+  }
+
   /** Pellet pulse: disable pulsing, keep static appearance. */
   .collectible--power-pellet {
     animation: none;
