@@ -31,6 +31,14 @@ export default defineConfig({
   // Retry once in CI only: covers the transient webServer connection race
   // without masking a deterministic failure (a real break fails both attempts).
   retries: isCI ? 1 : 0,
+  // Hard cap on parallel workers. Each worker launches its own Chromium, and
+  // launchOptions below disables the frame-rate limiter, so every worker's rAF
+  // loop spins a CPU core at 100%. Left unset, Playwright defaults to "50%" of
+  // logical cores (4 workers on an 8-core machine); 4 unthrottled Chromium
+  // instances plus their helper processes saturate every core and can hard-
+  // freeze a fanless machine. Capping at 2 guarantees a run can never pin all
+  // cores, whoever launches it (local dev, the policy gate, or an audit).
+  workers: 2,
   use: {
     baseURL: 'http://127.0.0.1:4173',
     trace: 'retain-on-failure',
