@@ -283,4 +283,17 @@ describe('Bootstrap extended coverage', () => {
     expect(bootstrap.eventQueueResourceKey.length).toBeGreaterThan(0);
     expect(bootstrap.world.hasResource(bootstrap.eventQueueResourceKey)).toBe(true);
   });
+
+  it('drains event queue even when audio adapter is null/absent', () => {
+    const bootstrap = createBootstrap({ now: 0, audio: null });
+    const eventQueue = bootstrap.world.getResource(bootstrap.eventQueueResourceKey);
+    expect(eventQueue).toBeDefined();
+
+    for (let i = 0; i < 10; i++) {
+      enqueue(eventQueue, 'TestEvent', { value: i }, 1);
+      expect(eventQueue.events.length).toBeGreaterThan(0);
+      bootstrap.stepFrame(FIXED_DT_MS * (i + 1));
+      expect(eventQueue.events.length).toBe(0);
+    }
+  });
 });

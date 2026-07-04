@@ -59,7 +59,7 @@ import {
   MAX_STEPS_PER_FRAME,
   TOTAL_LEVELS,
 } from '../ecs/resources/constants.js';
-import { createEventQueue } from '../ecs/resources/event-queue.js';
+import { createEventQueue, drain } from '../ecs/resources/event-queue.js';
 import { createGameStatus } from '../ecs/resources/game-status.js';
 import {
   createRenderIntentBuffer,
@@ -1054,6 +1054,11 @@ export function createBootstrap(options = {}) {
       registeredRenderer.update(renderIntent);
     }
 
+    // Canonical event queue drain to prevent unbounded accumulation
+    // (independent of audio adapter state, e.g. in headless tests).
+    const eventQueue = world.getResource(eventQueueResourceKey);
+    const events = eventQueue ? drain(eventQueue) : [];
+
     return {
       alpha: clock.alpha,
       frame: world.frame,
@@ -1061,6 +1066,7 @@ export function createBootstrap(options = {}) {
       renderFrame: world.renderFrame,
       simTimeMs: clock.simTimeMs,
       steps,
+      events,
     };
   }
 
