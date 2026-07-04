@@ -729,13 +729,46 @@ describe('map-resource — JSON Schema validation', () => {
 
     rawMap.level = 1.5;
     expect(() => createMapResource(rawMap)).toThrow(
-      'Map schema validation failed: Property "level" must be an integer between 1 and 3',
+      'Map schema validation failed: Property "level" must be an integer',
     );
 
     rawMap.level = '1';
     expect(() => createMapResource(rawMap)).toThrow(
-      'Map schema validation failed: Property "level" must be an integer between 1 and 3',
+      'Map schema validation failed: Property "level" must be an integer',
     );
+  });
+
+  it('runs structural schema validation in the test env but relaxes production dimensions (#244)', () => {
+    // Small, structurally-valid map WITHOUT the __testSchemaValidation__ opt-in:
+    // production dimension limits (board 10-100, level 1-3) are relaxed so focused
+    // fixtures work, but structural checks still run.
+    const smallValid = {
+      level: 1,
+      metadata: { name: 't', timerSeconds: 60, maxGhosts: 1, ghostSpeed: 4, activeGhostTypes: [0] },
+      dimensions: { rows: 5, columns: 5 },
+      grid: [
+        [1, 1, 1, 1, 1],
+        [1, 0, 3, 0, 1],
+        [1, 0, 5, 0, 1],
+        [1, 0, 0, 0, 1],
+        [1, 1, 1, 1, 1],
+      ],
+      spawn: {
+        player: { row: 1, col: 1 },
+        ghostHouse: { topRow: 2, bottomRow: 2, leftCol: 2, rightCol: 2 },
+        ghostSpawnPoint: { row: 2, col: 2 },
+      },
+    };
+    expect(() => createMapResource(smallValid)).not.toThrow();
+
+    // The test-env fail-open this closed: a structural defect (additionalProperty,
+    // which semantic validation ignores) is now rejected even under NODE_ENV=test.
+    const withExtra = structuredClone(smallValid);
+    withExtra.bogus = true;
+    expect(() => createMapResource(withExtra)).toThrow(/Additional property "bogus"/);
+
+    // The explicit per-call escape hatch still lets a deliberately-invalid map through.
+    expect(() => createMapResource(withExtra, { validateSchema: false })).not.toThrow();
   });
 
   it('rejects map with invalid metadata', () => {
