@@ -19,9 +19,11 @@ import {
   inferTicketIdsFromSources,
   isBugfixBranch,
   isIntegrationBranch,
+  matchesOwnership,
   resolveBranchName,
   resolveOwnerTrackFromBranch,
   resolvePrPolicyPath,
+  SHARED_OWNERSHIP_PATTERNS,
   TRACK_OWNERSHIP_RULES,
 } from '../../../scripts/policy-gate/lib/policy-utils.mjs';
 
@@ -434,5 +436,84 @@ describe('policy-utils integration branch detection', () => {
     expect(result.shouldRunPrChecks).toBe(true);
     expect(result.auditMode).toBe('BUGFIX');
     expect(result.selectedPath).toBe('cross-track integration checks');
+  });
+});
+
+describe('policy-utils TRACK_OWNERSHIP_RULES full-repo coverage (ARCH-01)', () => {
+  function listJsFilesRecursively(dir) {
+    const entries = fs.readdirSync(dir, { withFileTypes: true });
+    const files = [];
+
+    for (const entry of entries) {
+      const entryPath = `${dir}/${entry.name}`;
+      if (entry.isDirectory()) {
+        files.push(...listJsFilesRecursively(entryPath));
+      } else if (/\.(js|mjs|cjs)$/.test(entry.name)) {
+        files.push(entryPath);
+      }
+    }
+
+    return files;
+  }
+
+  it('maps every JavaScript file under src/ to at least one track ownership rule or shared rule', () => {
+    const repoRoot = new URL('../../../', import.meta.url).pathname;
+    const srcRoot = `${repoRoot}src`;
+    const allPatterns = [
+      ...SHARED_OWNERSHIP_PATTERNS,
+      ...Object.values(TRACK_OWNERSHIP_RULES).flatMap((rule) => rule.patterns || []),
+    ];
+
+    const srcFiles = listJsFilesRecursively(srcRoot).map((filePath) =>
+      filePath.slice(repoRoot.length),
+    );
+
+    const unmatched = srcFiles.filter((filePath) => !matchesOwnership(filePath, allPatterns));
+
+    expect(unmatched).toEqual([]);
+  });
+});
+
+describe('DEAD-04: policy-utils helper exports', () => {
+  it('does not export internal helpers', async () => {
+    const policyUtils = await import('../../../scripts/policy-gate/lib/policy-utils.mjs');
+    expect(policyUtils.TICKET_ID_PATTERN).toBeUndefined();
+    expect(policyUtils.escapeRegex).toBeUndefined();
+    expect(policyUtils.normalizePolicyPath).toBeUndefined();
+    expect(policyUtils.extractTicketIds).toBeUndefined();
+    expect(policyUtils.pathMatchesPattern).toBeUndefined();
+    expect(policyUtils.commandSucceeded).toBeUndefined();
+  });
+});
+
+describe('DEAD-02: assertTicketAssociation dead branches', () => {
+  it('asserts assertTicketAssociation in run-checks.mjs has no dead processMode branch pathways', () => {
+    const code = fs.readFileSync(
+      new URL('../../../scripts/policy-gate/run-checks.mjs', import.meta.url),
+      'utf8',
+    );
+    const startIdx = code.indexOf('function assertTicketAssociation()');
+    expect(startIdx).toBeGreaterThan(-1);
+    const endIdx = code.indexOf('function describeFileOwnership');
+    expect(endIdx).toBeGreaterThan(startIdx);
+    const functionBody = code.substring(startIdx, endIdx);
+
+    // Find the early return `if (processMode)`
+    const earlyReturnIdx = functionBody.indexOf('if (processMode)');
+    expect(earlyReturnIdx).toBeGreaterThan(-1);
+
+    // Verify there are no subsequent `if (processMode)` matches in this function
+    const restOfFunction = functionBody.substring(earlyReturnIdx + 'if (processMode)'.length);
+    expect(restOfFunction).not.toMatch(/if\s*\(processMode\)/);
+  });
+});
+
+describe('DEAD-08: Test-only exports (informational)', () => {
+  it('retains HIGH_SCORE_STORAGE_KEY and AUDIO_CUE_MAPPING as documented test hooks', async () => {
+    const { HIGH_SCORE_STORAGE_KEY } = await import('../../../src/adapters/io/storage-adapter.js');
+    const { AUDIO_CUE_MAPPING } = await import('../../../src/adapters/io/audio-integration.js');
+    expect(HIGH_SCORE_STORAGE_KEY).toBe('ms-ghostman.highScore');
+    expect(AUDIO_CUE_MAPPING).toBeDefined();
+    expect(Object.isFrozen(AUDIO_CUE_MAPPING)).toBe(true);
   });
 });

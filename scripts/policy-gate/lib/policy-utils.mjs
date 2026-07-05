@@ -117,7 +117,7 @@ const IGNORED_DIRS = new Set([
   'test-results',
 ]);
 
-export const TICKET_ID_PATTERN = /\b([ABCD]-\d{2})\b/gi;
+const TICKET_ID_PATTERN = /\b([ABCD]-\d{2})\b/gi;
 export const EXPLICIT_TICKET_BRANCH_PATTERN =
   /^[A-Za-z0-9._-]+\/([ABCD]-\d{2})(?:-[A-Za-z0-9._-]+)?$/;
 
@@ -307,6 +307,7 @@ export const TRACK_OWNERSHIP_RULES = {
       'src/game/**',
       'src/debug/**',
       'src/ecs/world/**',
+      'src/security/**',
       'tests/**',
     ],
   },
@@ -355,8 +356,11 @@ export const TRACK_OWNERSHIP_RULES = {
       'src/ecs/systems/spawn-*.js',
       'src/ecs/systems/pause-*.js',
       'src/ecs/systems/level-progress-*.js',
+      'src/ecs/systems/hud-*.js',
+      'src/ecs/systems/screens-*.js',
       'src/adapters/dom/hud-*.js',
       'src/adapters/dom/screens-*.js',
+      'src/adapters/dom/audio-loading-indicator.js',
       'src/adapters/io/storage-*.js',
       'src/adapters/io/audio-*.js',
       'assets/generated/sfx/**',
@@ -389,6 +393,7 @@ export const TRACK_OWNERSHIP_RULES = {
       'src/ecs/systems/render-*.js',
       'src/ecs/systems/board-sync-*.js',
       'src/ecs/systems/ghost-animation-*.js',
+      'src/ecs/systems/player-animation-*.js',
       'src/adapters/dom/renderer-*.js',
       'src/adapters/dom/sprite-pool-*.js',
       'styles/**',
@@ -493,7 +498,7 @@ export function readLines(filePath) {
     .filter(Boolean);
 }
 
-export function escapeRegex(value) {
+function escapeRegex(value) {
   return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }
 
@@ -574,7 +579,7 @@ export function resolveBranchName(...preferredCandidates) {
   return fromGit;
 }
 
-export function normalizePolicyPath(filePath) {
+function normalizePolicyPath(filePath) {
   return String(filePath || '')
     .trim()
     .replaceAll('\\', '/')
@@ -598,7 +603,7 @@ export function sortTicketIds(ticketIds) {
 }
 
 // Ticket extraction is case-insensitive, then canonicalized to uppercase for stable comparisons.
-export function extractTicketIds(text) {
+function extractTicketIds(text) {
   const found = [];
   if (!text) {
     return found;
@@ -777,7 +782,7 @@ function globToRegExp(pattern) {
   return new RegExp(`^${escaped}$`);
 }
 
-export function pathMatchesPattern(filePath, pattern) {
+function pathMatchesPattern(filePath, pattern) {
   // Test a single file path against a glob-style pattern.
   return globToRegExp(pattern).test(normalizePolicyPath(filePath));
 }
@@ -853,7 +858,7 @@ export function runCommand(command, commandArgs, options = {}) {
   return result.stdout || '';
 }
 
-export function commandSucceeded(command, commandArgs) {
+function commandSucceeded(command, commandArgs) {
   // Run a command with output suppressed to test exit status only.
   const result = spawnSync(command, commandArgs, {
     cwd: process.cwd(),

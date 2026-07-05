@@ -85,7 +85,7 @@ export function computeLevelClearBonus(remainingSeconds) {
   const safeRemainingSeconds =
     Number.isFinite(remainingSeconds) && remainingSeconds > 0 ? remainingSeconds : 0;
 
-  return SCORE_LEVEL_CLEAR + safeRemainingSeconds * SCORE_TIME_BONUS_MULTIPLIER;
+  return SCORE_LEVEL_CLEAR + Math.floor(safeRemainingSeconds) * SCORE_TIME_BONUS_MULTIPLIER;
 }
 
 /**

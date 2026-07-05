@@ -224,16 +224,6 @@ function assertTicketAssociation() {
     const knownSet = new Set(resolvedTicketIds);
     const unknownTicketIds = context.ticketIds.filter((ticketId) => !knownSet.has(ticketId));
     if (unknownTicketIds.length > 0) {
-      if (processMode) {
-        return createProcessFallback(
-          [
-            'Process marker detected with non-resolvable ticket IDs; continuing in GENERAL_DOCS_PROCESS mode.',
-            `Unknown ticket IDs in tracker: ${unknownTicketIds.join(', ')}.`,
-            `Detected ticket IDs: ${context.ticketIds.join(', ')}.`,
-          ].join('\n'),
-        );
-      }
-
       throw new Error(
         [
           `Detected ticket IDs are not present in ${trackerPath}: ${unknownTicketIds.join(', ')}.`,

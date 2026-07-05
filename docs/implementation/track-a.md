@@ -333,13 +333,13 @@ Source plan: `docs/implementation/implementation-plan.md` (Section 3)
 **Blocks**: First-wave P4 tickets
 
 **Deliverables**:
-- Consolidated deduplicated codebase audit package for P3 (all-track audits + 4 track fix reports)
+- Consolidated deduplicated codebase audit report for P3 (all-track audits + one consolidated track report)
 
-- [ ] Each track runs prompt `codebase-analysis-audit` (repository prompt file: `.github/prompts/code-analysis-audit.prompt.md`) against the P3 codebase and merges the generated report.
-- [ ] Track A runs `.github/prompts/phase-deduplicate-track-audits.prompt.md` and publishes four deduplicated track reports (A/B/C/D) in `docs/audit-reports/phase-3/`.
-- [ ] Map deduplicated issues to existing or new implementation tickets.
-- [ ] Each track resolves all issues assigned in its track report.
-- [ ] Verification gate: all P3 reports + 4 deduplicated track reports merged to `docs/audit-reports/phase-3/`, and all assigned issues are resolved.
+- [x] Each track runs prompt `codebase-analysis-audit` (repository prompt file: `.github/prompts/code-analysis-audit.prompt.md`) against the P3 codebase and merges the generated report.
+- [x] Track A runs `.github/prompts/phase-deduplicate-track-audits.prompt.md` and publishes a single consolidated deduplicated track report (with track ownership marked) in `docs/audit-reports/phase-3/`.
+- [x] Map deduplicated issues to existing or new implementation tickets.
+- [x] Each track resolves all issues assigned to it in the consolidated report.
+- [x] Verification gate: all P3 reports + the single consolidated deduplicated track report merged to `docs/audit-reports/phase-3/`, and all assigned issues are resolved.
 
 ---
 
@@ -351,10 +351,10 @@ Source plan: `docs/implementation/implementation-plan.md` (Section 3)
 **Blocks**: None
 
 **Deliverables**:
-- Consolidated deduplicated codebase audit package for P4 (all-track audits + 4 track fix reports)
+- Consolidated deduplicated codebase audit report for P4 (all-track audits + one consolidated track report)
 
-- [ ] Each track runs prompt `codebase-analysis-audit` (repository prompt file: `.github/prompts/code-analysis-audit.prompt.md`) against the final codebase and merges the generated report.
-- [ ] Track A runs `.github/prompts/phase-deduplicate-track-audits.prompt.md` and publishes four deduplicated track reports (A/B/C/D) in `docs/audit-reports/phase-4/`.
-- [ ] Map deduplicated issues to existing or new implementation tickets.
-- [ ] Each track resolves all issues assigned in its track report.
-- [ ] Verification gate: all P4 reports + 4 deduplicated track reports merged to `docs/audit-reports/phase-4/`, and all assigned issues are resolved.
+- [x] Each track runs prompt `codebase-analysis-audit` (repository prompt file: `.github/prompts/code-analysis-audit.prompt.md`) against the final codebase and merges the generated report.
+- [x] Track A runs `.github/prompts/phase-deduplicate-track-audits.prompt.md` and publishes a single consolidated deduplicated track report (with track ownership marked) in `docs/audit-reports/phase-4/`.
+- [x] Map deduplicated issues to existing or new implementation tickets.
+- [x] Each track resolves all issues assigned to it in the consolidated report.
+- [x] Verification gate: all P4 reports + the single consolidated deduplicated track report merged to `docs/audit-reports/phase-4/`, and all assigned issues are resolved.

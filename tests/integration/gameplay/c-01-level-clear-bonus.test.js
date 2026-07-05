@@ -77,6 +77,19 @@ describe('C-01 level-clear scoring runtime integration', () => {
     expect(expectedBonus).toBe(1000 + 73 * 10);
   });
 
+  it('awards a bonus matching the HUD-displayed (floored) seconds, not the raw float', () => {
+    const world = buildWorld({ remainingSeconds: 47.8 });
+    const scoringSystem = createScoringSystem();
+    const levelProgressSystem = createLevelProgressSystem();
+
+    stepLogic({ scoringSystem, levelProgressSystem, world, frame: 0 });
+    stepLogic({ scoringSystem, levelProgressSystem, world, frame: 1 });
+
+    // HUD displays Math.floor(47.8) = 47 seconds, so the bonus must be based
+    // on the same floored value: 1000 + 47 * 10 = 1470 (not 1000 + 478 = 1478).
+    expect(world.getResource('scoreState').totalPoints).toBe(1000 + 47 * 10);
+  });
+
   it('does not double-award across additional frames in LEVEL_COMPLETE', () => {
     const world = buildWorld({ remainingSeconds: 30 });
     const scoringSystem = createScoringSystem();

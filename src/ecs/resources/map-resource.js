@@ -366,17 +366,23 @@ export function validateMapSemantic(rawMap) {
  * @param {object} rawMap - Raw map JSON object.
  * @returns {{ ok: boolean, errors: string[] }}
  */
-function validateMapSchema(rawMap) {
-  const isTestEnv = typeof process !== 'undefined' && process.env?.NODE_ENV === 'test';
-  if (isTestEnv && rawMap.__testSchemaValidation__ !== true) {
-    return { ok: true, errors: [] };
-  }
-
+export function validateMapSchema(rawMap, options = {}) {
   const errors = [];
 
   if (!rawMap || typeof rawMap !== 'object' || Array.isArray(rawMap)) {
     return { ok: false, errors: ['Map payload is not a valid JSON object'] };
   }
+
+  // Structural checks (required fields, types, cell enum, additionalProperties,
+  // metadata/spawn shape) ALWAYS run — including in tests — so genuinely malformed
+  // maps can never slip past the suite (#244). Only the production *dimensional*
+  // limits (level 1-3, board 10-100, grid row width 10-100) are relaxed by default
+  // in the test env, so focused unit tests can keep using small fixtures. Force
+  // the full production checks with `__testSchemaValidation__: true` on the map or
+  // `{ relaxDimensions: false }` in options.
+  const isTestEnv = typeof process !== 'undefined' && process.env?.NODE_ENV === 'test';
+  const relaxDimensions =
+    options.relaxDimensions ?? (isTestEnv && rawMap.__testSchemaValidation__ !== true);
 
   // 1. Root required properties
   const rootRequired = ['level', 'metadata', 'dimensions', 'grid', 'spawn'];
@@ -413,13 +419,10 @@ function validateMapSchema(rawMap) {
     }
   }
 
-  // 4. level type and range
-  if (
-    typeof rawMap.level !== 'number' ||
-    !Number.isInteger(rawMap.level) ||
-    rawMap.level < 1 ||
-    rawMap.level > 3
-  ) {
+  // 4. level type (always) and production range (relaxable)
+  if (typeof rawMap.level !== 'number' || !Number.isInteger(rawMap.level)) {
+    errors.push('Property "level" must be an integer');
+  } else if (!relaxDimensions && (rawMap.level < 1 || rawMap.level > 3)) {
     errors.push('Property "level" must be an integer between 1 and 3');
   }
 
@@ -438,33 +441,29 @@ function validateMapSchema(rawMap) {
     }
     if (errors.length === 0) {
       const { name, timerSeconds, maxGhosts, ghostSpeed, activeGhostTypes } = rawMap.metadata;
-      if (typeof name !== 'string' || name.length < 1 || name.length > 100) {
+      if (typeof name !== 'string') {
+        errors.push('metadata.name must be a string');
+      } else if (!relaxDimensions && (name.length < 1 || name.length > 100)) {
         errors.push('metadata.name must be a string between 1 and 100 characters');
       }
-      if (
-        typeof timerSeconds !== 'number' ||
-        !Number.isInteger(timerSeconds) ||
-        timerSeconds < 1 ||
-        timerSeconds > 600
-      ) {
+      if (typeof timerSeconds !== 'number' || !Number.isInteger(timerSeconds)) {
+        errors.push('metadata.timerSeconds must be an integer');
+      } else if (!relaxDimensions && (timerSeconds < 1 || timerSeconds > 600)) {
         errors.push('metadata.timerSeconds must be an integer between 1 and 600');
       }
-      if (
-        typeof maxGhosts !== 'number' ||
-        !Number.isInteger(maxGhosts) ||
-        maxGhosts < 1 ||
-        maxGhosts > 4
-      ) {
+      if (typeof maxGhosts !== 'number' || !Number.isInteger(maxGhosts)) {
+        errors.push('metadata.maxGhosts must be an integer');
+      } else if (!relaxDimensions && (maxGhosts < 1 || maxGhosts > 4)) {
         errors.push('metadata.maxGhosts must be an integer between 1 and 4');
       }
-      if (typeof ghostSpeed !== 'number' || ghostSpeed < 1.0 || ghostSpeed > 10.0) {
+      if (typeof ghostSpeed !== 'number') {
+        errors.push('metadata.ghostSpeed must be a number');
+      } else if (!relaxDimensions && (ghostSpeed < 1.0 || ghostSpeed > 10.0)) {
         errors.push('metadata.ghostSpeed must be a number between 1.0 and 10.0');
       }
-      if (
-        !Array.isArray(activeGhostTypes) ||
-        activeGhostTypes.length < 1 ||
-        activeGhostTypes.length > 4
-      ) {
+      if (!Array.isArray(activeGhostTypes)) {
+        errors.push('metadata.activeGhostTypes must be an array');
+      } else if (!relaxDimensions && (activeGhostTypes.length < 1 || activeGhostTypes.length > 4)) {
         errors.push('metadata.activeGhostTypes must be an array with 1 to 4 items');
       } else {
         const seen = new Set();
@@ -503,15 +502,14 @@ function validateMapSchema(rawMap) {
     }
     if (errors.length === 0) {
       const { columns, rows } = rawMap.dimensions;
-      if (
-        typeof columns !== 'number' ||
-        !Number.isInteger(columns) ||
-        columns < 10 ||
-        columns > 100
-      ) {
+      if (typeof columns !== 'number' || !Number.isInteger(columns)) {
+        errors.push('dimensions.columns must be an integer');
+      } else if (!relaxDimensions && (columns < 10 || columns > 100)) {
         errors.push('dimensions.columns must be an integer between 10 and 100');
       }
-      if (typeof rows !== 'number' || !Number.isInteger(rows) || rows < 10 || rows > 100) {
+      if (typeof rows !== 'number' || !Number.isInteger(rows)) {
+        errors.push('dimensions.rows must be an integer');
+      } else if (!relaxDimensions && (rows < 10 || rows > 100)) {
         errors.push('dimensions.rows must be an integer between 10 and 100');
       }
     }
@@ -530,7 +528,7 @@ function validateMapSchema(rawMap) {
       if (!Array.isArray(row)) {
         errors.push(`grid[${r}] must be a valid JSON array`);
       } else {
-        if (row.length < 10 || row.length > 100) {
+        if (!relaxDimensions && (row.length < 10 || row.length > 100)) {
           errors.push(`grid[${r}] must have between 10 and 100 items`);
         }
         for (let c = 0; c < row.length; c += 1) {
@@ -786,11 +784,17 @@ export function assertValidMapResource(map) {
  * @param {object} rawMap — Raw map JSON object (as loaded from JSON file).
  * @returns {MapResource}
  */
-export function createMapResource(rawMap) {
-  // Schema validation — throws on failure.
-  const schemaVal = validateMapSchema(rawMap);
-  if (!schemaVal.ok) {
-    throw new Error(`Map schema validation failed: ${schemaVal.errors.join('; ')}`);
+export function createMapResource(rawMap, { validateSchema = true } = {}) {
+  // Schema validation — throws on failure. `validateSchema: false` is an explicit
+  // escape hatch for tests that deliberately construct a structurally-invalid map
+  // to exercise runtime robustness (e.g. a missing `ghostSpeed` fallback); it is
+  // opt-out per call and visible in the test, so it does not reintroduce the
+  // silent test-env fail-open this replaced (#244).
+  if (validateSchema) {
+    const schemaVal = validateMapSchema(rawMap);
+    if (!schemaVal.ok) {
+      throw new Error(`Map schema validation failed: ${schemaVal.errors.join('; ')}`);
+    }
   }
 
   // Semantic validation — throws on failure.

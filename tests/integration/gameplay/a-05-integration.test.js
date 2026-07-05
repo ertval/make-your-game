@@ -553,16 +553,19 @@ describe('A-05 event ordering integration', () => {
       // speed falls back to GHOST_DEFAULT_SPEED, so a zero speed no longer
       // freezes a ghost in place.
       let nowMs = 0;
+      const events = [];
       for (let step = 1; step <= 190; step++) {
         placeEntity(positionStore, ghostHandle.id, 3, 4);
         nowMs += FIXED_DT_MS;
-        bootstrap.stepFrame(nowMs);
+        const res = bootstrap.stepFrame(nowMs);
+        if (res.events) {
+          events.push(...res.events);
+        }
       }
 
       const scoreState = world.getResource('scoreState');
       expect(scoreState.totalPoints).toBe(200);
 
-      const events = drain(eventQueue);
       expect(events.map((e) => e.type)).toContain('GhostDefeated');
 
       const defeatEvent = events.find((evt) => evt.type === 'GhostDefeated');
@@ -635,14 +638,17 @@ describe('A-05 event ordering integration', () => {
       const ghostEntities = world.getResource('ghostEntities');
       const ghostHandle = ghostEntities[0];
       const ghostStore = world.getResource('ghost');
+      const events = [];
       for (let i = 1; i <= 190; i++) {
-        bootstrap.stepFrame(i * FIXED_DT_MS);
+        const res = bootstrap.stepFrame(i * FIXED_DT_MS);
+        if (res.events) {
+          events.push(...res.events);
+        }
       }
 
       const scoreState = world.getResource('scoreState');
       expect(scoreState.totalPoints).toBe(200);
 
-      const events = drain(eventQueue);
       expect(events.map((e) => e.type)).toContain('GhostDefeated');
 
       expect(ghostStore.state[ghostHandle.id]).toBe(GHOST_STATE.DEAD);
