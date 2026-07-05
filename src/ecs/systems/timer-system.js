@@ -35,7 +35,6 @@ const DEFAULT_EVENT_QUEUE_RESOURCE_KEY = 'eventQueue';
 const DEFAULT_GAME_STATUS_RESOURCE_KEY = 'gameStatus';
 const DEFAULT_LEVEL_LOADER_RESOURCE_KEY = 'levelLoader';
 const DEFAULT_TIMER_RESOURCE_KEY = 'levelTimer';
-const MAX_DELTA_MS = 1000;
 
 export function getLevelDurationSeconds(level) {
   const levelIndex = Math.floor(level) - 1;
@@ -103,7 +102,7 @@ function getDeltaSeconds(context) {
     return 0;
   }
 
-  return Math.min(deltaMs, MAX_DELTA_MS) / 1000;
+  return deltaMs / 1000;
 }
 
 function expireTimer(gameStatus, timerState, handleGameOver) {
@@ -169,11 +168,11 @@ export function createTimerSystem(options = {}) {
         );
       };
 
-      if (expireIfNeeded(gameStatus, timerState, handleGameOver)) {
+      if (gameStatus?.currentState !== GAME_STATE.PLAYING) {
         return;
       }
 
-      if (gameStatus?.currentState !== GAME_STATE.PLAYING) {
+      if (expireIfNeeded(gameStatus, timerState, handleGameOver)) {
         return;
       }
 

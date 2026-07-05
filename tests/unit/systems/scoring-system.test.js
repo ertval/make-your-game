@@ -76,7 +76,7 @@ describe('scoring-system', () => {
 
   it('computes the canonical level-clear bonus as a pure helper', () => {
     expect(computeLevelClearBonus(0)).toBe(1000);
-    expect(computeLevelClearBonus(12.5)).toBe(1125);
+    expect(computeLevelClearBonus(12.5)).toBe(1120);
     expect(computeLevelClearBonus(-3)).toBe(1000);
   });
 

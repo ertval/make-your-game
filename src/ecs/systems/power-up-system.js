@@ -46,7 +46,6 @@ const DEFAULT_PLAYER_RESOURCE_KEY = 'player';
 const DEFAULT_PLAYER_ENTITY_RESOURCE_KEY = 'playerEntity';
 const DEFAULT_POWER_UP_STATE_RESOURCE_KEY = 'powerUpState';
 const DEFAULT_EVENT_QUEUE_RESOURCE_KEY = 'eventQueue';
-const MAX_DELTA_MS = 1000;
 
 /**
  * Canonical collision intent type for individual power-up pickups.
@@ -118,7 +117,7 @@ function readDeltaMs(context) {
     return 0;
   }
 
-  return Math.min(deltaMs, MAX_DELTA_MS);
+  return deltaMs;
 }
 
 function readFrameIndex(context) {
