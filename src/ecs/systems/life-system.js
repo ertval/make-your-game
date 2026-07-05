@@ -47,7 +47,6 @@ const DEFAULT_PLAYER_LIFE_RESOURCE_KEY = 'playerLife';
 const DEFAULT_POSITION_RESOURCE_KEY = 'position';
 const DEFAULT_RESPAWN_INTENT_RESOURCE_KEY = 'respawnIntent';
 const DEFAULT_VELOCITY_RESOURCE_KEY = 'velocity';
-const MAX_DELTA_MS = 1000;
 
 function createDefaultPlayerLife() {
   return {
@@ -87,7 +86,7 @@ function getDeltaMs(context) {
     return 0;
   }
 
-  return Math.min(deltaMs, MAX_DELTA_MS);
+  return deltaMs;
 }
 
 function tickInvincibility(playerLife, deltaMs) {
@@ -166,10 +165,11 @@ function respawnPlayerEntity(world, resources, playerLife) {
     if (playerStore.isSpeedBoosted) {
       playerStore.isSpeedBoosted[entityId] = 0;
     }
-    if (playerStore.invincibilityMs) {
-      playerStore.invincibilityMs[entityId] = playerLife.invincibilityRemainingMs;
-    }
   }
+
+  // Route through the same sync helper the per-frame tick uses, instead of a
+  // second independent store write, so the two never have a chance to drift.
+  syncPlayerInvincibility(playerStore, playerEntity, playerLife);
 }
 
 function triggerGameOver(gameStatus) {

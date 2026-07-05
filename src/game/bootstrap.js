@@ -59,7 +59,7 @@ import {
   MAX_STEPS_PER_FRAME,
   TOTAL_LEVELS,
 } from '../ecs/resources/constants.js';
-import { createEventQueue } from '../ecs/resources/event-queue.js';
+import { createEventQueue, drain } from '../ecs/resources/event-queue.js';
 import { createGameStatus } from '../ecs/resources/game-status.js';
 import {
   createRenderIntentBuffer,
@@ -380,6 +380,11 @@ function createDefaultSystemsByPhase(options = {}) {
         playerEntityResourceKey,
         playerResourceKey,
       }),
+      // BUG-09: level-progress-system must run before timer-system so a
+      // last-pellet clear and a timer expiry on the same step resolve to
+      // LEVEL_COMPLETE/VICTORY rather than timer-system winning the race and
+      // transitioning to GAME_OVER first.
+      createLevelProgressSystem({ eventQueueResourceKey, mapResourceKey }),
       createTimerSystem({ eventQueueResourceKey }),
       createScoringSystem(),
       createLifeSystem({
@@ -391,7 +396,6 @@ function createDefaultSystemsByPhase(options = {}) {
         positionResourceKey,
         velocityResourceKey,
       }),
-      createLevelProgressSystem({ eventQueueResourceKey, mapResourceKey }),
       createSpawnSystem(),
       // The release-bridge must run after createSpawnSystem so it observes the
       // freshly updated releasedGhostIds list before the next physics phase.
@@ -1054,6 +1058,11 @@ export function createBootstrap(options = {}) {
       registeredRenderer.update(renderIntent);
     }
 
+    // Canonical event queue drain to prevent unbounded accumulation
+    // (independent of audio adapter state, e.g. in headless tests).
+    const eventQueue = world.getResource(eventQueueResourceKey);
+    const events = eventQueue ? drain(eventQueue) : [];
+
     return {
       alpha: clock.alpha,
       frame: world.frame,
@@ -1061,6 +1070,7 @@ export function createBootstrap(options = {}) {
       renderFrame: world.renderFrame,
       simTimeMs: clock.simTimeMs,
       steps,
+      events,
     };
   }
 

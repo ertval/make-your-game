@@ -103,7 +103,7 @@ describe('Bootstrap extended coverage', () => {
         timerSeconds: 60,
         maxGhosts: 1,
         ghostSpeed: 1,
-        activeGhostTypes: ['red'],
+        activeGhostTypes: [0],
       },
       dimensions: { rows: 5, columns: 5 },
       grid: [
@@ -152,7 +152,7 @@ describe('Bootstrap extended coverage', () => {
         timerSeconds: 60,
         maxGhosts: 4,
         ghostSpeed: 1,
-        activeGhostTypes: ['red', 'pink', 'cyan', 'orange'],
+        activeGhostTypes: [0, 1, 2, 3],
       },
       dimensions: { rows: 5, columns: 5 },
       grid: [
@@ -282,5 +282,18 @@ describe('Bootstrap extended coverage', () => {
     expect(typeof bootstrap.eventQueueResourceKey).toBe('string');
     expect(bootstrap.eventQueueResourceKey.length).toBeGreaterThan(0);
     expect(bootstrap.world.hasResource(bootstrap.eventQueueResourceKey)).toBe(true);
+  });
+
+  it('drains event queue even when audio adapter is null/absent', () => {
+    const bootstrap = createBootstrap({ now: 0, audio: null });
+    const eventQueue = bootstrap.world.getResource(bootstrap.eventQueueResourceKey);
+    expect(eventQueue).toBeDefined();
+
+    for (let i = 0; i < 10; i++) {
+      enqueue(eventQueue, 'TestEvent', { value: i }, 1);
+      expect(eventQueue.events.length).toBeGreaterThan(0);
+      bootstrap.stepFrame(FIXED_DT_MS * (i + 1));
+      expect(eventQueue.events.length).toBe(0);
+    }
   });
 });

@@ -63,7 +63,7 @@
  *   gaps between gameplay event surfaces and the cue table.
  */
 
-import { drain } from '../../ecs/resources/event-queue.js';
+import { peek } from '../../ecs/resources/event-queue.js';
 import { GAME_STATE } from '../../ecs/resources/game-status.js';
 import { isDevelopment } from '../../shared/env.js';
 
@@ -81,6 +81,7 @@ import { isDevelopment } from '../../shared/env.js';
  * blip and the power-mode activation sting). Use `resolveCuesForEvent` to read
  * the normalized cue list.
  */
+// Documented test hook: exported to allow tests to verify audio integration mapping.
 export const AUDIO_CUE_MAPPING = Object.freeze({
   // Track B emitters: these strings are the canonical
   // `GAMEPLAY_EVENT_TYPE.*` values (see
@@ -299,13 +300,13 @@ export function createAudioCueRunner(options = {}) {
     if (!eventQueue || !Array.isArray(eventQueue.events)) {
       return;
     }
-    // drain() returns events in deterministic (frame, order) sequence and
-    // clears the queue. Audio is a downstream consumer; we do not republish.
+    // peek() returns events in deterministic (frame, order) sequence without
+    // clearing the queue. Audio is a downstream consumer; we do not republish.
     // The runner relies on the D-01 event-queue contract (enqueue always
     // pushes an object with type/frame/order/payload) and intentionally does
     // NOT sanitize the buffer here — that responsibility belongs to the
     // queue module, not to a downstream consumer.
-    const events = drain(eventQueue);
+    const events = peek(eventQueue);
     for (let i = 0; i < events.length; i += 1) {
       const event = events[i];
       if (!event || typeof event.type !== 'string') {

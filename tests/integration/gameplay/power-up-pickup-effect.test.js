@@ -14,8 +14,8 @@ import { FIXED_DT_MS } from '../../../src/ecs/resources/constants.js';
 import { createMapResource } from '../../../src/ecs/resources/map-resource.js';
 import { createBootstrap } from '../../../src/game/bootstrap.js';
 
-// Cell types: 0 empty, 1 indestructible, 5 ghost-house, 6 player-start,
-// 7 power-up bomb, 8 power-up fire, 9 power-up speed.
+// Cell types: 0 empty, 1 indestructible, 3 pellet, 5 ghost-house,
+// 6 player-start, 7 power-up bomb, 8 power-up fire, 9 power-up speed.
 function rawMap(powerUpCell) {
   return {
     level: 1,
@@ -25,7 +25,10 @@ function rawMap(powerUpCell) {
       [1, 1, 1, 1, 1, 1, 1],
       [1, 6, powerUpCell, 0, 0, 0, 1], // player start (1,1), power-up (1,2)
       [1, 0, 0, 0, 0, 0, 1],
-      [1, 0, 0, 0, 0, 0, 1],
+      // A remaining pellet keeps the level from being trivially "cleared" by
+      // construction, so level-progress-system doesn't fire an unrelated
+      // LEVEL_COMPLETE bonus during these power-up-only assertions.
+      [1, 0, 0, 3, 0, 0, 1],
       [1, 5, 5, 5, 0, 0, 1],
       [1, 5, 5, 5, 0, 0, 1],
       [1, 1, 1, 1, 1, 1, 1],

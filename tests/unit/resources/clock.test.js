@@ -113,7 +113,25 @@ describe('clock', () => {
     const clock = createClock(100);
     const steps = tickClock(clock, 50);
     expect(steps).toBe(0); // Should not produce negative steps or synthetic progress
-    expect(clock.lastFrameTime).toBe(100); // Should stick to last known good time
+    // #237: on a regression, resync the baseline to the new (lower) timestamp
+    // rather than sticking to the stale high one (which would freeze the sim).
+    expect(clock.lastFrameTime).toBe(50);
+  });
+
+  it('resynchronizes after a backward time regression instead of freezing (#237)', () => {
+    const clock = createClock(0);
+    // Advance to a high baseline.
+    tickClock(clock, 1000);
+    // Backward jump to a much lower timestamp (e.g. a non-monotonic clock adjust).
+    expect(tickClock(clock, 100)).toBe(0); // the single jump frame yields no steps
+
+    // Two subsequent forward steps that are STILL below the old baseline (1000).
+    // Before the fix the stale baseline made these negative deltas → 0 steps
+    // (frozen for the whole regression gap). After the fix the baseline resynced
+    // to 100, so forward progress resumes stepping.
+    tickClock(clock, 100 + FIXED_DT_MS);
+    const resumedSteps = tickClock(clock, 100 + 2 * FIXED_DT_MS);
+    expect(resumedSteps).toBeGreaterThanOrEqual(1);
   });
 
   it('prevents NaN propagation when tickClock is called with non-finite values (BUG-01)', () => {
