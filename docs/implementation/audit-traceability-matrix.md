@@ -117,6 +117,9 @@ The following tests verify constraints defined in [AGENTS.md](../../AGENTS.md) t
 | package.json private flag (SEC-03) | A-01 | `tests/e2e/audit/audit.e2e.test.js` enforces package.json private flag | Prevents accidental npm publish of GPL-3.0 code. |
 | No duplicate npm scripts (DEAD-05) | A-01 | `tests/e2e/audit/audit.e2e.test.js` enforces no duplicate aliased scripts | Ensures each script entry is unique to maintain a clean `scripts` block. |
 | High Scores leaderboard (top-10) | C-05 | `tests/integration/adapters/storage-adapter.test.js` + `tests/integration/adapters/screens-settings.test.js` + `tests/e2e/c-05-screens-navigation.spec.js` | C-05 deliverable, not a graded audit question (`game-description.md` §9.5/§10). `storage-adapter` persists a validated, deduplicated, descending top-10 score list in `localStorage`; the `screens-adapter` High Scores overlay renders it (ranked, zero-padded; "No scores yet" when empty) and is reachable from both the Start and Pause menus, returning to its origin on Back. |
+| Query Versioned Cache (#265) | A-13 | `tests/unit/world/world.test.js` | Verifies zero-allocation query cache and correctness on mutations. |
+| Input Relocation & Latch (#264) | A-13 | `tests/integration/gameplay/a03-game-loop.test.js` | Verifies input snapshotting exactly once per step under catch-up and no input loss on pause-to-resume frames. |
+| Glob Overlaps De-duplication (#262) | A-13 | `tests/unit/policy-gate/policy-utils.test.js` | Verifies Track A/B/C/D glob pattern exclusivity. |
 
 ## Completion Criteria For This Matrix
 

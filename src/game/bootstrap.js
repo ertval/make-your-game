@@ -347,8 +347,10 @@ function createDefaultSystemsByPhase(options = {}) {
     },
     update(context) {
       const clock = context.world.getResource('clock');
+      inputSystem.metaUpdated = false;
       if (!clock || clock.isPaused) {
         inputSystem.update(context);
+        inputSystem.metaUpdated = true;
       }
     },
   };

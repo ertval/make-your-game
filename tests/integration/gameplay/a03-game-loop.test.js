@@ -890,4 +890,54 @@ describe('game loop and runtime', () => {
     // On the fixed codebase, it must be exactly [1, 0].
     expect(bombIntents).toEqual([1, 0]);
   });
+
+  it('prevents input loss on pause-to-resume frames with non-zero leftover accumulator', () => {
+    const bootstrap = createBootstrap({
+      loadMapForLevel: () => createMovementMapResource(),
+      now: 0,
+    });
+
+    const documentStub = createDocumentStub();
+    const windowStub = createWindowStub();
+    const inputAdapter = createInputAdapter({
+      documentTarget: documentStub,
+      eventTarget: windowStub,
+      windowTarget: windowStub,
+    });
+
+    bootstrap.setInputAdapter(inputAdapter);
+    bootstrap.gameFlow.startGame();
+    bootstrap.stepFrame(FIXED_DT_MS);
+    bootstrap.gameFlow.pauseGame();
+
+    const clock = bootstrap.clock;
+    clock.accumulator = 10;
+    expect(clock.isPaused).toBe(true);
+
+    const pressedKeys = new Set(['pause', 'bomb']);
+    let drainCount = 0;
+    inputAdapter.drainPressedKeys = () => {
+      drainCount++;
+      const drained = new Set(pressedKeys);
+      pressedKeys.clear();
+      return drained;
+    };
+
+    const inputState = bootstrap.world.getResource('inputState');
+    const playerHandle = bootstrap.world.getResource('playerEntity');
+    const bombIntents = [];
+
+    bootstrap.world.registerSystem({
+      name: 'test-input-monitor-resume',
+      phase: 'logic',
+      update: () => {
+        bombIntents.push(inputState.bomb[playerHandle.id]);
+      },
+    });
+
+    const result = bootstrap.stepFrame(FIXED_DT_MS + 16.6);
+    expect(result.steps).toBeGreaterThanOrEqual(1);
+    expect(bombIntents[0]).toBe(1);
+    expect(drainCount).toBe(1);
+  });
 });

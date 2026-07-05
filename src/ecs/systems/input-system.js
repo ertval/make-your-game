@@ -54,7 +54,7 @@ export function createInputSystem(options = {}) {
   const inputStateResourceKey = options.inputStateResourceKey || 'inputState';
   const requiredMask = options.requiredMask ?? DEFAULT_REQUIRED_MASK;
 
-  return {
+  const system = {
     name: 'input-system',
     phase: 'physics',
     // Resource capabilities document the adapter and snapshot stores this
@@ -64,6 +64,11 @@ export function createInputSystem(options = {}) {
       write: [inputStateResourceKey],
     },
     update(context) {
+      if (system.metaUpdated) {
+        system.metaUpdated = false;
+        return;
+      }
+
       const adapter = context.world.getResource(adapterResourceKey);
       const inputState = context.world.getResource(inputStateResourceKey);
 
@@ -107,4 +112,6 @@ export function createInputSystem(options = {}) {
       }
     },
   };
+
+  return system;
 }
