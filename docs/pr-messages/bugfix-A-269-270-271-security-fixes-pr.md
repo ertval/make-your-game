@@ -1,5 +1,5 @@
 # 🚀 Track A: Resolve issues #269, #270, #271
-> **Summary**: Resolves three security and robustness findings (SEC-02, SEC-03, SEC-04) by broadening the forbidden `var` detection regex, implementing streaming check of maps under chunked-transfer, and early initialization of the unhandled rejection handler during application bootstrap.
+> **Summary**: Resolves three security and robustness findings (SEC-02, SEC-03-chunked, SEC-04) by broadening the forbidden `var` detection regex, implementing streaming check of maps under chunked-transfer, and early initialization of the unhandled rejection handler during application bootstrap.
 
 Closes #269
 Closes #270
@@ -18,7 +18,7 @@ Closes #271
 
 ### 🎯 Why
 - **SEC-02**: The previous line-anchored check could miss inline or for-loop `var` declarations.
-- **SEC-03**: Under chunked-transfer, `Content-Length` header is absent, allowing oversized map assets to bypass the size limit check and consume memory/CPU time.
+- **SEC-03-chunked**: Under chunked-transfer, `Content-Length` header is absent, allowing oversized map assets to bypass the size limit check and consume memory/CPU time.
 - **SEC-04**: Map loading failures during startup were escaping as uncaught promise rejections because the rejection handler was installed too late.
 
 ---
@@ -31,7 +31,7 @@ Closes #271
 
 ### 📋 Audit Traceability
 - **SEC-02** | `[Unit Test]` | Verification: `policy-utils forbidden variable sink regex` | Evidence: `tests/unit/policy-gate/policy-utils.test.js`
-- **SEC-03** | `[Integration Test]` | Verification: `SEC-03: rejects oversized map payloads under chunked transfer` | Evidence: `tests/unit/main.ecs.test.js`
+- **SEC-03-chunked** | `[Integration Test]` | Verification: `SEC-03: rejects oversized map payloads under chunked transfer` | Evidence: `tests/unit/main.ecs.test.js`
 - **SEC-04** | `[Integration Test]` | Verification: `SEC-04: installs unhandledrejection handler before fetching maps` | Evidence: `tests/unit/main.ecs.test.js`
 
 ---

@@ -207,8 +207,10 @@ async function loadDefaultMaps({ fetchImpl } = {}) {
           }
         }
 
+        let bodyWasRead = false;
         let rawMapText = '';
         if (response.body && typeof response.body.getReader === 'function') {
+          bodyWasRead = true;
           const reader = response.body.getReader();
           const decoder = new TextDecoder('utf-8');
           let totalBytes = 0;
@@ -238,6 +240,7 @@ async function loadDefaultMaps({ fetchImpl } = {}) {
             throw err;
           }
         } else if (typeof response.text === 'function') {
+          bodyWasRead = true;
           rawMapText = await response.text();
           const textLength = new TextEncoder().encode(rawMapText).length;
           if (textLength > MAX_MAP_SIZE_BYTES) {
@@ -247,7 +250,10 @@ async function loadDefaultMaps({ fetchImpl } = {}) {
           }
         }
 
-        const rawMap = rawMapText ? JSON.parse(rawMapText) : await response.json();
+        // SEC-03: Use bodyWasRead to prevent calling response.json() if the body was already consumed.
+        // If bodyWasRead is true but rawMapText is empty (0-byte streamed map body), parsing fails cleanly
+        // with a JSON syntax error instead of crashing with a Fetch-API TypeError (already read).
+        const rawMap = bodyWasRead ? JSON.parse(rawMapText) : await response.json();
         return createMapResource(rawMap);
       })(),
     );

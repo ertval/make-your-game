@@ -706,6 +706,49 @@ describe('main.ecs.js', () => {
         }),
       ).rejects.toThrow(/exceeds/);
     });
+
+    it('SEC-03: handles empty streamed map body with clean syntax/validation error under chunked transfer', async () => {
+      const mockStream = {
+        getReader() {
+          return {
+            async read() {
+              return { done: true, value: undefined };
+            },
+            async cancel() {
+              // noop
+            },
+          };
+        },
+      };
+
+      let jsonCalled = false;
+      mockWindow.fetch.mockResolvedValue({
+        ok: true,
+        headers: {
+          get: () => null, // No Content-Length header
+        },
+        body: mockStream,
+        json: () => {
+          jsonCalled = true;
+          return Promise.reject(
+            new TypeError("Failed to execute 'json' on 'Response': body stream already read"),
+          );
+        },
+      });
+
+      const logger = { error: vi.fn(), warn: vi.fn() };
+
+      await expect(
+        bootstrapApplication({
+          documentRef: mockDocument,
+          windowRef: mockWindow,
+          logger,
+          overlayRoot: mockOverlayRoot,
+        }),
+      ).rejects.toThrow(SyntaxError);
+
+      expect(jsonCalled).toBe(false);
+    });
   });
 });
 
