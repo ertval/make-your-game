@@ -366,7 +366,7 @@ export function validateMapSemantic(rawMap) {
  * @param {object} rawMap - Raw map JSON object.
  * @returns {{ ok: boolean, errors: string[] }}
  */
-export function validateMapSchema(rawMap, options = {}) {
+function validateMapSchema(rawMap, options = {}) {
   const errors = [];
 
   if (!rawMap || typeof rawMap !== 'object' || Array.isArray(rawMap)) {
