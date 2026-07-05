@@ -52,7 +52,6 @@ import {
 } from './adapters/io/storage-adapter.js';
 import { percentileFromSorted, toSortedNumericArray } from './debug/frame-stats.js';
 import { FIXED_DT_MS, MAX_STEPS_PER_FRAME, TOTAL_LEVELS } from './ecs/resources/constants.js';
-import { drain } from './ecs/resources/event-queue.js';
 import { createMapResource } from './ecs/resources/map-resource.js';
 import { createBootstrap } from './game/bootstrap.js';
 import { createSyncMapLoader } from './game/level-loader.js';
@@ -119,6 +118,7 @@ function createFrameProbe(
 
   function getStats() {
     const values = toSortedNumericArray(deltas, count);
+    const p50FrameTime = percentileFromSorted(values, 50);
     const p95FrameTime = percentileFromSorted(values, 95);
     const p99FrameTime = percentileFromSorted(values, 99);
 
@@ -126,6 +126,7 @@ function createFrameProbe(
       averageFrameTime:
         values.length > 0 ? values.reduce((sum, value) => sum + value, 0) / values.length : 0,
       latestFrameTime: values.length > 0 ? latestDelta : 0,
+      p50FrameTime,
       p95Fps: p95FrameTime > 0 ? 1000 / p95FrameTime : 0,
       p95FrameTime,
       p99FrameTime,
@@ -269,6 +270,37 @@ async function loadAudioClipManifest({ fetchImpl, logger = console } = {}) {
   }
 
   return result;
+}
+
+/**
+ * AGENTS.md performance budget: "DOM Elements ≤ 500 total after level load.
+ * Assert in dev-mode startup." Transient rendering uses fixed object pools, so
+ * an over-budget count signals a pool leak or an unpooled per-frame element.
+ */
+export const DOM_ELEMENT_BUDGET = 500;
+
+/**
+ * Dev-mode DOM budget guard. Counts live elements and throws a descriptive
+ * error when the count exceeds the budget so an over-budget load fails loudly
+ * during local development. Callers gate this behind `isDevelopment()`; the
+ * startup try/catch routes the throw through `renderCriticalError`, making the
+ * failure visible (not just a silent console line).
+ *
+ * @param {{ documentRef?: Document, limit?: number }} [options]
+ * @returns {number} The observed element count (when within budget).
+ */
+export function assertDomElementBudget({
+  documentRef = typeof document !== 'undefined' ? document : null,
+  limit = DOM_ELEMENT_BUDGET,
+} = {}) {
+  const count = documentRef?.querySelectorAll?.('*')?.length ?? 0;
+  if (count > limit) {
+    throw new Error(
+      `DOM element budget exceeded: ${count} elements after level load (limit ${limit}). ` +
+        'Transient rendering must use fixed object pools (AGENTS.md performance budget).',
+    );
+  }
+  return count;
 }
 
 export function renderCriticalError(overlayRoot, error) {
@@ -437,18 +469,6 @@ export function createGameRuntime({
         fixedDtMs: FIXED_DT_MS,
         maxStepsPerFrame: MAX_STEPS_PER_FRAME,
       });
-
-      // BUG-01: Drain the event queue each frame so events emitted by
-      // simulation systems do not accumulate unboundedly. The queue is
-      // consumed here in the rAF loop (not in bootstrap.stepFrame) so
-      // integration tests that inspect drained events can still call
-      // stepFrame directly without the automatic clearing.
-      if (bootstrap.world && bootstrap.eventQueueResourceKey) {
-        const eventQueue = bootstrap.world.getResource(bootstrap.eventQueueResourceKey);
-        if (eventQueue) {
-          drain(eventQueue);
-        }
-      }
     } catch (error) {
       // Catch unexpected errors outside the system-dispatch boundary
       // (e.g., tickClock, applyDeferredMutations) so the loop survives.
@@ -821,6 +841,14 @@ export async function bootstrapApplication({
     });
 
     runtime.start();
+
+    // #285 / CI-13: the initial level's board is in the DOM by now, so assert
+    // the AGENTS.md DOM budget in development. A breach throws and is surfaced
+    // by the catch below (renderCriticalError), catching pool leaks locally.
+    if (isDevelopment()) {
+      assertDomElementBudget({ documentRef: targetDocument });
+    }
+
     return runtime;
   } catch (error) {
     if (inputAdapter && typeof inputAdapter.destroy === 'function') {

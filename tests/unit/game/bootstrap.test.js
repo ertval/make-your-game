@@ -101,14 +101,14 @@ describe('bootstrap input-adapter registration', () => {
     expect(bootstrap.getInputAdapter()).toBeNull();
   });
 
-  it('honors the legacy adapterResourceKey option for back-compat', () => {
+  it('does not honor the legacy adapterResourceKey option', () => {
     const bootstrap = createBootstrap({
       adapterResourceKey: 'legacyAdapterKey',
       now: 0,
     });
 
-    expect(bootstrap.world.hasResource('legacyAdapterKey')).toBe(true);
-    expect(bootstrap.world.hasResource('inputAdapter')).toBe(false);
+    expect(bootstrap.world.hasResource('legacyAdapterKey')).toBe(false);
+    expect(bootstrap.world.hasResource('inputAdapter')).toBe(true);
   });
 
   it('stores a valid adapter through setInputAdapter and exposes it via getInputAdapter', () => {
@@ -381,10 +381,10 @@ describe('bootstrap bomb and explosion runtime wiring', () => {
     expect(logicSystemNames).toEqual([
       'collision-system',
       'power-up-system',
+      'level-progress-system',
       'timer-system',
       'scoring-system',
       'life-system',
-      'level-progress-system',
       'spawn-system',
       'ghost-release-system',
       'ghost-animation-system',

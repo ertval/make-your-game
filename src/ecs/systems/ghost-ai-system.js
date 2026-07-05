@@ -71,7 +71,6 @@ const DEFAULT_BOMB_OCCUPANCY_RESOURCE_KEY = 'bombCellOccupancy';
 const DEFAULT_SPAWN_RESOURCE_KEY = 'ghostSpawnState';
 const DEFAULT_RNG_RESOURCE_KEY = 'rng';
 
-const MAX_DELTA_MS = 1000;
 const MOVEMENT_EPSILON = 1e-9;
 
 /**
@@ -557,7 +556,7 @@ function readDeltaMs(context) {
     return 0;
   }
 
-  return Math.min(deltaMs, MAX_DELTA_MS);
+  return deltaMs;
 }
 
 function readBombOccupancyCells(resource, mapResource) {

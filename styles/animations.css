@@ -194,6 +194,23 @@
 
 /** Disable non-gameplay animations when user prefers reduced motion. */
 @media (prefers-reduced-motion: reduce) {
+  /**
+   * Zero out all animation/transition durations via the custom properties
+   * that every animation declaration references. This cascades naturally
+   * without needing !important — the specific animation :none rules below
+   * still provide simplified static appearances.
+   */
+  :root {
+    --anim-walk-duration: 0s;
+    --anim-bomb-fuse-duration: 0s;
+    --anim-fire-duration: 0s;
+    --anim-stun-flash-duration: 0s;
+    --anim-invincible-blink-duration: 0s;
+    --anim-speed-trail-duration: 0s;
+    --anim-menu-transition-duration: 0s;
+    --anim-overlay-fade-duration: 0s;
+  }
+
   /** Pellet pulse: disable pulsing, keep static appearance. */
   .collectible--power-pellet {
     animation: none;

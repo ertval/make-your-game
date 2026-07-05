@@ -59,7 +59,7 @@ import {
   MAX_STEPS_PER_FRAME,
   TOTAL_LEVELS,
 } from '../ecs/resources/constants.js';
-import { createEventQueue } from '../ecs/resources/event-queue.js';
+import { createEventQueue, drain } from '../ecs/resources/event-queue.js';
 import { createGameStatus } from '../ecs/resources/game-status.js';
 import {
   createRenderIntentBuffer,
@@ -172,12 +172,7 @@ const GHOST_RUNTIME_MASK =
 /**
  * Resolve the input adapter resource key from bootstrap options.
  *
- * Both `inputAdapterResourceKey` and the older `adapterResourceKey` names are
- * honored so callers that wire the system directly do not silently break while
- * we migrate everything to the explicit bootstrap API.
- *
  * @internal
- * @deprecated Legacy option fallback
  * @param {object} [options={}] - Bootstrap options.
  * @returns {string} Resolved resource key for the input adapter slot.
  */
@@ -187,10 +182,6 @@ function resolveInputAdapterResourceKey(options = {}) {
     options.inputAdapterResourceKey.length > 0
   ) {
     return options.inputAdapterResourceKey;
-  }
-
-  if (typeof options.adapterResourceKey === 'string' && options.adapterResourceKey.length > 0) {
-    return options.adapterResourceKey;
   }
 
   return DEFAULT_INPUT_ADAPTER_RESOURCE_KEY;
@@ -389,6 +380,11 @@ function createDefaultSystemsByPhase(options = {}) {
         playerEntityResourceKey,
         playerResourceKey,
       }),
+      // BUG-09: level-progress-system must run before timer-system so a
+      // last-pellet clear and a timer expiry on the same step resolve to
+      // LEVEL_COMPLETE/VICTORY rather than timer-system winning the race and
+      // transitioning to GAME_OVER first.
+      createLevelProgressSystem({ eventQueueResourceKey, mapResourceKey }),
       createTimerSystem({ eventQueueResourceKey }),
       createScoringSystem(),
       createLifeSystem({
@@ -400,7 +396,6 @@ function createDefaultSystemsByPhase(options = {}) {
         positionResourceKey,
         velocityResourceKey,
       }),
-      createLevelProgressSystem({ eventQueueResourceKey, mapResourceKey }),
       createSpawnSystem(),
       // The release-bridge must run after createSpawnSystem so it observes the
       // freshly updated releasedGhostIds list before the next physics phase.
@@ -1078,6 +1073,11 @@ export function createBootstrap(options = {}) {
       registeredRenderer.update(renderIntent);
     }
 
+    // Canonical event queue drain to prevent unbounded accumulation
+    // (independent of audio adapter state, e.g. in headless tests).
+    const eventQueue = world.getResource(eventQueueResourceKey);
+    const events = eventQueue ? drain(eventQueue) : [];
+
     return {
       alpha: clock.alpha,
       frame: world.frame,
@@ -1085,6 +1085,7 @@ export function createBootstrap(options = {}) {
       renderFrame: world.renderFrame,
       simTimeMs: clock.simTimeMs,
       steps,
+      events,
     };
   }
 

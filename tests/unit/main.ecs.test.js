@@ -3,8 +3,10 @@ import { enqueue } from '../../src/ecs/resources/event-queue.js';
 import { GAME_STATE } from '../../src/ecs/resources/game-status.js';
 import { createBootstrap } from '../../src/game/bootstrap.js';
 import {
+  assertDomElementBudget,
   bootstrapApplication,
   createGameRuntime,
+  DOM_ELEMENT_BUDGET,
   installUnhandledRejectionHandler,
   renderCriticalError,
 } from '../../src/main.ecs.js';
@@ -277,6 +279,7 @@ describe('main.ecs.js', () => {
 
       const stats = probeWindow.__MS_GHOSTMAN_FRAME_PROBE__.getStats();
       expect(stats.sampleCount).toBe(5);
+      expect(stats.p50FrameTime).toBeCloseTo(16, 5);
       expect(stats.p95FrameTime).toBeCloseTo(16, 5);
       expect(stats.p99FrameTime).toBeCloseTo(16, 5);
       expect(stats.p95Fps).toBeCloseTo(62.5, 1);
@@ -605,5 +608,34 @@ describe('main.ecs.js', () => {
         runtime?.stop();
       }
     });
+  });
+});
+
+describe('assertDomElementBudget (#285 / CI-13)', () => {
+  const makeDoc = (count) => ({
+    querySelectorAll: vi.fn((selector) => {
+      expect(selector).toBe('*');
+      return { length: count };
+    }),
+  });
+
+  it('exposes the AGENTS.md DOM budget of 500', () => {
+    expect(DOM_ELEMENT_BUDGET).toBe(500);
+  });
+
+  it('returns the element count when within budget (boundary: exactly 500)', () => {
+    expect(assertDomElementBudget({ documentRef: makeDoc(500) })).toBe(500);
+  });
+
+  it('throws a visible, descriptive error when the count exceeds the budget', () => {
+    expect(() => assertDomElementBudget({ documentRef: makeDoc(501) })).toThrow(
+      /DOM element budget exceeded: 501 .*\(limit 500\)/,
+    );
+  });
+
+  it('honors a custom limit', () => {
+    expect(() => assertDomElementBudget({ documentRef: makeDoc(11), limit: 10 })).toThrow(
+      /budget exceeded/,
+    );
   });
 });

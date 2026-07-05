@@ -1,13 +1,52 @@
 # 🎮 Ms. Ghostman — ECS Edition
 
+[![JavaScript](https://img.shields.io/badge/JavaScript-ES2026-F7DF1E?style=flat-square&logo=javascript&logoColor=black)]()
+[![Vite](https://img.shields.io/badge/Vite-6-646CFF?style=flat-square&logo=vite&logoColor=white)]()
+[![Biome](https://img.shields.io/badge/Biome-1-60A5FA?style=flat-square&logo=biome&logoColor=white)]()
+[![Vitest](https://img.shields.io/badge/Vitest-3-6E9F18?style=flat-square&logo=vitest&logoColor=white)]()
+[![License](https://img.shields.io/badge/License-GPLv3-blue?style=flat-square)]()
+[![CI](https://img.shields.io/github/actions/workflow/status/ertval/make-your-game/deploy.yml?style=flat-square&logo=github&logoColor=white)]()
+[![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen?style=flat-square)]()
+
+A pure-JS Entity-Component-System game engine demonstrating data-oriented browser architecture. Built as an educational reference for ECS patterns — no canvas, no frameworks, 60 FPS DOM rendering with strict performance budgets.
+
 > **Pac-Man × Bomberman** — Eat every pellet. Bomb every wall. Survive every ghost. Built purely with **Entity-Component-System (ECS)** architecture. 
 
-A single-player browser game built with **pure JavaScript, HTML, and CSS** — no canvas, no frameworks. Navigate a haunted maze, drop bombs to clear destructible walls, eliminate ghosts, and collect every pellet to clear each level. This implementation leverages a strict **Data-Oriented ECS** architecture to guarantee 60 FPS performance, stable system passes, and modular logic boundaries.
+---
+
+## 🏁 Getting Started
+
+The repository includes the current runtime/build toolchain, so the commands below are ready to use after installing dependencies.
+
+### Prerequisites
+
+- **Node.js** ≥ 24.0.0
+- **npm** ≥ 10.x
+
+### Installation
+
+```bash
+# Clone the repository
+git clone https://github.com/ertval/make-your-game.git
+cd make-your-game
+
+# Install dependencies
+npm ci
+```
+
+### Run the Development Server
+
+```bash
+npm run dev
+```
+
+Open `http://localhost:5173` in your browser. Vite serves the app with hot-reload.
 
 ---
 
 ## 📖 Table of Contents
 
+- [Getting Started](#-getting-started)
 - [Overview](#-overview)
 - [Gameplay](#-gameplay)
 - [Architecture Overview](#-architecture-overview)
@@ -15,13 +54,13 @@ A single-player browser game built with **pure JavaScript, HTML, and CSS** — n
 - [Deployment](#-deployment)
 - [Frame Pipeline](#-frame-pipeline)
 - [Rendering & Performance](#-rendering--performance-targets)
-- [Getting Started](#-getting-started)
 - [Scripts & Commands](#-scripts--commands)
 - [Development Workflow](#-development-workflow)
 - [Documentation Flow](#-documentation-flow)
 - [Testing & Verification](#-testing--verification)
 - [Tech Stack & Constraints](#-tech-stack--constraints)
 - [Contributing](#-contributing)
+- [Related](#-related)
 - [License](#-license)
 
 ---
@@ -292,123 +331,32 @@ For detailed information on the pipeline, Vite base path configurations, and dyn
 
 ---
 
-## 🏁 Getting Started
 
-The repository includes the current runtime/build toolchain, so the commands below are ready to use after installing dependencies.
-
-### Prerequisites
-
-- **Node.js** ≥ 24.0.0
-- **npm** ≥ 10.x
-
-### Installation
-
-```bash
-# Clone the repository
-git clone <repo-url>
-cd make-your-game
-
-# Install dependencies
-npm ci
-```
-
-### Run the Development Server
-
-```bash
-npm run dev
-```
-
-Open `http://localhost:5173` in your browser. Vite serves the app with hot-reload.
-
----
 
 ## 📜 Scripts & Commands
 
-> These commands are the current workflow entry points.
->
-> The fastest way to understand any command is to follow the implementation path: `package.json` defines the npm alias, and the underlying behavior lives in `scripts/policy-gate/*.mjs`.
+> [!TIP]
+> The unified pre-PR validation gate is the most critical workflow checkpoint. All other checks are automatically orchestrated by it.
 
-### Command Hierarchy
+### The Policy Gate: `npm run policy`
 
-The command graph is easiest to read from the top down:
+The `npm run policy` command is the main pre-PR gate. It must pass successfully before any changes can be merged into `main`. The gate automatically collects local/branch metadata and enforces the following checks:
 
-```text
-policy command family
-├── PR all-in-one gate (single command before opening a PR)
-│   └── npm run policy
-├── Repo-only gate
-│   └── npm run policy:repo
-└── Narrow reruns
-    ├── npm run policy:quality
-    ├── npm run policy:checks:local
-    ├── npm run policy:checks
-    ├── npm run policy:forbidden
-    ├── npm run policy:header
-    ├── npm run policy:approve
-    ├── npm run policy:forbiddenrepo
-    ├── npm run policy:headerrepo
-    └── npm run policy:trace
-```
+- **Project Quality:** Runs Biome formatting and linting, Vitest tests, test coverage metrics, JSON Schema validations for game maps, and lockfile-paired SBOM generation.
+- **Track & Ownership Boundaries:** Enforces single-track ownership. Developers may only modify files within their assigned track scopes (unless using an `<owner>/bugfix-<slug>` or `<owner>/integration<slug>` branch prefix to bypass).
+- **Forbidden Tech Scan:** Inspects changed files to ensure they do not introduce forbidden technologies (such as `<canvas>`, WebGL, WebGPU, or external UI/rendering frameworks) as prohibited by [AGENTS.md](file:///home/ertval/code/zone-modules/make-your-game/AGENTS.md).
+- **Source Headers Check:** Verifies that all newly created or modified source files start with the required top-of-file block comment documenting the file's purpose, public API, and constraints.
+- **Traceability Gate:** Validates the consistency of the requirement-to-audit traceability matrix and that all audit questions map correctly to active tests.
+- **Approval Check:** Verifies PR approval requirements when executing in a CI or PR-review context.
 
-Use the broadest command first, then drop to the narrower command below if you need to isolate a failure.
+### Essential Development Scripts
 
-### What Each Command Does
+For day-to-day development, use these core commands:
 
-| Command | Purpose |
-|---|---|
-| `npm run policy` | Runs the full pre-PR gate: project quality, ticket/track ownership checks from branch name or commits, changed-file forbidden-tech scan, changed-file header scan, approval check, and repo traceability scans. If branch/commit ticket metadata is missing but a `process` marker is present, the gate treats the branch as GENERAL_DOCS_PROCESS; otherwise it falls back to repo-wide checks. |
-| `npm run policy:repo` | Runs the repo-wide gate: repository forbidden-tech scan, repository header scan, and repo integrity/traceability checks. |
-| `npm run policy:quality` | Runs the project quality gate: Biome, tests, coverage, schema validation, and SBOM. |
-| `npm run policy:checks:local` | Local helper for policy checks debugging. Runs `policy:prep` before `policy:checks` so metadata context is ready. |
-| `npm run policy:checks` | Validates ticket association from branch name or commits, or a `process` marker for GENERAL_DOCS_PROCESS branches, plus single-track ownership boundaries. |
-| `npm run policy:forbidden` | Scans only the changed files for forbidden tech or patterns. |
-| `npm run policy:header` | Checks only the changed files for required source headers. |
-| `npm run policy:approve` | Verifies the PR approval / human-review requirement. |
-| `npm run policy:forbiddenrepo` | Scans the entire repository for forbidden tech or patterns. |
-| `npm run policy:headerrepo` | Checks the entire repository for required source headers. |
-| `npm run policy:trace` | Verifies requirement-to-audit traceability and dependency pairing across the repository. |
-
-| If this fails | Re-run this narrower command | What it checks |
-|---|---|---|
-| `npm run policy` | `npm run policy:quality` | Biome, tests, coverage, schema validation, and SBOM via the project quality gate |
-| `npm run policy` | `npm run policy:checks:local` | Local rerun for ticket association and ownership checks with metadata preparation (`policy:prep` + `policy:checks`) |
-| `npm run policy` | `npm run policy:forbidden` | Forbidden tech in changed files only |
-| `npm run policy` | `npm run policy:header` | Source headers in changed files only |
-| `npm run policy` | `npm run policy:approve` | Human approval/review requirement |
-| `npm run policy` | `npm run policy:repo` | Repo-wide scans and traceability/dependency pairing |
-| `npm run policy:repo` | `npm run policy:forbiddenrepo` | Forbidden tech across the repository |
-| `npm run policy:repo` | `npm run policy:headerrepo` | Source headers across the repository |
-| `npm run policy:repo` | `npm run policy:trace` | Requirement/audit matrix coverage and dependency pairing |
-
-### Where To Read The Implementation
-
-- `package.json` shows the npm alias graph and the names of the narrow troubleshooting commands.
-- `scripts/policy-gate/run-all.mjs` orchestrates the PR/repo umbrella gates and prints the step-level failure hints.
-- `scripts/policy-gate/run-checks.mjs` validates branch-or-commit ticket association, ticket list membership, track ownership boundaries, traceability coverage, and the GENERAL_DOCS_PROCESS process-marker fallback.
-- `scripts/policy-gate/run-project-gate.mjs` runs the quality gate (`check`, `test`, coverage, SBOM).
-- `scripts/policy-gate/check-forbidden.mjs` is the narrow forbidden-tech scan.
-- `scripts/policy-gate/check-source-headers.mjs` is the narrow source-header scan.
-- `scripts/policy-gate/lib/policy-utils.mjs` holds the shared checklist labels and traceability rules.
-
-### Quick Script Map
-
-| Command | Description |
-|---|---|
-| `npm run dev` | Start Vite dev server with HMR |
-| `npm run build` | Production build to `dist/` |
-| `npm run preview` | Serve production build locally |
-| `npm run ci` | Run the local quality gate: check, tests, coverage, schema validation, and SBOM |
-| `npm run test` | Run all unit tests (Vitest) |
-| `npm run test:watch` | Run tests in watch mode |
-| `npm run test:unit` | Run unit tests only |
-| `npm run test:integration` | Run integration tests only; passes when no integration files exist yet |
-| `npm run test:e2e` | Run Playwright browser tests (top-level `tests/e2e`). For audit tests run `npm run test:audit` |
-| `npm run test:audit` | Run the audit inventory suite |
-| `npm run test:coverage` | Generate test coverage report |
-| `npm run check` | Run all Biome checks (lint, format, and import sorting) |
-| `npm run fix` | Run all Biome checks and apply safe fixes automatically |
-| `npm run validate:schema` | Run JSON Schema 2020-12 validation for maps |
-| `npm run sbom` | Generate SPDX SBOM for dependency auditing. Note: `sbom.json` is a committed artifact managed by the CI workflow policy gates to ensure lockfile integrity. |
+- **`npm run dev`**: Start the Vite development server with Hot Module Replacement (HMR) at `http://localhost:5173`.
+- **`npm run build`**: Compile and bundle the game for production, outputting static files to `dist/`.
+- **`npm run test`**: Run the Vitest unit and integration test suite once.
+- **`npm run test:audit`**: Run the full Playwright and Vitest E2E audit suite to verify all acceptance criteria.
 
 ---
 
@@ -416,12 +364,10 @@ Use the broadest command first, then drop to the narrower command below if you n
 
 The project is split into **4 parallel workflow tracks** to enable multiple developers to work simultaneously with absolute ECS decoupling:
 
-| Track | Dev | Scope | Key Systems & Files |
-|---|---|---|---|
-| **Track A** | Dev 1 | Core Engine, CI, Schema, Testing, QA, and Evidence Wiring | `src/ecs/world/*`, `src/ecs/resources/*`, `main.ecs.js`, `tests/**/*`, `vitest.config.js`, `playwright.config.js` |
-| **Track B** | Dev 2 | Physics, Input, and Gameplay Logic & Rules | `input-system.js`, `player-move-system.js`, `ghost-ai-system.js`, `collision-system.js` |
-| **Track C** | Dev 3 | Scoring, timer, lives, pause and progression, HUD and overlays, storage flow, and audio integration | `scoring-system.js`, `timer-system.js`, `life-system.js`, `pause-system.js`, `level-progress-system.js`, `hud-adapter.js`, `screens-adapter.js`, `audio-adapter.js` |
-| **Track D** | Dev 4 | Rendering, DOM Batching, and Visual Production and Integration | `render-collect-system.js`, `render-dom-system.js`, Adapters |
+- **Track A** (Dev 1 — Core Engine, CI, Schema, Testing, QA, and Evidence Wiring): `src/ecs/world/*`, `src/ecs/resources/*`, `main.ecs.js`, `tests/**/*`, `vitest.config.js`, `playwright.config.js`
+- **Track B** (Dev 2 — Physics, Input, and Gameplay Logic & Rules): `input-system.js`, `player-move-system.js`, `ghost-ai-system.js`, `collision-system.js`
+- **Track C** (Dev 3 — Scoring, timer, lives, pause and progression, HUD and overlays, storage flow, and audio integration): `scoring-system.js`, `timer-system.js`, `life-system.js`, `pause-system.js`, `level-progress-system.js`, `hud-adapter.js`, `screens-adapter.js`, `audio-adapter.js`
+- **Track D** (Dev 4 — Rendering, DOM Batching, and Visual Production and Integration): `render-collect-system.js`, `render-dom-system.js`, Adapters
 
 > **Note**: For the full integration milestone breakdown, check `docs/implementation/implementation-plan.md`.
 > **Execution tracking**: Update `docs/implementation/ticket-tracker.md` as tickets move from `[ ]` -> `[-]` -> `[x]`.
@@ -505,30 +451,26 @@ tests/
 
 ### Used
 
-| Technology | Purpose |
-|---|---|
-| **JavaScript (ES2026)** | Game logic, DOM manipulation |
-| **HTML5** | Semantic page structure |
-| **CSS3** | Grid layout, animations, styling |
-| **Vite** | Dev server, bundler |
-| **Biome** | Check + fix (linting + formatting) |
-| **Vitest** | Unit testing |
-| **SVG** | Sprites and visual assets |
-| **Web Workers (profiling-gated)** | Optional offload for heavy computations only when profiling shows > 4 ms/frame main-thread impact |
-| **Trusted Types / CSP** | DOM Security enforcement |
-| **JSON Schema 2020-12** | Map data validation in CI |
+- **JavaScript (ES2026)**: Game logic, DOM manipulation
+- **HTML5**: Semantic page structure
+- **CSS3**: Grid layout, animations, styling
+- **Vite**: Dev server, bundler
+- **Biome**: Check + fix (linting + formatting)
+- **Vitest**: Unit testing
+- **SVG**: Sprites and visual assets
+- **Web Workers (profiling-gated)**: Optional offload for heavy computations only when profiling shows > 4 ms/frame main-thread impact
+- **Trusted Types / CSP**: DOM Security enforcement
+- **JSON Schema 2020-12**: Map data validation in CI
 
 ### Explicitly NOT Used (by requirement)
 
-| Technology | Reason |
-|---|---|
-| `<canvas>` | Project requirement — DOM/SVG only |
-| React / Vue / Angular | No frameworks allowed |
-| Game engines (Phaser, etc.) | Must build custom ECS engine |
-| jQuery | Vanilla JS only |
-| `var` | ES2026 standard — `const`/`let` only |
-| CommonJS (`require`) | ES Modules only |
-| `innerHTML` | XSS prevention by construction |
+- **`<canvas>`**: Project requirement — DOM/SVG only
+- **React / Vue / Angular**: No frameworks allowed
+- **Game engines (Phaser, etc.)**: Must build custom ECS engine
+- **jQuery**: Vanilla JS only
+- **`var`**: ES2026 standard — `const`/`let` only
+- **CommonJS (`require`)**: ES Modules only
+- **`innerHTML`**: XSS prevention by construction
 
 ---
 

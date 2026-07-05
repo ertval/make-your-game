@@ -8,6 +8,7 @@
  * `validate(value) => boolean` predicate so the adapter rejects any payload that
  * parses to an object but fails the caller's shape contract.
  */
+// Documented test hook: exported to allow tests to verify storage behavior.
 export const HIGH_SCORE_STORAGE_KEY = 'ms-ghostman.highScore';
 
 /** Max number of high scores retained in the top-N leaderboard. */

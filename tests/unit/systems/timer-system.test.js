@@ -138,6 +138,27 @@ describe('timer-system', () => {
     expect(gameStatus.previousState).toBe(GAME_STATE.PLAYING);
   });
 
+  it('does not attempt a transition or emit events when expired while not playing', () => {
+    const world = new World();
+    const timerSystem = createTimerSystem();
+    const gameStatus = createGameStatus(GAME_STATE.PAUSED);
+
+    world.setResource('clock', createClock(0));
+    world.setResource('gameStatus', gameStatus);
+    world.setResource('eventQueue', []);
+    world.setResource('levelLoader', createLevelLoaderStub(0));
+    world.setResource('levelTimer', {
+      activeLevel: 1,
+      durationSeconds: 120,
+      remainingSeconds: 0,
+    });
+
+    updateTimer(timerSystem, world);
+
+    expect(gameStatus.currentState).toBe(GAME_STATE.PAUSED);
+    expect(world.getResource('eventQueue')).toEqual([]);
+  });
+
   it('transitions immediately if timer is already zero before update', () => {
     const world = new World();
     const timerSystem = createTimerSystem();
@@ -157,7 +178,7 @@ describe('timer-system', () => {
     expect(gameStatus.currentState).toBe(GAME_STATE.GAME_OVER);
   });
 
-  it('caps delta time to avoid large jumps (lag spike)', () => {
+  it('applies large deltas without clamping, since the fixed-step loop never produces them', () => {
     const world = new World();
     const timerSystem = createTimerSystem();
 
@@ -172,7 +193,7 @@ describe('timer-system', () => {
 
     updateTimer(timerSystem, world, 5000);
 
-    expect(world.getResource('levelTimer').remainingSeconds).toBe(9);
+    expect(world.getResource('levelTimer').remainingSeconds).toBe(5);
   });
 
   it('ignores negative dtMs values', () => {

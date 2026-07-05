@@ -33,14 +33,11 @@ test.describe('pause/resume/restart race condition stress tests', () => {
 
   test('rapid pause/resume cycles should not advance simTime while paused', async ({ page }) => {
     for (let i = 0; i < ITERATIONS; i++) {
-      // Pause
-      await page.evaluate(() => {
+      // Pause and capture snapshot atomically to prevent post-pause rAF ticks from slipping in between evaluate calls.
+      const pausedSnapshot = await page.evaluate(() => {
         window.__MS_GHOSTMAN_RUNTIME__.pause();
+        return window.__MS_GHOSTMAN_RUNTIME__.getSnapshot();
       });
-
-      const pausedSnapshot = await page.evaluate(() =>
-        window.__MS_GHOSTMAN_RUNTIME__.getSnapshot(),
-      );
       expect(pausedSnapshot.state).toBe('PAUSED');
 
       // Wait a bit to let any pending rAF callbacks fire
