@@ -103,7 +103,7 @@ describe('Bootstrap extended coverage', () => {
         timerSeconds: 60,
         maxGhosts: 1,
         ghostSpeed: 1,
-        activeGhostTypes: ['red'],
+        activeGhostTypes: [0],
       },
       dimensions: { rows: 5, columns: 5 },
       grid: [
@@ -152,7 +152,7 @@ describe('Bootstrap extended coverage', () => {
         timerSeconds: 60,
         maxGhosts: 4,
         ghostSpeed: 1,
-        activeGhostTypes: ['red', 'pink', 'cyan', 'orange'],
+        activeGhostTypes: [0, 1, 2, 3],
       },
       dimensions: { rows: 5, columns: 5 },
       grid: [

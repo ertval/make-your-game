@@ -122,4 +122,21 @@ describe('event-queue', () => {
   it('does not throw when queue is undefined (BUG-15)', () => {
     expect(() => enqueue(undefined, 'Test', {}, 0)).not.toThrow();
   });
+
+  it('returns a consistently mutable array for empty and populated drains (#239)', () => {
+    const queue = createEventQueue();
+
+    // Empty frame: before the fix this returned a frozen singleton, so an
+    // in-place mutation (sort/splice/push) threw only on quiet frames.
+    const emptyResult = drain(queue);
+    expect(Array.isArray(emptyResult)).toBe(true);
+    expect(Object.isFrozen(emptyResult)).toBe(false);
+    expect(() => emptyResult.push('x')).not.toThrow();
+
+    // Populated frame: also mutable — identical contract.
+    enqueue(queue, 'BombDetonated', { bombId: 1 }, 1);
+    const populatedResult = drain(queue);
+    expect(Object.isFrozen(populatedResult)).toBe(false);
+    expect(() => populatedResult.push('y')).not.toThrow();
+  });
 });

@@ -65,7 +65,10 @@ function buildWorld() {
   const positionStore = createPositionStore(16);
   const velocityStore = createVelocityStore(16);
   const playerStore = createPlayerStore(16);
-  const mapResource = createMapResource(createNoSpeedMap());
+  // This map deliberately omits the required `ghostSpeed` to exercise the runtime
+  // fallback (#130), so it opts out of the always-on structural schema check
+  // (#244) — the escape hatch is explicit and visible here.
+  const mapResource = createMapResource(createNoSpeedMap(), { validateSchema: false });
 
   const playerEntity = world.createEntity(COMPONENT_MASK.PLAYER | COMPONENT_MASK.POSITION);
   positionStore.row[playerEntity.id] = mapResource.playerSpawnRow;

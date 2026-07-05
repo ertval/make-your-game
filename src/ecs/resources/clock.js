@@ -76,9 +76,12 @@ export function tickClock(
     frameTime = 0;
   }
 
-  // Update wall-clock baseline if it was invalid or if time moved forward.
-  // We do NOT update if there was a regression (stick to last known good).
-  if (!isBaselineValid || (!isTimeRegression && timestamp > clock.lastFrameTime)) {
+  // Update the wall-clock baseline if it was invalid, if time moved forward, OR
+  // on a regression (#237). Resyncing to the new (lower) timestamp on a backward
+  // jump costs a single 0-step frame but keeps the clock live afterward. Sticking
+  // to the stale high baseline would instead return 0 steps on every subsequent
+  // tick until real time exceeded it — freezing the sim for the whole gap.
+  if (!isBaselineValid || isTimeRegression || timestamp > clock.lastFrameTime) {
     clock.lastFrameTime = timestamp;
     clock.realTimeMs = timestamp;
   }

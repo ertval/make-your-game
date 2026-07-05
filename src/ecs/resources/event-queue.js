@@ -78,7 +78,10 @@ export function enqueue(queue, type, payload, frame) {
 export function drain(queue) {
   if (queue.events.length === 0) {
     queue.orderCounter = 0;
-    return _EMPTY_DRAIN;
+    // Return a fresh mutable array (#239): the empty branch previously returned
+    // a frozen singleton, so consumers that mutate the result in place (sort,
+    // splice, push) worked on active frames but threw a TypeError on quiet ones.
+    return [];
   }
 
   // Sort by frame first, then by insertion order within the same frame.
@@ -98,9 +101,6 @@ export function drain(queue) {
 
   return result;
 }
-
-/** Frozen singleton returned for empty drains to avoid the [] allocation. */
-const _EMPTY_DRAIN = Object.freeze([]);
 
 /**
  * Return all events sorted by (frame, order) without clearing the queue.
