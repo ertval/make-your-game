@@ -7,6 +7,7 @@
  */
 
 import { describe, expect, it, vi } from 'vitest';
+import { FIXED_DT_MS } from '../../../src/ecs/resources/constants.js';
 import { createMapResource } from '../../../src/ecs/resources/map-resource.js';
 import { createBootstrap } from '../../../src/game/bootstrap.js';
 
@@ -75,8 +76,12 @@ describe('Game Restart Flow Integration', () => {
     expect(nextLife.lives).toBe(3);
 
     const nextTimer = bootstrap.world.getResource('levelTimer');
-    // It's reset to -1 activeLevel so the timer system will re-init on next tick
-    expect(nextTimer.activeLevel).toBe(-1);
+    // BUG-16: the reset is explicit and immediate — remainingSeconds is
+    // already at the level's full duration right after restart, not
+    // dependent on timer-system's next tick reinitializing a mismatched
+    // activeLevel sentinel.
+    expect(nextTimer.activeLevel).toBe(1);
+    expect(nextTimer.remainingSeconds).toBe(nextTimer.durationSeconds);
 
     const nextSpawn = bootstrap.world.getResource('ghostSpawnState');
     expect(nextSpawn.elapsedMs).toBe(0);
@@ -85,6 +90,64 @@ describe('Game Restart Flow Integration', () => {
     // Verify clock and frames
     expect(bootstrap.world.frame).toBe(0);
     expect(bootstrap.clock.simTimeMs).toBe(0);
+  });
+
+  it('resets levelTimer.remainingSeconds to the full level duration on restart', () => {
+    const bootstrap = createBootstrap({
+      loadMapForLevel: () => createTestMap(),
+      now: 0,
+    });
+
+    let nowMs = 0;
+    bootstrap.gameFlow.startGame({ levelIndex: 0 });
+    // Advance one fixed step so timer-system initializes levelTimer from the
+    // level's canonical duration before we simulate elapsed playtime.
+    nowMs += FIXED_DT_MS;
+    bootstrap.stepFrame(nowMs);
+
+    const fullDuration = bootstrap.world.getResource('levelTimer').durationSeconds;
+    bootstrap.world.getResource('levelTimer').remainingSeconds = fullDuration - 30;
+
+    bootstrap.gameFlow.restartLevel();
+
+    // The restart path itself writes { remainingSeconds: 0, activeLevel: -1 }
+    // and relies on timer-system's next tick to reinitialize remainingSeconds
+    // from the canonical duration. Advance one more fixed step to observe the
+    // value the running game actually presents after a restart.
+    nowMs += FIXED_DT_MS;
+    bootstrap.stepFrame(nowMs);
+
+    const nextTimer = bootstrap.world.getResource('levelTimer');
+    expect(nextTimer.remainingSeconds).toBeCloseTo(fullDuration, 1);
+  });
+
+  it('BUG-16: resets remainingSeconds explicitly, without depending on an activeLevel sentinel mismatch', () => {
+    // Bootstrap's onRestart now writes levelTimer with activeLevel already set
+    // to the CURRENT level (not the old -1 sentinel) and remainingSeconds
+    // already at the canonical full duration. This proves the reset itself is
+    // explicit: even with activeLevel matching from the start (the exact
+    // condition that would make timer-system's needsInitialization branch a
+    // no-op), remainingSeconds is still correctly at full duration immediately
+    // after restart, with no dependency on a mismatched-activeLevel sentinel
+    // forcing a later reinitialization.
+    const bootstrap = createBootstrap({
+      loadMapForLevel: () => createTestMap(),
+      now: 0,
+    });
+
+    let nowMs = 0;
+    bootstrap.gameFlow.startGame({ levelIndex: 0 });
+    nowMs += FIXED_DT_MS;
+    bootstrap.stepFrame(nowMs);
+
+    const fullDuration = bootstrap.world.getResource('levelTimer').durationSeconds;
+    bootstrap.world.getResource('levelTimer').remainingSeconds = fullDuration - 30;
+
+    bootstrap.gameFlow.restartLevel();
+
+    const immediatelyAfterRestart = bootstrap.world.getResource('levelTimer');
+    expect(immediatelyAfterRestart.activeLevel).toBe(1);
+    expect(immediatelyAfterRestart.remainingSeconds).toBe(fullDuration);
   });
 
   it('resets the sprite pool and clears renderer mapping', () => {
