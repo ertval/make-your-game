@@ -8,7 +8,9 @@
 
 import { describe, expect, it } from 'vitest';
 
+import { createEventQueue, enqueue } from '../../../src/ecs/resources/event-queue.js';
 import { createGameStatus, GAME_STATE } from '../../../src/ecs/resources/game-status.js';
+import { GAMEPLAY_EVENT_TYPE } from '../../../src/ecs/systems/collision-gameplay-events.js';
 import {
   createInitialSpawnState,
   createSpawnSystem,
@@ -510,6 +512,83 @@ describe('spawn-system', () => {
         { ghostId: 4, readyAtMs: 2000 },
       ],
       activeGhostCap: 2,
+    });
+  });
+
+  describe('BUG-01: GhostDefeated event bridge', () => {
+    it('schedules a respawn for a ghost id observed only via a GhostDefeated event', () => {
+      const { spawnSystem, world } = createSpawnHarness();
+      const eventQueue = createEventQueue();
+      enqueue(eventQueue, GAMEPLAY_EVENT_TYPE.GHOST_DEFEATED, { entityId: 2 }, 0);
+      world.setResource('eventQueue', eventQueue);
+
+      updateSpawn(spawnSystem, world, 0);
+
+      expect(getSpawnState(world).respawnQueue).toEqual([
+        { ghostId: 2, readyAtMs: getRespawnDelayMs() },
+      ]);
+    });
+
+    it('does not re-schedule the same still-undrained GhostDefeated event on a later tick', () => {
+      const { spawnSystem, world } = createSpawnHarness();
+      const eventQueue = createEventQueue();
+      enqueue(eventQueue, GAMEPLAY_EVENT_TYPE.GHOST_DEFEATED, { entityId: 2 }, 0);
+      world.setResource('eventQueue', eventQueue);
+
+      updateSpawn(spawnSystem, world, 0);
+      // The queue is never drained here (no audio-cue-system registered), so
+      // the same event is still present on this next tick.
+      advanceSpawnTime(spawnSystem, world, getRespawnDelayMs() + 1000);
+
+      // If the stale event were re-bridged after the ghost's first respawn
+      // entry cleared, readyAtMs would jump forward again instead of the
+      // ghost staying released.
+      const spawnState = getSpawnState(world);
+      expect(spawnState.respawnQueue).toEqual([]);
+      expect(spawnState.releasedGhostIds).toContain(2);
+    });
+
+    it('ignores GhostDefeated events already bridged even across multiple ticks before a drain', () => {
+      const { spawnSystem, world } = createSpawnHarness();
+      const eventQueue = createEventQueue();
+      enqueue(eventQueue, GAMEPLAY_EVENT_TYPE.GHOST_DEFEATED, { entityId: 2 }, 0);
+      world.setResource('eventQueue', eventQueue);
+
+      updateSpawn(spawnSystem, world, 0);
+      updateSpawn(spawnSystem, world, 0);
+      updateSpawn(spawnSystem, world, 0);
+
+      // Only ever scheduled once despite three ticks observing the same event.
+      expect(getSpawnState(world).respawnQueue).toHaveLength(1);
+    });
+
+    it('resets the bridge watermark when the eventQueue instance changes (restart)', () => {
+      const { spawnSystem, world } = createSpawnHarness();
+      const firstQueue = createEventQueue();
+      enqueue(firstQueue, GAMEPLAY_EVENT_TYPE.GHOST_DEFEATED, { entityId: 2 }, 5);
+      world.setResource('eventQueue', firstQueue);
+      updateSpawn(spawnSystem, world, 0);
+
+      // Restart replaces eventQueue with a brand new instance whose frame/
+      // order counters restart from zero (see bootstrap.js's onRestart).
+      const secondQueue = createEventQueue();
+      enqueue(secondQueue, GAMEPLAY_EVENT_TYPE.GHOST_DEFEATED, { entityId: 3 }, 0);
+      world.setResource('eventQueue', secondQueue);
+      world.setResource(DEFAULT_SPAWN_RESOURCE_KEY, createInitialSpawnState());
+
+      updateSpawn(spawnSystem, world, 0);
+
+      // A stale watermark from the first queue (frame: 5) would reject every
+      // post-restart event (frame: 0) as "not newer" — ghost 3 must still be
+      // bridged and scheduled for respawn.
+      expect(getSpawnState(world).respawnQueue.some((entry) => entry.ghostId === 3)).toBe(true);
+    });
+
+    it('does not throw and behaves as before when no eventQueue resource is present', () => {
+      const { spawnSystem, world } = createSpawnHarness({ deadGhostIds: [7] });
+
+      expect(() => updateSpawn(spawnSystem, world, 0)).not.toThrow();
+      expect(getSpawnState(world).respawnQueue.some((entry) => entry.ghostId === 7)).toBe(true);
     });
   });
 });
