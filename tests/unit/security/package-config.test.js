@@ -23,4 +23,13 @@ describe('package.json security configuration', () => {
     const coverageScripts = Object.keys(pkg.scripts || {}).filter((key) => key === 'coverage');
     expect(coverageScripts).toHaveLength(0);
   });
+
+  it('should not have a redundant prod script', () => {
+    expect(pkg.scripts.prod).toBeUndefined();
+  });
+
+  it('should have runnable build and preview scripts', () => {
+    expect(pkg.scripts.build).toBeDefined();
+    expect(pkg.scripts.preview).toBeDefined();
+  });
 });

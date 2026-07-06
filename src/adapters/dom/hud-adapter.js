@@ -67,27 +67,15 @@ function resolveValueNode(element) {
   return element;
 }
 
-/**
- * @internal Exported for tests only; not part of the adapter's public API
- *   (`createHudAdapter`). Production code must not import this.
- */
-export function formatLives(lives) {
+function formatLives(lives) {
   return '❤️'.repeat(Math.max(0, lives));
 }
 
-/**
- * @internal Exported for tests only; not part of the adapter's public API
- *   (`createHudAdapter`). Production code must not import this.
- */
-export function formatScore(score) {
+function formatScore(score) {
   return String(Math.max(0, score)).padStart(5, '0');
 }
 
-/**
- * @internal Exported for tests only; not part of the adapter's public API
- *   (`createHudAdapter`). Production code must not import this.
- */
-export function formatTimer(totalSeconds) {
+function formatTimer(totalSeconds) {
   const safeSeconds = Math.max(0, totalSeconds);
   const minutes = Math.floor(safeSeconds / 60);
   const seconds = safeSeconds % 60;
