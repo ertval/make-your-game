@@ -467,4 +467,23 @@ describe('World', () => {
     world.runMeta();
     expect(world.getEntityCount()).toBe(0);
   });
+
+  it('does not allocate a new array for query matches on every call (zero-allocation cache)', () => {
+    const world = new World();
+    const entity = world.createEntity(0b0001);
+
+    const firstResult = world.query(0b0001);
+    const secondResult = world.query(0b0001);
+
+    // This should fail on the unmodified codebase because it creates a new array every time
+    expect(firstResult).toBe(secondResult);
+
+    // Verify cache stability and content update over 1000 step updates
+    for (let i = 0; i < 1000; i++) {
+      world.runFixedStep();
+      const stepResult = world.query(0b0001);
+      expect(stepResult).toBe(firstResult);
+      expect(stepResult).toEqual([entity.id]);
+    }
+  });
 });
