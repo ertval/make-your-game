@@ -166,6 +166,12 @@ Canonical ticket ID ranges used by policy checks:
 - [x] **A-09** P4 - Evidence Aggregation & Final QA Polish (Depends on: A-05, A-06, A-07, A-08, C-09, D-11, A-13) | Blocks: A-14
 - [x] **A-14** P4 - Consolidate P4 audits + publish a single consolidated deduplicated track report with track ownership marked (Depends on: C-08, C-09, C-10, D-10, D-11, A-09) | Blocks: None
 
+## 🐞 Bug Fixes & Hardening Issues
+
+- [x] **#265** Query-index versioned cache (Track A) — Added versioned cache Map inside `QueryIndex` with automatic invalidation on mask changes or entity destruction to optimize query allocation performance and avoid recurring GC allocations on the hot path.
+- [x] **#264** Input-system relocation from `meta` to `physics` phase (Track A/B) — Relocated `input-system` to the beginning of the `physics` phase to ensure inputs are snapshotted and consumed exactly once per fixed simulation step (satisfying the AGENTS.md snapshot determinism rule). Used a frame latch (`system.metaUpdated`) to prevent input loss during pause-to-resume transitions.
+- [x] **#262** Policy-gate glob overlap fix (Track A) — Removed overlapping asset/map/visual globs from Track A's scope, delegating them exclusively to Track D.
+
 ## 🔗 Cross-Document References
 
 - Ticket definitions and verification gates: `docs/implementation/track-a.md`, `docs/implementation/track-b.md`, `docs/implementation/track-c.md`, `docs/implementation/track-d.md`

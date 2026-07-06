@@ -243,7 +243,11 @@ export class World {
 
   destroyEntity(handle) {
     this.#assertNotDispatching('destroyEntity');
-    return this.#entityStore.destroy(handle);
+    const destroyed = this.#entityStore.destroy(handle);
+    if (destroyed) {
+      this.#queryIndex.clearCache();
+    }
+    return destroyed;
   }
 
   /**
@@ -365,6 +369,9 @@ export class World {
         op.applied = this.setEntityMask(op.handle, op.mask);
       } else if (op.type === 'destroy-all') {
         op.destroyedCount = this.#entityStore.destroyAll();
+        if (op.destroyedCount > 0) {
+          this.#queryIndex.clearCache();
+        }
         op.applied = true;
       }
     }
