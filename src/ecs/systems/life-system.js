@@ -119,6 +119,19 @@ function respawnPlayerEntity(world, resources, playerLife) {
     positionResourceKey,
     velocityResourceKey,
   } = resources;
+
+  // BUG-17: grant the respawn invincibility window inside the respawn handler so
+  // the protection flag (playerLife) and its player-store mirror
+  // (playerStore.invincibilityMs, written by syncPlayerInvincibility below) are
+  // set atomically in the SAME fixed step as the respawn. collision-system runs
+  // before life-system every step (see bootstrap.js logic-phase order) and reads
+  // playerStore.invincibilityMs to decide hazard damage; co-locating the grant
+  // with the store sync means a player respawned onto a fire tile is already
+  // invincible on the next collision pass, independent of any future change to
+  // inter-system scheduling.
+  playerLife.isInvincible = true;
+  playerLife.invincibilityRemainingMs = INVINCIBILITY_MS;
+
   const mapResource = world.getResource(mapResourceKey);
   const playerEntity = world.getResource(playerEntityResourceKey);
 
@@ -310,8 +323,9 @@ export function createLifeSystem(options = {}) {
         return;
       }
 
-      playerLife.isInvincible = true;
-      playerLife.invincibilityRemainingMs = INVINCIBILITY_MS;
+      // BUG-17: the respawn invincibility grant now lives inside
+      // respawnPlayerEntity so the flag and its player-store mirror are applied
+      // together in this same step (see respawnPlayerEntity).
       respawnPlayerEntity(
         context.world,
         {
