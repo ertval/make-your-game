@@ -858,6 +858,14 @@ export function createMapResource(rawMap, { validateSchema = true } = {}) {
 export function getCell(map, row, col) {
   // Missing bounds checks can lead to nondeterministic traversal (BUG-05).
   // Return INDESTRUCTIBLE as a safe impassable default for OOB access.
+  //
+  // This OOB behaviour is also what actually bounds bomb-blast propagation at
+  // the map edge (BUG-12 / #243): the explosion system stops an arm as soon as
+  // it reads an INDESTRUCTIBLE cell, and every map's outer ring is indestructible
+  // wall, so a blast arm always halts at (or before) the boundary no matter how
+  // large its radius. Callers therefore do not need to clamp a bomb radius to
+  // the map to keep fire in-bounds — the boundary wall plus this guard already
+  // guarantee it (see resolveMaxBombRadiusForMapTile in bomb-tick-system.js).
   if (row < 0 || row >= map.rows || col < 0 || col >= map.cols) {
     return CELL_TYPE.INDESTRUCTIBLE;
   }
