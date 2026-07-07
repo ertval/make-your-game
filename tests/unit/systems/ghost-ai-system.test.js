@@ -600,6 +600,40 @@ describe('ghost-ai-system: integration', () => {
     expect(positionStore.col[ghostId]).toBe(mapResource.ghostSpawnCol);
   });
 
+  it('BUG-18: revives a DEAD ghost that arrives at spawn with sub-tile float drift', () => {
+    const { world, ghostStore, positionStore, mapResource, ghostHandles } = createGhostHarness({
+      ghostCount: 1,
+    });
+    const ghostId = ghostHandles[0].id;
+    // Eyes are effectively home but a tiny floating-point offset (accumulated
+    // from interpolation) leaves the stored position just shy of the exact
+    // spawn tile. Exact-equality gating would strand the ghost in eye form.
+    placeGhost(
+      positionStore,
+      ghostId,
+      mapResource.ghostSpawnRow + 0.001,
+      mapResource.ghostSpawnCol - 0.001,
+    );
+    ghostStore.type[ghostId] = GHOST_TYPE.BLINKY;
+    ghostStore.state[ghostId] = GHOST_STATE.DEAD;
+    ghostStore.speed[ghostId] = 4.0;
+
+    world.setResource('ghostSpawnState', {
+      elapsedMs: 0,
+      releasedGhostIds: [ghostId],
+      queuedGhostIds: [],
+      respawnQueue: [],
+      activeGhostCap: 4,
+    });
+
+    const system = createGhostAiSystem();
+    runUpdate(system, world, { dtMs: FIXED_DT_MS });
+
+    expect(ghostStore.state[ghostId]).toBe(GHOST_STATE.NORMAL);
+    expect(positionStore.row[ghostId]).toBe(mapResource.ghostSpawnRow);
+    expect(positionStore.col[ghostId]).toBe(mapResource.ghostSpawnCol);
+  });
+
   it('does NOT revive a just-killed DEAD ghost still in releasedGhostIds before it reaches spawn', () => {
     const { world, ghostStore, positionStore, ghostHandles } = createGhostHarness({
       ghostCount: 1,

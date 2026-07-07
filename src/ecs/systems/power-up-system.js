@@ -46,6 +46,14 @@ const DEFAULT_PLAYER_RESOURCE_KEY = 'player';
 const DEFAULT_PLAYER_ENTITY_RESOURCE_KEY = 'playerEntity';
 const DEFAULT_POWER_UP_STATE_RESOURCE_KEY = 'powerUpState';
 const DEFAULT_EVENT_QUEUE_RESOURCE_KEY = 'eventQueue';
+// C-03 spawn-timing state; its `releasedGhostIds` list identifies which ghosts
+// have already left the ghost house (BUG-19).
+const DEFAULT_GHOST_SPAWN_STATE_RESOURCE_KEY = 'ghostSpawnState';
+
+// Module-level scratch set reused each step to test ghost-house membership
+// without allocating a new Set per Power Pellet (mirrors the BUG-10 pattern in
+// ghost-ai-system.js).
+const releasedGhostScratch = new Set();
 
 /**
  * Canonical collision intent type for individual power-up pickups.
@@ -229,11 +237,19 @@ function tickPlayerSpeedBoost(playerStore, entityId, deltaMs) {
  * ghosts mid-respawn are intentionally left alone — the design treats their
  * lifecycle as owned by the respawn pipeline.
  *
+ * BUG-19: ghosts still inside the ghost house (or queued to exit) are also
+ * skipped. When `releasedGhostSet` is provided, only ghosts that C-03 has
+ * released from the house are eligible, so stun timers and the frenzy window
+ * are not wasted on ghosts the player cannot yet reach. A null set means the
+ * release state is unavailable, so every active ghost stays eligible (legacy
+ * behavior preserved for callers that do not wire the spawn resource).
+ *
  * @param {{ state: Uint8Array, timerMs: Float64Array } | null | undefined} ghostStore - Ghost component store.
  * @param {number[]} ghostEntityIds - Live ghost entity ids.
+ * @param {Set<number> | null} [releasedGhostSet] - Ids of ghosts released from the house, or null when unknown.
  * @returns {number} Number of ghosts whose stun timer was set or refreshed.
  */
-function applyPowerPellet(ghostStore, ghostEntityIds) {
+function applyPowerPellet(ghostStore, ghostEntityIds, releasedGhostSet = null) {
   if (!ghostStore?.state || !ghostStore.timerMs) {
     return 0;
   }
@@ -242,6 +258,11 @@ function applyPowerPellet(ghostStore, ghostEntityIds) {
   for (const ghostId of ghostEntityIds) {
     const currentState = ghostStore.state[ghostId];
     if (currentState === GHOST_STATE.DEAD) {
+      continue;
+    }
+
+    // Skip ghosts still confined to the ghost house (BUG-19).
+    if (releasedGhostSet && !releasedGhostSet.has(ghostId)) {
       continue;
     }
 
@@ -332,6 +353,7 @@ function resolvePlayerEntityId(playerEntity) {
  *   playerResourceKey?: string,
  *   playerEntityResourceKey?: string,
  *   powerUpStateResourceKey?: string,
+ *   spawnResourceKey?: string | null,
  * }} [options] - Optional resource-key overrides for tests and later wiring.
  * @returns {{ name: string, phase: string, resourceCapabilities: object, update: Function }} ECS registration.
  */
@@ -347,18 +369,25 @@ export function createPowerUpSystem(options = {}) {
     options.powerUpStateResourceKey || DEFAULT_POWER_UP_STATE_RESOURCE_KEY;
   // B-09: thread the event queue so a Power Pellet stun publishes GhostStunned.
   const eventQueueResourceKey = options.eventQueueResourceKey || DEFAULT_EVENT_QUEUE_RESOURCE_KEY;
+  // BUG-19: read C-03 spawn state so the Power Pellet only stuns released ghosts.
+  const spawnResourceKey = options.spawnResourceKey ?? DEFAULT_GHOST_SPAWN_STATE_RESOURCE_KEY;
+
+  const readCapabilities = [
+    collisionIntentsResourceKey,
+    gameStatusResourceKey,
+    ghostResourceKey,
+    playerEntityResourceKey,
+    playerResourceKey,
+  ];
+  if (spawnResourceKey) {
+    readCapabilities.push(spawnResourceKey);
+  }
 
   return {
     name: 'power-up-system',
     phase: 'logic',
     resourceCapabilities: {
-      read: [
-        collisionIntentsResourceKey,
-        gameStatusResourceKey,
-        ghostResourceKey,
-        playerEntityResourceKey,
-        playerResourceKey,
-      ],
+      read: readCapabilities,
       write: [ghostResourceKey, playerResourceKey, powerUpStateResourceKey, eventQueueResourceKey],
     },
     update(context) {
@@ -392,6 +421,20 @@ export function createPowerUpSystem(options = {}) {
       const ghostEntityIds =
         typeof world.query === 'function' ? world.query(COMPONENT_MASK.GHOST) : [];
 
+      // Resolve which ghosts C-03 has released from the house so a Power Pellet
+      // never stuns a house-bound ghost (BUG-19). Reuse the module scratch set
+      // to avoid a per-frame allocation; a missing spawn resource or list keeps
+      // `releasedGhostSet` null, which preserves the legacy stun-all fallback.
+      const spawnState = spawnResourceKey ? world.getResource(spawnResourceKey) : null;
+      let releasedGhostSet = null;
+      if (spawnState?.releasedGhostIds) {
+        releasedGhostScratch.clear();
+        for (const releasedId of spawnState.releasedGhostIds) {
+          releasedGhostScratch.add(releasedId);
+        }
+        releasedGhostSet = releasedGhostScratch;
+      }
+
       const deltaMs = readDeltaMs(context);
       // Tick parallel countdowns first so collected intents in this same step
       // overwrite the timer with a fresh window (non-stacking refresh).
@@ -408,7 +451,7 @@ export function createPowerUpSystem(options = {}) {
           }
 
           if (intent.type === POWER_PELLET_COLLECTED_INTENT) {
-            const stunnedCount = applyPowerPellet(ghostStore, ghostEntityIds);
+            const stunnedCount = applyPowerPellet(ghostStore, ghostEntityIds, releasedGhostSet);
             // Only refresh the HUD-facing window when at least one ghost was
             // actually stunned (e.g. skipped entirely when all ghosts are DEAD).
             if (stunnedCount > 0) {

@@ -848,12 +848,17 @@ export function createGhostAiSystem(options = {}) {
         // re-released it (the 5-second penalty delay completed). Gating on
         // "at spawn point" avoids reviving a just-killed ghost that is still
         // present in `releasedGhostIds` before C-03's next-tick prune.
+        //
+        // BUG-18: match the spawn tile on rounded coordinates rather than exact
+        // float equality. Interpolated movement can leave the stored position a
+        // sub-tile fraction shy of the (integer) spawn tile, and strict `===`
+        // would strand the eyes circling the spawn point forever.
         if (
           releasedGhostSet &&
           ghostStore.state?.[ghostId] === GHOST_STATE.DEAD &&
           releasedGhostSet.has(ghostId) &&
-          positionStore.row[ghostId] === mapResource.ghostSpawnRow &&
-          positionStore.col[ghostId] === mapResource.ghostSpawnCol
+          Math.round(positionStore.row[ghostId]) === mapResource.ghostSpawnRow &&
+          Math.round(positionStore.col[ghostId]) === mapResource.ghostSpawnCol
         ) {
           restoreReleasedDeadGhost(ghostStore, positionStore, velocityStore, ghostId, mapResource);
           continue;
