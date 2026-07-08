@@ -218,9 +218,21 @@ export const POOL_PELLETS = 130;
 /** Maximum ghosts active simultaneously (level 3 max). */
 export const POOL_GHOSTS = 4;
 
-/** Maximum render intents per frame.
- *  Computed as: ghosts + bombs + fire tiles + pellets + player + wall cells.
- *  The wall cell budget (200) covers the 15×11=165 cell grid with headroom
- *  for larger maps. Once D-02 defines canonical map dimensions, this can be
- *  tightened to the exact maximum wall count. */
-export const MAX_RENDER_INTENTS = POOL_GHOSTS + POOL_MAX_BOMBS + POOL_FIRE + POOL_PELLETS + 1 + 200;
+/** Central maximum entity capacity (#263). The single source of truth for the
+ *  EntityStore's default `maxEntities` and the render-intent buffer size, so the
+ *  two can never drift. Comfortably exceeds the pooled prop budget
+ *  (ghosts + bombs + fire + pellets + player ≈ 225) plus wall cells. */
+export const MAX_ENTITIES = 550;
+
+/** Maximum render intents per frame. Sized to the full entity capacity so a
+ *  render intent slot exists for every possible entity — otherwise renderable
+ *  entities beyond the buffer are silently dropped by appendRenderIntentDirect
+ *  (vanishing sprites under high load, #263). MUST stay >= MAX_ENTITIES. */
+export const MAX_RENDER_INTENTS = MAX_ENTITIES;
+
+/** Grid tile size in CSS pixels — the single source of truth for the fixed
+ *  gameplay coordinate grid (#260). Mirrored by the `--tile-size` CSS custom
+ *  property in `styles/variables.css`; consumed by render-dom-system (tile→pixel
+ *  conversion) and the renderer adapter's board-fit fallback. Keep the CSS var
+ *  in sync if this changes. */
+export const TILE_SIZE_PX = 32;

@@ -55,7 +55,7 @@ import {
   FIXED_DT_MS,
   GHOST_STATE,
   GHOST_TYPE,
-  MAX_RENDER_INTENTS,
+  MAX_ENTITIES,
   MAX_STEPS_PER_FRAME,
   TOTAL_LEVELS,
 } from '../ecs/resources/constants.js';
@@ -265,7 +265,7 @@ function toFiniteTimestamp(nowMs) {
 
 function normalizeEntityCapacity(value) {
   if (!Number.isFinite(value) || value <= 0) {
-    return MAX_RENDER_INTENTS;
+    return MAX_ENTITIES;
   }
 
   return Math.floor(value);

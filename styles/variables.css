@@ -83,7 +83,8 @@
   --space-xl: 32px;
   --space-2xl: 48px;
 
-  /** Tile size for the game board grid (matches constants.js). */
+  /** Tile size for the game board grid. Mirrors the single source of truth
+   *  `TILE_SIZE_PX` in src/ecs/resources/constants.js — keep the two in sync. */
   --tile-size: 32px;
 
   /** Game board dimensions (21 columns x 17 rows). */
