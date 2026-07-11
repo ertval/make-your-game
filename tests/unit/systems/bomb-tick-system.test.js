@@ -22,6 +22,7 @@ import {
   DEFAULT_FIRE_RADIUS,
   FIXED_DT_MS,
   MAX_DETONATION_QUEUE,
+  MAX_FIRE_RADIUS,
 } from '../../../src/ecs/resources/constants.js';
 import { createMapResource } from '../../../src/ecs/resources/map-resource.js';
 import {
@@ -247,6 +248,38 @@ describe('bomb-tick-system placement', () => {
 
     expect(activeBomb).toBeDefined();
     expect(bombStore.radius[activeBomb.id]).toBe(2);
+  });
+
+  it('hard-caps an over-upgraded fire radius at MAX_FIRE_RADIUS on a large map (BUG-07 / #234)', () => {
+    const {
+      bombStore,
+      bombs,
+      colliderStore,
+      inputState,
+      player,
+      playerStore,
+      positionStore,
+      system,
+      world,
+    } = createBombTickHarness();
+
+    // A map large enough that the distance-to-edge exceeds MAX_FIRE_RADIUS, so
+    // the map-bound clamp cannot mask the pool-safety cap. bomb-tick only reads
+    // rows/cols to bound the radius, so a minimal dimensions object suffices.
+    world.setResource('mapResource', { rows: 15, cols: 15 });
+    placeEntity(positionStore, player.id, 7, 7);
+
+    playerStore.fireRadius[player.id] = 99;
+    inputState.bomb[player.id] = 1;
+
+    system.update({ dtMs: FIXED_DT_MS, frame: 0, world });
+
+    const activeBomb = bombs.find((bomb) => colliderStore.type[bomb.id] === COLLIDER_TYPE.BOMB);
+
+    // The fire pool is sized for POOL_MAX_BOMBS bombs at MAX_FIRE_RADIUS, so the
+    // stored radius must never exceed that regardless of the upgrade value.
+    expect(activeBomb).toBeDefined();
+    expect(bombStore.radius[activeBomb.id]).toBe(MAX_FIRE_RADIUS);
   });
 
   it('does not place a bomb when every pooled bomb slot is already active', () => {
