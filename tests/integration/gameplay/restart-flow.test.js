@@ -7,9 +7,12 @@
  */
 
 import { describe, expect, it, vi } from 'vitest';
+import { COLLIDER_TYPE } from '../../../src/ecs/components/spatial.js';
 import { FIXED_DT_MS } from '../../../src/ecs/resources/constants.js';
 import { createMapResource } from '../../../src/ecs/resources/map-resource.js';
+import { World } from '../../../src/ecs/world/world.js';
 import { createBootstrap } from '../../../src/game/bootstrap.js';
+import { initializeBombExplosionResources } from '../../../src/game/runtime-bomb-explosion-wiring.js';
 
 function createTestMap() {
   return createMapResource({
@@ -176,6 +179,54 @@ describe('Game Restart Flow Integration', () => {
 
     // Verify frame reset which triggers render-dom-system clear
     expect(bootstrap.world.frame).toBe(0);
+  });
+
+  it('BUG-11: rebuilding bomb/fire pools over recycled ids clears stale prop lanes', () => {
+    // Reproduces the restart teardown at the layer the bug lives: a restart
+    // destroys every entity and then rebuilds the pools from recycled ids via
+    // initializeBombExplosionResources (bootstrap.js onRestart). The pool
+    // builder — not an incidental deactivate pass elsewhere — must guarantee a
+    // freshly pooled slot is inert.
+    const maxEntities = 200;
+    const world = new World({ maxEntities });
+    initializeBombExplosionResources(world, { maxEntities });
+
+    const colliderStore = world.getResource('collider');
+    const bombStore = world.getResource('bomb');
+    const fireStore = world.getResource('fire');
+
+    // Activate a pooled bomb mid-fuse and a fire tile mid-burn — the live prop
+    // state present in the SoA lanes at the instant a restart tears down.
+    const stagedBombId = world.getResource('bombEntityPool')[0].id;
+    colliderStore.type[stagedBombId] = COLLIDER_TYPE.BOMB;
+    bombStore.fuseMs[stagedBombId] = 1500;
+    bombStore.ownerId[stagedBombId] = 7;
+
+    const stagedFireId = world.getResource('fireEntityPool')[0].id;
+    colliderStore.type[stagedFireId] = COLLIDER_TYPE.FIRE;
+    fireStore.burnTimerMs[stagedFireId] = 800;
+    fireStore.chainDepth[stagedFireId] = 3;
+
+    // Restart: destroy every entity (freeing the ids for recycling) then
+    // rebuild the pools — the same two steps bootstrap's onRestart performs.
+    world.deferDestroyAllEntities();
+    world.flushDeferredMutations();
+    initializeBombExplosionResources(world, { maxEntities });
+
+    // Every rebuilt slot must read as fully inactive. Before the fix,
+    // createInactivePooledPropEntity only reset the collider type, so a
+    // recycled slot kept the prior entity's fuse/burn/owner/chain values.
+    for (const handle of world.getResource('bombEntityPool')) {
+      expect(bombStore.fuseMs[handle.id]).toBe(0);
+      expect(bombStore.ownerId[handle.id]).toBe(-1);
+      expect(colliderStore.type[handle.id]).toBe(COLLIDER_TYPE.NONE);
+    }
+
+    for (const handle of world.getResource('fireEntityPool')) {
+      expect(fireStore.burnTimerMs[handle.id]).toBe(0);
+      expect(fireStore.chainDepth[handle.id]).toBe(0);
+      expect(colliderStore.type[handle.id]).toBe(COLLIDER_TYPE.NONE);
+    }
   });
 
   it('clears transient intents to prevent stale actions after restart', () => {

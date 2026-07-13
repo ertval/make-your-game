@@ -527,13 +527,18 @@ function clearPlayerEntity(world, playerEntityResourceKey) {
  * @param {object} [options] - Optional resource-key overrides shared with bootstrap.
  * @returns {{ id: number, generation: number } | null} Alive player handle or null when no spawn exists.
  */
-function syncPlayerEntityFromMap(world, mapResource, options = {}) {
+function syncPlayerEntityFromMap(world, mapResource, options = {}, syncInfo = {}) {
   const playerResourceKey = options.playerResourceKey || DEFAULT_PLAYER_RESOURCE_KEY;
   const positionResourceKey = options.positionResourceKey || DEFAULT_POSITION_RESOURCE_KEY;
   const velocityResourceKey = options.velocityResourceKey || DEFAULT_VELOCITY_RESOURCE_KEY;
   const inputStateResourceKey = options.inputStateResourceKey || DEFAULT_INPUT_STATE_RESOURCE_KEY;
   const playerEntityResourceKey =
     options.playerEntityResourceKey || DEFAULT_PLAYER_ENTITY_RESOURCE_KEY;
+  // BUG-15: a level transition should carry the player's earned progression
+  // (maxBombs/fireRadius) into the next level. A fresh game start, game over,
+  // or same-level restart still resets to defaults (they recreate the player
+  // entity, so preserveProgression only applies to a surviving player).
+  const preserveProgression = syncInfo.preserveProgression === true;
 
   if (
     !mapResource ||
@@ -548,7 +553,8 @@ function syncPlayerEntityFromMap(world, mapResource, options = {}) {
     PLAYER_MOVE_REQUIRED_MASK | COMPONENT_MASK.RENDERABLE | COMPONENT_MASK.COLLIDER;
 
   let playerHandle = world.getResource(playerEntityResourceKey);
-  if (!world.isEntityAlive(playerHandle)) {
+  const playerWasAlive = world.isEntityAlive(playerHandle);
+  if (!playerWasAlive) {
     playerHandle = world.createEntity(PLAYER_WITH_RENDERABLE_MASK);
     world.setResource(playerEntityResourceKey, playerHandle);
   } else {
@@ -565,9 +571,21 @@ function syncPlayerEntityFromMap(world, mapResource, options = {}) {
   const spawnRow = mapResource.playerSpawnRow;
   const spawnCol = mapResource.playerSpawnCol;
 
+  // BUG-15: snapshot the surviving player's permanent upgrades before the reset
+  // below wipes them, then restore afterward so a level transition keeps the
+  // progression while still clearing transient status (invincibility, boosts).
+  const shouldPreserveProgression = preserveProgression && playerWasAlive && playerStore != null;
+  const preservedMaxBombs = shouldPreserveProgression ? playerStore.maxBombs[entityId] : 0;
+  const preservedFireRadius = shouldPreserveProgression ? playerStore.fireRadius[entityId] : 0;
+
   // Resetting recycled slots avoids stale simulation data leaking across
   // level transitions or restart-driven entity recreation.
   resetPlayer(playerStore, entityId);
+
+  if (shouldPreserveProgression) {
+    playerStore.maxBombs[entityId] = preservedMaxBombs;
+    playerStore.fireRadius[entityId] = preservedFireRadius;
+  }
   resetPosition(positionStore, entityId);
   resetVelocity(velocityStore, entityId);
   resetInputState(inputState, entityId);
@@ -882,7 +900,7 @@ export function createBootstrap(options = {}) {
   const levelLoader = createLevelLoader({
     loadMapForLevel: options.loadMapForLevel,
     mapResourceKey: options.mapResourceKey || 'mapResource',
-    onLevelLoaded: (mapResource) => {
+    onLevelLoaded: (mapResource, loadInfo = {}) => {
       if (boardContainerElement) {
         // The browser entrypoint resolves the board container once so level
         // reloads stay independent from a hard-coded DOM lookup.
@@ -894,7 +912,11 @@ export function createBootstrap(options = {}) {
       // detonate there. The pools persist across a transition (unlike restart,
       // which destroys all entities), so the slots must be reset explicitly.
       deactivateAllBombsAndFire(world, options);
-      syncPlayerEntityFromMap(world, mapResource, options);
+      // BUG-15: advancing to the next level (reason 'level-complete') preserves
+      // the player's earned maxBombs/fireRadius upgrades; every other load
+      // reason (fresh start, restart, menu preview) resets them to defaults.
+      const preserveProgression = loadInfo.reason === 'level-complete';
+      syncPlayerEntityFromMap(world, mapResource, options, { preserveProgression });
       syncGhostEntitiesFromMap(world, mapResource, options);
       // Reset spawn state so level-2 ghosts are released on the documented
       // 0/5/10/15 s stagger, not whatever timing the previous level reached.
