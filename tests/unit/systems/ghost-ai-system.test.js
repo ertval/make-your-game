@@ -634,6 +634,48 @@ describe('ghost-ai-system: integration', () => {
     expect(positionStore.col[ghostId]).toBe(mapResource.ghostSpawnCol);
   });
 
+  it('BUG-18: does NOT revive a DEAD ghost ~half a tile from spawn, only once it genuinely arrives', () => {
+    const { world, ghostStore, positionStore, mapResource, ghostHandles } = createGhostHarness({
+      ghostCount: 1,
+    });
+    const ghostId = ghostHandles[0].id;
+    // A half-tile offset is real travel still owed on the return-home path, not
+    // floating-point drift. The old Math.round() gate rounded spawnRow + 0.49
+    // back to the spawn tile and revived the eyes early; the narrow arrival
+    // tolerance must reject it and keep the ghost DEAD.
+    placeGhost(positionStore, ghostId, mapResource.ghostSpawnRow + 0.49, mapResource.ghostSpawnCol);
+    ghostStore.type[ghostId] = GHOST_TYPE.BLINKY;
+    ghostStore.state[ghostId] = GHOST_STATE.DEAD;
+    ghostStore.speed[ghostId] = 0; // freeze movement so position stays at the +0.49 offset.
+
+    world.setResource('ghostSpawnState', {
+      elapsedMs: 0,
+      releasedGhostIds: [ghostId],
+      queuedGhostIds: [],
+      respawnQueue: [],
+      activeGhostCap: 4,
+    });
+
+    const system = createGhostAiSystem();
+    runUpdate(system, world, { dtMs: FIXED_DT_MS });
+
+    // Half a tile away is not "at spawn": the eyes must keep returning home.
+    expect(ghostStore.state[ghostId]).toBe(GHOST_STATE.DEAD);
+
+    // Once the eyes genuinely reach the spawn tile, the same handoff revives it.
+    placeGhost(positionStore, ghostId, mapResource.ghostSpawnRow, mapResource.ghostSpawnCol);
+    world.setResource('ghostSpawnState', {
+      elapsedMs: 0,
+      releasedGhostIds: [ghostId],
+      queuedGhostIds: [],
+      respawnQueue: [],
+      activeGhostCap: 4,
+    });
+    runUpdate(system, world, { dtMs: FIXED_DT_MS });
+
+    expect(ghostStore.state[ghostId]).toBe(GHOST_STATE.NORMAL);
+  });
+
   it('does NOT revive a just-killed DEAD ghost still in releasedGhostIds before it reaches spawn', () => {
     const { world, ghostStore, positionStore, ghostHandles } = createGhostHarness({
       ghostCount: 1,
