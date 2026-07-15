@@ -91,6 +91,33 @@ describe('power-up-system', () => {
     expect(world.getResource('powerUpState').stunRemainingMs).toBe(STUN_MS);
   });
 
+  it('BUG-19: does not stun a ghost that is still inside the ghost house', () => {
+    const { ghostEntities, ghostStore, world } = setupHarness({ ghostCount: 2 });
+    const releasedGhost = ghostEntities[0];
+    const houseGhost = ghostEntities[1];
+
+    // Only the first ghost has been released from the house; the second is
+    // still queued inside it and the player cannot yet reach it.
+    world.setResource('ghostSpawnState', {
+      elapsedMs: 0,
+      releasedGhostIds: [releasedGhost.id],
+      queuedGhostIds: [houseGhost.id],
+      respawnQueue: [],
+      activeGhostCap: 4,
+    });
+    world.setResource('collisionIntents', [{ type: 'power-pellet-collected' }]);
+
+    const system = createPowerUpSystem();
+    runUpdate(system, world);
+
+    // Released ghost is stunned; the house-bound ghost stays NORMAL with no
+    // stun timer burned on it.
+    expect(ghostStore.state[releasedGhost.id]).toBe(GHOST_STATE.STUNNED);
+    expect(ghostStore.timerMs[releasedGhost.id]).toBe(STUN_MS);
+    expect(ghostStore.state[houseGhost.id]).toBe(GHOST_STATE.NORMAL);
+    expect(ghostStore.timerMs[houseGhost.id]).toBe(0);
+  });
+
   it('refreshes an already-stunned ghost without stacking (non-stacking timer reset)', () => {
     const { ghostEntities, ghostStore, world } = setupHarness({ ghostCount: 1 });
     ghostStore.state[ghostEntities[0].id] = GHOST_STATE.STUNNED;
