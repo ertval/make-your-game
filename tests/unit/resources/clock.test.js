@@ -187,4 +187,20 @@ describe('clock', () => {
     const justAboveStepClock = createClock(baseline);
     expect(tickClock(justAboveStepClock, baseline + FIXED_DT_MS + epsilon)).toBe(1);
   });
+
+  it('skips alpha recalculation on duplicate timestamps (BUG-14)', () => {
+    const clock = createClock(0);
+
+    // First tick advances time and leaves some accumulator
+    const steps = tickClock(clock, FIXED_DT_MS * 1.5);
+    expect(steps).toBe(1);
+    const expectedAlpha = clock.alpha;
+    expect(expectedAlpha).toBeCloseTo(0.5, 4);
+
+    // Second tick with the exact same timestamp
+    const nextSteps = tickClock(clock, FIXED_DT_MS * 1.5);
+    expect(nextSteps).toBe(0);
+    // Alpha should be unchanged, not reset or recomputed
+    expect(clock.alpha).toBe(expectedAlpha);
+  });
 });

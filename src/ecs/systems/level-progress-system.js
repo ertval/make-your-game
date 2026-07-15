@@ -50,15 +50,6 @@ function tryTransition(gameStatus, nextState) {
   return false;
 }
 
-function isFinalLevelByCount(mapResource, totalLevels) {
-  const levelNumber = Number(mapResource?.level);
-  if (!Number.isFinite(levelNumber)) {
-    return false;
-  }
-
-  return levelNumber >= totalLevels;
-}
-
 /**
  * Resolve the 1-based level number for the LevelCleared payload.
  *
@@ -77,13 +68,6 @@ export function createLevelProgressSystem(options = {}) {
   const eventQueueResourceKey = options.eventQueueResourceKey || DEFAULT_EVENT_QUEUE_RESOURCE_KEY;
   const gameStatusResourceKey = options.gameStatusResourceKey || DEFAULT_GAME_STATUS_RESOURCE_KEY;
   const mapResourceKey = options.mapResourceKey || DEFAULT_MAP_RESOURCE_KEY;
-  const totalLevels = Number.isFinite(options.totalLevels)
-    ? Math.max(1, Math.floor(options.totalLevels))
-    : DEFAULT_TOTAL_LEVELS;
-  const isFinalLevel =
-    typeof options.isFinalLevel === 'function'
-      ? options.isFinalLevel
-      : (mapResource) => isFinalLevelByCount(mapResource, totalLevels);
 
   return {
     name: 'level-progress-system',
@@ -102,26 +86,6 @@ export function createLevelProgressSystem(options = {}) {
       }
 
       const eventQueue = world.getResource(eventQueueResourceKey);
-
-      if (gameStatus.currentState === GAME_STATE.LEVEL_COMPLETE) {
-        if (isFinalLevel(mapResource, world) === true) {
-          // Victory is a pure lifecycle transition; emit only when the final
-          // level actually advances LEVEL_COMPLETE → VICTORY.
-          if (tryTransition(gameStatus, GAME_STATE.VICTORY)) {
-            emitGameplayEvent(
-              eventQueue,
-              GAMEPLAY_EVENT_TYPE.VICTORY,
-              { sourceSystem: GAMEPLAY_EVENT_SOURCE.LEVEL_PROGRESS },
-              context.frame,
-            );
-          }
-          return;
-        }
-
-        // Non-final completion: stay in LEVEL_COMPLETE and let
-        // levelLoader.advanceLevel() drive the actual level transition.
-        return;
-      }
 
       if (gameStatus.currentState !== GAME_STATE.PLAYING) {
         return;

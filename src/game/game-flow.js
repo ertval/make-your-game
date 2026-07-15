@@ -17,6 +17,11 @@
 
 import { setPauseState } from '../ecs/resources/clock.js';
 import { canTransition, GAME_STATE, transitionTo } from '../ecs/resources/game-status.js';
+import {
+  emitGameplayEvent,
+  GAMEPLAY_EVENT_SOURCE,
+  GAMEPLAY_EVENT_TYPE,
+} from '../ecs/systems/collision-gameplay-events.js';
 
 function shouldFreezeSimulation(state) {
   return state !== GAME_STATE.PLAYING;
@@ -142,6 +147,20 @@ export function createGameFlow({ gameStatus, clock, levelLoader, world, onRestar
 
       if (nextLevel === null) {
         const movedToVictory = safeTransition(gameStatus, GAME_STATE.VICTORY);
+
+        if (movedToVictory && world) {
+          const eventQueue =
+            typeof world.getResource === 'function' ? world.getResource('eventQueue') : null;
+          if (eventQueue) {
+            emitGameplayEvent(
+              eventQueue,
+              GAMEPLAY_EVENT_TYPE.VICTORY,
+              { sourceSystem: GAMEPLAY_EVENT_SOURCE.LEVEL_PROGRESS },
+              world.frame || 0,
+            );
+          }
+        }
+
         applyPauseFromState(clock, gameStatus);
         return movedToVictory;
       }

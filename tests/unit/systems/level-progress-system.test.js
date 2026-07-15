@@ -198,20 +198,4 @@ describe('level-progress-system', () => {
 
     expect(world.getResource('levelFlow')).toEqual({ existing: true });
   });
-
-  it('transitions to VICTORY when LEVEL_COMPLETE is reached on the final level', () => {
-    const world = new World();
-    const system = createLevelProgressSystem({ totalLevels: 3 });
-    const gameStatus = createGameStatus(GAME_STATE.LEVEL_COMPLETE);
-    const mapResource = createTestMapResource(3);
-
-    world.setResource('gameStatus', gameStatus);
-    world.setResource('mapResource', mapResource);
-
-    updateSystem(system, world);
-
-    expect(gameStatus.currentState).toBe(GAME_STATE.VICTORY);
-    expect(gameStatus.previousState).toBe(GAME_STATE.LEVEL_COMPLETE);
-    expect(world.getResource('levelFlow')).toBeUndefined();
-  });
 });
