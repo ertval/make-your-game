@@ -19,6 +19,8 @@
  * - adapter.clearBoard() — remove board DOM.
  */
 
+import { TILE_SIZE_PX } from '../../ecs/resources/constants.js';
+
 /**
  * Cell type to CSS class mapping.
  */
@@ -61,7 +63,7 @@ const FIT_DEFAULTS = {
   spaceMd: 16,
   hudRowHeight: 72,
   maxScale: 4,
-  tileSize: 32,
+  tileSize: TILE_SIZE_PX,
 };
 
 /**

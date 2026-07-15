@@ -23,6 +23,7 @@ import {
   resolveBranchName,
   resolveOwnerTrackFromBranch,
   resolvePrPolicyPath,
+  SECURITY_SINK_RULES,
   SHARED_OWNERSHIP_PATTERNS,
   TRACK_OWNERSHIP_RULES,
 } from '../../../scripts/policy-gate/lib/policy-utils.mjs';
@@ -271,6 +272,65 @@ describe('policy-utils ticket and process detection', () => {
 
     expect(missingConcretePaths).toEqual([]);
   });
+
+  it('asserts that the intersection of A, B, C, and D ownership maps is empty unless explicitly listed under the shared rules', () => {
+    const allFiles = [];
+    const scanDir = (dir) => {
+      if (!fs.existsSync(dir)) return;
+      const entries = fs.readdirSync(dir, { withFileTypes: true });
+      for (const entry of entries) {
+        const fullPath = `${dir}/${entry.name}`;
+        if (entry.isDirectory()) {
+          if (
+            entry.name !== 'node_modules' &&
+            entry.name !== '.git' &&
+            entry.name !== 'dist' &&
+            entry.name !== '.agents'
+          ) {
+            scanDir(fullPath);
+          }
+        } else {
+          allFiles.push(fullPath);
+        }
+      }
+    };
+    scanDir('src');
+    scanDir('tests');
+    scanDir('assets');
+    scanDir('scripts');
+    scanDir('docs');
+    const topEntries = fs.readdirSync('.', { withFileTypes: true });
+    for (const entry of topEntries) {
+      if (!entry.isDirectory()) {
+        allFiles.push(entry.name);
+      }
+    }
+
+    const overlappingFiles = [];
+    for (const file of allFiles) {
+      const normalizedPath = file.replace(/^\.\//, '');
+      if (normalizedPath.startsWith('tests/')) {
+        continue;
+      }
+      if (matchesOwnership(normalizedPath, SHARED_OWNERSHIP_PATTERNS)) {
+        continue;
+      }
+
+      const matchingTracks = [];
+      for (const [trackCode, rule] of Object.entries(TRACK_OWNERSHIP_RULES)) {
+        const allowedPatterns = [...(rule.patterns || []), ...(rule.testPatterns || [])];
+        if (matchesOwnership(normalizedPath, allowedPatterns)) {
+          matchingTracks.push(trackCode);
+        }
+      }
+
+      if (matchingTracks.length > 1) {
+        overlappingFiles.push({ file: normalizedPath, tracks: matchingTracks });
+      }
+    }
+
+    expect(overlappingFiles).toEqual([]);
+  });
 });
 
 describe('policy-utils owner-track validation', () => {
@@ -436,6 +496,30 @@ describe('policy-utils integration branch detection', () => {
     expect(result.shouldRunPrChecks).toBe(true);
     expect(result.auditMode).toBe('BUGFIX');
     expect(result.selectedPath).toBe('cross-track integration checks');
+  });
+});
+
+describe('policy-utils forbidden variable sink regex', () => {
+  it('matches forbidden declarations correctly (#269)', () => {
+    const varRule = SECURITY_SINK_RULES.find((r) => r.name === 'var declaration');
+    expect(varRule).toBeDefined();
+
+    const regex = varRule.pattern;
+
+    // Matches standard declarations
+    expect(regex.test('v' + 'ar x = 1;')).toBe(true);
+    expect(regex.test('  v' + 'ar y = 2;')).toBe(true);
+
+    // Matches inline declarations
+    expect(regex.test('const x = 1; v' + 'ar y = 2;')).toBe(true);
+    expect(regex.test('if (true) { v' + 'ar z = 3; }')).toBe(true);
+    expect(regex.test('for (v' + 'ar i = 0; i < 10; i++) {}')).toBe(true);
+    expect(regex.test('for(v' + 'ar i = 0; i < 10; i++) {}')).toBe(true);
+
+    // Does NOT match variables named myvar or similar substring matches
+    expect(regex.test('const myvar = 1;')).toBe(false);
+    expect(regex.test('let varTemp = 2;')).toBe(false);
+    expect(regex.test('function varName() {}')).toBe(false);
   });
 });
 

@@ -60,7 +60,12 @@ export const BOMB_FUSE_MS = 3000;
 /** Default explosion radius in tiles (cross pattern, each arm). */
 export const DEFAULT_FIRE_RADIUS = 2;
 
-/** Radius budget used to size fire pools for upgraded bombs. */
+/** Radius budget used to size fire pools for upgraded bombs.
+ *  Also enforced as the hard upper clamp on a player's effective bomb radius in
+ *  bomb-tick-system (BUG-07 / #234): POOL_FIRE is sized for at most
+ *  POOL_MAX_BOMBS bombs at this radius, so allowing a larger radius could spawn
+ *  more fire tiles than the pool can hold and silently drop in-blast damage
+ *  tiles, leaving "safe zones" inside the blast. */
 export const MAX_FIRE_RADIUS = 4;
 
 /** Duration fire tiles remain visible after detonation (ms). */
@@ -70,19 +75,6 @@ export const FIRE_DURATION_MS = 500;
  *  @internal Reserved for the explosion/chain system (not yet implemented in
  *  Phase 1). Do not remove (DEAD-17). */
 export const MAX_CHAIN_DEPTH = 10;
-
-/** Maximum bomb detonations the explosion system seeds from the shared
- *  `bombDetonationQueue` per tick (BUG-07).
- *  Bounds the post-quarantine drain so a backlog that accumulated while the
- *  explosion system was quarantined cannot all fire in a single tick (a burst
- *  that could starve the fire pool or spike a frame). Any remainder stays in
- *  the shared queue for subsequent ticks. Sized to POOL_MAX_BOMBS (5) so normal
- *  play — at most POOL_MAX_BOMBS bombs expiring on one tick — is never throttled
- *  and stays byte-for-byte identical. Chain-reaction detonations are appended to
- *  the explosion system's local work queue (bounded by MAX_CHAIN_DEPTH), not the
- *  shared queue, so this cap does not apply to or break chain reactions.
- *  (Literal 5; cannot reference POOL_MAX_BOMBS here as it is defined later.) */
-export const MAX_DETONATIONS_PER_TICK = 5;
 
 /** Hard upper bound on the shared `bombDetonationQueue` length (BUG-07).
  *  A system cannot observe its own quarantine status through the world-view
@@ -95,6 +87,21 @@ export const MAX_DETONATIONS_PER_TICK = 5;
  *  re-enqueue every frame.
  *  (Literal 20; cannot reference POOL_MAX_BOMBS here as it is defined later.) */
 export const MAX_DETONATION_QUEUE = 20;
+
+/** Maximum bomb detonations the explosion system seeds from the shared
+ *  `bombDetonationQueue` per tick.
+ *  Sized to MAX_DETONATION_QUEUE so the entire bounded queue is always drained
+ *  in a single tick: every detonation queued for the same tick resolves
+ *  together, keeping the single-tick combo multiplier correct even when more
+ *  than POOL_MAX_BOMBS bombs detonate at once (BUG-08 / #242). The previous
+ *  value (POOL_MAX_BOMBS = 5) throttled the drain, so a simultaneous batch of
+ *  more than five detonations was split across ticks and its combo multiplier
+ *  broke. Because the shared queue is already bounded at MAX_DETONATION_QUEUE,
+ *  draining it whole still caps the per-tick burst — no separate throttle is
+ *  needed. Chain-reaction detonations are appended to the explosion system's
+ *  local work queue (bounded by MAX_CHAIN_DEPTH), not the shared queue, so this
+ *  value neither applies to nor limits chain reactions. */
+export const MAX_DETONATIONS_PER_TICK = MAX_DETONATION_QUEUE;
 
 // --- Ghost ---
 
@@ -218,9 +225,21 @@ export const POOL_PELLETS = 130;
 /** Maximum ghosts active simultaneously (level 3 max). */
 export const POOL_GHOSTS = 4;
 
-/** Maximum render intents per frame.
- *  Computed as: ghosts + bombs + fire tiles + pellets + player + wall cells.
- *  The wall cell budget (200) covers the 15×11=165 cell grid with headroom
- *  for larger maps. Once D-02 defines canonical map dimensions, this can be
- *  tightened to the exact maximum wall count. */
-export const MAX_RENDER_INTENTS = POOL_GHOSTS + POOL_MAX_BOMBS + POOL_FIRE + POOL_PELLETS + 1 + 200;
+/** Central maximum entity capacity (#263). The single source of truth for the
+ *  EntityStore's default `maxEntities` and the render-intent buffer size, so the
+ *  two can never drift. Comfortably exceeds the pooled prop budget
+ *  (ghosts + bombs + fire + pellets + player ≈ 225) plus wall cells. */
+export const MAX_ENTITIES = 550;
+
+/** Maximum render intents per frame. Sized to the full entity capacity so a
+ *  render intent slot exists for every possible entity — otherwise renderable
+ *  entities beyond the buffer are silently dropped by appendRenderIntentDirect
+ *  (vanishing sprites under high load, #263). MUST stay >= MAX_ENTITIES. */
+export const MAX_RENDER_INTENTS = MAX_ENTITIES;
+
+/** Grid tile size in CSS pixels — the single source of truth for the fixed
+ *  gameplay coordinate grid (#260). Mirrored by the `--tile-size` CSS custom
+ *  property in `styles/variables.css`; consumed by render-dom-system (tile→pixel
+ *  conversion) and the renderer adapter's board-fit fallback. Keep the CSS var
+ *  in sync if this changes. */
+export const TILE_SIZE_PX = 32;

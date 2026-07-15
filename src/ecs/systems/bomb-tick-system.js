@@ -10,7 +10,6 @@
  * - BOMB_TICK_PLAYER_REQUIRED_MASK: query mask for bomb-capable player entities.
  * - BOMB_TICK_BOMB_REQUIRED_MASK: query mask for pooled bomb entities.
  * - isActiveBomb(colliderStore, entityId): check whether a pooled bomb slot is live.
- * - createBombDetonationRequest(bombStore, entityId, frame): build queue payload.
  * - createBombTickSystem(options): create the logic-phase ECS system.
  *
  * Implementation notes:
@@ -31,7 +30,12 @@
 import { readEntityTile } from '../../shared/tile-utils.js';
 import { COMPONENT_MASK } from '../components/registry.js';
 import { COLLIDER_TYPE } from '../components/spatial.js';
-import { BOMB_FUSE_MS, DEFAULT_FIRE_RADIUS, MAX_DETONATION_QUEUE } from '../resources/constants.js';
+import {
+  BOMB_FUSE_MS,
+  DEFAULT_FIRE_RADIUS,
+  MAX_DETONATION_QUEUE,
+  MAX_FIRE_RADIUS,
+} from '../resources/constants.js';
 import {
   emitGameplayEvent,
   GAMEPLAY_EVENT_SOURCE,
@@ -204,11 +208,19 @@ function normalizeBombRadius(radius) {
 }
 
 /**
- * Resolve the largest meaningful bomb radius for a tile inside the current map.
+ * Resolve the largest in-bounds bomb radius for a tile inside the current map.
  *
- * Explosion arms stop at walls and bounds later, but clamping to the furthest
- * in-bounds cardinal direction prevents malformed upgrade state from creating
- * huge traversal loops or Uint8Array wraparound when copied into bomb storage.
+ * This is a defensive clamp on the *stored* radius value only; it is NOT what
+ * keeps fire inside the map. Fire propagation is halted at the map edge by the
+ * level geometry itself: every map's outer ring is indestructible wall, and
+ * getCell() returns CELL_TYPE.INDESTRUCTIBLE for any out-of-bounds read (see
+ * map-resource.js), so an explosion arm always stops at or before the boundary
+ * regardless of radius. The map-edge clamp computed here is therefore
+ * effectively a no-op for gameplay (BUG-12 / #243) — it is retained only as a
+ * cheap guard so a malformed/oversized radius cannot be written into the bomb
+ * store's typed array and cause a huge traversal loop or wraparound. The cap
+ * that actually bounds a normal upgrade is MAX_FIRE_RADIUS, applied in
+ * {@link readPlayerBombRadius} for fire-pool safety (BUG-07 / #234).
  *
  * @param {MapResource} mapResource - Map dimensions source.
  * @param {number} row - Bomb tile row.
@@ -237,25 +249,30 @@ function resolveMaxBombRadiusForMapTile(mapResource, row, col) {
 }
 
 /**
- * Resolve the player's current bomb radius against the active map bounds.
+ * Resolve the player's effective bomb radius for a placement tile.
  *
  * Missing or zero player fire radius falls back to the canonical default so
- * partially wired tests and recycled slots still place valid bombs. The final
- * value is clamped to the map because B6 explosions cannot affect tiles beyond
- * the loaded level dimensions.
+ * partially wired tests and recycled slots still place valid bombs. The value
+ * is then hard-capped at MAX_FIRE_RADIUS so a highly-upgraded (or malformed)
+ * fireRadius can never request more fire tiles than the pool holds (BUG-07 /
+ * #234): POOL_FIRE is sized for POOL_MAX_BOMBS bombs at MAX_FIRE_RADIUS each,
+ * and exceeding it makes the explosion system silently drop in-blast tiles.
+ * Finally the radius is clamped to the map as a defensive guard on the stored
+ * value (see {@link resolveMaxBombRadiusForMapTile}).
  *
  * @param {PlayerStore | null | undefined} playerStore - Player component store.
  * @param {number} entityId - Player entity slot to inspect.
  * @param {MapResource} mapResource - Map dimensions source.
  * @param {number} row - Bomb tile row.
  * @param {number} col - Bomb tile column.
- * @returns {number} Map-bounded non-negative explosion radius.
+ * @returns {number} Pool-safe, map-bounded non-negative explosion radius.
  */
 function readPlayerBombRadius(playerStore, entityId, mapResource, row, col) {
-  const radius = normalizeBombRadius(playerStore?.fireRadius?.[entityId] ?? DEFAULT_FIRE_RADIUS);
+  const rawRadius = normalizeBombRadius(playerStore?.fireRadius?.[entityId] ?? DEFAULT_FIRE_RADIUS);
+  const poolSafeRadius = Math.min(rawRadius, MAX_FIRE_RADIUS);
   const maxRadius = resolveMaxBombRadiusForMapTile(mapResource, row, col);
 
-  return Math.max(0, Math.min(radius, maxRadius));
+  return Math.max(0, Math.min(poolSafeRadius, maxRadius));
 }
 
 /**
@@ -381,7 +398,7 @@ function emitBombPlacedEvent(eventQueue, bombStore, bombEntityId, frame) {
  * @param {number} frame - Fixed-step frame index.
  * @returns {{ bombEntityId: number, chainDepth: number, frame: number, radius: number, row: number, col: number }}
  */
-export function createBombDetonationRequest(bombStore, entityId, frame) {
+function createBombDetonationRequest(bombStore, entityId, frame) {
   return {
     bombEntityId: entityId,
     chainDepth: 1,

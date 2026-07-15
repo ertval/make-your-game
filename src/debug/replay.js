@@ -4,9 +4,6 @@
  * and serializing/hashing world state to check for simulation drift or non-determinism.
  *
  * Public API:
- * - serializeWorldState(world)
- * - hashWorldState(world)
- * - ReplayInputAdapter
  * - ReplayRecorder
  * - runReplay(bootstrap, trace)
  */
@@ -21,7 +18,7 @@ import { FIXED_DT_MS } from '../ecs/resources/constants.js';
  * @param {World} world - The ECS world to serialize.
  * @returns {object} JSON-serializable representation of the world state.
  */
-export function serializeWorldState(world) {
+function serializeWorldState(world) {
   const state = {
     frame: world.frame,
     renderFrame: world.renderFrame,
@@ -249,7 +246,7 @@ export function serializeWorldState(world) {
  * @param {World} world - The ECS world to hash.
  * @returns {string} Hexadecimal hash code.
  */
-export function hashWorldState(world) {
+function hashWorldState(world) {
   const state = serializeWorldState(world);
   const json = JSON.stringify(state);
 
@@ -265,7 +262,7 @@ export function hashWorldState(world) {
 /**
  * Input adapter that feeds pre-recorded held/pressed inputs.
  */
-export class ReplayInputAdapter {
+class ReplayInputAdapter {
   constructor(trace) {
     this.trace = trace;
     this.index = 0;

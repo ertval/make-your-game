@@ -21,38 +21,6 @@ import fs from 'node:fs';
 import path from 'node:path';
 import process from 'node:process';
 
-// Checklist sections must stay in sync with docs/implementation/pr-template.md contract enforcement.
-export const REQUIRED_SECTIONS = [
-  'Layer boundary confirmation',
-  'What changed',
-  'Why',
-  'Tests',
-  'Audit questions affected',
-  'Security notes',
-  'Architecture / dependency notes',
-  'Risks',
-];
-
-export const REQUIRED_CHECKBOXES = [
-  'I read AGENTS.md and the agentic workflow guide',
-  'I ran `npm run policy` locally',
-  'I verified my branch name follows <owner-or-scope>/<TRACK>-<NN>[-<COMMENT>] (for example ekaramet/A-03 or asmyrogl/B-03-runtime-integration), or I marked the PR body with process for a GENERAL_DOCS_PROCESS branch',
-  'I confirmed changed files stay within the declared ticket track ownership scope',
-  'I ran the applicable local checks',
-  'I listed the audit IDs affected by this change',
-  'I checked security sinks and trust boundaries',
-  'I checked dependency and lockfile impact',
-  'I requested human review',
-];
-
-export const REQUIRED_LAYER_CHECKBOXES = [
-  '`src/ecs/systems/` has no DOM references except `render-dom-system.js`',
-  'Simulation systems access adapters only through World resources (no direct adapter imports)',
-  '`src/adapters/` owns DOM and browser I/O side effects',
-  'Untrusted UI content uses safe sinks (`textContent` / explicit attributes), not HTML injection',
-  'No framework imports or canvas APIs were introduced in this change',
-];
-
 // Generated changed-file context is written under a policy runtime folder to avoid repo-root artifact drift.
 export const DEFAULT_CHANGED_FILES_PATH = '.policy-runtime/changed-files.txt';
 
@@ -119,7 +87,7 @@ export const SECURITY_SINK_RULES = Object.freeze([
   { name: 'eval call', pattern: /\beval\s*\(/ },
   { name: 'Function constructor', pattern: /\bnew\s+Function\s*\(/ },
   { name: 'CommonJS require', pattern: /\brequire\s*\(/ },
-  { name: 'var declaration', pattern: /^\s*var\s+[A-Za-z_$][\w$]*/m },
+  { name: 'var declaration', pattern: /(?:^|[;(){}\s])var\s+[A-Za-z_$]/m },
   { name: 'XMLHttpRequest API', pattern: /\bnew\s+XMLHttpRequest\s*\(/ },
   { name: 'string setTimeout', pattern: /setTimeout\s*\(\s*['"]/ },
   { name: 'string setInterval', pattern: /setInterval\s*\(\s*['"]/ },
@@ -319,14 +287,6 @@ export const TRACK_OWNERSHIP_RULES = {
       'package.json',
       'LICENSE',
       'assets/generated/alternatives/**',
-      'assets/generated/sprites/**',
-      'assets/generated/ui/**',
-      'assets/generated/visuals/**',
-      'assets/source/visual/**',
-      'assets/maps/**',
-      'assets/manifests/visual-manifest.json',
-      'docs/schemas/map.schema.json',
-      'docs/schemas/visual-manifest.schema.json',
       'index.html',
       'vite.config.js',
       'vitest.config.js',
@@ -351,7 +311,6 @@ export const TRACK_OWNERSHIP_RULES = {
       'src/ecs/components/actors.js',
       'src/ecs/components/props.js',
       'src/ecs/components/stats.js',
-      'src/ecs/components/visual.js',
       'src/adapters/io/input-adapter.js',
       'src/ecs/systems/input-system.js',
       'src/ecs/systems/player-move-*.js',
@@ -367,7 +326,6 @@ export const TRACK_OWNERSHIP_RULES = {
       'tests/unit/components/actors.test.js',
       'tests/unit/components/props.test.js',
       'tests/unit/components/stats.test.js',
-      'tests/unit/components/visual.test.js',
       'tests/unit/systems/input-system.test.js',
       'tests/unit/systems/player-*.test.js',
       'tests/unit/systems/collision-*.test.js',

@@ -270,8 +270,11 @@ function activateFireSlot(
 /**
  * Ensure a fire tile exists at the requested coordinate.
  *
- * If the pool is exhausted, the system drops the visual/damage tile quietly
- * rather than allocating during gameplay or throwing out of the system tick.
+ * Reports whether the tile is covered so the caller can surface pool exhaustion
+ * instead of losing an in-blast damage tile silently. A tile that already has
+ * active fire counts as covered. The pool is never grown during gameplay, so an
+ * exhausted pool returns `false` rather than allocating or throwing (BUG-07 /
+ * #234); radius is clamped in bomb-tick so a normal blast never reaches this.
  *
  * @param {number[]} fireEntityIds - Queried pooled fire entity ids.
  * @param {FireStore} fireStore - Mutable fire component store.
@@ -281,6 +284,8 @@ function activateFireSlot(
  * @param {number} col - Fire tile column.
  * @param {number} sourceBombId - Bomb entity that produced this fire tile.
  * @param {number} chainDepth - Chain depth associated with this fire tile.
+ * @returns {boolean} True when the tile is covered by fire; false when the pool
+ *   was exhausted and the tile was dropped.
  */
 function ensureFireAtTile(
   fireEntityIds,
@@ -293,12 +298,12 @@ function ensureFireAtTile(
   chainDepth,
 ) {
   if (hasActiveFireAtTile(fireEntityIds, colliderStore, positionStore, row, col)) {
-    return;
+    return true;
   }
 
   const fireEntityId = findInactiveFireSlot(fireEntityIds, colliderStore);
   if (fireEntityId < 0) {
-    return;
+    return false;
   }
 
   activateFireSlot(
@@ -311,6 +316,7 @@ function ensureFireAtTile(
     sourceBombId,
     chainDepth,
   );
+  return true;
 }
 
 /**
@@ -553,7 +559,7 @@ function resolveExplosionTile(context) {
   }
 
   if (result.createFire) {
-    ensureFireAtTile(
+    const firePlaced = ensureFireAtTile(
       fireEntityIds,
       fireStore,
       positionStore,
@@ -563,6 +569,12 @@ function resolveExplosionTile(context) {
       sourceBombId,
       chainDepth,
     );
+    if (!firePlaced) {
+      // Aggregate exhaustion across the whole tick so the system update can log
+      // one developer warning instead of losing this in-blast tile silently
+      // (BUG-07 / #234).
+      context.firePoolDropCount += 1;
+    }
     queueChainedBombAtTile(context);
   }
 
@@ -648,14 +660,18 @@ function resolveDetonationGeometry({
 /**
  * Seed the local iterative work queue from the shared detonation queue.
  *
- * At most MAX_DETONATIONS_PER_TICK requests are drained per tick (BUG-07); any
- * remainder is left at the head of the shared queue and processed on subsequent
- * ticks. This smooths a post-quarantine backlog so it cannot all fire in one
- * tick, which could otherwise starve the fire pool or spike a frame. Drained
- * requests are removed from the shared queue so a later system inspecting the
- * same resource never reprocesses them. Chain-reaction detonations are appended
- * to the local work queue (not the shared queue), so the per-tick cap applies
- * only to this seed drain and never throttles or breaks chain reactions.
+ * The whole shared queue is drained each tick: MAX_DETONATIONS_PER_TICK is sized
+ * to the queue's hard bound (MAX_DETONATION_QUEUE), so every detonation queued
+ * for this tick is seeded together and resolves in one pass. That keeps the
+ * single-tick combo multiplier correct when more than POOL_MAX_BOMBS bombs
+ * detonate at once (BUG-08 / #242); an earlier, smaller cap split such a batch
+ * across ticks and broke the combo. The head-drain / remainder-carry logic
+ * below is kept as a defensive general case (it only carries anything if the cap
+ * were ever set below the queue bound); today the remainder is always empty.
+ * Drained requests are removed from the shared queue so a later system
+ * inspecting the same resource never reprocesses them. Chain-reaction
+ * detonations are appended to the local work queue (not the shared queue), so
+ * they are never throttled here.
  *
  * @param {Array<object>} bombDetonationQueue - Shared detonation queue resource.
  * @param {Array<object>} workQueue - Reusable local work queue scratch array.
@@ -719,6 +735,9 @@ function processDetonationWorkQueue({
 }) {
   processedBombIds.clear();
   queuedBombIds.clear();
+  // Reset the per-tick fire-pool exhaustion counter; resolveExplosionTile
+  // increments it as tiles are dropped so update() can warn once (BUG-07 / #234).
+  tileContext.firePoolDropCount = 0;
 
   for (const detonation of workQueue) {
     queuedBombIds.add(detonation.bombEntityId);
@@ -852,6 +871,17 @@ export function createExplosionSystem(options = {}) {
         tileContext: reusableTileContext,
         workQueue: takeDetonationWorkQueue(bombDetonationQueue, reusableWorkQueue),
       });
+
+      // Surface fire-pool exhaustion as a single developer warning instead of a
+      // silent per-tile drop (BUG-07 / #234). Radius is clamped to
+      // MAX_FIRE_RADIUS in bomb-tick, so reaching this path means more
+      // concurrent detonations than POOL_FIRE was sized for.
+      if (reusableTileContext.firePoolDropCount > 0) {
+        console.warn(
+          `explosion-system: fire pool exhausted, dropped ${reusableTileContext.firePoolDropCount} ` +
+            'in-blast fire tile(s) this tick (BUG-07 / #234).',
+        );
+      }
     },
   };
 }

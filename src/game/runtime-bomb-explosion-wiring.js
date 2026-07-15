@@ -69,12 +69,24 @@ function ensureWorldResource(world, resourceKey, createResource) {
  * @param {World} world - ECS world receiving the entity.
  * @param {ColliderStore} colliderStore - Collider store to initialize.
  * @param {number} mask - Component mask for the pooled entity.
+ * @param {(entityId: number) => void} [resetSlot] - Optional per-slot store reset.
  * @returns {{ id: number, generation: number }} Created entity handle.
  */
-function createInactivePooledPropEntity(world, colliderStore, mask) {
+function createInactivePooledPropEntity(world, colliderStore, mask, resetSlot) {
   const entity = world.createEntity(mask);
 
   colliderStore.type[entity.id] = COLLIDER_TYPE.NONE;
+
+  // BUG-11: A same-level restart destroys every entity and rebuilds the pool
+  // from recycled ids, so this slot's bomb/fire SoA lanes may still hold a prior
+  // owner's fuse/burn/chain values (or the store's initial fill). Zero them here
+  // — mirroring deactivateAllBombsAndFire — so an inactive pooled slot never
+  // leaks stale prop state into a system that reads a lane without first
+  // checking the active collider mask.
+  if (typeof resetSlot === 'function') {
+    resetSlot(entity.id);
+  }
+
   return entity;
 }
 
@@ -86,9 +98,11 @@ function createInactivePooledPropEntity(world, colliderStore, mask) {
  * @param {ColliderStore} colliderStore - Collider store for inactive setup.
  * @param {number} count - Number of pooled entities.
  * @param {number} mask - Component mask assigned to each pooled entity.
+ * @param {(entityId: number) => void} [resetSlot] - Optional per-slot store reset
+ *   applied when a fresh pool is (re)built from recycled entity ids.
  * @returns {Array<{ id: number, generation: number }>} Stable pool handles.
  */
-function ensurePooledPropEntities(world, poolResourceKey, colliderStore, count, mask) {
+function ensurePooledPropEntities(world, poolResourceKey, colliderStore, count, mask, resetSlot) {
   const existingPool = world.getResource(poolResourceKey);
   if (
     Array.isArray(existingPool) &&
@@ -100,7 +114,7 @@ function ensurePooledPropEntities(world, poolResourceKey, colliderStore, count, 
 
   const pool = [];
   for (let index = 0; index < count; index += 1) {
-    pool.push(createInactivePooledPropEntity(world, colliderStore, mask));
+    pool.push(createInactivePooledPropEntity(world, colliderStore, mask, resetSlot));
   }
 
   world.setResource(poolResourceKey, pool);
@@ -175,8 +189,8 @@ export function initializeBombExplosionResources(world, options = {}) {
     createColliderStore(maxEntities),
   );
   ensureWorldResource(world, positionResourceKey, () => createPositionStore(maxEntities));
-  ensureWorldResource(world, bombResourceKey, () => createBombStore(maxEntities));
-  ensureWorldResource(world, fireResourceKey, () => createFireStore(maxEntities));
+  const bombStore = ensureWorldResource(world, bombResourceKey, () => createBombStore(maxEntities));
+  const fireStore = ensureWorldResource(world, fireResourceKey, () => createFireStore(maxEntities));
   ensureWorldResource(world, rngResourceKey, () => createRNG(options.seed || 42));
   ensureWorldResource(world, bombDetonationQueueResourceKey, () => []);
 
@@ -186,6 +200,12 @@ export function initializeBombExplosionResources(world, options = {}) {
     colliderStore,
     POOL_MAX_BOMBS,
     COMPONENT_MASK.BOMB | COMPONENT_MASK.POSITION | COMPONENT_MASK.COLLIDER,
+    // BUG-11: an inactive pooled bomb has no live fuse and no owner. Mirrors the
+    // per-slot state deactivateAllBombsAndFire enforces on a level transition.
+    (id) => {
+      bombStore.fuseMs[id] = 0;
+      bombStore.ownerId[id] = -1;
+    },
   );
   ensurePooledPropEntities(
     world,
@@ -193,6 +213,13 @@ export function initializeBombExplosionResources(world, options = {}) {
     colliderStore,
     POOL_FIRE,
     COMPONENT_MASK.FIRE | COMPONENT_MASK.POSITION | COMPONENT_MASK.COLLIDER,
+    // BUG-11: an inactive pooled fire tile has no burn timer, source, or chain
+    // depth. Mirrors deactivateAllBombsAndFire's per-slot reset.
+    (id) => {
+      fireStore.burnTimerMs[id] = 0;
+      fireStore.sourceBombId[id] = -1;
+      fireStore.chainDepth[id] = 0;
+    },
   );
 }
 

@@ -17,17 +17,34 @@ export function hasAllComponents(entityMask, requiredMask) {
 export class QueryIndex {
   constructor() {
     this.entityMasks = [];
+    this.cache = new Map();
+    this.version = 0;
   }
 
   setMask(entityId, mask) {
     this.entityMasks[entityId] = mask >>> 0;
+    this.version += 1;
   }
 
   getMask(entityId) {
     return this.entityMasks[entityId] ?? 0;
   }
 
+  clearCache() {
+    this.version += 1;
+  }
+
   match(requiredMask, entityIds) {
+    let entry = this.cache.get(requiredMask);
+    if (!entry) {
+      entry = { version: -1, matches: [] };
+      this.cache.set(requiredMask, entry);
+    }
+
+    if (entry.version === this.version) {
+      return entry.matches;
+    }
+
     const matches = [];
 
     for (const entityId of entityIds) {
@@ -37,6 +54,8 @@ export class QueryIndex {
       }
     }
 
-    return matches;
+    entry.matches = matches;
+    entry.version = this.version;
+    return entry.matches;
   }
 }

@@ -7,7 +7,7 @@
  * because B6 only emits chain metadata; scoring authority belongs to Track C.
  */
 
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import { createBombStore, createFireStore } from '../../../src/ecs/components/props.js';
 import { COMPONENT_MASK } from '../../../src/ecs/components/registry.js';
@@ -22,6 +22,9 @@ import {
   FIRE_DURATION_MS,
   MAX_CHAIN_DEPTH,
   MAX_DETONATIONS_PER_TICK,
+  MAX_FIRE_RADIUS,
+  POOL_FIRE,
+  POOL_MAX_BOMBS,
   POWER_UP_DROP_CHANCES,
 } from '../../../src/ecs/resources/constants.js';
 import { createEventQueue, drain } from '../../../src/ecs/resources/event-queue.js';
@@ -152,7 +155,7 @@ function addInactiveFireSlot(world, colliderStore) {
  * Build a minimal world harness for explosion-system tests.
  *
  * @param {Array<[number, number, number]>} [mapOverrides] - Optional map cell overrides.
- * @param {{ fireSlotCount?: number }} [options] - Optional pool sizing overrides.
+ * @param {{ fireSlotCount?: number, storeSize?: number }} [options] - Optional pool sizing overrides.
  * @returns {{
  *   bombDetonationQueue: Array<object>,
  *   bombStore: BombStore,
@@ -170,10 +173,11 @@ function createExplosionHarness(mapOverrides = [], options = {}) {
   const world = new World();
   const system = createExplosionSystem();
   const mapResource = createMapResource(createExplosionRawMap(mapOverrides));
-  const positionStore = createPositionStore(32);
-  const colliderStore = createColliderStore(32);
-  const bombStore = createBombStore(32);
-  const fireStore = createFireStore(32);
+  const storeSize = options.storeSize ?? 32;
+  const positionStore = createPositionStore(storeSize);
+  const colliderStore = createColliderStore(storeSize);
+  const bombStore = createBombStore(storeSize);
+  const fireStore = createFireStore(storeSize);
   const bombDetonationQueue = [];
   const eventQueue = createEventQueue();
   const fireSlots = [];
@@ -721,10 +725,10 @@ describe('explosion-system chain reactions', () => {
   });
 });
 
-describe('explosion-system per-tick detonation cap (BUG-07)', () => {
+describe('explosion-system single-tick detonation drain (BUG-08 / #242)', () => {
   // Seed N independent root bombs on separate, mutually non-overlapping tiles so
   // each detonation is its own root (chainDepth 1) and none chains into another.
-  // This isolates the per-tick seed-drain cap from chain-reaction behavior.
+  // This isolates the seed drain from chain-reaction behavior.
   function seedIndependentDetonations(harness, count) {
     for (let index = 0; index < count; index += 1) {
       const row = 1 + index;
@@ -742,46 +746,130 @@ describe('explosion-system per-tick detonation cap (BUG-07)', () => {
     }
   }
 
-  it('processes at most MAX_DETONATIONS_PER_TICK seed detonations per tick', () => {
+  it('detonates six same-tick bombs together instead of splitting the combo across ticks', () => {
     const harness = createExplosionHarness();
-    const backlog = MAX_DETONATIONS_PER_TICK + 3;
+    const detonations = 6; // one more than the old MAX_DETONATIONS_PER_TICK cap (5)
 
-    seedIndependentDetonations(harness, backlog);
+    seedIndependentDetonations(harness, detonations);
     harness.system.update({ dtMs: 0, frame: 0, world: harness.world });
 
-    // Exactly the cap was drained this tick; the remainder is carried over.
-    expect(drain(harness.eventQueue)).toHaveLength(MAX_DETONATIONS_PER_TICK);
-    expect(harness.bombDetonationQueue).toHaveLength(backlog - MAX_DETONATIONS_PER_TICK);
-  });
-
-  it('carries the remaining detonations to subsequent ticks in order', () => {
-    const harness = createExplosionHarness();
-    const backlog = MAX_DETONATIONS_PER_TICK + 2;
-
-    seedIndependentDetonations(harness, backlog);
-    const orderedBombIds = harness.bombDetonationQueue.map((request) => request.bombEntityId);
-
-    harness.system.update({ dtMs: 0, frame: 0, world: harness.world });
-    const firstTickIds = drain(harness.eventQueue).map((event) => event.payload.entityId);
-
-    harness.system.update({ dtMs: 0, frame: 1, world: harness.world });
-    const secondTickIds = drain(harness.eventQueue).map((event) => event.payload.entityId);
-
-    // FIFO drain: first MAX_DETONATIONS_PER_TICK on tick 0, then the remainder.
-    expect(firstTickIds).toEqual(orderedBombIds.slice(0, MAX_DETONATIONS_PER_TICK));
-    expect(secondTickIds).toEqual(orderedBombIds.slice(MAX_DETONATIONS_PER_TICK));
+    // Every queued detonation resolves on this single tick with nothing carried
+    // over, so a downstream combo scorer applies one shared multiplier to all six.
+    const detonatedIds = drain(harness.eventQueue)
+      .filter((event) => event.type === GAMEPLAY_EVENT_TYPE.BOMB_DETONATED)
+      .map((event) => event.payload.entityId);
+    expect(detonatedIds).toHaveLength(detonations);
     expect(harness.bombDetonationQueue).toHaveLength(0);
   });
 
-  it('keeps normal-load detonations (<= cap) unchanged in a single tick', () => {
-    const harness = createExplosionHarness();
+  it('drains the entire bounded detonation queue (MAX_DETONATIONS_PER_TICK) in one tick', () => {
+    // A small fire pool keeps every entity id within the shared component-store
+    // capacity; this test only asserts detonation draining, not fire coverage.
+    const harness = createExplosionHarness([], { fireSlotCount: 5 });
 
     seedIndependentDetonations(harness, MAX_DETONATIONS_PER_TICK);
     harness.system.update({ dtMs: 0, frame: 0, world: harness.world });
 
-    // A full-but-not-overflowing batch drains entirely with nothing carried.
-    expect(drain(harness.eventQueue)).toHaveLength(MAX_DETONATIONS_PER_TICK);
+    const detonated = drain(harness.eventQueue).filter(
+      (event) => event.type === GAMEPLAY_EVENT_TYPE.BOMB_DETONATED,
+    );
+    expect(detonated).toHaveLength(MAX_DETONATIONS_PER_TICK);
     expect(harness.bombDetonationQueue).toHaveLength(0);
+  });
+});
+
+describe('explosion-system fire-pool exhaustion (BUG-07 / #234)', () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  // Fully-open map (indestructible border, pellet interior) large enough to hold
+  // non-overlapping radius-MAX_FIRE_RADIUS crosses without clipping any arm. Only
+  // rows/cols/grid are needed: the explosion system reads cells via getCell and
+  // never mutates a pellet, so no grid2D or full createMapResource is required.
+  function createOpenMapResource(rows, cols) {
+    const grid = new Uint8Array(rows * cols);
+    for (let row = 0; row < rows; row += 1) {
+      for (let col = 0; col < cols; col += 1) {
+        const border = row === 0 || row === rows - 1 || col === 0 || col === cols - 1;
+        grid[row * cols + col] = border ? CELL_TYPE.INDESTRUCTIBLE : CELL_TYPE.PELLET;
+      }
+    }
+    return { rows, cols, grid };
+  }
+
+  // Place `count` radius-MAX_FIRE_RADIUS bombs on a shared row, spaced so their
+  // crosses are disjoint, and queue each as an independent root detonation. Each
+  // cross covers MAX_FIRE_RADIUS * 4 + 1 tiles (POOL_FIRE_PER_BOMB).
+  function seedMaxRadiusCrosses(harness, count) {
+    const row = 5; // 4 interior rows above and below in an 11-row map
+    const bombs = [];
+    for (let index = 0; index < count; index += 1) {
+      const col = 5 + index * (MAX_FIRE_RADIUS * 2 + 1); // spacing keeps arms disjoint
+      const bomb = addActiveBomb(
+        harness.world,
+        harness.positionStore,
+        harness.colliderStore,
+        harness.bombStore,
+        row,
+        col,
+        MAX_FIRE_RADIUS,
+      );
+      queueDetonation(harness.bombDetonationQueue, bomb, harness.bombStore);
+      bombs.push(bomb);
+    }
+    return bombs;
+  }
+
+  it('covers a full clamped-maximum blast without skipping any inner-radius tile', () => {
+    const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const harness = createExplosionHarness([], { storeSize: 128, fireSlotCount: POOL_FIRE });
+    harness.world.setResource('mapResource', createOpenMapResource(11, 56));
+
+    const bombs = seedMaxRadiusCrosses(harness, POOL_MAX_BOMBS);
+    harness.system.update({ dtMs: 0, frame: 0, world: harness.world });
+
+    // POOL_MAX_BOMBS * POOL_FIRE_PER_BOMB === POOL_FIRE, so every requested tile
+    // fits: nothing is dropped and no warning is emitted.
+    const tiles = readActiveFireTiles(
+      harness.fireSlots,
+      harness.colliderStore,
+      harness.positionStore,
+    );
+    expect(tiles).toHaveLength(POOL_FIRE);
+    // Every bomb's center (the innermost tile) got a slot — no damage-free zones.
+    for (const bomb of bombs) {
+      expect(
+        findActiveFireAtTile(
+          harness.fireSlots,
+          harness.colliderStore,
+          harness.positionStore,
+          harness.bombStore.row[bomb.id],
+          harness.bombStore.col[bomb.id],
+        ),
+      ).not.toBeNull();
+    }
+    expect(warnSpy).not.toHaveBeenCalled();
+  });
+
+  it('logs a developer warning instead of silently dropping tiles when a blast exceeds the pool', () => {
+    const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const harness = createExplosionHarness([], { storeSize: 128, fireSlotCount: POOL_FIRE });
+    // Six disjoint crosses request 6 * POOL_FIRE_PER_BOMB tiles > POOL_FIRE.
+    harness.world.setResource('mapResource', createOpenMapResource(11, 65));
+
+    seedMaxRadiusCrosses(harness, POOL_MAX_BOMBS + 1);
+    harness.system.update({ dtMs: 0, frame: 0, world: harness.world });
+
+    // Deterministic handling: the pool fills to capacity (never past it) and the
+    // exhaustion is surfaced as a developer warning rather than a silent drop.
+    const tiles = readActiveFireTiles(
+      harness.fireSlots,
+      harness.colliderStore,
+      harness.positionStore,
+    );
+    expect(tiles).toHaveLength(POOL_FIRE);
+    expect(warnSpy).toHaveBeenCalledTimes(1);
   });
 });
 

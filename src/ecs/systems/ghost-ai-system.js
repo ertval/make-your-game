@@ -74,6 +74,18 @@ const DEFAULT_RNG_RESOURCE_KEY = 'rng';
 const MOVEMENT_EPSILON = 1e-9;
 
 /**
+ * Arrival tolerance (in tiles) for the DEAD→NORMAL respawn handoff.
+ *
+ * A DEAD ghost's eyes navigate home tile-by-tile and snap onto each tile
+ * center, so at the spawn tile the residual offset is only floating-point
+ * drift. This window absorbs that drift while staying far below the half-tile
+ * (0.5) occupancy boundary: the old `Math.round` gate revived at spawn ± ~0.5,
+ * cutting the return path short. A ghost genuinely still traveling (e.g. half a
+ * tile out) falls well outside this window and stays DEAD.
+ */
+const SPAWN_ARRIVAL_TOLERANCE = 0.01;
+
+/**
  * Module-level scratch set for the released-ghost lookup. Reused (cleared +
  * refilled) every frame instead of allocating `new Set(...)` per tick, which
  * created steady GC pressure in the hot simulation loop (BUG-10). It is safe as
@@ -647,6 +659,13 @@ function isGhostAtTarget(positionStore, ghostId) {
   );
 }
 
+function isGhostAtSpawnTile(positionStore, ghostId, mapResource) {
+  return (
+    Math.abs(positionStore.row[ghostId] - mapResource.ghostSpawnRow) <= SPAWN_ARRIVAL_TOLERANCE &&
+    Math.abs(positionStore.col[ghostId] - mapResource.ghostSpawnCol) <= SPAWN_ARRIVAL_TOLERANCE
+  );
+}
+
 function startGhostMove(positionStore, velocityStore, ghostId, ghostTile, direction) {
   const vector = GHOST_DIRECTION_VECTOR[direction];
   positionStore.row[ghostId] = ghostTile.row;
@@ -848,12 +867,20 @@ export function createGhostAiSystem(options = {}) {
         // re-released it (the 5-second penalty delay completed). Gating on
         // "at spawn point" avoids reviving a just-killed ghost that is still
         // present in `releasedGhostIds` before C-03's next-tick prune.
+        //
+        // BUG-18: match the spawn tile within a narrow arrival tolerance rather
+        // than exact `===` equality. Interpolated movement can leave the stored
+        // position a floating-point fraction shy of the (integer) spawn tile,
+        // and strict equality would strand the eyes circling the spawn point
+        // forever. The tolerance only absorbs that drift — it must NOT accept
+        // positions a meaningful fraction of a tile away (an earlier
+        // `Math.round` check revived at spawn ± ~0.5, cutting the return path
+        // short). See SPAWN_ARRIVAL_TOLERANCE.
         if (
           releasedGhostSet &&
           ghostStore.state?.[ghostId] === GHOST_STATE.DEAD &&
           releasedGhostSet.has(ghostId) &&
-          positionStore.row[ghostId] === mapResource.ghostSpawnRow &&
-          positionStore.col[ghostId] === mapResource.ghostSpawnCol
+          isGhostAtSpawnTile(positionStore, ghostId, mapResource)
         ) {
           restoreReleasedDeadGhost(ghostStore, positionStore, velocityStore, ghostId, mapResource);
           continue;
