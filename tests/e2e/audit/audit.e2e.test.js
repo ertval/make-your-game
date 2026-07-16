@@ -96,6 +96,8 @@ describe('Audit executable verification contract (non-browser checks)', () => {
     const manifest = readJson(MANUAL_EVIDENCE_MANIFEST_FILE);
     const entries = Array.isArray(manifest.entries) ? manifest.entries : [];
 
+    const evidenceValidAsOf = new Date('2026-06-23');
+
     for (const auditId of MANUAL_EVIDENCE_AUDIT_IDS) {
       const entry = entries.find((candidate) => candidate.auditId === auditId);
       expect(entry).toBeDefined();
@@ -103,10 +105,36 @@ describe('Audit executable verification contract (non-browser checks)', () => {
       expect(Array.isArray(entry.requiredArtifacts)).toBe(true);
       expect(entry.requiredArtifacts.length).toBeGreaterThan(0);
 
+      // Verify signOff structure, date recency, and that notes don't have outdated phase labels
+      expect(entry.signOff).toBeDefined();
+      expect(typeof entry.signOff.reviewer).toBe('string');
+      expect(entry.signOff.reviewer.length).toBeGreaterThan(0);
+      expect(entry.signOff.date).toBeDefined();
+      const signOffDate = new Date(entry.signOff.date);
+      expect(signOffDate.getTime()).toBeGreaterThanOrEqual(evidenceValidAsOf.getTime());
+
+      expect(entry.signOff.notes).toBeDefined();
+      expect(entry.signOff.notes).not.toContain('Phase 2 MVP');
+      expect(entry.signOff.notes).not.toContain('Phase 2');
+      expect(entry.signOff.notes).not.toContain('Phase 1');
+
       for (const artifact of entry.requiredArtifacts) {
         expect(typeof artifact.path).toBe('string');
         expect(artifact.path.length).toBeGreaterThan(0);
-        expect(fs.existsSync(path.resolve(PROJECT_ROOT, artifact.path))).toBe(true);
+        const resolvedPath = path.resolve(PROJECT_ROOT, artifact.path);
+        expect(fs.existsSync(resolvedPath)).toBe(true);
+
+        // Verify content does not contain outdated labels for text-based artifacts
+        if (
+          artifact.path.endsWith('.md') ||
+          artifact.path.endsWith('.txt') ||
+          artifact.path.endsWith('.json')
+        ) {
+          const content = fs.readFileSync(resolvedPath, 'utf8');
+          expect(content).not.toContain('Phase 2 MVP');
+          expect(content).not.toContain('Phase 2');
+          expect(content).not.toContain('Phase 1');
+        }
       }
     }
   });

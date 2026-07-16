@@ -717,6 +717,8 @@ async function verifyAuditExecutionObligations() {
   const manifest = readJson(manifestAbsolutePath);
   const entries = Array.isArray(manifest.entries) ? manifest.entries : [];
 
+  const evidenceValidAsOf = new Date('2026-06-23');
+
   for (const auditId of manualEvidenceIds) {
     const entry = entries.find((candidate) => candidate.auditId === auditId);
     if (!entry) {
@@ -746,6 +748,47 @@ async function verifyAuditExecutionObligations() {
       );
     }
 
+    if (!entry.signOff || typeof entry.signOff !== 'object') {
+      throw new Error(
+        [
+          `Missing sign-off details for ${auditId} in ${manifestPath}.`,
+          'Action: Add signOff with reviewer, date, and notes to the manifest entry.',
+        ].join('\n'),
+      );
+    }
+
+    if (!entry.signOff.date) {
+      throw new Error(
+        [
+          `Missing sign-off date for ${auditId} in ${manifestPath}.`,
+          'Action: Provide a valid date for the sign-off.',
+        ].join('\n'),
+      );
+    }
+
+    const signOffDate = new Date(entry.signOff.date);
+    if (
+      Number.isNaN(signOffDate.getTime()) ||
+      signOffDate.getTime() < evidenceValidAsOf.getTime()
+    ) {
+      throw new Error(
+        [
+          `Outdated or invalid sign-off date "${entry.signOff.date || ''}" for ${auditId} in ${manifestPath}.`,
+          `Action: Update the sign-off date. It must be >= 2026-06-23.`,
+        ].join('\n'),
+      );
+    }
+
+    const notes = entry.signOff.notes || '';
+    if (notes.includes('Phase 2 MVP') || notes.includes('Phase 2') || notes.includes('Phase 1')) {
+      throw new Error(
+        [
+          `Stale phase labels found in sign-off notes for ${auditId} in ${manifestPath}: "${notes}"`,
+          'Action: Update the notes to refer to the current phase and remove references to stale Phase 1/2 builds.',
+        ].join('\n'),
+      );
+    }
+
     for (const artifact of entry.requiredArtifacts) {
       const artifactPath = typeof artifact?.path === 'string' ? artifact.path : '';
       if (!artifactPath) {
@@ -757,13 +800,34 @@ async function verifyAuditExecutionObligations() {
         );
       }
 
-      if (!fs.existsSync(path.resolve(artifactPath))) {
+      const resolvedPath = path.resolve(artifactPath);
+      if (!fs.existsSync(resolvedPath)) {
         throw new Error(
           [
             `Missing manual evidence artifact for ${auditId}: ${artifactPath}.`,
             'Action: Add the referenced artifact file or fix the artifact path.',
           ].join('\n'),
         );
+      }
+
+      if (
+        artifactPath.endsWith('.md') ||
+        artifactPath.endsWith('.txt') ||
+        artifactPath.endsWith('.json')
+      ) {
+        const content = fs.readFileSync(resolvedPath, 'utf8');
+        if (
+          content.includes('Phase 2 MVP') ||
+          content.includes('Phase 2') ||
+          content.includes('Phase 1')
+        ) {
+          throw new Error(
+            [
+              `Stale phase label found in manual evidence file ${artifactPath} for ${auditId}.`,
+              'Action: Update the file content to remove references to outdated Phase 1/2 builds.',
+            ].join('\n'),
+          );
+        }
       }
     }
   }
