@@ -8,6 +8,14 @@
 [![CI](https://img.shields.io/github/actions/workflow/status/ertval/make-your-game/deploy.yml?style=flat-square&logo=github&logoColor=white)]()
 [![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen?style=flat-square)]()
 
+---
+
+**Problem:** Developing high-performance browser games using traditional rendering loops often introduces heavy CPU overhead, layout thrashing, and frame-time spikes that drop frame rates below 60 FPS.
+
+**Solution:** A data-oriented Entity-Component-System (ECS) engine in pure JavaScript that recycles DOM nodes and batches reads/writes via a dedicated frame pipeline—rendering 60 FPS without canvas or external frameworks.
+
+---
+
 A pure-JS Entity-Component-System game engine demonstrating data-oriented browser architecture. Built as an educational reference for ECS patterns — no canvas, no frameworks, 60 FPS DOM rendering with strict performance budgets.
 
 > **Pac-Man × Bomberman** — Eat every pellet. Bomb every wall. Survive every ghost. Built purely with **Entity-Component-System (ECS)** architecture. 
