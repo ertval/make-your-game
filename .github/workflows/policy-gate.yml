@@ -66,10 +66,20 @@ jobs:
           set -euo pipefail
           npm run test:unit
 
+      - name: Run Coverage Tests
+        run: |
+          set -euo pipefail
+          npm run test:coverage
+
       - name: Install Playwright browsers
         run: |
           set -euo pipefail
           npx playwright install --with-deps chromium
+
+      - name: Run E2E Tests
+        run: |
+          set -euo pipefail
+          npm run test:e2e
 
       - name: Run Full-Repo Security Scan
         run: |

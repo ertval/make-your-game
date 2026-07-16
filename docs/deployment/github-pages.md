@@ -38,3 +38,11 @@ Dynamic fetches (such as loading map configurations and audio clip manifests) pr
 - **Local Run**: Serves from `/` (e.g., `http://localhost:5173/`).
 - **Production Build**: Relies on `import.meta.env.BASE_URL` dynamically set at build-time.
 - **Local Preview**: You can preview the production bundle locally with `npm run preview`.
+
+## Security Posture & Clickjacking Defense
+
+Because static hosting targets like GitHub Pages do not support custom server headers, certain Content Security Policy (CSP) directives like `frame-ancestors 'none'` (which are ignored when specified in `<meta http-equiv>` tags) cannot be enforced at the server layer.
+
+To prevent clickjacking on static deployments:
+1. **Frame-Busting Script**: A lightweight JavaScript frame-buster at [frame-busting.js](file:///home/ertval/code/zone-modules/make-your-game/src/security/frame-busting.js) is loaded at the very top of `<head>` in [index.html](file:///home/ertval/code/zone-modules/make-your-game/index.html). If the page is loaded in an iframe (`window.self !== window.top`), it redirects the parent window to the game's URL (`window.top.location = window.self.location.href`).
+2. **Static Headers Fallback**: Platforms like Netlify or Cloudflare Pages that *do* support custom headers are provided with a `public/_headers` configuration file that sets full clickjacking and CSP security headers.

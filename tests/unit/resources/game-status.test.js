@@ -73,6 +73,16 @@ describe('game-status', () => {
     expect(gameOverStatus.currentState).toBe(GAME_STATE.MENU);
   });
 
+  it('allows PAUSED → MENU and LEVEL_COMPLETE → MENU', () => {
+    const pausedStatus = createGameStatus(GAME_STATE.PAUSED);
+    transitionTo(pausedStatus, GAME_STATE.MENU);
+    expect(pausedStatus.currentState).toBe(GAME_STATE.MENU);
+
+    const levelCompleteStatus = createGameStatus(GAME_STATE.LEVEL_COMPLETE);
+    transitionTo(levelCompleteStatus, GAME_STATE.MENU);
+    expect(levelCompleteStatus.currentState).toBe(GAME_STATE.MENU);
+  });
+
   it('rejects invalid transitions', () => {
     const status = createGameStatus(GAME_STATE.MENU);
     expect(() => transitionTo(status, GAME_STATE.PAUSED)).toThrow();
@@ -109,8 +119,8 @@ describe('game-status', () => {
         GAME_STATE.GAME_OVER,
         GAME_STATE.VICTORY,
       ],
-      [GAME_STATE.PAUSED]: [GAME_STATE.PLAYING],
-      [GAME_STATE.LEVEL_COMPLETE]: [GAME_STATE.PLAYING, GAME_STATE.VICTORY],
+      [GAME_STATE.PAUSED]: [GAME_STATE.PLAYING, GAME_STATE.MENU],
+      [GAME_STATE.LEVEL_COMPLETE]: [GAME_STATE.PLAYING, GAME_STATE.VICTORY, GAME_STATE.MENU],
       [GAME_STATE.VICTORY]: [GAME_STATE.MENU],
       [GAME_STATE.GAME_OVER]: [GAME_STATE.MENU],
     });
