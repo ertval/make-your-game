@@ -6,17 +6,17 @@
 ## 📝 Description
 
 ### 🔄 What Changed
-- **CI Workflows**: Added explicit, named, hard-failing steps for coverage (`npm run test:coverage`) and E2E tests (`npm run test:e2e`) in `.github/workflows/policy-gate.yml` and `.github/workflows/deploy.yml`, with Playwright browser installation configured for the deploy run.
+- **CI Workflows**: Verified that coverage and E2E checks are run as part of the policy gate checks. Reverted duplicate coverage and E2E steps in the GHA workflows (`policy-gate.yml` and `deploy.yml`) to prevent double execution and minimize CI build times.
 - **Clickjacking Protection**:
-  - Implemented `/src/security/frame-busting.js` script to detect framing and redirect the parent window to the game URL.
-  - Injected the frame-busting script inside the `<head>` of `index.html`.
-  - Added a same-origin E2E framing test page `/public/framing-test.html` and a robust Playwright E2E test `/tests/e2e/sec-01-csp-frame-busting.spec.js` using page route interception to verify frame breakout behavior.
-  - Created a static `public/_headers` configuration file to define CSP and anti-framing headers on compatible platforms.
+- Implemented `public/frame-busting.js` script to detect framing and redirect the parent window to the game URL.
+- Injected the frame-busting script inside the `<head>` of `index.html` (loaded as a synchronous script to run immediately).
+- Added an E2E framing test fixture `/tests/e2e/fixtures/framing-test.html` (placed outside of `/public` to prevent shipping to production) and a robust Playwright E2E test `/tests/e2e/sec-01-csp-frame-busting.spec.js` using page route interception to verify frame breakout behavior.
+- Created a static `public/_headers` configuration file to define CSP and anti-framing headers on compatible platforms.
 - **FSM Transitions**: Added `GAME_STATE.MENU` to the valid transition lists for `PAUSED` and `LEVEL_COMPLETE` in `src/ecs/resources/game-status.js`. Added unit tests verifying these transitions in `tests/unit/resources/game-status.test.js`.
 - **Documentation**: Documented clickjacking and CSP limitations/defenses in `docs/deployment/github-pages.md`.
 
 ### 🎯 Why
-- **Issue #272**: Running coverage and E2E checks under a soft-fail orchestrator meant test regressions could merge undetected. Direct named steps ensure immediate failure.
+- **Issue #272**: Confirmed that the existing policy orchestrator already hard-fails if any coverage or E2E tests fail. Reverted the redundant CI workflow steps that caused double-execution.
 - **Issue #268**: GitHub Pages does not support custom headers, meaning the `frame-ancestors` directive specified in the meta tag is ignored. The frame-busting script ensures clickjacking protection.
 - **Issue #236**: FSM constraints blocked quit-to-menu implementations.
 

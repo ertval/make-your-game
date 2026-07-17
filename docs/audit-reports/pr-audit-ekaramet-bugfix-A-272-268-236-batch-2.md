@@ -9,11 +9,11 @@
 - **Base Comparison**: `origin/main..HEAD`
 
 ### 📦 Deliverables & Verification
-- ✅ PASS: Named, hard-failing coverage and E2E test steps added to `policy-gate.yml` and `deploy.yml`.
-- ✅ PASS: JavaScript frame-busting breakout logic implemented in `src/security/frame-busting.js` and loaded early in `index.html`.
+- ✅ PASS: Verified policy gate orchestrator hard-fails on test regressions; removed duplicate coverage/E2E steps in policy-gate.yml and deploy.yml.
+- ✅ PASS: JavaScript frame-busting breakout logic implemented in `public/frame-busting.js` and loaded early in `index.html`.
 - ✅ PASS: Cloudflare Pages/Netlify static security headers configured in `public/_headers`.
 - ✅ PASS: FSM menu transitions (`PAUSED -> MENU`, `LEVEL_COMPLETE -> MENU`) added to `src/ecs/resources/game-status.js`.
-- ✅ PASS: E2E Playwright test added verifying clickjacking breakout behavior.
+- ✅ PASS: E2E Playwright test added verifying clickjacking breakout behavior using a test fixture in `tests/e2e/fixtures/`.
 - ✅ PASS: Unit tests added for FSM transitions.
 - ✅ PASS: Updated `github-pages.md` documentation.
 - **Out-of-Scope Findings**: none

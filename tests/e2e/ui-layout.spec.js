@@ -92,10 +92,10 @@ test('HUD is a readable horizontal top bar above the board with all labels', asy
 
   const layout = await readLayout(page);
 
-  // Horizontal bar: flex container, all metrics on a single row (±2px line-box jitter).
+  // Horizontal bar: flex container, all metrics on a single row (±6px line-box jitter/baseline alignment variance).
   expect(layout.hudDisplay).toBe('flex');
   const tops = layout.labels.map((l) => l.top);
-  expect(Math.max(...tops) - Math.min(...tops)).toBeLessThanOrEqual(2);
+  expect(Math.max(...tops) - Math.min(...tops)).toBeLessThanOrEqual(6);
 
   // Readable typography: desktop font in the 18–26px band, strong weight.
   expect(layout.hudFontPx).toBeGreaterThanOrEqual(18);

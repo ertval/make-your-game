@@ -4,7 +4,16 @@
  *   breaks out of an iframe when embedded.
  */
 
+import fs from 'node:fs';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { expect, test } from '@playwright/test';
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+const framingTestHtml = fs.readFileSync(
+  path.join(__dirname, 'fixtures', 'framing-test.html'),
+  'utf8',
+);
 
 test.describe('SEC-01 Content-Security-Policy & Clickjacking', () => {
   test('breaks out of iframe when embedded', async ({ page }) => {
@@ -33,6 +42,15 @@ test.describe('SEC-01 Content-Security-Policy & Clickjacking', () => {
       } else {
         await route.continue();
       }
+    });
+
+    // Intercept and serve framing-test.html from tests/e2e/fixtures/
+    await page.route('**/framing-test.html', async (route) => {
+      await route.fulfill({
+        status: 200,
+        contentType: 'text/html',
+        body: framingTestHtml,
+      });
     });
 
     // Navigate directly to the framing test page
