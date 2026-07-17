@@ -33,8 +33,8 @@ Coverage mapping remains canonical in `audit-traceability-matrix.md`.
 
 ## 📈 Summary Snapshot
 
-- Total tickets: `44`
-- Done: `44`
+- Total tickets: `45`
+- Done: `45`
 - In Progress: `0`
 - Not Started: `0`
 
@@ -56,9 +56,9 @@ All P0 tickets complete. Audit reports published and remediation verified.
 - **Audit reports published:** A-11 consolidation complete; per-track P1 fix reports under `docs/audit-reports/phase-1/`.
 - **Remediation status:** D-05 ✅, D-06 ✅, B-02 ✅, B-03 ✅, D-07 ✅, D-09 ✅, D-08 ✅, A-11 ✅
 
-## 🔲 Phase 2 — Playable MVP (P2)
+## ✅ Phase 2 — Playable MVP (P2)
 
-**Status:** Complete — all P2 tickets done.
+Status: Complete — all P2 tickets done.
 
 - **Audit reports published:** A-12 consolidation complete; per-track P2 fix reports under docs/audit-reports/phase-2/.
 - **Remediation status:** B-04 ✅, C-02 ✅, C-01 ✅, C-03 ✅, B-05 ✅, A-07 ✅, C-04 ✅, C-05 ✅, C-06 ✅, A-12 ✅

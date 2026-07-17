@@ -343,4 +343,45 @@ describe('security gate contracts', () => {
       fs.rmSync(tempChangedPath, { force: true });
     }
   });
+
+  it('generates GitHub Actions warning annotations on ownership bypass events in bugfix branches', () => {
+    const tempMetaPath = path.join(repoRoot, `.policy-pr-meta.bypass-test.${Date.now()}.json`);
+    const tempChangedPath = path.join(repoRoot, `.changed-files.bypass-test.${Date.now()}.txt`);
+
+    fs.writeFileSync(
+      tempMetaPath,
+      JSON.stringify({
+        number: 287,
+        author: 'ekaramet',
+        body: '',
+        branchName: 'ekaramet/bugfix-A-287-ownership-bypass',
+        baseRef: 'origin/main',
+        headRef: 'HEAD',
+        commitMessages: 'fix: dummy bugfix commit\n',
+        ticketIds: ['A-287'],
+        processMode: false,
+      }),
+      'utf8',
+    );
+
+    fs.writeFileSync(tempChangedPath, 'src/main.js\n', 'utf8');
+
+    try {
+      const result = runNodeScript([
+        path.join(repoRoot, 'scripts/policy-gate/run-checks.mjs'),
+        '--check-set=pr',
+        '--require-branch-ticket=true',
+        `--meta-file=${path.basename(tempMetaPath)}`,
+        `--changed-file=${path.basename(tempChangedPath)}`,
+        '--branch-name=ekaramet/bugfix-A-287-ownership-bypass',
+      ]);
+
+      expect(result.status).toBe(0);
+      const output = getCombinedOutput(result);
+      expect(output).toContain('::warning::Ownership check bypassed for this run');
+    } finally {
+      fs.rmSync(tempMetaPath, { force: true });
+      fs.rmSync(tempChangedPath, { force: true });
+    }
+  });
 });

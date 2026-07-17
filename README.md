@@ -8,6 +8,14 @@
 [![CI](https://img.shields.io/github/actions/workflow/status/ertval/make-your-game/deploy.yml?style=flat-square&logo=github&logoColor=white)]()
 [![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen?style=flat-square)]()
 
+---
+
+**Problem:** Developing high-performance browser games using traditional rendering loops often introduces heavy CPU overhead, layout thrashing, and frame-time spikes that drop frame rates below 60 FPS.
+
+**Solution:** A data-oriented Entity-Component-System (ECS) engine in pure JavaScript that recycles DOM nodes and batches reads/writes via a dedicated frame pipeline—rendering 60 FPS without canvas or external frameworks.
+
+---
+
 A pure-JS Entity-Component-System game engine demonstrating data-oriented browser architecture. Built as an educational reference for ECS patterns — no canvas, no frameworks, 60 FPS DOM rendering with strict performance budgets.
 
 > **Pac-Man × Bomberman** — Eat every pellet. Bomb every wall. Survive every ghost. Built purely with **Entity-Component-System (ECS)** architecture. 
@@ -488,6 +496,18 @@ tests/
 10. CI MUST pass all merge gates (schema validation, testing, lockfile integrity, policy gate) before merge. When coverage/SBOM scripts are configured, those gates MUST also pass.
 11. The policy gate workflow enforces PR review, audit alignment, security boundaries, and dependency pairing.
 12. Request review at integration milestones.
+
+---
+
+## Related
+
+- [**ertval.github.io**](https://ertval.github.io) — Portfolio & CV
+- [**two-tier-safe-ai-gate**](https://github.com/ertval/two-tier-safe-ai-gate) — Safe AI execution model (Go + Inngest + Omnigent)
+- [**keel-multi-agent-pipeline**](https://github.com/ertval/keel-multi-agent-pipeline) — Multi-agent maritime intelligence (Python + LangGraph)
+- [**social-network**](https://github.com/ertval/social-network) — Go vertical-slices full-stack monolith (Next.js)
+- [**make-your-game**](https://github.com/ertval/make-your-game) — Pure JS ECS game engine
+- [**real-time-forum**](https://github.com/ertval/real-time-forum) — Go + Vanilla JS real-time WebSocket SPA
+- [**forum**](https://github.com/ertval/forum) — Go hexagonal architecture monolith (zero-dependency)
 
 ---
 
