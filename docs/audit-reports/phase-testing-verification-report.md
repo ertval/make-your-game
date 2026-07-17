@@ -2,7 +2,7 @@
 
 > **Purpose**: Step-by-step testing instructions, audit strategies, and exit criteria for each implementation phase of the Ms. Ghostman project.
 > **Status**: Mandatory Verification Protocol
-> **Source of Truth**: [AGENTS.md](file:///home/ertval/code/zone-modules/make-your-game/AGENTS.md), [README.md](file:///home/ertval/code/zone-modules/make-your-game/README.md), `docs/audit.md`, `docs/requirements.md`, `docs/game-description.md`, `docs/implementation/implementation-plan.md`
+> **Source of Truth**: [AGENTS.md](../../AGENTS.md), [README.md](../../README.md), `docs/audit.md`, `docs/requirements.md`, `docs/game-description.md`, `docs/implementation/implementation-plan.md`
 
 ---
 
@@ -23,7 +23,7 @@ Every task must pass the appropriate testing level before phase verification can
 
 ## 2. Audit and Performance Acceptance Categories
 
-Every phase milestone must satisfy three distinct audit categories as defined in [AGENTS.md:L178-182](file:///home/ertval/code/zone-modules/make-your-game/AGENTS.md#L178-182):
+Every phase milestone must satisfy three distinct audit categories as defined in [AGENTS.md:L178-182](../../AGENTS.md#L178-182):
 
 1.  **Fully Automatable (Audit IDs: F-01 to F-16, B-01 to B-04)**: Verified via Vitest and Playwright to ensure crash-free rAF loops, hold-to-move input, single-player logic, and HUD functionality.
 2.  **Semi-Automatable (Audit IDs: F-17, F-18, B-05)**: Verified via `page.evaluate()` and the Performance API to guarantee no recurring long tasks (> 50ms) and stable frame timing.

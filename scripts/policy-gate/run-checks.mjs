@@ -168,6 +168,7 @@ function assertTicketAssociation() {
     const modeLabel = integrationMode ? 'INTEGRATION MODE' : 'BUGFIX MODE';
     const bypassWarning = `🐞 ${modeLabel} DETECTED: Branch "${branchName}" has relaxed policy checks allowing multitrack edits. Use with care.`;
     console.warn(`\n${GATE_WARN} — POLICY WARNING: ${bypassWarning}\n`);
+    console.log('::warning::Ownership check bypassed for this run');
     return createProcessFallback(
       context.branchTicketIds,
       context.commitTicketIds,
