@@ -52,7 +52,7 @@ describe('Victory Flow (BUG-20)', () => {
     };
 
     const gameFlow = createGameFlow({ gameStatus, clock, levelLoader, world });
-    const levelProgressSystem = createLevelProgressSystem({ totalLevels: 3 });
+    const levelProgressSystem = createLevelProgressSystem();
 
     // Step 1: Step the world to trigger LEVEL_COMPLETE
     levelProgressSystem.update({ world, frame: 1 });

@@ -78,7 +78,7 @@ function runLifeLostScenario({ lives }) {
 // --- LevelCleared → Victory harness (level-progress-system) ---
 
 function createClearedFinalLevelMap() {
-  // Final level (level 3 with default totalLevels 3) whose grid carries no
+  // Final level (level 3 of 3) whose grid carries no
   // pellets or power pellets, so the system immediately treats it as cleared.
   return createMapResource({
     level: 3,

@@ -44,7 +44,14 @@ function safeTransition(gameStatus, nextState) {
   return true;
 }
 
-export function createGameFlow({ gameStatus, clock, levelLoader, world, onRestart } = {}) {
+export function createGameFlow({
+  gameStatus,
+  clock,
+  levelLoader,
+  world,
+  onRestart,
+  eventQueueResourceKey = 'eventQueue',
+} = {}) {
   if (!gameStatus) {
     throw new Error('createGameFlow requires a gameStatus resource.');
   }
@@ -150,7 +157,9 @@ export function createGameFlow({ gameStatus, clock, levelLoader, world, onRestar
 
         if (movedToVictory && world) {
           const eventQueue =
-            typeof world.getResource === 'function' ? world.getResource('eventQueue') : null;
+            typeof world.getResource === 'function'
+              ? world.getResource(eventQueueResourceKey)
+              : null;
           if (eventQueue) {
             emitGameplayEvent(
               eventQueue,

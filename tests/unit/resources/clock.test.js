@@ -162,8 +162,9 @@ describe('clock', () => {
 
   it('uses epsilon-safe clamp for leftover accumulator (BUG-X03)', () => {
     const clock = createClock(0);
-    clock.accumulator = FIXED_DT_MS; // Edge case: exactly one step leftover
-    tickClock(clock, 0); // Trigger clamp logic
+    // Set accumulator to a value larger than 1 step, and clamp maxStepsPerFrame to 1
+    clock.accumulator = FIXED_DT_MS * 3.0;
+    tickClock(clock, 0.1, 1); // frameTime = 0.1 > 0, triggering steps clamp
     expect(clock.accumulator).toBeLessThan(FIXED_DT_MS);
     expect(clock.alpha).toBeLessThan(1);
   });
@@ -197,10 +198,34 @@ describe('clock', () => {
     const expectedAlpha = clock.alpha;
     expect(expectedAlpha).toBeCloseTo(0.5, 4);
 
+    // Mutate alpha manually. If the duplicate tick recomputes alpha from the
+    // accumulator, it will overwrite it back to 0.5. If it returns early,
+    // alpha will remain 0.9.
+    clock.alpha = 0.9;
+
     // Second tick with the exact same timestamp
     const nextSteps = tickClock(clock, FIXED_DT_MS * 1.5);
     expect(nextSteps).toBe(0);
     // Alpha should be unchanged, not reset or recomputed
-    expect(clock.alpha).toBe(expectedAlpha);
+    expect(clock.alpha).toBe(0.9);
+  });
+
+  it('sets alpha to 0 and does not return early when paused on duplicate timestamps', () => {
+    const clock = createClock(0);
+
+    // First tick advances time and leaves some accumulator
+    const steps = tickClock(clock, FIXED_DT_MS * 1.5);
+    expect(steps).toBe(1);
+    expect(clock.alpha).toBeCloseTo(0.5, 4);
+
+    // Pause the clock
+    setPauseState(clock, true);
+
+    // Tick with duplicate timestamp. If the duplicate early-return guard is incorrectly
+    // placed above the isPaused check, it will return early and keep alpha at 0.5.
+    // Otherwise, it should hit the isPaused branch and set alpha to 0.
+    const nextSteps = tickClock(clock, FIXED_DT_MS * 1.5);
+    expect(nextSteps).toBe(0);
+    expect(clock.alpha).toBe(0);
   });
 });

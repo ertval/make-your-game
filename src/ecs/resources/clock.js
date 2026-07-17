@@ -86,12 +86,6 @@ export function tickClock(
     clock.realTimeMs = timestamp;
   }
 
-  // BUG-14: Skip alpha recalculation and unnecessary steps calculation on duplicate timestamps,
-  // but only if the accumulator doesn't have enough leftover time for a step.
-  if (frameTime === 0 && clock.accumulator < fixedDtMs) {
-    return 0;
-  }
-
   // Clamp large deltas to prevent spiral-of-death after tab throttling (BUG-09).
   const maxDelta = fixedDtMs * maxStepsPerFrame;
   if (frameTime > maxDelta) {
@@ -102,6 +96,11 @@ export function tickClock(
   // The render loop keeps running but simulation is frozen.
   if (clock.isPaused) {
     clock.alpha = 0;
+    return 0;
+  }
+
+  // BUG-14: Skip alpha recalculation and unnecessary steps calculation on duplicate timestamps.
+  if (frameTime === 0) {
     return 0;
   }
 
