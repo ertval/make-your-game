@@ -69,7 +69,7 @@ jobs:
       - name: Install Playwright browsers
         run: |
           set -euo pipefail
-          npx playwright install --with-deps chromium
+          npx playwright install --with-deps
 
       - name: Run Full-Repo Security Scan
         run: |

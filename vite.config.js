@@ -105,10 +105,11 @@ function createCspMetaPlugin(csp) {
 
 export default defineConfig(({ command }) => {
   const isProductionBuild = command === 'build';
+  const isProduction = isProductionBuild || process.env.VITE_PREVIEW === 'true';
   const csp = isProductionBuild ? PRODUCTION_CSP : DEVELOPMENT_CSP;
 
   return {
-    base: command === 'build' && process.env.GITHUB_ACTIONS ? '/make-your-game/' : './',
+    base: process.env.GITHUB_ACTIONS && isProduction ? '/make-your-game/' : './',
     plugins: [createCspMetaPlugin(csp), createCopyStaticAssetsPlugin()],
     server: {
       host: true,

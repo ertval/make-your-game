@@ -123,6 +123,9 @@ The following tests verify constraints defined in [AGENTS.md](../../AGENTS.md) t
 | Query Versioned Cache (#265) | A-13 | `tests/unit/world/world.test.js` | Verifies zero-allocation query cache and correctness on mutations. |
 | Input Relocation & Latch (#264) | A-13 | `tests/integration/gameplay/a03-game-loop.test.js` | Verifies input snapshotting exactly once per step under catch-up and no input loss on pause-to-resume frames. |
 | Glob Overlaps De-duplication (#262) | A-13 | `tests/unit/policy-gate/policy-utils.test.js` | Verifies Track A/B/C/D glob pattern exclusivity. |
+| Playwright config constraints (#276, #274, #273) | A-07 | `tests/e2e/audit/audit.e2e.test.js` | Enforces workers capped to 1 in CI, fullyParallel set to false, and browser projects configured (Chromium, Firefox, WebKit, and preview server). |
+| Production CSP & frame busting (#273) | A-07 | `tests/e2e/production-csp.spec.js` | Verifies production CSP meta tags, clickjacking HTTP headers (`X-Frame-Options`), and frame-busting breakout redirect behavior. |
+
 
 ## Completion Criteria For This Matrix
 
