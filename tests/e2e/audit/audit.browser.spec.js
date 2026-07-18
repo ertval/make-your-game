@@ -306,10 +306,75 @@ test('AUDIT-F-17 explicit frame-drop threshold assertions', async ({ page }) => 
   await bootRuntime(page);
 
   const thresholds = ACTIVE_THRESHOLDS['AUDIT-F-17'];
-  const stats = await waitForFrameSamples(page, thresholds.minFrameSamples);
+  const stats = await page.evaluate((threshold) => {
+    return window.__MS_GHOSTMAN_FRAME_PROBE__.getStats({ slowFrameThresholdMs: threshold });
+  }, thresholds.maxP95FrameTimeMs);
 
   expect(stats.p95FrameTime).toBeLessThanOrEqual(thresholds.maxP95FrameTimeMs);
   expect(stats.p99FrameTime).toBeLessThanOrEqual(thresholds.maxP99FrameTimeMs);
+  expect(stats.maxContiguousSlowDurationMs).toBeLessThanOrEqual(500);
+});
+
+test('Performance audit: flags sustained frame drops under artificial delay', async ({ page }) => {
+  await bootRuntime(page);
+
+  // Inject a system into the ECS world that runs a busy loop of 30ms on every frame.
+  await page.evaluate(() => {
+    const world = window.__MS_GHOSTMAN_RUNTIME__.getWorld();
+    world.registerSystem({
+      name: 'mock-delay-system',
+      phase: 'meta',
+      update: () => {
+        const start = performance.now();
+        while (performance.now() - start < 30) {}
+      },
+    });
+  });
+
+  // Reset the frame probe to clear pre-delay samples
+  await page.evaluate(() => {
+    window.__MS_GHOSTMAN_FRAME_PROBE__.reset({ clearBuffer: true });
+  });
+
+  const thresholds = ACTIVE_THRESHOLDS['AUDIT-F-17'];
+  const stats = await waitForFrameSamples(page, thresholds.minFrameSamples);
+  console.log('--- FRAME STATS UNDER DELAY ---', stats);
+
+  expect(stats.maxContiguousSlowDurationMs).toBeGreaterThan(500);
+});
+
+test('Performance audit: flags memory accumulation delta under mock leak', async ({ page }) => {
+  await bootRuntime(page);
+
+  await page.evaluate(() => {
+    let mockHeapSize = 20_000_000;
+    Object.defineProperty(window.performance, 'memory', {
+      value: {
+        get jsHeapSizeLimit() {
+          return 2_000_000_000;
+        },
+        get totalJSHeapSize() {
+          return mockHeapSize;
+        },
+        get usedJSHeapSize() {
+          mockHeapSize += 100_000; // Increment by 100KB on every read
+          return mockHeapSize;
+        },
+      },
+      configurable: true,
+      enumerable: true,
+    });
+  });
+
+  // Reset the frame probe to clear pre-leak samples
+  await page.evaluate(() => {
+    window.__MS_GHOSTMAN_FRAME_PROBE__.reset({ clearBuffer: true });
+  });
+
+  const thresholds = ACTIVE_THRESHOLDS['AUDIT-F-17'];
+  const stats = await waitForFrameSamples(page, thresholds.minFrameSamples);
+
+  expect(stats.memoryAccumulationBytes).toBeGreaterThan(100_000);
 });
 
 test('AUDIT-F-18 explicit FPS threshold assertions', async ({ page }) => {
@@ -422,6 +487,11 @@ test('AUDIT-CI-09 explicit DOM element budget and memory allocation assertions',
       const growth = memoryStats2.usedJSHeapSize - memoryInfo.usedJSHeapSize;
       // Allow for some minor GC noise but fail if > 2MB growth in 200ms
       expect(growth).toBeLessThan(2 * 1024 * 1024);
+    }
+
+    const stats = await page.evaluate(() => window.__MS_GHOSTMAN_FRAME_PROBE__.getStats());
+    if (stats && stats.memoryAccumulationBytes !== undefined) {
+      expect(stats.memoryAccumulationBytes).toBeLessThan(10_000_000);
     }
   }
 });

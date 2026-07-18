@@ -85,6 +85,7 @@ function toMessage(error) {
 function createFrameProbe(
   sampleSize = DEFAULT_FRAME_SAMPLE_SIZE,
   warmupFrames = DEFAULT_FRAME_PROBE_WARMUP_FRAMES,
+  windowRef = typeof window !== 'undefined' ? window : null,
 ) {
   const deltas = new Float64Array(sampleSize);
   let count = 0;
@@ -94,6 +95,9 @@ function createFrameProbe(
   // Frames remaining in the warmup window. Each valid frame delta consumes one
   // warmup slot before deltas start accumulating into the sample buffer.
   let warmupRemaining = Math.max(0, Math.floor(warmupFrames));
+  let initialMemory = 0;
+  let hasRecordedInitialMemory = false;
+  const perf = windowRef?.performance || (typeof performance !== 'undefined' ? performance : null);
 
   function recordFrame(nowMs) {
     if (!Number.isFinite(nowMs)) {
@@ -105,6 +109,12 @@ function createFrameProbe(
       if (warmupRemaining > 0) {
         warmupRemaining -= 1;
       } else {
+        if (!hasRecordedInitialMemory) {
+          if (perf?.memory) {
+            initialMemory = perf.memory.usedJSHeapSize;
+          }
+          hasRecordedInitialMemory = true;
+        }
         deltas[cursor] = latestDelta;
         cursor = (cursor + 1) % sampleSize;
         if (count < sampleSize) {
@@ -116,11 +126,41 @@ function createFrameProbe(
     lastTimestamp = nowMs;
   }
 
-  function getStats() {
+  function getStats({ slowFrameThresholdMs = 16.7 } = {}) {
     const values = toSortedNumericArray(deltas, count);
     const p50FrameTime = percentileFromSorted(values, 50);
     const p95FrameTime = percentileFromSorted(values, 95);
     const p99FrameTime = percentileFromSorted(values, 99);
+
+    // Calculate maximum duration of contiguous slow frames
+    const temporalDeltas = [];
+    if (count < sampleSize) {
+      for (let i = 0; i < count; i += 1) {
+        temporalDeltas.push(deltas[i]);
+      }
+    } else {
+      for (let i = 0; i < sampleSize; i += 1) {
+        temporalDeltas.push(deltas[(cursor + i) % sampleSize]);
+      }
+    }
+
+    let maxContiguousSlowDurationMs = 0;
+    let currentContiguousSlowDurationMs = 0;
+    for (const delta of temporalDeltas) {
+      if (delta > slowFrameThresholdMs) {
+        currentContiguousSlowDurationMs += delta;
+        if (currentContiguousSlowDurationMs > maxContiguousSlowDurationMs) {
+          maxContiguousSlowDurationMs = currentContiguousSlowDurationMs;
+        }
+      } else {
+        currentContiguousSlowDurationMs = 0;
+      }
+    }
+
+    let memoryAccumulationBytes = 0;
+    if (hasRecordedInitialMemory && perf?.memory) {
+      memoryAccumulationBytes = perf.memory.usedJSHeapSize - initialMemory;
+    }
 
     return {
       averageFrameTime:
@@ -131,11 +171,20 @@ function createFrameProbe(
       p95FrameTime,
       p99FrameTime,
       sampleCount: values.length,
+      maxContiguousSlowDurationMs,
+      memoryAccumulationBytes,
     };
   }
 
-  function reset() {
+  function reset({ clearBuffer = false } = {}) {
     lastTimestamp = 0;
+    if (clearBuffer) {
+      count = 0;
+      cursor = 0;
+      hasRecordedInitialMemory = false;
+      initialMemory = 0;
+      warmupRemaining = Math.max(0, Math.floor(warmupFrames));
+    }
   }
 
   return {
@@ -420,7 +469,11 @@ export function createGameRuntime({
     }
     clearTimeout(handle);
   };
-  const frameProbe = createFrameProbe(DEFAULT_FRAME_SAMPLE_SIZE, frameProbeWarmupFrames);
+  const frameProbe = createFrameProbe(
+    DEFAULT_FRAME_SAMPLE_SIZE,
+    frameProbeWarmupFrames,
+    targetWindow,
+  );
 
   if (!bootstrap) {
     throw new Error('createGameRuntime requires a bootstrap object.');
@@ -618,6 +671,7 @@ export function createGameRuntime({
   if (targetWindow) {
     targetWindow[FRAME_PROBE_KEY] = {
       getStats: frameProbe.getStats,
+      reset: frameProbe.reset,
     };
     targetWindow[RUNTIME_HOOK_KEY] = controls;
   }
