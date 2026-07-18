@@ -13,6 +13,7 @@ import { describe, expect, it } from 'vitest';
 import {
   AUDIT_EXECUTION_SPLIT,
   AUDIT_QUESTIONS,
+  CI_SEMI_AUTOMATABLE_THRESHOLDS,
   MANUAL_EVIDENCE_AUDIT_IDS,
   MANUAL_EVIDENCE_MANIFEST_PATH,
   SEMI_AUTOMATABLE_THRESHOLDS,
@@ -88,6 +89,26 @@ describe('Audit executable verification contract (non-browser checks)', () => {
     expect(SEMI_AUTOMATABLE_THRESHOLDS['AUDIT-F-17'].maxP95FrameTimeMs).toBeLessThanOrEqual(16.7);
     expect(SEMI_AUTOMATABLE_THRESHOLDS['AUDIT-F-18'].minP95Fps).toBeGreaterThanOrEqual(60);
     expect(SEMI_AUTOMATABLE_THRESHOLDS['AUDIT-B-05'].maxLongTaskMs).toBeLessThanOrEqual(50);
+  });
+
+  // CI-17 / #288: CI budgets may relax for headless runners, but must not be ~3× softer
+  // than AGENTS.md (was 50 ms / 20 FPS). Cap relaxation at 2× frame-time / ½ FPS.
+  it('keeps CI semi-automatable thresholds within a 2× envelope of AGENTS.md targets (#288)', () => {
+    const canonicalF17 = SEMI_AUTOMATABLE_THRESHOLDS['AUDIT-F-17'];
+    const canonicalF18 = SEMI_AUTOMATABLE_THRESHOLDS['AUDIT-F-18'];
+    const ciF17 = CI_SEMI_AUTOMATABLE_THRESHOLDS['AUDIT-F-17'];
+    const ciF18 = CI_SEMI_AUTOMATABLE_THRESHOLDS['AUDIT-F-18'];
+
+    expect(ciF17).toBeDefined();
+    expect(ciF18).toBeDefined();
+
+    // Frame-time budget: CI max must stay ≤ 2× canonical (16.7 → 33.4 ms).
+    expect(ciF17.maxP95FrameTimeMs).toBeLessThanOrEqual(canonicalF17.maxP95FrameTimeMs * 2);
+    // FPS floor: CI min must stay ≥ ½ of canonical (60 → 30 FPS).
+    expect(ciF18.minP95Fps).toBeGreaterThanOrEqual(canonicalF18.minP95Fps / 2);
+    // CI must still be at least as strict as a broken-loop detector would need.
+    expect(ciF17.maxP95FrameTimeMs).toBeLessThanOrEqual(33.4);
+    expect(ciF18.minP95Fps).toBeGreaterThanOrEqual(30);
   });
 
   it('enforces manual-evidence obligations for F-19/F-20/F-21/B-06 through manifest entries', () => {

@@ -10,10 +10,11 @@
  * (security boundaries, forbidden APIs, traceability, lockfile pairing) still run normally.
  *
  * Integration Branch Policy:
- * Branches matching the pattern <owner>/integration<slug> (e.g. ekaramet/integration-phase2-merge)
+ * Branches matching the pattern <owner>/integration-<slug> (e.g. ekaramet/integration-phase2-merge)
  * are an alias of bugfix mode — they receive identical ownership-bypass semantics. Use this pattern
- * when integrating work across tracks rather than fixing a specific defect. All non-ownership gates
- * still run normally.
+ * when integrating work across tracks rather than fixing a specific defect. A non-empty slug after
+ * `integration-` is required so bare names like `integration` or `owner/integration` cannot bypass
+ * ownership+ticket gates (CI-04 / #278). All non-ownership gates still run normally.
  */
 
 import { spawnSync } from 'node:child_process';
@@ -143,14 +144,14 @@ export function isBugfixBranch(branchName) {
   return Object.keys(OWNER_TRACK_MAPPING).some((key) => key.toLowerCase() === owner);
 }
 
-// Integration branches are an alias of bugfix mode — the slug begins with "integration" instead of
-// "bugfix-". They bypass track ownership checks in the same way, enabling cross-track merge/integration
-// PRs without requiring a per-track branch split.
-export const INTEGRATION_BRANCH_PATTERN = /^[A-Za-z0-9._-]+\/integration[A-Za-z0-9._-]*$/;
+// Integration branches are an alias of bugfix mode — the slug must begin with "integration-"
+// (hyphen + non-empty descriptor). Bare "integration" / "owner/integration" are rejected so they
+// cannot activate ownership bypass without a real integration slug (CI-04 / #278).
+export const INTEGRATION_BRANCH_PATTERN = /^[A-Za-z0-9._-]+\/integration-[A-Za-z0-9._-]+$/;
 
 /**
  * Return true when the branch follows the cross-track integration convention.
- * Format: <owner>/integration<slug> (e.g. ekaramet/integration-phase2-merge)
+ * Format: <owner>/integration-<slug> (e.g. ekaramet/integration-phase2-merge)
  * The <owner> part MUST be a registered developer in OWNER_TRACK_MAPPING.
  * This is a named alias of bugfix mode — it receives identical ownership-bypass semantics.
  *

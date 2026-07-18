@@ -66,7 +66,7 @@ const processMode =
   inferProcessModeFromSources(branchName, meta.commitMessages || '', meta.body || '');
 
 // Bugfix branches (format: <owner>/bugfix-<slug>) are exempt from track ownership checks.
-// Integration branches (format: <owner>/integration<slug>) are an alias of bugfix mode.
+// Integration branches (format: <owner>/integration-<slug>) are an alias of bugfix mode.
 // Both still run all security, traceability, lockfile, and quality gates.
 const bugfixMode = isBugfixBranch(branchName);
 const integrationMode = isIntegrationBranch(branchName);

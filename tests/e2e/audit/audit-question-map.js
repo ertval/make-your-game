@@ -46,20 +46,21 @@ export const SEMI_AUTOMATABLE_THRESHOLDS = Object.freeze({
   }),
 });
 
-// Relaxed thresholds for slow CI runners (GitHub Actions headless Chromium
-// typically achieves ~25-35 FPS for rAF-driven workloads vs 60 FPS locally).
-// These values still catch broken game loops while tolerating VM throttling.
+// CI budgets for slow headless runners. Cap relaxation at 2× frame-time / ½ FPS
+// relative to AGENTS.md (CI-17 / #288) — previously 50 ms / 20 FPS (~3× soft).
+// Browser specs still apply CI_TOLERANCE_FACTOR on the canonical table; this
+// table is the declared CI envelope for inventory checks and scheduled strict runs.
 export const CI_SEMI_AUTOMATABLE_THRESHOLDS = Object.freeze({
   'AUDIT-F-17': Object.freeze({
     minFrameSamples: 90,
-    // 50 ms = 20 FPS floor — catches a broken loop, not just a slow VM.
-    maxP95FrameTimeMs: 50,
-    maxP99FrameTimeMs: 100,
+    // 33.4 ms = 2× 16.7 ms canonical — tolerates VM jank without masking a broken loop.
+    maxP95FrameTimeMs: 33.4,
+    maxP99FrameTimeMs: 50,
   }),
   'AUDIT-F-18': Object.freeze({
     minFrameSamples: 90,
-    // 20 FPS floor — still meaningful on a heavily throttled CI runner.
-    minP95Fps: 20,
+    // 30 FPS = ½ of canonical 60 — still meaningful on throttled CI runners.
+    minP95Fps: 30,
   }),
   'AUDIT-B-05': Object.freeze({
     // Long-task budget unchanged; this metric is not runner-speed-sensitive.

@@ -72,7 +72,7 @@ Branches named `<owner>/bugfix-<slug>` (for example `ekaramet/bugfix-ghost-colli
 
 ## Integration Branch Mode
 
-Branches named `<owner>/integration<slug>` (for example `ekaramet/integration-phase2-merge`) activate **integration mode**, which is a **named alias of bugfix mode**. It provides identical ownership-bypass semantics and is intended for cross-track integration or merge PRs rather than defect fixes.
+Branches named `<owner>/integration-<slug>` (for example `ekaramet/integration-phase2-merge`) activate **integration mode**, which is a **named alias of bugfix mode**. A non-empty slug after `integration-` is required — bare names like `integration` or `owner/integration` do not bypass ownership. It provides identical ownership-bypass semantics and is intended for cross-track integration or merge PRs rather than defect fixes.
 
 - **Bypasses** track ownership checks (`assertTrackOwnership` and `assertOwnerScopedOwnership`) — same as bugfix mode.
 - **Does not bypass** any other gates: security sink and ECS DOM boundary scans, forbidden-API checks, traceability coverage, lockfile pairing, and all quality gates still run normally.
@@ -90,13 +90,18 @@ Branches named `<owner>/integration<slug>` (for example `ekaramet/integration-ph
 ### Pattern
 
 ```
-<owner>/integration<slug>
+<owner>/integration-<slug>
 ```
 
 **Examples:**
 - `ekaramet/integration-phase2-merge`
-- `asmyrogl/integration`
+- `asmyrogl/integration-B-07-timer-race`
 - `chbaikas/integration-audio-and-hud`
+
+**Rejected (no bypass):**
+- `integration` (no owner)
+- `asmyrogl/integration` (empty slug)
+- `ekaramet/integration-` (trailing separator only)
 
 ### Implementation reference
 
