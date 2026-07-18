@@ -1,5 +1,5 @@
 # Audit Traceability Matrix
-<!-- Last modified: 2026-06-09 (stagger tests updates) -->
+<!-- Last modified: 2026-07-18 (frame rate & memory verification) -->
 
 This document is the single source of truth for requirement-to-audit-to-ticket-to-test coverage.
 
@@ -123,6 +123,7 @@ The following tests verify constraints defined in [AGENTS.md](../../AGENTS.md) t
 | Query Versioned Cache (#265) | A-13 | `tests/unit/world/world.test.js` | Verifies zero-allocation query cache and correctness on mutations. |
 | Input Relocation & Latch (#264) | A-13 | `tests/integration/gameplay/a03-game-loop.test.js` | Verifies input snapshotting exactly once per step under catch-up and no input loss on pause-to-resume frames. |
 | Glob Overlaps De-duplication (#262) | A-13 | `tests/unit/policy-gate/policy-utils.test.js` | Verifies Track A/B/C/D glob pattern exclusivity. |
+| DOM element budget (AUDIT-CI-09) | #285 | `tests/e2e/audit/audit.browser.spec.js` | Verifies DOM element budget <= 500 total after level load. |
 
 ## Completion Criteria For This Matrix
 
