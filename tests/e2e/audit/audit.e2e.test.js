@@ -180,4 +180,39 @@ describe('Audit executable verification contract (non-browser checks)', () => {
       expect(aliasCount).toBe(1);
     }
   });
+
+  it('enforces Playwright config constraints for workers, projects, and preview server (#276, #274, #273)', async () => {
+    const playwrightConfigPath = path.resolve(PROJECT_ROOT, 'playwright.config.js');
+    expect(fs.existsSync(playwrightConfigPath)).toBe(true);
+
+    const configModule = await import(playwrightConfigPath);
+    const config = configModule.default;
+
+    // Check worker limits and fullyParallel
+    expect(config.workers).toBeDefined();
+    // In CI, workers must be capped to 1.
+    // We can check if config.workers is a ternary or condition. Since we import it directly, we can check its evaluated value.
+    if (process.env.CI) {
+      expect(config.workers).toBe(1);
+    }
+    expect(config.fullyParallel).toBe(false);
+
+    // Check browser projects are present (Chromium, Firefox, WebKit)
+    expect(config.projects).toBeDefined();
+    const projectNames = config.projects.map((p) => p.name);
+
+    // Must contain e2e / audit projects for chromium and firefox
+    expect(projectNames).toContain('chromium-e2e');
+    expect(projectNames).toContain('firefox-e2e');
+    expect(projectNames).toContain('production-preview');
+
+    // Check preview webServer config
+    expect(config.webServer).toBeDefined();
+    const servers = Array.isArray(config.webServer) ? config.webServer : [config.webServer];
+    const previewServer = servers.find(
+      (s) => s.command.includes('npm run preview') || s.command.includes('vite preview'),
+    );
+    expect(previewServer).toBeDefined();
+    expect(previewServer.port).toBe(4174);
+  });
 });

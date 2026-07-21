@@ -67,6 +67,13 @@ test('board fills most of the viewport, centered, with crisp scaling (desktop)',
   await page.setViewportSize({ width: 1440, height: 900 });
   await bootRuntime(page);
   await page.waitForSelector(BOARD_SELECTOR, { timeout: 8000 });
+  await page.waitForFunction(
+    () => {
+      const valueNode = document.querySelector('[data-hud="lives"] [data-hud-value]');
+      return valueNode && valueNode.textContent.trim() !== '';
+    },
+    { timeout: 5000 },
+  );
 
   const layout = await readLayout(page);
   const heightPct = layout.boardVisHeight / layout.viewportHeight;
@@ -89,6 +96,13 @@ test('HUD is a readable horizontal top bar above the board with all labels', asy
   await page.setViewportSize({ width: 1440, height: 900 });
   await bootRuntime(page);
   await page.waitForSelector(BOARD_SELECTOR, { timeout: 8000 });
+  await page.waitForFunction(
+    () => {
+      const valueNode = document.querySelector('[data-hud="lives"] [data-hud-value]');
+      return valueNode && valueNode.textContent.trim() !== '';
+    },
+    { timeout: 5000 },
+  );
 
   const layout = await readLayout(page);
 
