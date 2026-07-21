@@ -263,21 +263,29 @@ make-your-game/
 │   │   │   ├── stats.js               # Health, lives, score, timer tags
 │   │   │   └── visual.js              # renderable + visual-state (render queries)
 │   │   ├── systems/
-│   │   │   ├── input-system.js        # Applies adapter input to components
-│   │   │   ├── player-move-system.js  # Grid-constrained player motion
-│   │   │   ├── ghost-ai-system.js     # Normal, stunned, dead pathing
-│   │   │   ├── bomb-tick-system.js    # Fuse countdown, chain reaction marking
-│   │   │   ├── explosion-system.js    # Bomb destruction and fire spawn
-│   │   │   ├── collision-system.js    # Entity overlap checks
-│   │   │   ├── power-up-system.js     # Applies pickups and timed boosts
-│   │   │   ├── scoring-system.js      # Applies events to total score
-│   │   │   ├── timer-system.js        # Level countdown
-│   │   │   ├── life-system.js         # Respawn and invincibility logic
-│   │   │   ├── pause-system.js        # Freeze simulation while rAF continues
-│   │   │   ├── spawn-system.js        # Ghost stagger spawn and respawn
-│   │   │   ├── level-progress-system.js # Manages levels and game states
-│   │   │   ├── render-collect-system.js # Maps simulation to visuals
-│   │   │   └── render-dom-system.js   # Batches writes to the DOM
+│   │   │   ├── board-sync-system.js        # Syncs static board DOM with map changes
+│   │   │   ├── bomb-tick-system.js         # Fuse countdown, chain reaction marking
+│   │   │   ├── collision-gameplay-events.js # Translates overlaps into logical game events
+│   │   │   ├── collision-system.js         # Entity overlap checks
+│   │   │   ├── explosion-system.js         # Bomb destruction and fire spawn
+│   │   │   ├── ghost-ai-system.js          # Normal, stunned, dead pathing
+│   │   │   ├── ghost-animation-system.js   # Converts ghost velocity/state into sprite and class details
+│   │   │   ├── hud-render-system.js        # Delegates HUD DOM updates from data snapshot
+│   │   │   ├── hud-system.js               # Computes HUD data snapshot from components
+│   │   │   ├── input-system.js            # Applies adapter input to components
+│   │   │   ├── level-progress-system.js   # Manages levels and game states
+│   │   │   ├── life-system.js             # Respawn and invincibility logic
+│   │   │   ├── pause-input-system.js      # Converts pause keyboard events into intent
+│   │   │   ├── pause-system.js            # Freeze simulation while rAF continues
+│   │   │   ├── player-animation-system.js # Updates player sprite ID based on movement
+│   │   │   ├── player-move-system.js      # Grid-constrained player motion
+│   │   │   ├── power-up-system.js         # Applies pickups and timed boosts
+│   │   │   ├── render-collect-system.js   # Maps simulation to visuals
+│   │   │   ├── render-dom-system.js       # Batches writes to the DOM
+│   │   │   ├── scoring-system.js          # Applies events to total score
+│   │   │   ├── screens-system.js          # Connects game-status to screens overlay DOM
+│   │   │   ├── spawn-system.js            # Ghost stagger spawn and respawn
+│   │   │   └── timer-system.js            # Level countdown
 │   │   └── resources/
 │   │       ├── constants.js           # Enums, speeds, config
 │   │       ├── rng.js                 # Seeded RNG for determinism

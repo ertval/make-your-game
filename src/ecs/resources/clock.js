@@ -99,6 +99,11 @@ export function tickClock(
     return 0;
   }
 
+  // BUG-14: Skip alpha recalculation and unnecessary steps calculation on duplicate timestamps.
+  if (frameTime === 0) {
+    return 0;
+  }
+
   // Accumulate elapsed time for fixed-step processing.
   clock.accumulator += frameTime;
 
