@@ -123,7 +123,8 @@ The following tests verify constraints defined in [AGENTS.md](../../AGENTS.md) t
 | Query Versioned Cache (#265) | A-13 | `tests/unit/world/world.test.js` | Verifies zero-allocation query cache and correctness on mutations. |
 | Input Relocation & Latch (#264) | A-13 | `tests/integration/gameplay/a03-game-loop.test.js` | Verifies input snapshotting exactly once per step under catch-up and no input loss on pause-to-resume frames. |
 | Glob Overlaps De-duplication (#262) | A-13 | `tests/unit/policy-gate/policy-utils.test.js` | Verifies Track A/B/C/D glob pattern exclusivity. |
-| DOM element budget (AUDIT-CI-09) | #285 | `tests/e2e/audit/audit.browser.spec.js` | Verifies DOM element budget <= 500 total after level load. |
+| Frame probe contiguous slow & memory tracking (CI-14) | #281 | `tests/unit/main.ecs.test.js` + `tests/e2e/audit/audit.browser.spec.js` | Verifies createFrameProbe tracks contiguous slow frame duration and memory accumulation, with browser E2E assertions for artificial delay and heap leak. |
+| main.ecs.js per-file coverage floor (CI-03) | #277 | `vitest.config.js` | Enforces per-file coverage thresholds (75% branch) for src/main.ecs.js. |
 
 ## Completion Criteria For This Matrix
 

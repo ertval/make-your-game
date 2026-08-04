@@ -57,11 +57,14 @@ const ACTIVE_THRESHOLDS = {
   'AUDIT-B-05': SEMI_AUTOMATABLE_THRESHOLDS['AUDIT-B-05'],
 };
 
-async function waitForFrameSamples(page, minimumSamples, timeout = 8_000) {
+async function waitForFrameSamples(page, minimumSamples, timeout = 8_000, options = {}) {
   await expect
     .poll(
       async () => {
-        return page.evaluate(() => window.__MS_GHOSTMAN_FRAME_PROBE__.getStats().sampleCount);
+        return page.evaluate(
+          (opts) => window.__MS_GHOSTMAN_FRAME_PROBE__.getStats(opts).sampleCount,
+          options,
+        );
       },
       {
         timeout,
@@ -69,7 +72,7 @@ async function waitForFrameSamples(page, minimumSamples, timeout = 8_000) {
     )
     .toBeGreaterThanOrEqual(minimumSamples);
 
-  return page.evaluate(() => window.__MS_GHOSTMAN_FRAME_PROBE__.getStats());
+  return page.evaluate((opts) => window.__MS_GHOSTMAN_FRAME_PROBE__.getStats(opts), options);
 }
 
 test('AUDIT-F-01/AUDIT-F-02/AUDIT-B-01 runtime boots and rAF sampling is active', async ({
@@ -306,9 +309,9 @@ test('AUDIT-F-17 explicit frame-drop threshold assertions', async ({ page }) => 
   await bootRuntime(page);
 
   const thresholds = ACTIVE_THRESHOLDS['AUDIT-F-17'];
-  const stats = await page.evaluate((threshold) => {
-    return window.__MS_GHOSTMAN_FRAME_PROBE__.getStats({ slowFrameThresholdMs: threshold });
-  }, thresholds.maxP95FrameTimeMs);
+  const stats = await waitForFrameSamples(page, thresholds.minFrameSamples, 8_000, {
+    slowFrameThresholdMs: thresholds.maxP95FrameTimeMs,
+  });
 
   expect(stats.p95FrameTime).toBeLessThanOrEqual(thresholds.maxP95FrameTimeMs);
   expect(stats.p99FrameTime).toBeLessThanOrEqual(thresholds.maxP99FrameTimeMs);
@@ -338,7 +341,6 @@ test('Performance audit: flags sustained frame drops under artificial delay', as
 
   const thresholds = ACTIVE_THRESHOLDS['AUDIT-F-17'];
   const stats = await waitForFrameSamples(page, thresholds.minFrameSamples);
-  console.log('--- FRAME STATS UNDER DELAY ---', stats);
 
   expect(stats.maxContiguousSlowDurationMs).toBeGreaterThan(500);
 });

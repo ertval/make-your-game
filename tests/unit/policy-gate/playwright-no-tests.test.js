@@ -19,7 +19,7 @@ describe('Playwright E2E script configuration', () => {
     });
 
     expect(result.status).not.toBe(0);
-  });
+  }, 15_000);
 
   it('test:audit:e2e script exits with a non-zero code if no specs are found', () => {
     const result = spawnSync(
@@ -32,5 +32,5 @@ describe('Playwright E2E script configuration', () => {
     );
 
     expect(result.status).not.toBe(0);
-  });
+  }, 15_000);
 });

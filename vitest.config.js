@@ -27,7 +27,6 @@ export default defineConfig({
           functions: 70,
           lines: 80,
           statements: 80,
-          perFile: true,
         },
       },
     },

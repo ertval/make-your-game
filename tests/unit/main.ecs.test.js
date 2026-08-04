@@ -780,3 +780,205 @@ describe('assertDomElementBudget (#285 / CI-13)', () => {
     );
   });
 });
+
+describe('createFrameProbe & error formatting (CI-14 / #281)', () => {
+  it('tracks contiguous slow frames and memory accumulation over warmup and active windows', () => {
+    const windowStub = {
+      addEventListener: vi.fn(),
+      removeEventListener: vi.fn(),
+      performance: {
+        now: vi.fn().mockReturnValue(0),
+        memory: {
+          usedJSHeapSize: 10_000_000,
+        },
+      },
+    };
+    const documentStub = {
+      addEventListener: vi.fn(),
+      removeEventListener: vi.fn(),
+    };
+    const clock = { lastFrameTime: 0, isPaused: false, simTimeMs: 0 };
+    const bootstrapStub = {
+      clock,
+      world: { frame: 0 },
+      gameStatus: { currentState: 'PLAYING' },
+      stepFrame: vi.fn(),
+      getInputAdapter: () => null,
+      setInputAdapter: () => null,
+    };
+
+    let frameCallback = null;
+    const requestFrame = (cb) => {
+      frameCallback = cb;
+      return 1;
+    };
+    const cancelFrame = vi.fn();
+
+    const runtime = createGameRuntime({
+      bootstrap: bootstrapStub,
+      cancelFrame,
+      documentRef: documentStub,
+      frameProbeWarmupFrames: 2,
+      logger: { error: vi.fn(), warn: vi.fn() },
+      nowProvider: windowStub.performance.now,
+      requestFrame,
+      windowRef: windowStub,
+    });
+
+    runtime.start();
+
+    const probe = windowStub.__MS_GHOSTMAN_FRAME_PROBE__;
+    expect(probe).toBeDefined();
+
+    // Warmup frame 1: delta doesn't exist yet (lastTimestamp not set)
+    frameCallback(1000);
+    expect(probe.getStats().sampleCount).toBe(0);
+
+    // Warmup frame 2: consumed as warmup slot 1
+    frameCallback(1016);
+    expect(probe.getStats().sampleCount).toBe(0);
+
+    // Warmup frame 3: consumed as warmup slot 2
+    frameCallback(1032);
+    expect(probe.getStats().sampleCount).toBe(0);
+
+    // Post-warmup frame 1: recorded, initial memory set to 10MB
+    windowStub.performance.memory.usedJSHeapSize = 10_000_000;
+    frameCallback(1048); // delta = 16
+    expect(probe.getStats().sampleCount).toBe(1);
+    expect(probe.getStats().memoryAccumulationBytes).toBe(0);
+
+    // Post-warmup frame 2: slow frame (30ms > 16.7ms), memory increases by 500KB
+    windowStub.performance.memory.usedJSHeapSize = 10_500_000;
+    frameCallback(1078); // delta = 30
+    expect(probe.getStats().sampleCount).toBe(2);
+    expect(probe.getStats().memoryAccumulationBytes).toBe(500_000);
+    expect(probe.getStats({ slowFrameThresholdMs: 16.7 }).maxContiguousSlowDurationMs).toBe(30);
+
+    // Post-warmup frame 3: second slow frame (40ms > 16.7ms)
+    windowStub.performance.memory.usedJSHeapSize = 11_200_000;
+    frameCallback(1118); // delta = 40
+    expect(probe.getStats().sampleCount).toBe(3);
+    expect(probe.getStats().memoryAccumulationBytes).toBe(1_200_000);
+    // Two consecutive slow frames: 30 + 40 = 70 ms
+    expect(probe.getStats({ slowFrameThresholdMs: 16.7 }).maxContiguousSlowDurationMs).toBe(70);
+
+    // Post-warmup frame 4: fast frame (10ms) breaks contiguous sequence
+    frameCallback(1128); // delta = 10
+    expect(probe.getStats({ slowFrameThresholdMs: 16.7 }).maxContiguousSlowDurationMs).toBe(70);
+
+    expect(probe.getStats().sampleCount).toBe(4);
+
+    runtime.stop();
+  });
+
+  it('handles reset with and without buffer clearing', () => {
+    const windowStub = {
+      performance: { now: () => 100 },
+    };
+    const documentStub = {};
+    const bootstrapStub = {
+      clock: { lastFrameTime: 0, isPaused: false, simTimeMs: 0 },
+      world: { frame: 0 },
+      gameStatus: { currentState: 'PLAYING' },
+      stepFrame: vi.fn(),
+      getInputAdapter: () => null,
+      setInputAdapter: () => null,
+    };
+    let frameCb = null;
+    const runtime = createGameRuntime({
+      bootstrap: bootstrapStub,
+      cancelFrame: vi.fn(),
+      documentRef: documentStub,
+      frameProbeWarmupFrames: 0,
+      requestFrame: (cb) => {
+        frameCb = cb;
+        return 1;
+      },
+      windowRef: windowStub,
+    });
+    runtime.start();
+    const probe = windowStub.__MS_GHOSTMAN_FRAME_PROBE__;
+
+    frameCb(100);
+    frameCb(116);
+    frameCb(132);
+    expect(probe.getStats().sampleCount).toBe(2);
+
+    probe.reset({ clearBuffer: true });
+    expect(probe.getStats().sampleCount).toBe(0);
+    expect(probe.getStats().p95FrameTime).toBe(0);
+
+    runtime.stop();
+  });
+
+  it('handles environment without performance.memory', () => {
+    const windowStub = {
+      performance: { now: () => 100 }, // No memory property
+    };
+    const documentStub = {};
+    const bootstrapStub = {
+      clock: { lastFrameTime: 0, isPaused: false, simTimeMs: 0 },
+      world: { frame: 0 },
+      gameStatus: { currentState: 'PLAYING' },
+      stepFrame: vi.fn(),
+      getInputAdapter: () => null,
+      setInputAdapter: () => null,
+    };
+    let frameCb = null;
+    const runtime = createGameRuntime({
+      bootstrap: bootstrapStub,
+      cancelFrame: vi.fn(),
+      documentRef: documentStub,
+      frameProbeWarmupFrames: 0,
+      requestFrame: (cb) => {
+        frameCb = cb;
+        return 1;
+      },
+      windowRef: windowStub,
+    });
+    runtime.start();
+    const probe = windowStub.__MS_GHOSTMAN_FRAME_PROBE__;
+
+    frameCb(100);
+    frameCb(120);
+    expect(probe.getStats().memoryAccumulationBytes).toBe(0);
+
+    runtime.stop();
+  });
+
+  it('handles non-finite timestamp fallbacks in normalizeNow', () => {
+    const windowStub = {};
+    const documentStub = {};
+    const bootstrapStub = {
+      clock: { lastFrameTime: 50, isPaused: false, simTimeMs: 0 },
+      world: { frame: 0 },
+      gameStatus: { currentState: 'PLAYING' },
+      stepFrame: vi.fn(),
+      getInputAdapter: () => null,
+      setInputAdapter: () => null,
+    };
+    let frameCb = null;
+    const runtime = createGameRuntime({
+      bootstrap: bootstrapStub,
+      cancelFrame: vi.fn(),
+      documentRef: documentStub,
+      frameProbeWarmupFrames: 0,
+      nowProvider: () => NaN, // getNow returns NaN
+      requestFrame: (cb) => {
+        frameCb = cb;
+        return 1;
+      },
+      windowRef: windowStub,
+    });
+    runtime.start();
+    frameCb(NaN);
+    expect(bootstrapStub.stepFrame).toHaveBeenCalledWith(50, expect.any(Object));
+
+    bootstrapStub.clock.lastFrameTime = NaN;
+    frameCb(NaN);
+    expect(bootstrapStub.stepFrame).toHaveBeenCalledWith(0, expect.any(Object));
+
+    runtime.stop();
+  });
+});
