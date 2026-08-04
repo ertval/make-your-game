@@ -40,6 +40,7 @@ describe('policy-utils ticket and process detection', () => {
 
   it('extracts ticket id only from explicit branch ticket format', () => {
     expect(extractTicketIdFromBranchName('ekaramet/A-03')).toBe('A-03');
+    expect(extractTicketIdFromBranchName('ekaramet/A-278-fix-policy')).toBe('A-278');
     expect(extractTicketIdFromBranchName('asmyrogl/B-03-runtime-integration')).toBe('B-03');
     expect(extractTicketIdFromBranchName('medvall/D-10-fix-pool-thrash')).toBe('D-10');
     expect(extractTicketIdFromBranchName('ekaramet/A-3')).toBe('');

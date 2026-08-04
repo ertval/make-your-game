@@ -118,9 +118,9 @@ const IGNORED_DIRS = new Set([
   'test-results',
 ]);
 
-const TICKET_ID_PATTERN = /\b([ABCD]-\d{2})\b/gi;
+const TICKET_ID_PATTERN = /\b([ABCD]-\d{2,3})\b/gi;
 export const EXPLICIT_TICKET_BRANCH_PATTERN =
-  /^[A-Za-z0-9._-]+\/([ABCD]-\d{2})(?:-[A-Za-z0-9._-]+)?$/;
+  /^[A-Za-z0-9._-]+\/([ABCD]-\d{2,3})(?:-[A-Za-z0-9._-]+)?$/;
 
 // Bugfix branches bypass ownership checks so a developer can fix cross-track issues without
 // splitting into per-track PRs. The owner prefix is still required and must be a registered owner,

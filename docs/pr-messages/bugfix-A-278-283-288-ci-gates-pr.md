@@ -6,15 +6,16 @@
 ## 📝 Description
 
 ### 🔄 What Changed
-- **`scripts/policy-gate/lib/policy-utils.mjs` & `run-checks.mjs`**: Restricted integration branch ownership bypass to only match valid owners and non-empty slugs using the `<owner>/integration-<slug>` convention, rejecting bare `integration` or empty slugs (#278 / CI-04).
+- **`scripts/policy-gate/lib/policy-utils.mjs` & `run-checks.mjs`**: Restricted integration branch ownership bypass to only match valid owners and non-empty slugs using the `<owner>/integration-<slug>` convention (#278 / CI-04). Enforced ticket validation on all bugfix (`<owner>/bugfix-<slug>`) and integration branches before allowing ownership bypass, throwing if no ticket ID is present in branch name, commits, or metadata. Supported 2-3 digit ticket IDs (`A-278`).
+- **`scripts/policy-gate/README.md`**: Updated constraints table to clarify non-empty integration slug requirement and ticket validation enforcement on bugfix and integration branches.
 - **`tests/unit/policy-gate/traceability-matrix-anchors.test.js`**: Created a new test suite that parses `docs/implementation/audit-traceability-matrix.md` and validates that every backticked path exists on disk. More importantly, it enforces that behavioral requirement rows do not cite only the metadata inventory suite (`audit.e2e.test.js`), ensuring direct traceability to real E2E/integration/unit suites (#283 / CI-07).
 - **`docs/implementation/audit-traceability-matrix.md`**: Updated matrix anchors to map REQ-01, REQ-02, and REQ-09 to their actual runtime test files instead of the metadata inventory test file.
-- **`tests/e2e/audit/audit-question-map.js` & `audit.e2e.test.js`**: Set explicit budgets for CI headless runners under `CI_SEMI_AUTOMATABLE_THRESHOLDS`, capping frame-time relaxation at 2x frame-time (33.4 ms) and 1/2 FPS (30 FPS) relative to the canonical targets, and added automated assertions to prevent softer thresholds (#288 / CI-17).
+- **`tests/e2e/audit/audit.browser.spec.js` & `audit.e2e.test.js`**: Wired `CI_SEMI_AUTOMATABLE_THRESHOLDS` into `audit.browser.spec.js` as a hard cap on active thresholds (capping relaxation at 2x frame time = 33.4ms and 1/2 FPS = 30 FPS). Validated that default `CI_TOLERANCE_FACTOR` (1.3) produces effective thresholds of ~21.7ms frame time and 46 FPS (#288 / CI-17).
 
 ### 🎯 Why
-- **#278**: Bypassing ownership checks for integration needs to be strictly controlled so that developers do not bypass checks on arbitrary branch names.
+- **#278**: Bypassing ownership checks for integration and bugfix branches must enforce ticket validation so developers cannot bypass ticket checks with arbitrary branch names.
 - **#283**: To guarantee that functional requirements are verified by real runtime execution/assertions instead of just listing them in the metadata inventory mapping.
-- **#288**: Hardening CI limits ensures that slow runner VM relaxation remains within a tight, meaningful envelope (max 2x) instead of becoming so soft (~3x) that actual performance regressions go undetected.
+- **#288**: Wiring CI threshold limits into `audit.browser.spec.js` ensures that slow runner VM relaxation remains bounded by a hard 2x cap while asserting effective CI targets (21.7ms / 46 FPS).
 
 ---
 
@@ -25,9 +26,8 @@
 > *Note: This command includes linting, all test suites (unit, integration, e2e), and policy gate validations.*
 
 ### 📋 Audit Traceability
-- **AUDIT-CI-04** | `[Fully Automatable]` | Verification: `tests/unit/policy-gate/policy-utils.test.js`
-- **AUDIT-CI-07** | `[Fully Automatable]` | Verification: `tests/unit/policy-gate/traceability-matrix-anchors.test.js`
-- **AUDIT-CI-17** | `[Fully Automatable]` | Verification: `tests/e2e/audit/audit.e2e.test.js`
+- **AUDIT-F-17** | `[Semi-Automatable]` | Verification: `tests/e2e/audit/audit.browser.spec.js` + `tests/e2e/audit/audit.e2e.test.js`
+- **AUDIT-F-18** | `[Semi-Automatable]` | Verification: `tests/e2e/audit/audit.browser.spec.js` + `tests/e2e/audit/audit.e2e.test.js`
 
 ---
 

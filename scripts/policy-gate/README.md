@@ -82,9 +82,9 @@ Branches named `<owner>/integration-<slug>` (for example `ekaramet/integration-p
 | Rule | Requirement |
 |---|---|
 | **Registered Owner required** | The `<owner>` prefix MUST be present and MUST be one of the registered developers in `OWNER_TRACK_MAPPING` (ekaramet, asmyrogl, chbaikas, medvall). |
-| **`integration` keyword mandatory** | The path segment after the `/` must start exactly with `integration` (case-sensitive). The remainder of the slug is free-form (including an empty slug). |
+| **`integration` keyword mandatory** | The path segment after the `/` must start exactly with `integration-` followed by a non-empty slug (e.g. `owner/integration-<slug>`). Bare `integration` or `owner/integration` without a slug is rejected (#278). |
 | **Ownership Relaxed** | Track ownership checks are bypassed, allowing the developer to touch files outside their assigned track. |
-| **Ticket association Relaxed** | Ticket association is NOT a blocking factor. Integration branches can have no tickets or cross-track tickets. |
+| **Ticket validation Enforced** | Ticket ID validation is enforced. Integration and bugfix branches must contain valid ticket ID(s) (e.g. A-01, B-12) in the branch name or commit messages (#278). |
 | **All other gates active** | Security, traceability, lockfile, and quality gates run unchanged. |
 
 ### Pattern

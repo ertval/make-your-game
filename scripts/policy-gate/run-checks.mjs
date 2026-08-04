@@ -99,21 +99,27 @@ function deriveTicketContext() {
         ]);
   const trackCodes = inferTracksFromTicketIds(ticketIds);
 
-  if (
-    requireBranchTicket &&
-    !processMode &&
-    !bypassOwnershipMode &&
-    branchName &&
-    !EXPLICIT_TICKET_BRANCH_PATTERN.test(branchName)
-  ) {
-    throw new Error(
-      [
-        `Branch "${branchName}" does not follow the required ticket format.`,
-        'Expected: <owner-or-scope>/<TRACK>-<NN>[-<COMMENT>], for example ekaramet/A-03 or asmyrogl/B-03-runtime-integration.',
-        'Allowed track prefixes: A, B, C, D.',
-        'Action: Rename your branch using the format <owner-or-scope>/<TRACK>-<NN>[-<COMMENT>] (e.g., git branch -m new-branch-name).',
-      ].join('\n'),
-    );
+  if (requireBranchTicket && !processMode && branchName) {
+    if (bypassOwnershipMode) {
+      if (branchTicketIds.length === 0) {
+        throw new Error(
+          [
+            `Branch "${branchName}" is a ${integrationMode ? 'integration' : 'bugfix'} branch but does not contain a valid ticket ID (e.g. A-01, B-12).`,
+            'Expected branch name to include a ticket ID (e.g. ekaramet/bugfix-A-278-slug or ekaramet/integration-B-03-slug).',
+            'Action: Rename your branch using a format that includes a valid ticket ID.',
+          ].join('\n'),
+        );
+      }
+    } else if (!EXPLICIT_TICKET_BRANCH_PATTERN.test(branchName)) {
+      throw new Error(
+        [
+          `Branch "${branchName}" does not follow the required ticket format.`,
+          'Expected: <owner-or-scope>/<TRACK>-<NN>[-<COMMENT>], for example ekaramet/A-03 or asmyrogl/B-03-runtime-integration.',
+          'Allowed track prefixes: A, B, C, D.',
+          'Action: Rename your branch using the format <owner-or-scope>/<TRACK>-<NN>[-<COMMENT>] (e.g., git branch -m new-branch-name).',
+        ].join('\n'),
+      );
+    }
   }
 
   return {
@@ -164,6 +170,16 @@ function assertTicketAssociation() {
     };
   }
 
+  if (context.ticketIds.length === 0 && !processMode) {
+    throw new Error(
+      [
+        'No ticket ID found in branch name or branch commit messages.',
+        'Expected branch naming or branch commits to include a ticket ID such as A-01, B-12, C-03, or D-11.',
+        'Action: include a valid ticket ID in the branch name or at least one branch commit message.',
+      ].join('\n'),
+    );
+  }
+
   if (bypassOwnershipMode) {
     const modeLabel = integrationMode ? 'INTEGRATION MODE' : 'BUGFIX MODE';
     const bypassWarning = `🐞 ${modeLabel} DETECTED: Branch "${branchName}" has relaxed policy checks allowing multitrack edits. Use with care.`;
@@ -175,16 +191,6 @@ function assertTicketAssociation() {
       context.ticketIds,
       context.trackCodes,
       true,
-    );
-  }
-
-  if (context.ticketIds.length === 0 && !processMode) {
-    throw new Error(
-      [
-        'No ticket ID found in branch name or branch commit messages.',
-        'Expected branch naming or branch commits to include a ticket ID such as A-01, B-12, C-03, or D-11.',
-        'Action: include a valid ticket ID in the branch name or at least one branch commit message.',
-      ].join('\n'),
     );
   }
 
