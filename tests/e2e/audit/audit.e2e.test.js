@@ -13,6 +13,7 @@ import { describe, expect, it } from 'vitest';
 import {
   AUDIT_EXECUTION_SPLIT,
   AUDIT_QUESTIONS,
+  CI_SEMI_AUTOMATABLE_THRESHOLDS,
   MANUAL_EVIDENCE_AUDIT_IDS,
   MANUAL_EVIDENCE_MANIFEST_PATH,
   SEMI_AUTOMATABLE_THRESHOLDS,
@@ -88,6 +89,40 @@ describe('Audit executable verification contract (non-browser checks)', () => {
     expect(SEMI_AUTOMATABLE_THRESHOLDS['AUDIT-F-17'].maxP95FrameTimeMs).toBeLessThanOrEqual(16.7);
     expect(SEMI_AUTOMATABLE_THRESHOLDS['AUDIT-F-18'].minP95Fps).toBeGreaterThanOrEqual(60);
     expect(SEMI_AUTOMATABLE_THRESHOLDS['AUDIT-B-05'].maxLongTaskMs).toBeLessThanOrEqual(50);
+  });
+
+  // CI-17 / #288: CI budgets may relax for headless runners, but must not be ~3× softer
+  // than AGENTS.md (was 50 ms / 20 FPS). Cap relaxation at 2× frame-time / ½ FPS.
+  it('keeps CI semi-automatable thresholds within a 2× envelope and validates effective CI tolerance (#288)', () => {
+    const canonicalF17 = SEMI_AUTOMATABLE_THRESHOLDS['AUDIT-F-17'];
+    const canonicalF18 = SEMI_AUTOMATABLE_THRESHOLDS['AUDIT-F-18'];
+    const ciF17 = CI_SEMI_AUTOMATABLE_THRESHOLDS['AUDIT-F-17'];
+    const ciF18 = CI_SEMI_AUTOMATABLE_THRESHOLDS['AUDIT-F-18'];
+
+    expect(ciF17).toBeDefined();
+    expect(ciF18).toBeDefined();
+
+    // Frame-time budget: CI hard cap must stay ≤ 2× canonical (16.7 → 33.4 ms).
+    expect(ciF17.maxP95FrameTimeMs).toBeLessThanOrEqual(canonicalF17.maxP95FrameTimeMs * 2);
+    // FPS floor: CI hard cap must stay ≥ ½ of canonical (60 → 30 FPS).
+    expect(ciF18.minP95Fps).toBeGreaterThanOrEqual(canonicalF18.minP95Fps / 2);
+    expect(ciF17.maxP95FrameTimeMs).toBeLessThanOrEqual(33.4);
+    expect(ciF18.minP95Fps).toBeGreaterThanOrEqual(30);
+
+    // Effective threshold check with standard CI_TOLERANCE_FACTOR = 1.3:
+    const ciFactor = 1.3;
+    const effectiveF17 = Math.min(
+      canonicalF17.maxP95FrameTimeMs * ciFactor,
+      ciF17.maxP95FrameTimeMs,
+    );
+    const effectiveF18 = Math.max(Math.floor(canonicalF18.minP95Fps / ciFactor), ciF18.minP95Fps);
+
+    // Effective CI frame time (~21.71ms) is strictly tighter than the 2x cap (33.4ms)
+    expect(effectiveF17).toBeLessThan(ciF17.maxP95FrameTimeMs);
+    expect(effectiveF17).toBeCloseTo(21.71, 1);
+    // Effective CI FPS (46 FPS) is strictly tighter than the 2x cap (30 FPS)
+    expect(effectiveF18).toBeGreaterThan(ciF18.minP95Fps);
+    expect(effectiveF18).toBe(46);
   });
 
   it('enforces manual-evidence obligations for F-19/F-20/F-21/B-06 through manifest entries', () => {

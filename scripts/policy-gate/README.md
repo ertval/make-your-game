@@ -72,7 +72,7 @@ Branches named `<owner>/bugfix-<slug>` (for example `ekaramet/bugfix-ghost-colli
 
 ## Integration Branch Mode
 
-Branches named `<owner>/integration<slug>` (for example `ekaramet/integration-phase2-merge`) activate **integration mode**, which is a **named alias of bugfix mode**. It provides identical ownership-bypass semantics and is intended for cross-track integration or merge PRs rather than defect fixes.
+Branches named `<owner>/integration-<slug>` (for example `ekaramet/integration-phase2-merge`) activate **integration mode**, which is a **named alias of bugfix mode**. A non-empty slug after `integration-` is required — bare names like `integration` or `owner/integration` do not bypass ownership. It provides identical ownership-bypass semantics and is intended for cross-track integration or merge PRs rather than defect fixes.
 
 - **Bypasses** track ownership checks (`assertTrackOwnership` and `assertOwnerScopedOwnership`) — same as bugfix mode.
 - **Does not bypass** any other gates: security sink and ECS DOM boundary scans, forbidden-API checks, traceability coverage, lockfile pairing, and all quality gates still run normally.
@@ -82,21 +82,26 @@ Branches named `<owner>/integration<slug>` (for example `ekaramet/integration-ph
 | Rule | Requirement |
 |---|---|
 | **Registered Owner required** | The `<owner>` prefix MUST be present and MUST be one of the registered developers in `OWNER_TRACK_MAPPING` (ekaramet, asmyrogl, chbaikas, medvall). |
-| **`integration` keyword mandatory** | The path segment after the `/` must start exactly with `integration` (case-sensitive). The remainder of the slug is free-form (including an empty slug). |
+| **`integration` keyword mandatory** | The path segment after the `/` must start exactly with `integration-` followed by a non-empty slug (e.g. `owner/integration-<slug>`). Bare `integration` or `owner/integration` without a slug is rejected (#278). |
 | **Ownership Relaxed** | Track ownership checks are bypassed, allowing the developer to touch files outside their assigned track. |
-| **Ticket association Relaxed** | Ticket association is NOT a blocking factor. Integration branches can have no tickets or cross-track tickets. |
+| **Ticket validation Enforced** | Ticket ID validation is enforced. Integration and bugfix branches must contain valid ticket ID(s) (e.g. A-01, B-12) in the branch name or commit messages (#278). |
 | **All other gates active** | Security, traceability, lockfile, and quality gates run unchanged. |
 
 ### Pattern
 
 ```
-<owner>/integration<slug>
+<owner>/integration-<slug>
 ```
 
 **Examples:**
 - `ekaramet/integration-phase2-merge`
-- `asmyrogl/integration`
+- `asmyrogl/integration-B-07-timer-race`
 - `chbaikas/integration-audio-and-hud`
+
+**Rejected (no bypass):**
+- `integration` (no owner)
+- `asmyrogl/integration` (empty slug)
+- `ekaramet/integration-` (trailing separator only)
 
 ### Implementation reference
 

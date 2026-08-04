@@ -40,6 +40,7 @@ describe('policy-utils ticket and process detection', () => {
 
   it('extracts ticket id only from explicit branch ticket format', () => {
     expect(extractTicketIdFromBranchName('ekaramet/A-03')).toBe('A-03');
+    expect(extractTicketIdFromBranchName('ekaramet/A-278-fix-policy')).toBe('A-278');
     expect(extractTicketIdFromBranchName('asmyrogl/B-03-runtime-integration')).toBe('B-03');
     expect(extractTicketIdFromBranchName('medvall/D-10-fix-pool-thrash')).toBe('D-10');
     expect(extractTicketIdFromBranchName('ekaramet/A-3')).toBe('');
@@ -465,11 +466,21 @@ describe('policy-utils bugfix branch detection', () => {
 });
 
 describe('policy-utils integration branch detection', () => {
-  it('identifies integration branches for registered owners', () => {
+  it('identifies integration branches for registered owners when a slug is present', () => {
+    // CI-04 / #278: bypass requires owner + integration-<slug>, not a bare "integration" token.
     expect(isIntegrationBranch('ekaramet/integration-phase2-merge')).toBe(true);
     expect(isIntegrationBranch('asmyrogl/integration-B-07-timer-race')).toBe(true);
-    expect(isIntegrationBranch('chbaikas/integration')).toBe(true);
     expect(isIntegrationBranch('medvall/integration-visuals')).toBe(true);
+  });
+
+  it('rejects bare "integration" and owner/integration without a slug (#278 CI-04)', () => {
+    // Bare branch name with no owner prefix must never activate ownership bypass.
+    expect(isIntegrationBranch('integration')).toBe(false);
+    // Empty slug after integration is too loose — must require a descriptive slug.
+    expect(isIntegrationBranch('chbaikas/integration')).toBe(false);
+    expect(isIntegrationBranch('ekaramet/integration')).toBe(false);
+    // Trailing separator without a slug is also invalid.
+    expect(isIntegrationBranch('ekaramet/integration-')).toBe(false);
   });
 
   it('rejects integration branches for unregistered owners', () => {
@@ -482,6 +493,9 @@ describe('policy-utils integration branch detection', () => {
     expect(isIntegrationBranch('ekaramet/fix-typo')).toBe(false);
     expect(isIntegrationBranch('ekaramet/A-03')).toBe(false);
     expect(isIntegrationBranch('ekaramet/process-audit')).toBe(false);
+    // Substring "integration" inside an unrelated segment must not match.
+    expect(isIntegrationBranch('ekaramet/reintegration-work')).toBe(false);
+    expect(isIntegrationBranch('integration/ekaramet-phase2')).toBe(false);
   });
 
   it('correctly resolves PR policy path for integration mode as a named alias of bugfix mode', () => {

@@ -21,7 +21,10 @@
 import { expect, test } from '@playwright/test';
 
 import { bootRuntime, FIXED_DT_MS, startGameAndWait } from '../helpers/game-helpers.js';
-import { SEMI_AUTOMATABLE_THRESHOLDS } from './audit-question-map.js';
+import {
+  CI_SEMI_AUTOMATABLE_THRESHOLDS,
+  SEMI_AUTOMATABLE_THRESHOLDS,
+} from './audit-question-map.js';
 
 const CI_TOLERANCE_FACTOR = Number(
   process.env.CI_TOLERANCE_FACTOR ?? (process.env.CI ? '1.3' : '1.05'),
@@ -51,9 +54,21 @@ function applyCIFactor(thresholds) {
   };
 }
 
+const rawF17 = applyCIFactor(SEMI_AUTOMATABLE_THRESHOLDS['AUDIT-F-17']);
+const rawF18 = applyCIFactor(SEMI_AUTOMATABLE_THRESHOLDS['AUDIT-F-18']);
+
 const ACTIVE_THRESHOLDS = {
-  'AUDIT-F-17': applyCIFactor(SEMI_AUTOMATABLE_THRESHOLDS['AUDIT-F-17']),
-  'AUDIT-F-18': applyCIFactor(SEMI_AUTOMATABLE_THRESHOLDS['AUDIT-F-18']),
+  'AUDIT-F-17': {
+    ...rawF17,
+    maxP95FrameTimeMs: Math.min(
+      rawF17.maxP95FrameTimeMs,
+      CI_SEMI_AUTOMATABLE_THRESHOLDS['AUDIT-F-17'].maxP95FrameTimeMs,
+    ),
+  },
+  'AUDIT-F-18': {
+    ...rawF18,
+    minP95Fps: Math.max(rawF18.minP95Fps, CI_SEMI_AUTOMATABLE_THRESHOLDS['AUDIT-F-18'].minP95Fps),
+  },
   'AUDIT-B-05': SEMI_AUTOMATABLE_THRESHOLDS['AUDIT-B-05'],
 };
 
