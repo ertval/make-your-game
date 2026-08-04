@@ -295,6 +295,7 @@ export const TRACK_OWNERSHIP_RULES = {
       'biome.json',
       'scripts/**',
       'src/main.js',
+      'src/breakout.js',
       'src/main.ecs.js',
       'src/shared/**',
       'src/game/**',

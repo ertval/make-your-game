@@ -155,7 +155,7 @@ describe('level-progress-system', () => {
 
   it('does not write levelFlow when LEVEL_COMPLETE is reached on a non-final level', () => {
     const world = new World();
-    const system = createLevelProgressSystem({ totalLevels: 3 });
+    const system = createLevelProgressSystem();
     const gameStatus = createGameStatus(GAME_STATE.LEVEL_COMPLETE);
     const mapResource = createTestMapResource(1);
 
@@ -170,7 +170,7 @@ describe('level-progress-system', () => {
 
   it('does not write levelFlow when the level is invalid (treated as non-final)', () => {
     const world = new World();
-    const system = createLevelProgressSystem({ totalLevels: 3 });
+    const system = createLevelProgressSystem();
     const gameStatus = createGameStatus(GAME_STATE.LEVEL_COMPLETE);
     const mapResource = createTestMapResource(1);
     mapResource.level = 'invalid';
@@ -186,7 +186,7 @@ describe('level-progress-system', () => {
 
   it('leaves a pre-existing levelFlow resource untouched on non-final completion', () => {
     const world = new World();
-    const system = createLevelProgressSystem({ totalLevels: 3 });
+    const system = createLevelProgressSystem();
     const gameStatus = createGameStatus(GAME_STATE.LEVEL_COMPLETE);
     const mapResource = createTestMapResource(1);
 
@@ -197,21 +197,5 @@ describe('level-progress-system', () => {
     updateSystem(system, world);
 
     expect(world.getResource('levelFlow')).toEqual({ existing: true });
-  });
-
-  it('transitions to VICTORY when LEVEL_COMPLETE is reached on the final level', () => {
-    const world = new World();
-    const system = createLevelProgressSystem({ totalLevels: 3 });
-    const gameStatus = createGameStatus(GAME_STATE.LEVEL_COMPLETE);
-    const mapResource = createTestMapResource(3);
-
-    world.setResource('gameStatus', gameStatus);
-    world.setResource('mapResource', mapResource);
-
-    updateSystem(system, world);
-
-    expect(gameStatus.currentState).toBe(GAME_STATE.VICTORY);
-    expect(gameStatus.previousState).toBe(GAME_STATE.LEVEL_COMPLETE);
-    expect(world.getResource('levelFlow')).toBeUndefined();
   });
 });

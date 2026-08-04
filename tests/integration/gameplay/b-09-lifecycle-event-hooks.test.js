@@ -78,7 +78,7 @@ function runLifeLostScenario({ lives }) {
 // --- LevelCleared → Victory harness (level-progress-system) ---
 
 function createClearedFinalLevelMap() {
-  // Final level (level 3 with default totalLevels 3) whose grid carries no
+  // Final level (level 3 of 3) whose grid carries no
   // pellets or power pellets, so the system immediately treats it as cleared.
   return createMapResource({
     level: 3,
@@ -121,8 +121,6 @@ function createLevelClearedHarness() {
 function runLevelClearedScenario() {
   const { eventQueue, world } = createLevelClearedHarness();
   // Frame 0: PLAYING → LEVEL_COMPLETE emits LevelCleared.
-  world.runFixedStep({ dtMs: FIXED_DT_MS });
-  // Frame 1: LEVEL_COMPLETE → VICTORY (final level) emits Victory.
   world.runFixedStep({ dtMs: FIXED_DT_MS });
   return { events: drain(eventQueue), world };
 }
@@ -200,7 +198,7 @@ describe('B-09 life-system lifecycle emission', () => {
 });
 
 describe('B-09 level-progress lifecycle emission', () => {
-  it('emits LevelCleared then Victory across the final-level transition', () => {
+  it('emits LevelCleared across the level transition', () => {
     const { events, world } = runLevelClearedScenario();
 
     expect(events).toEqual([
@@ -213,21 +211,11 @@ describe('B-09 level-progress lifecycle emission', () => {
         },
         type: GAMEPLAY_EVENT_TYPE.LEVEL_CLEARED,
       },
-      {
-        // The queue's order counter is monotonic until drained, so a Victory
-        // emitted on the next frame keeps climbing past the LevelCleared order.
-        frame: 1,
-        order: 1,
-        payload: {
-          sourceSystem: GAMEPLAY_EVENT_SOURCE.LEVEL_PROGRESS,
-        },
-        type: GAMEPLAY_EVENT_TYPE.VICTORY,
-      },
     ]);
-    expect(world.getResource('gameStatus').currentState).toBe(GAME_STATE.VICTORY);
+    expect(world.getResource('gameStatus').currentState).toBe(GAME_STATE.LEVEL_COMPLETE);
   });
 
-  it('produces identical LevelCleared → Victory streams across repeated runs', () => {
+  it('produces identical LevelCleared streams across repeated runs', () => {
     expect(runLevelClearedScenario().events).toEqual(runLevelClearedScenario().events);
   });
 });

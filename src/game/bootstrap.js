@@ -997,6 +997,7 @@ export function createBootstrap(options = {}) {
       }
     },
     world,
+    eventQueueResourceKey,
   });
   // The runtime boots into the MENU state so the Start Game overlay is shown
   // and the player must click "Start Game" to begin. That click is a user

@@ -77,11 +77,24 @@ test('restores player spawn position in the DOM after restart', async ({ page })
 
   // After restart the ECS position store is reset to spawn coords; the next
   // render-collect tick writes the correct --row/--col back onto the element.
-  // We only assert the player element is still present and accessible.
   expect(afterRestart).not.toBeNull();
-  // Verify spawn position is restored (should match original or be reset to spawn).
   if (initialPos) {
-    expect(afterRestart.row).toBe(initialPos.row);
-    expect(afterRestart.col).toBe(initialPos.col);
+    await expect
+      .poll(async () => {
+        return page.evaluate(() => {
+          const player = document.querySelector('.sprite--player');
+          return player ? player.style.getPropertyValue('--row') : null;
+        });
+      })
+      .toBe(initialPos.row);
+
+    await expect
+      .poll(async () => {
+        return page.evaluate(() => {
+          const player = document.querySelector('.sprite--player');
+          return player ? player.style.getPropertyValue('--col') : null;
+        });
+      })
+      .toBe(initialPos.col);
   }
 });

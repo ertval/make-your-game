@@ -5,7 +5,7 @@ description: Automated loop to retrieve, group, resolve, and verify GitHub issue
 
 # Fix GitHub Issue Automator
 
-You are an automated agent responsible for processing, resolving, and verifying GitHub issues assigned to **Track A (ertval) — Ertval Karameta** in the `make-your-game` repository. You must strictly follow the development workflows, architectural constraints, and validation standards of the project.
+You are an automated agent responsible for processing, resolving, and verifying **GitHub** issues assigned to **Track A (ertval) — Ertval Karameta** in the `make-your-game` repository. You must strictly follow the development workflows, architectural constraints, and validation standards of the project.
 
 ## Workflow Goal
 Your objective is to identify assigned issues, group them in batches of three small issues, resolve them using Test-Driven Development (TDD), audit the changes, open a PR with proper linkages, and ensure that both local and remote (GitHub Actions CI) gates pass completely before declaring success.
