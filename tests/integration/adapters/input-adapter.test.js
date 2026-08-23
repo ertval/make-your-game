@@ -63,13 +63,33 @@ describe('keyboard input adapter', () => {
     expect(normalizeKeyboardIntent({ key: 'Spacebar' })).toBe(INPUT_INTENT.BOMB);
   });
 
+  it('normalizes WASD keys into the same movement intents as arrows', () => {
+    expect(normalizeKeyboardIntent({ code: 'KeyW' })).toBe(INPUT_INTENT.UP);
+    expect(normalizeKeyboardIntent({ code: 'KeyS' })).toBe(INPUT_INTENT.DOWN);
+    expect(normalizeKeyboardIntent({ code: 'KeyA' })).toBe(INPUT_INTENT.LEFT);
+    expect(normalizeKeyboardIntent({ code: 'KeyD' })).toBe(INPUT_INTENT.RIGHT);
+    // Fallback `key` bindings for environments without `code`.
+    expect(normalizeKeyboardIntent({ key: 'w' })).toBe(INPUT_INTENT.UP);
+    expect(normalizeKeyboardIntent({ key: 'a' })).toBe(INPUT_INTENT.LEFT);
+    expect(normalizeKeyboardIntent({ key: 's' })).toBe(INPUT_INTENT.DOWN);
+    expect(normalizeKeyboardIntent({ key: 'd' })).toBe(INPUT_INTENT.RIGHT);
+  });
+
   it('prefers KeyboardEvent.code over key when both are present', () => {
+    // KeyZ is unbound, so code-precedence yields null even though `key` maps.
+    expect(
+      normalizeKeyboardIntent({
+        code: 'KeyZ',
+        key: 'ArrowUp',
+      }),
+    ).toBeNull();
+    // KeyA is now a bound movement code and must win over the fallback key map.
     expect(
       normalizeKeyboardIntent({
         code: 'KeyA',
         key: 'ArrowUp',
       }),
-    ).toBeNull();
+    ).toBe(INPUT_INTENT.LEFT);
     expect(
       normalizeKeyboardIntent({
         code: 'ArrowLeft',
@@ -139,8 +159,9 @@ describe('keyboard input adapter', () => {
     const adapter = createInputAdapter({ eventTarget });
     let prevented = false;
 
+    // KeyZ is not part of the gameplay binding table.
     eventTarget.dispatch('keydown', {
-      code: 'KeyA',
+      code: 'KeyZ',
       preventDefault() {
         prevented = true;
       },
@@ -150,6 +171,26 @@ describe('keyboard input adapter', () => {
     expect(adapter.heldKeys.size).toBe(0);
     expect(adapter.pressedKeys.size).toBe(0);
     expect(prevented).toBe(false);
+
+    adapter.destroy();
+  });
+
+  it('captures WASD keys into held state with hold/clear semantics', () => {
+    const eventTarget = createEventTargetStub();
+    const adapter = createInputAdapter({ eventTarget });
+
+    eventTarget.dispatch('keydown', { code: 'KeyW', repeat: false });
+    eventTarget.dispatch('keydown', { code: 'KeyD', repeat: false });
+    expect(adapter.getHeldKeys().has(INPUT_INTENT.UP)).toBe(true);
+    expect(adapter.getHeldKeys().has(INPUT_INTENT.RIGHT)).toBe(true);
+
+    // OS key-repeat must not buffer a second press edge.
+    eventTarget.dispatch('keydown', { code: 'KeyD', repeat: true });
+    expect([...adapter.drainPressedKeys()]).toEqual([INPUT_INTENT.UP, INPUT_INTENT.RIGHT]);
+
+    eventTarget.dispatch('keyup', { code: 'KeyD' });
+    expect(adapter.getHeldKeys().has(INPUT_INTENT.RIGHT)).toBe(false);
+    expect(adapter.getHeldKeys().has(INPUT_INTENT.UP)).toBe(true);
 
     adapter.destroy();
   });

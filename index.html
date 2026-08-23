@@ -21,7 +21,7 @@
       <section id="hud" aria-label="Game HUD">
         <p class="hud__metric" data-hud="timer"><span class="hud__label">Timer:</span> <span class="hud__value" data-hud-value>0:00</span></p>
         <p class="hud__metric" data-hud="score"><span class="hud__label">Score:</span> <span class="hud__value" data-hud-value>00000</span></p>
-        <p class="hud__metric" data-hud="lives"><span class="hud__label">Lives:</span> <span class="hud__value" data-hud-value>3</span></p>
+        <p class="hud__metric" data-hud="lives"><span class="hud__label hud__label--lives">Lives:</span> <span class="hud__value" data-hud-value>3</span></p>
         <p class="hud__metric" data-hud="bombs"><span class="hud__label">Bombs:</span> <span class="hud__value" data-hud-value>0</span></p>
         <p class="hud__metric" data-hud="fire"><span class="hud__label">Fire:</span> <span class="hud__value" data-hud-value>0</span></p>
         <p class="hud__metric" data-hud="level"><span class="hud__label">Level:</span> <span class="hud__value" data-hud-value>1</span></p>
@@ -61,6 +61,12 @@
         <div data-audio-loading class="audio-loading is-screen-hidden" aria-live="polite" aria-hidden="true" aria-busy="false">Loading audio…</div>
         <section data-screen="start" class="screen-overlay is-screen-hidden" aria-hidden="true" tabindex="-1">
           <div class="overlay__panel">
+            <!-- B-04: inline vector logo (SVG). Single-path silhouette rendered
+                 via safe static markup, no JS-built sinks. Deliberately minimal
+                 (2 elements) to respect the AGENTS.md ≤500 DOM budget. -->
+            <svg class="overlay__logo" viewBox="0 0 96 96" width="84" height="84" role="img" aria-label="Ms. Ghostman logo" focusable="false">
+              <path fill-rule="evenodd" d="M48 12C31 12 20 25 20 42v36l9.5-8 9.5 8 9-8 9 8 9.5-8L76 78V42C76 25 65 12 48 12Zm-10 26a7 7 0 1 0 14 0 7 7 0 0 0-14 0Zm16 0a7 7 0 1 0 14 0 7 7 0 0 0-14 0Z"/>
+            </svg>
             <h1>Ms. Ghostman</h1>
             <div class="overlay__actions">
               <button type="button" data-option data-action="start-primary">Start Game</button>
@@ -72,9 +78,9 @@
         <section data-screen="high-scores" class="screen-overlay is-screen-hidden" aria-hidden="true" tabindex="-1">
           <div class="overlay__panel" role="group" aria-label="High scores">
             <h2>High Scores</h2>
-            <ol class="high-scores__list" data-high-scores aria-live="polite">
-              <li class="high-scores__empty">No scores yet</li>
-            </ol>
+            <!-- List contents (incl. the empty-state row) are rendered by
+                 screens-adapter.renderHighScores() on every open; no static li. -->
+            <ol class="high-scores__list" data-high-scores aria-live="polite"></ol>
             <div class="overlay__actions">
               <button type="button" data-option data-action="high-scores-back">Back</button>
             </div>
@@ -89,6 +95,10 @@
               <button type="button" data-option data-action="open-high-scores" data-high-scores-origin="pause">High Scores</button>
               <button type="button" data-option data-action="pause-restart">Restart</button>
             </div>
+            <!-- How-to-play reference (static markup, not a [data-option], so
+                 menu keyboard navigation skips it). Single element by design:
+                 the AGENTS.md ≤500 DOM budget leaves little static headroom. -->
+            <p class="how-to-play">How to play — Move: Arrows / WASD (hold to keep moving) · Bomb: Space · Pause / Resume: Esc or P · Confirm: Enter</p>
           </div>
         </section>
         <section data-screen="settings" class="screen-overlay is-screen-hidden" aria-hidden="true" tabindex="-1">

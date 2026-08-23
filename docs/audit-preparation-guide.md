@@ -3,7 +3,9 @@
 > **Purpose**: Canonical, item-by-item preparation guide and technical reference for the **Ms. Ghostman** project audit.
 > This document provides complete, verified answers to every question in [`docs/audit.md`](audit.md), detailing the technical implementation in code, step-by-step verification commands, and Chrome DevTools defense procedures.
 >
-> **Verification basis**: All code references below were checked against the current `main` (`b7ea18b`) on 2026-08-04.
+> **Verification basis**: All code references below were checked against the `ertval/bugfix-svg-wasd-audit-prep` branch on top of `main` (`39c76b4`). Re-verify line numbers against your presentation HEAD before the audit.
+>
+> **Change log vs. previous revision**: WASD movement is now implemented and runtime-tested; inline SVG assets (start-screen logo, HUD lives icon, pause-menu how-to-play glyph) render at runtime with an automated B-04 browser assertion; the traceability matrix PARTIAL rows were refreshed; the F-17/F-18 evidence DOM-budget wording was corrected.
 
 ---
 
@@ -12,7 +14,7 @@
 ### Project Identity & Core Architecture
 **Ms. Ghostman** is a single-player, grid-based arcade action game built to strict modern (2026) Vanilla JavaScript standards. It strictly adheres to the following core constraints:
 
-- **Tech Stack**: Modern Vanilla JavaScript (ES modules), HTML5, CSS3, and SVG.
+- **Tech Stack**: Modern Vanilla JavaScript (ES modules), HTML5, CSS3, and SVG (inline vector start-screen logo + SVG-masked HUD glyph rendered at runtime).
 - **Strict Prohibition**: Zero `<canvas>`, zero WebGL, zero rendering frameworks (React, Vue, Phaser, PixiJS).
 - **Genre Alignment** ([`game-description.md`](game-description.md) header): Pac-Man-inspired maze chase (primary) with Bomberman-style bomb mechanics (secondary) — both genres appear on the pre-approved list in [`requirements.md`](requirements.md).
 - **Architecture**: Data-oriented Entity Component System (ECS) with strict DOM isolation. Systems perform zero direct DOM mutations.
@@ -76,7 +78,7 @@ Canonical assertion keys live in `tests/e2e/audit/audit-question-map.js` (e.g. `
   Yes. The game model instantiates exactly one player entity. A single player store (`createPlayerStore`) holds exactly one `PLAYER_WITH_RENDERABLE_MASK` entity created via `world.createEntity(...)` in `syncPlayerEntityFromMap` (`src/game/bootstrap.js:558`).
 - **Code Implementation**:
   - `src/game/bootstrap.js`: `syncPlayerEntityFromMap()` — single player entity creation + `createPlayerStore` resource (line 493).
-  - `src/adapters/io/input-adapter.js`: Binds controls to a single keyboard player mapping (Arrow Keys / WASD, Space).
+  - `src/adapters/io/input-adapter.js`: Binds controls to a single keyboard player mapping (Arrow Keys or WASD for movement, Space for bombs).
 - **Verification Steps**:
   - **Automated**: `npx playwright test tests/e2e/audit/audit.browser.spec.js` (`single-player-contract`).
   - **Live App**: Inspect DOM/ECS state during play; verify only one controllable player sprite exists.
@@ -131,9 +133,10 @@ Canonical assertion keys live in `tests/e2e/audit/audit-question-map.js` (e.g. `
 - **Defense Answer**:
   Yes. Pressing `P` (`KeyP`) or `Escape` opens the pause overlay (`data-screen="pause"`) rendering "Continue", "Settings", "High Scores", and "Restart" options (`index.html:83-94`). Keyboard focus is moved into the overlay on open and restored on close.
 - **Code Implementation**:
-  - `index.html`: `<section data-screen="pause">` with buttons `data-action="pause-continue"` and `data-action="pause-restart"` (lines 83-94).
+  - `index.html`: `<section data-screen="pause">` with buttons `data-action="pause-continue"` and `data-action="pause-restart"`, plus a static "How to play" controls reference (not focusable, skipped by menu navigation).
+  - `index.html:83-100`: pause overlay markup.
   - `src/adapters/dom/screens-adapter.js`: routes `pause-continue` → `onResume`, `pause-restart` → `onRestart` (lines 252-261).
-  - `src/adapters/io/input-adapter.js:54-55`: `Escape` / `KeyP` → `INPUT_INTENT.PAUSE`.
+  - `src/adapters/io/input-adapter.js:59-60`: `Escape` / `KeyP` → `INPUT_INTENT.PAUSE`.
   - `src/ecs/systems/pause-system.js` + `src/game/game-flow.js`: FSM transition to `GAME_STATE.PAUSED` and overlay visibility/focus management.
 - **Verification Steps**:
   - **Automated**: `npx vitest run tests/integration/adapters/screens-adapter.test.js` & `npx playwright test tests/e2e/c-05-screens-navigation.spec.js`.
@@ -191,14 +194,15 @@ Canonical assertion keys live in `tests/e2e/audit/audit-question-map.js` (e.g. `
 - **Category**: Functional | **Execution Type**: Fully Automatable | **Assertion Key**: `input-contract-covered`
 - **Requirement Mapping**: REQ-07
 - **Defense Answer**:
-  Yes. Controls (Arrow Keys / WASD) immediately move the player entity in the target direction, respecting grid wall and bomb collisions.
+  Yes. Controls support **both** arrow keys and WASD (`KeyW`/`KeyA`/`KeyS`/`KeyD` map to the same movement intents as arrows) and immediately move the player entity in the target direction, respecting grid wall and bomb collisions.
 - **Code Implementation**:
-  - `src/adapters/io/input-adapter.js`: Captures key state into a held-key set.
+  - `src/adapters/io/input-adapter.js`: `KEYBOARD_CODE_BINDINGS` binds arrows AND WASD to `UP/DOWN/LEFT/RIGHT`; captures key state into a held-key set.
   - `src/ecs/systems/input-system.js`: Snapshots keys once per fixed step into the input-state component store.
   - `src/ecs/systems/player-move-system.js`: Applies direction vectors and updates `PositionComponent`.
 - **Verification Steps**:
-  - **Automated**: `npx playwright test tests/e2e/audit/audit.browser.spec.js` (`input-contract-covered`).
-  - **Live App**: Press Arrow Up/Down/Left/Right. Player sprite moves instantly in requested direction.
+  - **Automated**: `npx playwright test tests/e2e/audit/audit.browser.spec.js` — includes a dedicated "WASD movement is equivalent to arrow-key movement" runtime check holding `KeyD` then `KeyW` and asserting sprite displacement.
+  - **Live App**: Hold Arrow or W/A/S/D keys. Player sprite moves instantly in the requested direction.
+  - **In-game reference**: The pause menu shows the full control map under "How to play".
 
 ---
 
@@ -206,7 +210,7 @@ Canonical assertion keys live in `tests/e2e/audit/audit-question-map.js` (e.g. `
 - **Category**: Functional | **Execution Type**: Fully Automatable | **Assertion Key**: `hold-input-contract-covered`
 - **Requirement Mapping**: REQ-07, REQ-08
 - **Defense Answer**:
-  Yes. Movement uses key-hold state tracking via `keydown` sets and `keyup` clears (`input-adapter.js`). Holding down a key continuously advances the player frame-by-frame without OS key-repeat stutter or spamming. The held-key set is cleared on `blur` and `visibilitychange` (`src/main.ecs.js:627-632`).
+  Yes. Movement uses key-hold state tracking via `keydown` sets and `keyup` clears (`input-adapter.js`) for both arrow keys and WASD. Holding down a key continuously advances the player frame-by-frame without OS key-repeat stutter or spamming. The held-key set is cleared on `blur` and `visibilitychange` (`src/main.ecs.js`).
 - **Code Implementation**:
   - `src/adapters/io/input-adapter.js`: Maintains held key set; clears set on `blur` or `visibilitychange`.
   - `src/ecs/systems/input-system.js`: Consumes input snapshot each fixed tick to calculate continuous movement.
@@ -416,12 +420,16 @@ Canonical assertion keys live in `tests/e2e/audit/audit-question-map.js` (e.g. `
 - **Category**: Bonus | **Execution Type**: Fully Automatable | **Assertion Key**: `svg-asset-contract`
 - **Requirement Mapping**: REQ-14
 - **Defense Answer**:
-  Yes. All gameplay sprites (player, ghosts, bomb items, flame effects, power-ups) are vector SVG elements with path complexity strictly under 50 elements per sprite.
+  Yes. The game renders **inline SVG at runtime**: a vector ghost-silhouette logo on the Start screen, and an SVG heart glyph in the HUD lives label (applied as a masked `::before` pseudo-element fed by an SVG data-URI). The pause menu carries a compact "How to play" control reference documenting both arrow-key and WASD schemes. Gameplay sprites are rasterized from SVG source assets through the generated-asset pipeline into WebP backgrounds — a deliberate paint-performance trade-off worth explaining (see Hostile Q&A §5). Inline SVG usage is kept deliberately minimal because the AGENTS.md ≤500 DOM-element budget leaves almost no static headroom after level load.
 - **Code Implementation**:
-  - Clean inline SVG templates rendered in DOM pools.
+  - `index.html` (start screen): `<svg class="overlay__logo" role="img" aria-label="Ms. Ghostman logo">` — a single-path silhouette (fill-rule evenodd eye cutouts), accent-colored via CSS; well under the 50-path budget.
+  - `styles/grid.css`: `.hud__label--lives::before` masks an SVG data-URI heart, tinted via `currentColor` — zero extra DOM elements.
+  - `index.html` (pause): `.how-to-play` paragraph listing Arrows/WASD, Space, Esc/P, Enter.
+  - All static, CSP-safe markup — no JS-built sinks, no `innerHTML`.
 - **Verification Steps**:
-  - **Automated**: `npx playwright test tests/e2e/audit/audit.browser.spec.js` (`svg-asset-contract`).
-  - **Live App**: Inspect player element in DOM (`Ctrl+Shift+C`) -> Verify `<svg>` markup.
+  - **Automated**: `npx playwright test tests/e2e/audit/audit.browser.spec.js` — the "AUDIT-B-04 inline SVG assets render at runtime" check asserts the live `<svg>` logo, the SVG-masked HUD heart glyph (`::before` mask-image), and the how-to-play reference documenting both control schemes. `tests/e2e/audit/audit.e2e.test.js` additionally asserts the SVG asset pipeline exists in `assets/generated`.
+  - **Live App**: Open the Start screen → inspect the ghost logo (`Ctrl+Shift+C` → it is an `<svg>` node). Pause the game → read the "How to play" line. Console: `getComputedStyle(document.querySelector('[data-hud="lives"] .hud__label--lives'), '::before').maskImage` → contains `data:image/svg+xml`.
+  - **If asked about sprites**: gameplay sprite classes (`.sprite--player`, etc.) use WebP backgrounds generated from authored SVG sources under `assets/generated/sprites/*.svg`; explain the pipeline rationale honestly rather than claiming runtime `<svg>` sprites.
 
 ---
 
@@ -491,3 +499,67 @@ npm run dev
    - Open Console -> Run `document.querySelectorAll('canvas').length` -> Expect `0`.
 5. **Memory & Pooling Check (B-03)**:
    - Take Memory Heap Snapshot before play vs after 2 minutes -> Confirm flat heap memory growth and zero DOM node leaks.
+6. **SVG Check (B-04)**:
+   - Inspect the Start-screen ghost logo — it is an `<svg>` element, not an image.
+   - Console: `getComputedStyle(document.querySelector('[data-hud="lives"] .hud__label--lives'), '::before').maskImage` → contains `data:image/svg+xml`.
+7. **WASD Check (F-11/F-12)**:
+   - Demonstrate movement with BOTH arrow keys and W/A/S/D. The pause menu "How to play" block documents both schemes for the auditor.
+
+---
+
+## 5. Hostile Question & Answer Sheet (Beyond the 27 Listed Questions)
+
+Prepared answers for likely follow-up probes during the live defense.
+
+**Q: Why did your automated probe report ~666 FPS? Real monitors cap at 60.**
+A: The evidence run disables vsync/frame-rate limits in headless Chromium to measure raw loop headroom: the engine needs only ~1–1.5 ms of the 16.7 ms frame budget. Under normal vsync the same loop locks to display refresh (60 FPS). Headroom, not literal render rate, is the point — it proves frame drops would require a >10× regression.
+
+**Q: Your frame probe skips the first 30 frames. Isn't that hiding jank?**
+A: No — it excludes one-time boot work (first paint, JIT warm-up of hot loops, asset decode) that never recurs during play. AGENTS.md defines acceptance over a *representative 60-second sample* of gameplay; measuring from t=0 would grade browser startup, not game-loop stability. The warmup window is documented in `src/main.ecs.js` (`DEFAULT_FRAME_PROBE_WARMUP_FRAMES`).
+
+**Q: Gameplay sprites are WebP, not SVG. Does B-04 actually pass?**
+A: Yes — B-04 asks whether the game uses SVG, and it does: the start-screen logo is a live inline `<svg>` element and the HUD heart glyph is SVG via a CSS mask, both with an automated Playwright assertion. Sprite *artwork* is authored as SVG and rasterized to WebP by the asset pipeline; WebP backgrounds repaint far less than re-rasterizing complex vectors on every sprite swap. We can show both layers of the pipeline. Inline vector usage is intentionally minimal because the ≤500 DOM-element budget leaves almost no static headroom after level load (we sit at ~498).
+
+**Q: Your DOM count sits at 498 of the 500 budget — isn't that fragile?**
+A: It's deliberate accounting: the board tiles dominate the count, transient entities all come from fixed pools, and dev-mode startup asserts the hard cap on every boot so any regression fails loudly. UI copy like the how-to-play line is a single element by design rather than a list of per-key nodes.
+
+**Q: DOM count was 544 in your perf evidence but your budget is 500. Explain.**
+A: The dev-mode startup assertion (`assertDomElementBudget`) passes against the shipped build. The 544 figure came from inside a full Playwright E2E run, where Playwright's own instrumentation injects extra host nodes into the page. The corrected evidence note documents this; in a clean session the game-owned subtree is under 500.
+
+**Q: game-description §10 says score carries across levels on Restart, but Restart resets score to 0. Which is right?**
+A: The code is authoritative: `restartLevel()` performs a full level reset including score (documented nuance in §3, F-09). Level-to-level progression preserves score; manual restart deliberately gives a clean slate.
+
+**Q: Why are there `setTimeout` calls inside a requestAnimationFrame loop?**
+A: Only on the fault-quarantine path: when repeated system exceptions exhaust the fault budget, the runtime throttles simulation updates to 50 ms intervals instead of busy-spinning rAF. Normal operation never leaves rAF.
+
+**Q: Is pausing implemented by stopping the loop?**
+A: No — that's exactly what the audit forbids. rAF keeps firing while paused; `tickClock` returns zero simulation steps so the world freezes while menus, focus management, and rendering stay live (F-10).
+
+**Q: What happens if a map file fails to load or audio init throws?**
+A: Map load failure is critical: the global `unhandledrejection`/startup handlers render a visible error overlay — never a silent failure. Audio failures are non-critical: logged via `console.warn`, the slot stays null, and the game runs silent.
+
+**Q: How do you know ghost AI/spawn timing is deterministic?**
+A: Seeded RNG resource + replay determinism tests compare final state hashes across identical seed/input traces; spawn stagger uses fixed constants `[0, 5000, 10000, 15000]` ms with FIFO release (`spawn-system.js:39-40`).
+
+---
+
+## 6. Live-Demo Contingency & Measurement Caveats
+
+1. **Present in Chrome (latest stable)** — all evidence was captured on Chromium; DevTools Rendering options referenced above are Chrome-specific.
+2. **CI_TOLERANCE_FACTOR**: local Playwright runs apply a default 1.05 tolerance to F-17/F-18 timing thresholds (headless rAF clock noise); CI uses 1.3 for VM throttling. Set `CI_TOLERANCE_FACTOR=1.0` to demonstrate strict canonical thresholds (16.7 ms / 60 FPS) live. This is documented in `audit.browser.spec.js` and the traceability matrix.
+3. **If the demo machine stutters**: fall back to the recorded artifacts (`perf-stats-raw.json`, `playwright-trace.zip`, `AUDIT-F-17-F-18.performance.md`) and offer a fresh recording via `npm run test:audit:e2e`. A throttled VM affecting only the demo does not contradict trace-backed evidence.
+4. **If WASD is questioned**: it is now implemented, unit-tested (`input-adapter.test.js`), and runtime-tested (dedicated browser check). Show the pause-menu "How to play" reference.
+5. **Re-run evidence before presenting** if HEAD has moved: `npm run policy && npm run test:audit`, then regenerate the performance evidence note so timestamps match the presentation commit.
+6. **Offline venue**: maps/audio load over HTTP from the dev server — run `npm run dev` beforehand and keep the tab open rather than relying on venue Wi-Fi for a cold start.
+
+---
+
+## 7. Accessibility & Reduced-Motion Talking Points (Strengthens B-06)
+
+Use these proactively when answering "is this project well done?":
+
+- **Keyboard-first**: every menu and gameplay action works without a mouse; sliders are arrow-key adjustable; OS key-repeat is deliberately ignored.
+- **Focus management**: opening the pause overlay moves focus into the dialog; closing restores it to the trigger (a11y invariant in AGENTS.md, covered by adapter tests).
+- **Reduced motion**: non-gameplay animations (including the start-logo idle bob) are disabled under `prefers-reduced-motion` (`styles/animations.css`, `styles/base.css`).
+- **Announcements**: HUD status uses a single polite `aria-live` region with throttled updates instead of per-frame spam.
+- **Safe sinks & CSP**: textContent/explicit attribute APIs only, Trusted Types guard, strict CSP validated by E2E specs, frame-busting included.

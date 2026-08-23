@@ -62,12 +62,12 @@ The playing field is a **rigid CSS Grid**. Every cell sits at an integer `(row, 
 
 | Key | Action |
 |---|---|
-| `↑` Arrow Up | Move up |
-| `↓` Arrow Down | Move down |
-| `←` Arrow Left | Move left |
-| `→` Arrow Right | Move right |
+| `↑` Arrow Up / `W` | Move up |
+| `↓` Arrow Down / `S` | Move down |
+| `←` Arrow Left / `A` | Move left |
+| `→` Arrow Right / `D` | Move right |
 
-- **Hold-to-move**: Pressing and holding an arrow key causes continuous movement. Releasing the key stops movement immediately.
+- **Hold-to-move**: Pressing and holding a movement key (arrow or WASD) causes continuous movement. Releasing the key stops movement immediately.
 - Movement is **grid-aligned**: the character smoothly translates from one grid cell to the next using CSS `transform: translate()` driven by `requestAnimationFrame`.
 - If the target cell is a wall (indestructible or destructible), the player **stops**.
 - Collecting a pellet removes it from the grid and increments the score.

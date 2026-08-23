@@ -44,12 +44,18 @@ export const INPUT_INTENT = Object.freeze({
 /**
  * Canonical KeyboardEvent.code bindings.
  * `code` is preferred because it is layout-stable for the supported controls.
+ * Both arrow keys and WASD are bound to movement so players can use either
+ * scheme interchangeably (hold-to-move works identically for both).
  */
 const KEYBOARD_CODE_BINDINGS = Object.freeze({
   ArrowUp: INPUT_INTENT.UP,
   ArrowDown: INPUT_INTENT.DOWN,
   ArrowLeft: INPUT_INTENT.LEFT,
   ArrowRight: INPUT_INTENT.RIGHT,
+  KeyW: INPUT_INTENT.UP,
+  KeyS: INPUT_INTENT.DOWN,
+  KeyA: INPUT_INTENT.LEFT,
+  KeyD: INPUT_INTENT.RIGHT,
   Space: INPUT_INTENT.BOMB,
   Escape: INPUT_INTENT.PAUSE,
   KeyP: INPUT_INTENT.PAUSE,
@@ -64,6 +70,14 @@ const KEYBOARD_KEY_BINDINGS = Object.freeze({
   ArrowDown: INPUT_INTENT.DOWN,
   ArrowLeft: INPUT_INTENT.LEFT,
   ArrowRight: INPUT_INTENT.RIGHT,
+  w: INPUT_INTENT.UP,
+  W: INPUT_INTENT.UP,
+  s: INPUT_INTENT.DOWN,
+  S: INPUT_INTENT.DOWN,
+  a: INPUT_INTENT.LEFT,
+  A: INPUT_INTENT.LEFT,
+  d: INPUT_INTENT.RIGHT,
+  D: INPUT_INTENT.RIGHT,
   ' ': INPUT_INTENT.BOMB,
   Spacebar: INPUT_INTENT.BOMB,
   Escape: INPUT_INTENT.PAUSE,
