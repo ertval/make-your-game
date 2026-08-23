@@ -110,7 +110,7 @@ Why this project uses ECS: it keeps gameplay logic modular, deterministic, and f
 
 | Key | Action |
 |---|---|
-| `↑` `↓` `←` `→` | Move Ms. Ghostman (hold for continuous movement) |
+| `↑` `↓` `←` `→` or `W` `A` `S` `D` | Move Ms. Ghostman (hold for continuous movement) |
 | `Space` | Drop a bomb |
 | `Escape` / `P` | Pause / Resume |
 | `Enter` | Confirm menu selections |
