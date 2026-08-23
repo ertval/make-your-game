@@ -249,6 +249,57 @@ body {
   opacity: 0.8;
 }
 
+/* --- B-04: inline SVG logo (start screen) ------------------------------- */
+/* Static vector asset rendered by the browser's SVG engine — no canvas, no
+   raster decode. Single path, accent-colored via fill; sized once and never
+   repainted during gameplay. */
+.overlay__logo {
+  display: block;
+  margin: 0 auto var(--space-sm, 8px);
+  fill: var(--color-accent, #ffb703);
+  filter: drop-shadow(0 2px 6px rgba(0, 0, 0, 0.4));
+}
+
+/* Respect reduced motion for the decorative idle bob (non-gameplay animation). */
+@media (prefers-reduced-motion: no-preference) {
+  .overlay__logo {
+    animation: logo-bob 2.4s ease-in-out infinite;
+  }
+
+  @keyframes logo-bob {
+    0%,
+    100% {
+      transform: translateY(0);
+    }
+
+    50% {
+      transform: translateY(-4px);
+    }
+  }
+}
+
+/* --- Pause-menu how-to-play reference ------------------------------------ */
+/* Deliberately a single <p> element: the AGENTS.md ≤500 DOM-element budget
+   leaves almost no static headroom after level load, so the control map is
+   compact text instead of a list with per-key <kbd> nodes. */
+.how-to-play {
+  margin: var(--space-md, 16px) 0 0;
+  padding-top: var(--space-sm, 8px);
+  border-top: 1px solid rgba(255, 183, 7, 0.3);
+  font-size: 0.75rem;
+  line-height: 1.6;
+  letter-spacing: 0.02em;
+  color: var(--color-text-muted, #9aa0b4);
+  text-align: center;
+}
+
+.how-to-play::first-line {
+  color: var(--color-accent, #ffb703);
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
 /* C-11B: audio quick-toggle — compact HUD chips aligned with score/lives/etc. */
 .audio-quick-toggle {
   display: inline-flex;

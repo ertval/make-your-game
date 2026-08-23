@@ -604,6 +604,90 @@ test('AUDIT-F-12 hold-input mechanism is robust', async ({ page }) => {
   await page.keyboard.up('ArrowLeft');
 });
 
+test('AUDIT-F-11 WASD movement is equivalent to arrow-key movement', async ({ page }) => {
+  await bootRuntime(page);
+  await page.evaluate(() => {
+    const runtime = window.__MS_GHOSTMAN_RUNTIME__;
+    runtime.startGame({ levelIndex: 0 });
+    if (runtime.getSnapshot().state !== 'PLAYING') {
+      runtime.setState('PLAYING');
+    }
+  });
+
+  const getPlayerPosition = async () => {
+    return page.evaluate(() => {
+      const player = document.querySelector('.sprite--player');
+      if (!player) return null;
+      const rect = player.getBoundingClientRect();
+      return { x: rect.x, y: rect.y };
+    });
+  };
+
+  const startPos = await getPlayerPosition();
+  expect(startPos).not.toBeNull();
+
+  // Hold KeyD (WASD right) and assert real sprite movement, same contract as
+  // the arrow-key F-11/F-12 checks.
+  await page.keyboard.down('KeyD');
+
+  await expect
+    .poll(async () => (await getPlayerPosition()).x, { timeout: 2000 })
+    .toBeGreaterThan(startPos.x);
+
+  await page.keyboard.up('KeyD');
+
+  // KeyW (WASD up) must also map to movement on at least one axis.
+  const midPos = await getPlayerPosition();
+  await page.keyboard.down('KeyW');
+
+  await expect
+    .poll(
+      async () => {
+        const pos = await getPlayerPosition();
+        return Math.abs(pos.y - midPos.y) + Math.abs(pos.x - midPos.x);
+      },
+      { timeout: 2000 },
+    )
+    .toBeGreaterThan(0);
+
+  await page.keyboard.up('KeyW');
+});
+
+test('AUDIT-B-04 inline SVG assets render at runtime (logo, HUD glyph, how-to-play)', async ({
+  page,
+}) => {
+  await bootRuntime(page, { autoStart: false });
+
+  // The start screen shows the vector logo while in MENU (boot default).
+  const startScreen = page.locator('[data-screen="start"]');
+  await expect(startScreen).toBeVisible();
+  await expect(startScreen.locator('svg.overlay__logo')).toBeVisible();
+
+  // HUD lives label carries the SVG heart glyph as a masked CSS pseudo-element.
+  const heartMask = await page.evaluate(() => {
+    const label = document.querySelector('[data-hud="lives"] .hud__label--lives');
+    if (!label) return '';
+    return getComputedStyle(label, '::before').maskImage || '';
+  });
+  expect(heartMask).toContain('data:image/svg+xml');
+
+  // Start a game so the FSM legally reaches PAUSED for the how-to-play check.
+  await page.evaluate(() => {
+    window.__MS_GHOSTMAN_RUNTIME__.startGame({ levelIndex: 0 });
+    window.__MS_GHOSTMAN_RUNTIME__.setState('PAUSED');
+  });
+  const pauseScreen = page.locator('[data-screen="pause"]');
+  await expect(pauseScreen).toBeVisible();
+
+  // How-to-play documents both control schemes.
+  const howToPlay = pauseScreen.locator('.how-to-play');
+  await expect(howToPlay).toBeVisible();
+  const howToPlayText = await howToPlay.textContent();
+  expect(howToPlayText).toContain('WASD');
+  expect(howToPlayText).toContain('Arrows');
+  expect(howToPlayText).toContain('Space');
+});
+
 test('AUDIT-F-14 HUD metrics are present', async ({ page }) => {
   await bootRuntime(page);
   const hasTimer = await page.evaluate(() => !!document.querySelector('[data-hud="timer"]'));
